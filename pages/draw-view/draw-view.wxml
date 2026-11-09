@@ -22,7 +22,7 @@
     <view class="card info">
       <view class="card-title row">
         <text>时间地点</text>
-        <text wx:if="{{isOwner}}" class="link" bindtap="goEdit">编辑</text>
+        <text wx:if="{{canManage}}" class="link" bindtap="goEdit">编辑</text>
       </view>
       <view class="in-row"><text class="in-k">时间</text><text class="in-v">{{info.when || '暂无'}}</text></view>
       <block wx:if="{{!info.empty}}">
@@ -30,7 +30,7 @@
         <view class="in-row" bindlongpress="copyAddress"><text class="in-k">地址</text><text class="in-v">{{info.address || '暂无'}}</text></view>
         <view wx:if="{{info.canNav || info.address}}" class="nav-btn" bindtap="openMap">{{info.canNav ? '📍 打开地图导航' : '复制地址'}}</view>
       </block>
-      <view wx:else class="muted">{{isOwner ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
+      <view wx:else class="muted">{{canManage ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
 
       <view wx:if="{{contact}}" class="contact">
         <view class="in-row"><text class="in-k">联系人</text><text class="in-v">{{contact.name || '暂无'}}</text></view>
@@ -80,7 +80,14 @@
         </view>
       </view>
 
-      <view wx:if="{{joined}}" class="joined">✅ 你已报名 <text class="quit" bindtap="quit">取消报名</text></view>
+      <view wx:if="{{joined}}" class="joined">
+        <view class="joined-ic">✓</view>
+        <view class="joined-main">
+          <view class="joined-t">你已报名</view>
+          <view class="joined-s">{{isDouble ? '截止报名前可以取消，会连同搭档一起取消' : '截止报名前可以随时取消'}}</view>
+        </view>
+        <view class="quit" hover-class="quit-hover" bindtap="quit">取消报名</view>
+      </view>
       <picker wx:elif="{{isDouble && myName && !full}}" range="{{partnerOpts}}" bindchange="joinDouble">
         <view class="btn-primary {{busy ? 'disabled' : ''}}">我要报名（选择搭档）</view>
       </picker>
@@ -154,7 +161,7 @@
 
     <view class="actions">
       <button class="share" open-type="share">{{signing ? '分享到群，邀请报名' : '分享赛事到群'}}</button>
-      <view wx:if="{{isOwner}}" class="del" bindtap="remove">删除</view>
+      <view wx:if="{{canManage}}" class="del" bindtap="remove">{{isOwner ? '删除' : '删除（管理员）'}}</view>
     </view>
   </block>
 </view>

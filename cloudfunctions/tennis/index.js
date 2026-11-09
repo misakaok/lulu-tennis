@@ -786,6 +786,14 @@ async function ownDraw(drawId, uid) {
   if (d._openid !== uid) deny('只有赛事发起人可以操作');
   return d;
 }
+// 编辑赛事信息、修改联系人、删除赛事：发起人或管理员（环境变量 ADMIN_OPENIDS）。
+// 管理员的这些操作都留档并通知发起人；签表、录分、裁定、退赛等其他赛事操作仍然只有发起人能做。
+async function manageDraw(drawId, uid) {
+  const d = await loadDraw(drawId);
+  const owner = d._openid === uid;
+  if (!owner && !isAdmin(uid)) deny('只有赛事发起人或管理员可以操作');
+  return { d, owner, asAdmin: !owner };
+}
 
 // 发布赛事：只有设置（开放报名），或连同签表一起（直接生成）
 async function createDraw({ draw }, uid) {
@@ -814,24 +822,32 @@ async function generateDraw({ drawId, draw }, uid) {
 }
 
 async function updateDrawInfo({ drawId, info }, uid) {
-  await ownDraw(drawId, uid);
+  const { d, asAdmin } = await manageDraw(drawId, uid);
   const i = plainObj(info) ? info : {};
   const title = str(i.title, 30);
   if (!title) deny('请填写赛事名称');
   const c = cleanInfo(i);
-  await db.collection('draws').doc(drawId).update({ data: Object.assign({ title }, c, { location: c.location ? _.set(c.location) : null, updatedAt: db.serverDate() }) });
+  await db.collection('draws').doc(drawId).update({ data: Object.assign({ title }, c, { location: c.location ? _.set(c.location) : null, updatedAt: db.serverDate(), updatedBy: uid }) });
+  if (asAdmin) {
+    const pick = (x) => ({ title: x.title || '', date: x.date || '', startTime: x.startTime || '', venue: x.venue || '', address: x.address || '' });
+    await logAction({ type: 'adminEditDraw', drawId, by: uid, before: pick(d), after: pick(Object.assign({ title }, c)) });
+    await notify('result', [d._openid], { type: '赛事信息 · ' + title, result: '已修改', note: '管理员修改了赛事信息' }, 'pages/draw-view/draw-view?id=' + drawId);
+  }
   return {};
 }
 
 // 删除赛事：软删除（签表从所有列表消失，已录比分照常保留在战绩里，参赛名 → ID 的对应也还在，确认 / 评价不受影响）。
 // 联系人（个人信息）直接删除；赛事相册的照片文件和记录一起删除；还没处理的申请作废；留档。
-async function removeDraw({ drawId }, uid) {
-  await ownDraw(drawId, uid);
-  await db.collection('draws').doc(drawId).update({ data: { deleted: true, deletedBy: uid, deletedAt: db.serverDate() } });
+// 管理员删除别人的赛事必须填原因（留档，并通知发起人）
+async function removeDraw({ drawId, reason }, uid) {
+  const { d, asAdmin } = await manageDraw(drawId, uid);
+  const why = cleanReason(reason, asAdmin);
+  await db.collection('draws').doc(drawId).update({ data: { deleted: true, deletedBy: uid, deletedAt: db.serverDate(), deleteReason: why, deletedByAdmin: asAdmin } });
   await db.collection('event_contacts').doc(drawId).remove().catch(() => {});
   await db.collection('requests').where({ drawId, status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '赛事已删除', handledAt: db.serverDate() } });
   const photos = await removeEventPhotos(drawId);
-  await logAction({ type: 'deleteDraw', drawId, by: uid, photos });
+  await logAction({ type: 'deleteDraw', drawId, by: uid, byAdmin: asAdmin, reason: why, photos });
+  if (asAdmin) await notify('result', [d._openid], { type: '赛事删除 · ' + (d.title || '赛事'), result: '已删除', note: '管理员删除：' + why }, 'pages/draw/draw');
   return { photos: { removed: photos.removed, failed: photos.failed } };
 }
 
@@ -874,7 +890,8 @@ async function getContact({ drawId }, uid) {
   const c = await getDoc('event_contacts', drawId);
   if (!c) return { has: false };
   const owner = draw._openid === uid;
-  const visible = owner || c.visibility === 'all' || (await isParticipant(draw, uid));
+  // 管理员也能看到完整联系人（编辑赛事信息时要用）
+  const visible = owner || isAdmin(uid) || c.visibility === 'all' || (await isParticipant(draw, uid));
   const pub = { has: true, visibility: c.visibility, owner, visible };
   if (!visible) return Object.assign(pub, { name: c.name ? c.name.slice(0, 1) + '**' : '', reason: '报名后可查看联系方式' });
   return Object.assign(pub, { name: c.name || '', phone: c.phone || '', wechat: c.wechat || '' });
@@ -883,7 +900,8 @@ async function getContact({ drawId }, uid) {
 async function saveContact({ drawId, contact }, uid) {
   const draw = await getDoc('draws', drawId);
   if (!draw) deny('赛事不存在');
-  if (draw._openid !== uid) deny('只有赛事发起人可以修改联系人');
+  if (draw._openid !== uid && !isAdmin(uid)) deny('只有赛事发起人或管理员可以修改联系人');
+  if (draw.deleted) deny('赛事已删除');
   const c = contact || {};
   const s = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
   const data = { name: s(c.name, 20), phone: s(c.phone, 20), wechat: s(c.wechat, 40), visibility: VIS.indexOf(c.visibility) >= 0 ? c.visibility : 'participants' };
@@ -1628,7 +1646,7 @@ async function dataset() {
 //   status: pending 待审核 / active 正式成员 / rejected 申请未通过 / removed 成员资格已取消
 // invites（仅管理端可读写）：_id = 邀请码，一次性、有有效期
 // 管理员：云函数环境变量 ADMIN_OPENIDS（逗号分隔的 openid），只能在云开发控制台配置，前端改不了；
-//   管理员默认是成员。成员管理员和赛事发起人是两回事：管理员不因此获得任何赛事操作权限。
+//   管理员默认是成员。赛事权限：管理员可以编辑任何赛事的信息（名称、时间、场地、联系人）和删除赛事（必须填原因），都会留档并通知发起人；生成签表、录分、裁定改分、处理退赛仍然只有发起人能做（manageDraw）。
 // 分隔符兼容英文 / 中文逗号、分号、空格和换行，去掉误加的引号
 const adminTokens = () => String(process.env.ADMIN_OPENIDS || '').split(/[,，;；、\s]+/).map((x) => x.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')).filter(Boolean);
 const ADMINS = () => adminTokens();

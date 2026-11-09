@@ -10,7 +10,9 @@ Page({
   async load() {
     try {
       const [d, owner] = await Promise.all([db.getDraw(this.id), db.isMine('draws', this.id)]);
-      if (!owner) throw new Error('只有赛事发起人可以编辑');
+      const isAdmin = require('../../utils/member').isAdminLocal();
+      if (!owner && !isAdmin) throw new Error('只有赛事发起人或管理员可以编辑');
+      if (!owner) wx.setNavigationBarTitle({ title: '编辑赛事（管理员）' });
       let contact = null, contactNote = '';
       try {
         const c = await cloud.call('getContact', { drawId: this.id });

@@ -59,7 +59,10 @@ Page({
         draw: d, meta, seedsText, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', matches,
       });
-      db.isMine('draws', this.id).then((isOwner) => this.setData({ isOwner })).catch(() => {});
+      // 编辑信息、删除：发起人或管理员（管理员只决定显示按钮，权限由云函数判断）；其他赛事操作只有发起人
+      const isAdmin = require('../../utils/member').isAdminLocal();
+      this.setData({ canManage: isAdmin || !!this.data.isOwner });
+      db.isMine('draws', this.id).then((isOwner) => this.setData({ isOwner, canManage: isOwner || isAdmin })).catch(() => {});
       this.setData({ info: this.infoOf(d) });
       this.loadContact();
       this.loadPhotoCount();
@@ -328,6 +331,7 @@ Page({
   },
 
   remove() {
+    if (!this.data.isOwner) { this.adminRemove(); return; }
     wx.showModal({
       title: '删除这个赛事？',
       content: '删除后所有人都看不到签表了，赛事相册的照片和联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
@@ -341,6 +345,18 @@ Page({
         } catch (e) { wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false }); }
       },
     });
+  },
+
+  // 管理员删除别人发起的赛事：必须填原因（留档，并通知发起人）
+  async adminRemove() {
+    const reason = await this.ask('删除这个赛事（管理员）', '删除原因（必填，会通知发起人）。相册照片和联系人一起删除，已录比分保留');
+    if (reason === null) return;
+    if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
+    try {
+      await db.removeDraw(this.id, reason);
+      wx.showToast({ title: '已删除' });
+      setTimeout(() => wx.navigateBack(), 600);
+    } catch (e) { wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false }); }
   },
 
   goHome() { wx.switchTab({ url: '/pages/draw/draw' }); },

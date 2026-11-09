@@ -82,5 +82,5 @@
       </view>
     </view>
   </block>
-  <view class="foot">成员管理只控制「能不能用」，不改变赛事里的发起人权限</view>
+  <view class="foot">管理员可以编辑、删除任何赛事（会通知发起人）；签表、录分、裁定、退赛仍由发起人处理</view>
 </view>

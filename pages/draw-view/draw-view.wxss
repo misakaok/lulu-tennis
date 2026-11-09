@@ -23,8 +23,13 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .su-av.init { display: flex; align-items: center; justify-content: center; font-size: 38rpx; font-weight: 800; color: #22223a; }
 .su-name { font-size: 24rpx; font-weight: 600; margin-top: 10rpx; max-width: 150rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .su-lv { font-size: 20rpx; color: #6e6ea3; font-weight: 700; }
-.joined { text-align: center; background: #f1f1f8; color: #4f4f7d; border-radius: 48rpx; height: 96rpx; line-height: 96rpx; font-size: 28rpx; font-weight: 600; }
-.quit { color: #b34d4d; font-weight: 400; font-size: 24rpx; margin-left: 20rpx; text-decoration: underline; }
+.joined { display: flex; align-items: center; padding: 22rpx 24rpx; background: #F4F4FA; border-radius: 24rpx; }
+.joined-ic { flex: none; width: 56rpx; height: 56rpx; border-radius: 50%; background: linear-gradient(135deg, #A3A3CB, #8484B6); color: #fff; font-size: 30rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.joined-main { flex: 1; min-width: 0; margin-left: 20rpx; }
+.joined-t { font-size: 29rpx; font-weight: 700; color: #3E3E66; }
+.joined-s { margin-top: 4rpx; font-size: 22rpx; color: #8C8CA3; }
+.quit { flex: none; margin-left: 16rpx; padding: 0 26rpx; height: 60rpx; line-height: 58rpx; border-radius: 30rpx; border: 2rpx solid #CFCFE6; background: #fff; color: #6E6EA3; font-size: 25rpx; }
+.quit-hover { background: #EEEEF7; border-color: #A3A3CB; }
 .btn-owner { margin-top: 20rpx; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: 44rpx; border: 2rpx dashed #a3a3cb; color: #6e6ea3; font-weight: 700; font-size: 28rpx; }
 
 .h-format { margin-top: 10rpx; font-size: 22rpx; opacity: 0.9; }

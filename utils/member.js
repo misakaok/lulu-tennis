@@ -28,6 +28,7 @@ async function status() {
   const r = await cloud.call('memberStatus');
   try {
     wx.setStorageSync('my_openid', r.uid);
+    wx.setStorageSync('is_admin', !!r.isAdmin); // 只用来决定显示哪些按钮，权限由云函数判断
     if (r.status === 'active') wx.setStorageSync('member_ok_at', Date.now()); else clearProtected();
   } catch (e) {}
   return r;
@@ -42,4 +43,7 @@ async function check() {
   } catch (e) { return null; } // 网络问题：不处理（云函数仍会拦截所有数据请求）
 }
 
-module.exports = { status, check, kickout, clearProtected, GATE };
+// 当前用户是不是管理员（本机记录，只用于界面显示；最近一次校验成员资格时更新）
+function isAdminLocal() { try { return !!wx.getStorageSync('is_admin'); } catch (e) { return false; } }
+
+module.exports = { status, check, kickout, clearProtected, isAdminLocal, GATE };

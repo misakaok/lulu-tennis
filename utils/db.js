@@ -237,8 +237,8 @@ async function addDraw(data) { return (await cloudCall('createDraw', { draw: dat
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
 // 编辑赛事信息：名称、日期、开始时间、场地、地址、定位
 async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
-// 删除赛事（软删除：签表不再显示，已录比分保留在战绩里）
-async function removeDraw(id) { await cloudCall('removeDraw', { drawId: id }); }
+// 删除赛事（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的赛事要带原因
+async function removeDraw(id, reason) { await cloudCall('removeDraw', { drawId: id, reason: reason || '' }); }
 
 /* ---------- 报名 ---------- */
 function fetchSignups(drawId) { return fetchAll('signups', [['createdAt', 'asc']], { drawId }); }

@@ -10,6 +10,7 @@
   - 需要被前端读写的集合，要加进网关的白名单（`GW_READ` / `GW_WRITE` / `GW_OPS`）。
   - 网关的写权限只剩两项：`matches` 只能新增日常比赛；`players` 只能新增「只有名字」的球员。报名（`signUp`/`cancelSignup`）、本人资料（`saveProfile`）、赛事（`createDraw`/`generateDraw`/`updateDrawInfo`/`removeDraw`）、撤销（`revokeMatch`）都走专门的云函数操作，由服务端校验字段。不要再把这些集合的写权限开放给网关。
   - 赛事删除是软删除（`deleted: true`）：网关不返回已删除的赛事，`loadDraw`/`loadFixture` 会拒绝操作，已录比分保留在战绩里。
+- **管理员的赛事权限**：管理员可以编辑任何赛事的信息（名称、时间、场地、联系人）和删除赛事（必须填原因），都会留档并通知发起人；生成签表、录分、裁定改分、处理退赛仍然只有发起人能做。不要再扩大管理员的赛事权限，也不要让管理员绕过 `manageDraw`。
 - **成员资格**：云函数的新操作默认要求正式成员，不要随意加进 `PUBLIC`。管理员只来自环境变量 `ADMIN_OPENIDS`，不要做「第一个注册的人自动成为管理员」之类的逻辑。
 - **系统回调**：`wxa_media_check` 推送走 `exports.main` 开头的专门分支，不经过成员校验；带 `userInfo` 的调用不能冒充推送。
 - **可信写入**：云函数写入的赛事记录没有 `_openid`。`recordedBy`、`rulingSig` 只在记录没有 `_openid` 时才可信。

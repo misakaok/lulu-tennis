@@ -87,4 +87,41 @@ test('赛事录分后通知对方；发起人代录时通知双方', async () =>
   assert.deepStrictEqual(env.sent.map((x) => x.touser).sort(), ['alice', 'bob']);
 });
 
+test('管理员可以编辑 / 删除别人的赛事：留档、通知发起人；删除必须填原因；其他赛事操作仍然不行', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'admin';
+  try {
+    env.put('members', { _id: 'admin', status: 'active' });
+    env.put('draws', { _id: 'd9', _openid: 'owner', title: '周末赛', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    env.put('event_contacts', { _id: 'd9', name: '张三', phone: '13800000000', visibility: 'participants' });
+    // 普通成员不行
+    assert.strictEqual((await env.call('alice', 'updateDrawInfo', { drawId: 'd9', info: { title: 'x' } })).ok, false);
+    assert.strictEqual((await env.call('alice', 'removeDraw', { drawId: 'd9', reason: '不要了' })).ok, false);
+    // 管理员编辑：成功、留档、通知发起人；能看到完整联系人并修改
+    ok(await env.call('admin', 'updateDrawInfo', { drawId: 'd9', info: { title: '周末赛（改期）', date: '2026-11-22', venue: '新球场' } }));
+    assert.strictEqual(env.coll('draws').d9.title, '周末赛（改期）');
+    const log = Object.values(env.coll('requests')).find((x) => x.type === 'adminEditDraw');
+    assert.strictEqual(log.before.title, '周末赛'); assert.strictEqual(log.after.venue, '新球场');
+    assert.deepStrictEqual(env.sent.map((x) => [x.touser, x.data.phrase2.value]), [['owner', '已修改']]);
+    assert.strictEqual(ok(await env.call('admin', 'getContact', { drawId: 'd9' })).phone, '13800000000');
+    ok(await env.call('admin', 'saveContact', { drawId: 'd9', contact: { name: '李四', phone: '13900000000' } }));
+    // 管理员不能生成签表、处理退赛
+    assert.match((await env.call('admin', 'generateDraw', { drawId: 'd9', draw: {} })).error, /发起人/);
+    assert.match((await env.call('admin', 'handleWithdraw', { drawId: 'd9', entrant: 'x', approve: true, reason: '测试一下' })).error, /发起人/);
+    // 管理员删除：必须填原因
+    assert.match((await env.call('admin', 'removeDraw', { drawId: 'd9' })).error, /原因/);
+    env.sent.length = 0;
+    ok(await env.call('admin', 'removeDraw', { drawId: 'd9', reason: '重复发布了' }));
+    assert.ok(env.coll('draws').d9.deleted && env.coll('draws').d9.deletedByAdmin);
+    const dl = Object.values(env.coll('requests')).find((x) => x.type === 'deleteDraw');
+    assert.ok(dl.byAdmin && dl.reason === '重复发布了');
+    assert.deepStrictEqual(env.sent.map((x) => [x.touser, x.data.phrase2.value]), [['owner', '已删除']]);
+    assert.match(env.sent[0].data.thing3.value, /重复发布了/);
+    // 发起人自己删除不需要原因
+    env.put('draws', { _id: 'd8', _openid: 'owner', title: 'T', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    ok(await env.call('owner', 'removeDraw', { drawId: 'd8' }));
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
 module.exports = T;
