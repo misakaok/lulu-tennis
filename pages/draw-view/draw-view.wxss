@@ -12,7 +12,11 @@
 .share::after { border: none; }
 /* 新版按钮样式（style v2）自带上下内边距和固定宽度，会把文字往下推：清掉，改用 flex 居中 */
 button.share { display: flex !important; align-items: center; justify-content: center; padding: 0 !important; width: auto !important; line-height: normal !important; box-sizing: border-box; }
-.del { width: 140rpx; text-align: center; color: #e5484d; font-size: 28rpx; }
+.del {
+  flex: none; margin-left: 20rpx; padding: 0 34rpx; height: 92rpx; line-height: 88rpx; border-radius: 46rpx; box-sizing: border-box;
+  border: 2rpx solid #F1CDD0; background: #fff; color: #D9484E; font-size: 28rpx; font-weight: 600; white-space: nowrap;
+}
+.del-hover { background: #FDF2F3; border-color: #E9A9AE; }
 
 .row { display: flex; justify-content: space-between; align-items: center; }
 .count { font-size: 26rpx; color: #6e6ea3; font-weight: 700; }

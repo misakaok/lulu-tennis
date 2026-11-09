@@ -1657,7 +1657,7 @@ async function memberOf(uid) {
 }
 
 const PUBLIC = { memberStatus: 1, applyMember: 1, acceptInvite: 1, notifyTemplates: 1 }; // 不是成员也能调用的（notifyTemplates 只返回模板 ID）
-const ADMIN_ONLY = { auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
+const ADMIN_ONLY = { resetScores: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -1799,6 +1799,29 @@ async function auditSignups() {
   return { total: su.length, issues };
 }
 
+// 清空全部战绩（一次性的管理员操作，用来清掉测试数据）。两道保险：
+//   1. 云函数环境变量 ALLOW_RESET_SCORES=yes（平时不要设置，用完立即删掉）；2. 确认口令「清空全部战绩」。
+// 删除：比赛记录、确认、正式战绩快照（保留旧记录迁移标记）、对手评价、和比分有关的处理记录；清空签表里的比分。
+// 保留：成员、球员资料、简介、赛事、报名、相册、退赛申请和退赛登记。
+const RESET_PHRASE = '清空全部战绩';
+const SCORE_REQUEST_TYPES = ['score', 'impact', 'walkover', 'retired', 'revoke'];
+async function resetScores({ confirm }, uid) {
+  if (process.env.ALLOW_RESET_SCORES !== 'yes') deny('这个操作默认关闭：需要先在云函数环境变量里临时设置 ALLOW_RESET_SCORES=yes');
+  if (confirm !== RESET_PHRASE) deny(`确认口令不对：请传入「${RESET_PHRASE}」`);
+  const all = { _id: _.neq('') };
+  const removed = async (col, where) => ((await db.collection(col).where(where).remove()).stats || {}).removed || 0;
+  const out = {
+    matches: await removed('matches', all),
+    confirms: await removed('confirms', all),
+    verified: await removed('verified', { _id: _.neq(OF.META_ID) }),
+    reviews: await removed('reviews', all),
+    requests: await removed('requests', { type: _.in(SCORE_REQUEST_TYPES) }),
+  };
+  out.drawsReset = ((await db.collection('draws').where(all).update({ data: { results: _.set({}) } })).stats || {}).updated || 0;
+  await logAction({ type: 'resetScores', by: uid, counts: out });
+  return { counts: out };
+}
+
 // 升级时初始化：管理员从「历史球友」里勾选确认，逐个导入为正式成员（不会自动把所有访问过的人设为成员）
 async function importMembers({ uids }, uid) {
   const list = (Array.isArray(uids) ? uids : []).filter((x) => typeof x === 'string' && x).slice(0, 100);
@@ -1884,7 +1907,7 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   deny('不支持的操作');
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, ping, resolveFixture, editMatchScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, addEventPhotos, listEventPhotos, eventPhotoCount, deleteEventPhoto, retryPhotoCheck, recordEventMatch, reviewableWith, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, notifyTemplates, confirmResult, submitReview, reviewSummary, pendingReviews, revokeMatch, getContact, saveContact, saveBio, getBios, avatarUrls };
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, ping, resolveFixture, editMatchScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, addEventPhotos, listEventPhotos, eventPhotoCount, deleteEventPhoto, retryPhotoCheck, recordEventMatch, reviewableWith, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, notifyTemplates, resetScores, confirmResult, submitReview, reviewSummary, pendingReviews, revokeMatch, getContact, saveContact, saveBio, getBios, avatarUrls };
 
 exports.main = async (event) => {
   // 微信消息推送（图片内容安全检测结果）：只接受推送调用；小程序端调用都会带 userInfo，不能冒充推送

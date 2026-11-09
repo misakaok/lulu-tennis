@@ -161,7 +161,7 @@
 
     <view class="actions">
       <button class="share" open-type="share">{{signing ? '分享到群，邀请报名' : '分享赛事到群'}}</button>
-      <view wx:if="{{canManage}}" class="del" bindtap="remove">{{isOwner ? '删除' : '删除（管理员）'}}</view>
+      <view wx:if="{{canManage}}" class="del" hover-class="del-hover" bindtap="remove">{{isOwner ? '删除赛事' : '管理员删除'}}</view>
     </view>
   </block>
 </view>

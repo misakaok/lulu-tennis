@@ -257,6 +257,38 @@ test('相册数量：只数审核通过的', async () => {
   assert.strictEqual(ok(await env.call('alice', 'eventPhotoCount', { drawId: 'd1' })).count, 2);
 });
 
+test('清空战绩：默认关闭、要口令、只有管理员；只删战绩相关的数据', async () => {
+  const env = setup();
+  const old = [process.env.ADMIN_OPENIDS, process.env.ALLOW_RESET_SCORES];
+  process.env.ADMIN_OPENIDS = 'owner';
+  try {
+    const id = ok(await daily(env, 'alice', 'bob'))._id;
+    ok(await env.call('bob', 'confirmResult', { matchId: id }));
+    env.put('reviews', { _id: 'rv', matchId: id, reviewerId: 'alice', targetId: 'bob' });
+    env.put('requests', { _id: 'sc_x', type: 'score', status: 'pending' });
+    env.put('requests', { _id: 'wd_x', type: 'withdraw', drawId: 'd1', status: 'pending' });
+    env.put('bios', { _id: 'alice', bio: 'hi' });
+    env.coll('draws').d1.results = { old: 1 };
+    no(await env.call('owner', 'resetScores', { confirm: '清空全部战绩' }), /默认关闭/);
+    process.env.ALLOW_RESET_SCORES = 'yes';
+    no(await env.call('owner', 'resetScores', { confirm: '清空' }), /口令/);
+    no(await env.call('alice', 'resetScores', { confirm: '清空全部战绩' }), /管理员/);
+    const r = ok(await env.call('owner', 'resetScores', { confirm: '清空全部战绩' }));
+    assert.deepStrictEqual([r.counts.matches, r.counts.confirms, r.counts.reviews, r.counts.requests], [1, 1, 1, 1]);
+    assert.strictEqual(Object.keys(env.coll('matches')).length, 0);
+    assert.deepStrictEqual(Object.keys(env.coll('verified')), ['__legacy_migrated__'], '保留迁移标记');
+    assert.ok(env.coll('requests').wd_x, '退赛申请保留');
+    assert.deepStrictEqual(env.coll('draws').d1.results, {});
+    assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice && env.coll('bios').alice, '赛事、成员、资料、简介保留');
+    assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'resetScores'), '留档');
+    // 清空后排行、待办正常
+    assert.strictEqual(ok(await env.call('alice', 'myTodos')).toConfirm.length, 0);
+  } finally {
+    if (old[0] === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old[0];
+    if (old[1] === undefined) delete process.env.ALLOW_RESET_SCORES; else process.env.ALLOW_RESET_SCORES = old[1];
+  }
+});
+
 /* ---------- 邀请码、日期 ---------- */
 test('邀请码：过期 / 撤销的不会被占用', async () => {
   const env = setup();
