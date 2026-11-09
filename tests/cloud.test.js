@@ -204,6 +204,13 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
     assert.ok(!d.pending.some((x) => x.uid === 'veg') && !d.others.some((x) => x.uid === 'boss'));
     assert.strictEqual(d.active.find((x) => x.uid === 'ghost').uidTail, 'ghost'); // 没有资料的显示 ID 尾号
     assert.strictEqual(d.adminConfig.count, 3);
+    // 同一账号有重复资料时，取最早的那条（和其他页面一致），与数据库返回顺序无关
+    env.put('players', { _id: 'a_dup', _openid: 'veg', self: true, name: '旧的重复资料', createdAt: 99 });
+    const keys = Object.keys(env.coll('players'));
+    const reordered = {}; ['a_dup'].concat(keys.filter((k) => k !== 'a_dup')).forEach((k) => { reordered[k] = env.coll('players')[k]; });
+    env.store.players = reordered;
+    const d3 = ok(await env.call('boss', 'listMembers'));
+    assert.strictEqual(d3.active.find((x) => x.uid === 'veg').nickname, '花椰菜');
     assert.strictEqual(d.adminConfig.items.find((x) => x.tail === 'veg').nickname, '花椰菜');
     no(await env.call('alice', 'listMembers'), /管理员/);
     // 中文逗号、引号也能识别

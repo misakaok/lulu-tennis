@@ -47,6 +47,7 @@
     <view wx:for="{{d.candidates}}" wx:key="uid" class="mrow" data-uid="{{item.uid}}" bindtap="pick">
       <text class="m-ck {{picked[item.uid] ? 'on' : ''}}">{{picked[item.uid] ? '✓' : ''}}</text>
       <view class="m-main"><view class="m-n">{{item.nickname}}</view></view>
+      <text class="m-a" data-uid="{{item.uid}}" catchtap="copyId">复制 ID</text>
     </view>
     <view wx:if="{{d.candidates.length}}" class="btn-primary" bindtap="importPicked">导入勾选的球友</view>
   </view>

@@ -7,7 +7,7 @@ const R = require('../../utils/rating');
 const T = require('../../utils/todo');
 
 Page({
-  data: { myId: '', todo: null, rules: [], checking: false, isAdmin: false },
+  data: { myId: '', myIdTail: '', todo: null, rules: [], checking: false, isAdmin: false },
 
   onLoad() {
     this.setData({
@@ -30,7 +30,7 @@ Page({
   async load() {
     try {
       const ms = await require('../../utils/member').status(); // 顺便确认管理员身份（服务端决定）
-      if (ms.uid !== this.data.myId || ms.isAdmin !== this.data.isAdmin) this.setData({ myId: ms.uid, isAdmin: ms.isAdmin });
+      if (ms.uid !== this.data.myId || ms.isAdmin !== this.data.isAdmin) this.setData({ myId: ms.uid, myIdTail: String(ms.uid || '').slice(-6), isAdmin: ms.isAdmin });
     } catch (e) { console.error(e); }
     // 待办入口：下一场比赛、待我确认、等对方确认、改分申请、待评价（状态变了自动更新）
     T.load().then((t) => this.setData({
@@ -43,6 +43,12 @@ Page({
         ].filter(Boolean),
       },
     })).catch((e) => console.warn(e.message));
+  },
+  // 复制自己的用户 ID：设置管理员时要用（只能复制自己的）
+  copyMyId() {
+    const id = this.data.myId;
+    if (!id) return;
+    wx.setClipboardData({ data: id, success: () => wx.showToast({ title: '已复制，发给管理员即可', icon: 'none' }) });
   },
   openMembers() { wx.navigateTo({ url: '/pages/members/members' }); },
   openTodo() { wx.navigateTo({ url: '/pages/todo/todo' }); },

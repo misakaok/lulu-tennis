@@ -1599,7 +1599,8 @@ async function listMembers() {
   all.forEach((m) => { by[m._id] = m; });
   const profiles = (await db.collection('players').where({ self: true }).limit(1000).get()).data;
   const nameOf = {};
-  profiles.forEach((p) => { if (p._openid && !nameOf[p._openid]) nameOf[p._openid] = p.name; });
+  // 和 profileOf 一样取每个账号最早的那条本人资料（有重复资料时，各页面显示的昵称才一致）
+  profiles.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !nameOf[p._openid]) nameOf[p._openid] = p.name; });
   // uidTail：ID 尾号，只给管理员看，用来核对环境变量里的 openid 是不是本人
   const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', note: m.note || '', status: m.status, reason: m.reason || '', source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));

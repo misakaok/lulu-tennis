@@ -13,7 +13,7 @@ const TEXT = {
 };
 
 Page({
-  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', name: '', note: '', busy: false },
+  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', name: '', note: '', busy: false, myId: '', myIdTail: '' },
   onLoad(o) {
     this.setData({ invite: o.invite || '' });
     member.clearProtected(); // 进了准入页就清掉受保护的缓存
@@ -25,10 +25,16 @@ Page({
     try {
       const r = await member.status();
       const tx = TEXT[r.status] || TEXT.none;
-      this.setData({ loading: false, status: r.status, title: tx.t, desc: tx.d, reason: r.reason || '', name: this.data.name || r.name || '' });
+      this.setData({ loading: false, status: r.status, title: tx.t, desc: tx.d, reason: r.reason || '', name: this.data.name || r.name || '', myId: r.uid || '', myIdTail: String(r.uid || '').slice(-6) });
     } catch (e) {
       this.setData({ loading: false, title: '网络异常', desc: e.message || '请稍后下拉刷新' });
     }
+  },
+  // 复制自己的用户 ID：设置管理员时要用（只能复制自己的）
+  copyMyId() {
+    const id = this.data.myId;
+    if (!id) return;
+    wx.setClipboardData({ data: id, success: () => wx.showToast({ title: '已复制，发给管理员即可', icon: 'none' }) });
   },
   onName(e) { this.setData({ name: e.detail.value }); },
   onNote(e) { this.setData({ note: e.detail.value }); },
