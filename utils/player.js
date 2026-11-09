@@ -7,22 +7,26 @@ const { outcomeOf, isNormal } = require('./rules');
 
 const NONE = S.NONE;
 
-function sideOf(m, name) {
-  if ((m.a || []).indexOf(name) >= 0) return 'a';
-  if ((m.b || []).indexOf(name) >= 0) return 'b';
+// 这位球员在这场的哪一方：按统计身份（用户 ID）找；记录没有统计身份时（旧缓存）按名字
+function sideOf(m, key, name) {
+  for (const s of ['a', 'b']) {
+    const ks = m[s + 'Keys'];
+    if (ks ? ks.indexOf(key) >= 0 : (m[s] || []).indexOf(name) >= 0) return s;
+  }
   return '';
 }
 
 // 一场比赛，从这位球员的角度看
-function matchRow(m, name, deltaOf) {
-  const side = sideOf(m, name), o = side === 'a' ? 'b' : 'a';
+function matchRow(m, key, name, deltaOf) {
+  const side = sideOf(m, key, name), o = side === 'a' ? 'b' : 'a';
+  const myKeys = m[side + 'Keys'];
   const h = deltaOf[m._id];
   return {
     id: m._id, date: m.date || '', md: (m.date || '').slice(5),
     event: m.drawId ? `${m.drawTitle || '赛事'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛',
     isEvent: !!m.drawId,
     opp: (m[o] || []).join(' / '),
-    partner: (m[side] || []).filter((n) => n !== name).join(' / '),
+    partner: (m[side] || []).filter((n, i) => (myKeys ? myKeys[i] !== key : n !== name)).join(' / '),
     score: (m.sets || []).map((s) => {
       const x = s[side], y = s[o], tx = side === 'a' ? s.tbA : s.tbB, ty = side === 'a' ? s.tbB : s.tbA;
       return `${x}-${y}` + (tx !== undefined && ty !== undefined ? `(${tx}-${ty})` : '');
@@ -41,20 +45,19 @@ function matchRow(m, name, deltaOf) {
 function playerView(profiles, players, matches, uid) {
   const p = uid && profiles ? profiles[uid] : null;
   if (!p) return { profile: null, rows: [] };
-  const merged = (players || []).find((x) => x.name === p.name);
-  // 两个账号用了同一个昵称：按名字算的统计分不清是谁的，宁可不显示，也不把别人的战绩算到这里
-  const ambiguous = !!(merged && merged.ambiguous);
+  // 统计按用户 ID：即使有人和 TA 同名，也不会把别人的战绩算进来
   const stats = S.playerStats(matches || [], players || []);
-  const st = ambiguous ? null : stats.map[p.name];
-  const r = ambiguous ? null : stats.ratings.players[p.name];
-  const mine = ambiguous ? [] : (matches || []).filter((m) => sideOf(m, p.name));
-  const wins = mine.filter((m) => isNormal(m) && m.winner === sideOf(m, p.name)).length;
+  const st = stats.map[uid] || null;
+  const r = stats.ratings.players[uid] || null;
+  const mine = (matches || []).filter((m) => sideOf(m, uid, p.name));
+  const wins = mine.filter((m) => isNormal(m) && m.winner === sideOf(m, uid, p.name)).length;
+  const ambiguous = false;
   const deltaOf = {};
   (r ? r.history : []).forEach((h) => { deltaOf[h.id] = h; });
   const rows = mine
     .slice()
     .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || String(y._id).localeCompare(String(x._id)))
-    .map((m) => matchRow(m, p.name, deltaOf));
+    .map((m) => matchRow(m, uid, p.name, deltaOf));
   const last = r && r.history.length ? r.history[r.history.length - 1].delta : null;
   const selfLv = typeof p.level === 'number' ? p.level : null;
   const played = st ? st.played : 0;

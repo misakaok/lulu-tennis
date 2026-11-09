@@ -204,7 +204,7 @@ Page({
       const name = cur ? cur.name : snapName;
       return Object.assign({
         name, uid: uid || '', avatar: (cur && cur.avatar) || snapAvatar || (profOf[name] && profOf[name].avatar) || '', initial: initialOf(name), color: colorOf(name),
-      }, S.display(stats, name, cur || profOf[name]));
+      }, S.display(stats, name, cur || profOf[name], uid));
     };
     const signups = list.map((s, i) => {
       const members = [person(s.name, s.avatar, s._openid)];
@@ -237,6 +237,7 @@ Page({
 
   async join(partnerPick) {
     if (this.data.busy) return;
+    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     const pick = partnerPick && partnerPick.uid ? partnerPick : null;
     let me = db.cachedProfile();
     try { me = await db.getMyProfile(); } catch (e) {}

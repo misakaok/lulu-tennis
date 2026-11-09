@@ -12,6 +12,8 @@
 //   5. 双打：两人平均分作为队伍水平，两人变化相同
 //   6. 挑战：只能向不低于自己 0.3 以上的人发起挑战
 
+const ID = require('./ident');
+
 const DEFAULT_LEVEL = 2.5;
 const MIN_LEVEL = 1.0;
 const MAX_LEVEL = 7.0;
@@ -46,20 +48,28 @@ function timeOf(m) {
 }
 
 /**
- * matches: 全部比赛；startLevels: { 名字: 自评水平 }
- * 返回 { players: { 名字: { level, played, provisional, history } }, deltas: { 比赛id: { 名字: 变化 } } }
+ * matches: 全部比赛（带 aKeys / bKeys 统计身份，见 utils/ident.js；没有时按名字）
+ * startLevels: { 统计身份或名字: 自评水平 }（startLevelsFrom）
+ * 返回 { players: { 统计身份: { key, name, level, played, provisional, history } }, deltas: { 比赛id: { 统计身份: 变化 } } }
  */
 function computeRatings(matches, startLevels) {
   startLevels = startLevels || {};
   const P = {}, deltas = {};
-  const get = (n) => P[n] || (P[n] = { name: n, rating: startLevels[n] || DEFAULT_LEVEL, played: 0, history: [] });
+  const startOf = (k, n) => {
+    if (typeof startLevels[k] === 'number') return startLevels[k];
+    // 账号（用户 ID）没有自评就用默认值，不按名字去借别人的；只有按名字统计的才按名字找
+    if (k === n || k.indexOf('n:') === 0) return typeof startLevels[n] === 'number' ? startLevels[n] : DEFAULT_LEVEL;
+    return DEFAULT_LEVEL;
+  };
+  const get = (k, n) => P[k] || (P[k] = { key: k, name: n, rating: startOf(k, n), played: 0, history: [] });
+  const team = (m, side) => { const ks = m[side + 'Keys'] || []; return (m[side] || []).map((n, i) => get(ks[i] || n, n)); };
 
   // 弃权、中途退赛不计入水平分
   const list = matches.filter((m) => !m.outcome && !m.walkover || m.outcome === 'normal').sort((a, b) =>
     (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : timeOf(a) - timeOf(b));
 
   list.forEach((m) => {
-    const A = (m.a || []).map(get), B = (m.b || []).map(get);
+    const A = team(m, 'a'), B = team(m, 'b');
     if (!A.length || !B.length) return;
     let ga = 0, gb = 0;
     (m.sets || []).forEach((s) => { ga += s.a || 0; gb += s.b || 0; });
@@ -76,7 +86,7 @@ function computeRatings(matches, startLevels) {
       if (won && mine - opp > NO_FARM_GAP) delta = Math.min(delta, 0); // 防炸鱼
       p.rating = clamp(p.rating + delta);
       p.played++;
-      d[p.name] = round2(delta);
+      d[p.key] = round2(delta);
       p.history.push({ id: m._id, date: m.date, level: round2(p.rating), delta: round2(delta) });
     });
     update(A, S, E, ra, rb, m.winner === 'a');
@@ -92,17 +102,26 @@ function computeRatings(matches, startLevels) {
   return { players: P, deltas };
 }
 
-// 从球员资料里取自评水平
+// 从球员资料里取自评水平：有账号的按用户 ID，只有名字的球员按名字（同名的账号不按名字给）
 function startLevelsFrom(players) {
   const out = {};
-  (players || []).forEach((p) => { if (p && p.name && typeof p.level === 'number') out[p.name] = p.level; });
+  (players || []).forEach((p) => {
+    if (!p || !p.name || typeof p.level !== 'number') return;
+    if (p.uid) out[p.uid] = p.level;
+    else if (!p.ambiguous) out[p.name] = p.level;
+  });
   return out;
 }
 
-function levelOf(ratings, name, players) {
-  const r = ratings.players[name];
+// 按名字（或用户 ID）找某人的比赛等级记录：先换成统计身份
+function ratingOf(ratings, name, players, uid) {
+  const k = ID.keyOf(players || [], name, uid);
+  return ratings.players[k] || null;
+}
+function levelOf(ratings, name, players, uid) {
+  const r = ratingOf(ratings, name, players, uid);
   if (r) return r.level;
-  const p = (players || []).find((x) => x.name === name);
+  const p = (players || []).find((x) => (uid ? x.uid === uid : x.name === name));
   return p && typeof p.level === 'number' ? p.level : DEFAULT_LEVEL;
 }
 
@@ -126,5 +145,5 @@ const fmtDelta = (d) => (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d).toFix
 
 module.exports = {
   DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, CHALLENGE_DOWN, SELF_LEVELS,
-  expectedShare, winChance, computeRatings, startLevelsFrom, levelOf, tierOf, canChallenge, fmt, fmtDelta,
+  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta,
 };

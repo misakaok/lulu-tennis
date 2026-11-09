@@ -590,6 +590,53 @@ async function cancelSignup({ drawId }, uid) {
   return { removed: mine.length };
 }
 
+/* ---------- 订阅消息通知 ---------- */
+// 模板在 notify-config.js 里配置；没填模板 ID 的类型不发。通知只是提醒，发送失败（对方没订阅、额度用完、超时）
+// 一律忽略，不影响主操作。每次最多等 3 秒。
+const NOTIFY = (() => { try { return require('./notify-config'); } catch (e) { return { templates: {} }; } })();
+const NOTIFY_TIMEOUT_MS = 3000;
+const LIMIT = { thing: 20, name: 10, phrase: 5, character_string: 32, short_thing: 5, letter: 32, symbol: 5 };
+function fieldValue(key, v) {
+  const type = String(key).replace(/\d+$/, '');
+  let s = String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim();
+  if (type === 'character_string') s = s.replace(/[^\x21-\x7e]/g, '');           // 只能是数字、字母、符号
+  if (type === 'time' || type === 'date') return s;
+  const max = LIMIT[type];
+  if (max && s.length > max) s = s.slice(0, max - 1) + '…';
+  return s || '-';
+}
+const nowText = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' '); // 北京时间
+const notifyIds = () => {
+  const out = {};
+  Object.keys(NOTIFY.templates || {}).forEach((k) => { const t = NOTIFY.templates[k]; if (t && t.id) out[k] = t.id; });
+  return out;
+};
+async function notify(kind, users, values, page) {
+  const t = (NOTIFY.templates || {})[kind];
+  const list = Array.from(new Set([].concat(users || []).filter((u) => typeof u === 'string' && u)));
+  if (!t || !t.id || !list.length) return 0;
+  const data = {};
+  Object.keys(t.fields || {}).forEach((k) => { data[t.fields[k]] = { value: fieldValue(t.fields[k], k === 'time' && !values.time ? nowText() : values[k]) }; });
+  let sent = 0;
+  await Promise.all(list.map(async (touser) => {
+    let timer;
+    try {
+      await Promise.race([
+        cloud.openapi.subscribeMessage.send({ touser, templateId: t.id, page: page || 'pages/todo/todo', data, miniprogramState: NOTIFY.state || 'formal' }),
+        new Promise((_r, reject) => { timer = setTimeout(() => reject(new Error('timeout')), NOTIFY_TIMEOUT_MS); }),
+      ]);
+      sent++;
+    } catch (e) {
+      const code = e && (e.errCode !== undefined ? e.errCode : e.errcode);
+      if (code !== 43101) console.warn('订阅消息发送失败', kind, code, e && (e.errMsg || e.message)); // 43101 = 对方没订阅，正常
+    } finally { clearTimeout(timer); }
+  }));
+  return sent;
+}
+// 小程序端弹订阅请求时要用的模板 ID（只返回已配置的）
+async function notifyTemplates() { return { templates: notifyIds() }; }
+const matchTitle = (m) => (m.drawId ? `${m.drawTitle || '赛事'}${m.stage ? ' ' + m.stage : ''}` : '日常比赛');
+
 /* ---------- 个人资料 ---------- */
 // 只能经云函数保存：服务端检查昵称不和别人重复（正在用的、以前用过的都不行），照片只认本人 avatars/ 目录下的 fileID。
 // 昵称会参与「参赛名 → 用户 ID」的对应，所以重名检查不能放在前端。
@@ -1030,6 +1077,10 @@ async function recordEventMatch({ drawId, key, date, sets, confirmImpact, reason
   }, { owner, confirmImpact, reason: cleanReason(reason, !!confirmImpact) });
   if (r.needConfirm) return r;
   if (r.voided.length) await logAction({ type: 'impact', drawId, drawKey: key, matchId: r.matchId, by: uid, reason: cleanReason(reason), voided: r.voided });
+  // 通知对方确认（录分人自己那一方不用通知；发起人代录时通知双方）
+  const side = f.aMembers.map((n) => map[n] || '').indexOf(uid) >= 0 ? 'a' : f.bMembers.map((n) => map[n] || '').indexOf(uid) >= 0 ? 'b' : '';
+  const others = [].concat(side !== 'a' ? f.aMembers : [], side !== 'b' ? f.bMembers : []).map((n) => map[n] || '');
+  await notify('confirm', others, { title: `${draw.title || '赛事'} ${f.stage || ''}`, score: E.scoreText(res.sets), opponent: await nameOf(uid, '球友', {}) }, 'pages/match/match?id=' + r.matchId);
   return r;
 }
 
@@ -1099,6 +1150,10 @@ async function requestScoreChange({ matchId, sets, reason }, uid) {
       },
     });
   } catch (e) { deny('已经有一条待处理的申请，请等对方处理'); }
+  // 通知对方（赛事比赛也通知发起人，发起人可以裁定）
+  const owner = m.drawId ? ((await getDoc('draws', m.drawId)) || {})._openid : '';
+  await notify('request', ids[other(side)].concat(owner && owner !== uid ? [owner] : []),
+    { type: '改分申请 · ' + matchTitle(m), applicant: await nameOf(uid, '球友', {}), reason: why }, 'pages/match/match?id=' + m._id);
   return { requestId: id };
 }
 
@@ -1161,9 +1216,15 @@ async function respondScoreChange({ requestId, accept, note }, uid) {
   try {
     const m = await stillSame(req);
     if (!m) deny('比分已经变动，这条申请失效了');
-    if (!accept) { await finish(requestId, { status: 'rejected', handledBy: uid, handleNote: cleanReason(note) }); return { status: 'rejected' }; }
+    const page = 'pages/match/match?id=' + req.matchId;
+    if (!accept) {
+      await finish(requestId, { status: 'rejected', handledBy: uid, handleNote: cleanReason(note) });
+      await notify('result', [req.requesterId], { type: '改分申请 · ' + matchTitle(m), result: '已拒绝', note: cleanReason(note) || '对方不同意修改' }, page);
+      return { status: 'rejected' };
+    }
     const r = await applyScoreChange(m, req, 'accept', uid, {});
     await finish(requestId, { status: 'accepted', handledBy: uid, handleNote: cleanReason(note), voided: r.voided || [] });
+    await notify('result', [req.requesterId], { type: '改分申请 · ' + matchTitle(m), result: '已同意', note: cleanReason(note) || '比分已更新' }, page);
     return { status: 'accepted' };
   } catch (e) { if ((await getDoc('requests', requestId) || {}).status === 'processing') await release(requestId); throw e; }
 }
@@ -1179,10 +1240,16 @@ async function ruleScoreChange({ requestId, accept, reason, confirmImpact }, uid
   try {
     const m = await stillSame(req);
     if (!m) deny('比分已经变动，这条申请失效了');
-    if (!accept) { await finish(requestId, { status: 'rejected', handledBy: uid, handleNote: why, ruling: true }); return { status: 'rejected' }; }
+    const page = 'pages/match/match?id=' + req.matchId;
+    if (!accept) {
+      await finish(requestId, { status: 'rejected', handledBy: uid, handleNote: why, ruling: true });
+      await notify('result', [req.requesterId], { type: '改分申请 · ' + matchTitle(m), result: '未采纳', note: '发起人裁定：' + why }, page);
+      return { status: 'rejected' };
+    }
     const r = await applyScoreChange(m, req, 'rule', uid, { confirmImpact, reason: why });
     if (r.needConfirm) { await release(requestId); return r; }
     await finish(requestId, { status: 'ruled', handledBy: uid, handleNote: why, ruling: true, voided: r.voided || [] });
+    await notify('result', [req.requesterId], { type: '改分申请 · ' + matchTitle(m), result: '已采纳', note: '发起人裁定：' + why }, page);
     return { status: 'ruled', voided: r.voided || [] };
   } catch (e) { if ((await getDoc('requests', requestId) || {}).status === 'processing') await release(requestId); throw e; }
 }
@@ -1230,6 +1297,7 @@ async function requestWithdraw({ drawId, reason }, uid) {
   try {
     await db.collection('requests').add({ data: { _id: id, type: 'withdraw', drawId, entrant, requesterId: uid, reason: why, status: 'pending', createdAt: db.serverDate() } });
   } catch (e) { deny('已经提交过退赛申请，请等发起人处理'); }
+  await notify('request', [draw._openid], { type: '退赛申请 · ' + (draw.title || '赛事'), applicant: entrant, reason: why }, 'pages/draw-view/draw-view?id=' + drawId);
   return { requestId: id };
 }
 
@@ -1250,6 +1318,7 @@ async function handleWithdraw({ drawId, entrant, requestId, approve, policy, rea
     if (!approve) {
       if (!req) deny('请选择要处理的申请');
       await finish(requestId, { status: 'rejected', handledBy: uid, handleNote: why });
+      await notify('result', [req.requesterId], { type: '退赛申请 · ' + (draw.title || '赛事'), result: '未同意', note: why }, 'pages/draw-view/draw-view?id=' + drawId);
       return { status: 'rejected' };
     }
     const wd = E.withdrawalsOf(draw);
@@ -1288,7 +1357,10 @@ async function handleWithdraw({ drawId, entrant, requestId, approve, policy, rea
       }, { owner: true, confirmImpact: true, reason: why });
     }
     const voided = impact.length ? await voidRecords(impact.map((x) => x.recordId)) : [];
-    if (req) await finish(requestId, { status: 'accepted', handledBy: uid, handleNote: why, stage, policy: entry.policy, voided });
+    if (req) {
+      await finish(requestId, { status: 'accepted', handledBy: uid, handleNote: why, stage, policy: entry.policy, voided });
+      await notify('result', [req.requesterId], { type: '退赛申请 · ' + (draw.title || '赛事'), result: '已同意', note: why }, 'pages/draw-view/draw-view?id=' + drawId);
+    }
     else await logAction({ type: 'withdraw', drawId, entrant, by: uid, reason: why, stage, policy: entry.policy, voided });
     return { status: 'accepted', stage, policy: entry.policy, walkovers: woRecords.length, voided };
   } catch (e) { if (req && ((await getDoc('requests', requestId)) || {}).status === 'processing') await release(requestId); throw e; }
@@ -1299,16 +1371,16 @@ async function drawRequests({ drawId }, uid) {
   const draw = await loadDraw(drawId);
   const owner = draw._openid === uid;
   const r = await db.collection('requests').where({ drawId }).limit(200).get();
+  const rows = r.data.sort((p, q) => tsOf(q) - tsOf(p)).filter((x) => owner || x.requesterId === uid);
+  // 申请人昵称一次查齐（每个账号取最早的本人资料，和 profileOf 一致）
   const names = {};
-  const list = [];
-  for (const x of r.data.sort((p, q) => tsOf(q) - tsOf(p))) {
-    if (!owner && x.requesterId !== uid) continue;
-    list.push({
-      id: x._id, type: x.type, status: x.status, entrant: x.entrant || '', reason: x.reason || '', note: x.handleNote || '',
-      requester: x.requesterId ? await nameOf(x.requesterId, '球友', names) : '', stage: x.stage || '', policy: x.policy || '',
-      drawKey: x.drawKey || '', at: tsOf(x),
-    });
-  }
+  (await byIds('players', rows.map((x) => x.requesterId), '_openid')).filter((p) => p.self)
+    .sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (!(p._openid in names)) names[p._openid] = p.name || ''; });
+  const list = rows.map((x) => ({
+    id: x._id, type: x.type, status: x.status, entrant: x.entrant || '', reason: x.reason || '', note: x.handleNote || '',
+    requester: x.requesterId ? names[x.requesterId] || '球友' : '', stage: x.stage || '', policy: x.policy || '',
+    drawKey: x.drawKey || '', at: tsOf(x),
+  }));
   return { owner, list, withdrawals: draw.withdrawals || [], myEntrants: await entrantsOf(draw, uid) };
 }
 
@@ -1506,8 +1578,7 @@ async function listEventPhotos({ drawId }, uid) {
 
 async function eventPhotoCount({ drawId }) {
   if (typeof drawId !== 'string' || !drawId) return { count: 0 };
-  const r = await db.collection('event_photos').where({ drawId, status: 'pass' }).limit(1000).get();
-  return { count: r.data.length };
+  return { count: (await db.collection('event_photos').where({ drawId, status: 'pass' }).count()).total };
 }
 
 async function photoForManage(photoId, uid) {
@@ -1531,6 +1602,27 @@ async function retryPhotoCheck({ photoId }, uid) {
 
 const ping = async () => ({}); // 小程序启动时调用一次：触发旧记录迁移
 
+// 一次返回前端统计要用的全部数据（只读）：比赛记录（已在服务端判定 official / pending，不认可的 invalid 不返回）+ 球员资料。
+// 前端原来要分别 count + 分页读三个集合（约 9 次调用），现在 1 次。
+// 云函数返回的数据有大小上限：超过阈值时返回 tooLarge，前端自动改回分页读取。
+const DATASET_MAX_BYTES = 900 * 1024;
+async function dataset() {
+  const [matches, players, verified] = await Promise.all([allDocs('matches'), allDocs('players'), allDocs('verified').catch(() => null)]);
+  const vmap = {};
+  (verified || []).forEach((v) => { if (v._id !== OF.META_ID) vmap[v._id] = v; });
+  const tagged = [];
+  matches.forEach((m) => {
+    const status = verified ? OF.statusOf(m, vmap) : 'official';
+    if (status !== 'invalid') tagged.push(Object.assign(m, { status }));
+  });
+  // 顺序和原来的分页读取一致：比赛按日期、录入时间从新到旧；球员按创建时间从早到晚
+  tagged.sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || tsOf(y) - tsOf(x));
+  players.sort((a, b) => tsOf(a) - tsOf(b));
+  const out = { matches: tagged, players };
+  if (Buffer.byteLength(JSON.stringify(out)) > DATASET_MAX_BYTES) return { tooLarge: true };
+  return out;
+}
+
 /* ========== 成员准入（仅限内部球友） ========== */
 // members（仅管理端可读写）：_id = 用户 ID（openid）
 //   status: pending 待审核 / active 正式成员 / rejected 申请未通过 / removed 成员资格已取消
@@ -1546,8 +1638,8 @@ async function memberOf(uid) {
   return (await getDoc('members', uid)) || { status: 'none' };
 }
 
-const PUBLIC = { memberStatus: 1, applyMember: 1, acceptInvite: 1 }; // 不是成员也能调用的
-const ADMIN_ONLY = { listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
+const PUBLIC = { memberStatus: 1, applyMember: 1, acceptInvite: 1, notifyTemplates: 1 }; // 不是成员也能调用的（notifyTemplates 只返回模板 ID）
+const ADMIN_ONLY = { auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -1562,6 +1654,7 @@ async function applyMember({ name, note }, uid) {
   if (nm.length < 1) deny('请填写你的称呼，方便管理员确认');
   const data = { status: 'pending', name: nm, note: cleanReason(note), appliedAt: db.serverDate(), source: 'apply', reason: '' };
   await db.collection('members').doc(uid).set({ data: Object.assign({}, m.status === 'none' ? {} : { history: (m.history || []).concat([{ status: m.status, reason: m.reason || '', at: Date.now() }]).slice(-10) }, data) });
+  await notify('request', ADMINS(), { type: '成员申请', applicant: nm, reason: data.note || '申请加入' }, 'pages/members/members');
   return { status: 'pending' };
 }
 
@@ -1630,6 +1723,7 @@ async function reviewMember({ uid: target, approve, reason }, uid) {
   if (!approve && m.status === 'active') deny('正式成员请用「移除」');
   const why = cleanReason(reason, !approve);
   await db.collection('members').doc(target).update({ data: { status: approve ? 'active' : 'rejected', reason: approve ? '' : why, decidedBy: uid, decidedAt: db.serverDate() } });
+  await notify('result', [target], { type: '成员申请', result: approve ? '已通过' : '未通过', note: approve ? '欢迎加入，打开小程序就能使用' : why }, 'pages/gate/gate');
   return { status: approve ? 'active' : 'rejected' };
 }
 
@@ -1641,6 +1735,50 @@ async function removeMember({ uid: target, reason }, uid) {
   if (!m || m.status !== 'active') deny('不是正式成员');
   await db.collection('members').doc(target).update({ data: { status: 'removed', reason: why, removedBy: uid, removedAt: db.serverDate() } });
   return { status: 'removed' };
+}
+
+// 读一个集合里符合条件的全部记录（服务端每次最多 1000 条，自动翻页）
+async function allDocs(col, where) {
+  const out = [];
+  for (let skip = 0; ; skip += 1000) {
+    const q = where ? db.collection(col).where(where) : db.collection(col);
+    const r = await q.skip(skip).limit(1000).get();
+    out.push(...r.data);
+    if (r.data.length < 1000) return out;
+  }
+}
+
+// 报名数据核对（仅管理员，只读）：修复前报名记录的名字是客户端填的，可能被冒名。
+// 找出：报名名字 / 搭档名字和对应账号的昵称（含曾用名）对不上的、同一赛事里不同账号用同一个名字的。
+async function auditSignups() {
+  const [su, profs, draws] = await Promise.all([allDocs('signups'), allDocs('players', { self: true }), allDocs('draws')]);
+  const prof = {};
+  profs.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !prof[p._openid]) prof[p._openid] = p; });
+  const drawOf = {};
+  draws.forEach((d) => { drawOf[d._id] = d; });
+  const known = (uid, name) => { const p = prof[uid]; return !!p && (p.name === name || (p.formerNames || []).indexOf(name) >= 0); };
+  const issues = [];
+  const add = (s, who, name, uid, problem) => {
+    const d = drawOf[s.drawId];
+    issues.push({
+      id: s._id + '#' + who, drawId: s.drawId, drawTitle: d ? d.title || '赛事' : '（赛事不存在）', drawDeleted: !!(d && d.deleted),
+      who, name, uid: uid || '', uidTail: String(uid || '').slice(-6), nickname: (prof[uid] && prof[uid].name) || '', problem,
+    });
+  };
+  const byDraw = {};
+  su.forEach((s) => {
+    if (!s._openid) add(s, '报名人', s.name, '', '没有报名人 ID');
+    else if (!prof[s._openid]) add(s, '报名人', s.name, s._openid, '报名人没有设置资料');
+    else if (!known(s._openid, s.name)) add(s, '报名人', s.name, s._openid, '报名名字和本人昵称（含曾用名）对不上');
+    if (s.partner && s.partnerId && !known(s.partnerId, s.partner)) add(s, '搭档', s.partner, s.partnerId, prof[s.partnerId] ? '搭档名字和搭档账号的昵称（含曾用名）对不上' : '搭档账号没有设置资料');
+    const m = byDraw[s.drawId] = byDraw[s.drawId] || {};
+    [[s.name, s._openid], [s.partner, s.partnerId]].forEach(([n, u]) => { if (n && u) (m[n] = m[n] || {})[u] = s; });
+  });
+  Object.keys(byDraw).forEach((d) => Object.keys(byDraw[d]).forEach((n) => {
+    const owners = Object.keys(byDraw[d][n]);
+    if (owners.length > 1) owners.forEach((u) => add(byDraw[d][n][u], '同名', n, u, `同一赛事里有 ${owners.length} 个账号用了「${n}」这个名字`));
+  }));
+  return { total: su.length, issues };
 }
 
 // 升级时初始化：管理员从「历史球友」里勾选确认，逐个导入为正式成员（不会自动把所有访问过的人设为成员）
@@ -1712,6 +1850,10 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
     if (only) Object.keys(clean).forEach((k) => { if (!only[k]) delete clean[k]; });
     if (coll === 'players' && (typeof clean.name !== 'string' || !clean.name.trim() || clean.name.length > 20)) deny('名字不对');
     const r = await col.add({ data: Object.assign(clean, { _openid: uid }) });
+    // 日常比赛：通知对手确认（只通知 b 方里登记了账号的人；录入人固定在 a 方）
+    if (coll === 'matches' && !clean.drawId && Array.isArray(clean.bIds)) {
+      await notify('confirm', clean.bIds, { title: '日常比赛', score: E.scoreText(clean.sets || []), opponent: await nameOf(uid, '球友', {}) }, 'pages/match/match?id=' + r._id);
+    }
     return { _id: r._id };
   }
   if (op === 'update' || op === 'remove') {
@@ -1724,7 +1866,7 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   deny('不支持的操作');
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, ping, resolveFixture, editMatchScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, addEventPhotos, listEventPhotos, eventPhotoCount, deleteEventPhoto, retryPhotoCheck, recordEventMatch, reviewableWith, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, confirmResult, submitReview, reviewSummary, pendingReviews, revokeMatch, getContact, saveContact, saveBio, getBios, avatarUrls };
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, ping, resolveFixture, editMatchScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, addEventPhotos, listEventPhotos, eventPhotoCount, deleteEventPhoto, retryPhotoCheck, recordEventMatch, reviewableWith, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, notifyTemplates, confirmResult, submitReview, reviewSummary, pendingReviews, revokeMatch, getContact, saveContact, saveBio, getBios, avatarUrls };
 
 exports.main = async (event) => {
   // 微信消息推送（图片内容安全检测结果）：只接受推送调用；小程序端调用都会带 userInfo，不能冒充推送

@@ -16,7 +16,14 @@ const cacheGet = (k, d) => {
     return wx.getStorageSync(k) || d;
   } catch (e) { return d; }
 };
-const cacheSet = (k, v) => { try { wx.setStorageSync(k, v); } catch (e) {} };
+// 写本机缓存。单个 key 超过 1MB、或总量超过 10MB 时会写入失败：
+// 这时删掉这个 key（宁可离线时不显示，也不显示一份过期很久的旧数据），并在控制台提示
+const cacheSet = (k, v) => {
+  try { wx.setStorageSync(k, v); } catch (e) {
+    console.warn('[缓存] 写入本机缓存失败，已清除这一项：', k, (e && (e.errMsg || e.message)) || e);
+    try { wx.removeStorageSync(k); } catch (e2) {}
+  }
+};
 
 // 循环分页取全部。每页 100 条（数据网关单次上限），每页都是一次云函数调用，页越大调用次数越少
 // 结果按「集合 + 条件 + 排序」在内存里缓存 60 秒，并合并同时发起的相同请求（见 utils/memo.js）
@@ -71,8 +78,24 @@ async function getVerified(id) {
   try { return (await db().collection('verified').doc(id).get()).data || null; } catch (e) { return null; }
 }
 
+// 一次取齐比赛（已标好 official / pending）和球员资料：云函数 dataset，1 次调用。
+// 数据太大（tooLarge）或云函数还是旧版本（未知操作）时返回 null，调用方改用分页读取
+function fetchDataset() {
+  return memo.get('dataset', ['matches', 'players', 'verified'], async () => {
+    try {
+      const r = await require('./cloud').call('dataset', {});
+      return r.tooLarge ? null : { matches: r.matches || [], players: r.players || [] };
+    } catch (e) {
+      if (/未知操作/.test((e && e.message) || '')) return null;
+      throw e;
+    }
+  });
+}
+
 // 读全部比赛记录并标出状态：official 正式 / pending 日常比赛待对手确认 / invalid 不认可（见 utils/official.js）
 async function loadMatches() {
+  const ds = await fetchDataset().catch(() => null);
+  if (ds) return { tagged: ds.matches, players: buildPlayers(ds.players) };
   const [raw, players, verified] = await Promise.all([
     fetchAll('matches', [['date', 'desc'], ['createdAt', 'desc']]),
     fetchPlayersFull().catch(() => cachedPlayersFull()),
@@ -117,7 +140,10 @@ function removeMatch(id, extra) {
 // 球员列表：本人设置的资料（self: true）带用户 ID（uid = _openid）。
 // 同名只显示一条；如果有两个账号用了同一个昵称，这个名字不绑定任何 ID（ambiguous），避免冒用。
 async function fetchPlayersFull() {
-  const list = await fetchAll('players', [['createdAt', 'asc']]);
+  const ds = await fetchDataset().catch(() => null);
+  return buildPlayers(ds ? ds.players : await fetchAll('players', [['createdAt', 'asc']]));
+}
+function buildPlayers(list) {
   // 按用户 ID 的本人资料（每个账号取最早那条）：球员主页按 ID 找人，不受同名影响
   const byUid = {};
   list.forEach((p) => {

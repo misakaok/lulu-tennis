@@ -45,15 +45,32 @@ function aliasOf(players) {
   return out;
 }
 
-// 读取比赛时换成「当前昵称」展示：有 ID 的位置跟着用户走；保留原始名字在 aRaw / bRaw
+// 统计身份（场数、胜率、排名、等级分都按它累计，见 utils/rules.js computeRank、utils/rating.js）：
+//   有账号的位置 → 用户 ID；旧记录没有 ID 时，名字能唯一对应到一个账号 → 这个账号（保持旧战绩照常计入）；
+//   否则 → 'n:' + 名字（单独统计，不算到任何账号上）。
+// 所以两个账号即使同名，统计也是分开的。
+const NAME_KEY = 'n:';
+function keyOf(players, name, uid) {
+  if (uid) return uid;
+  const u = uidByName(players)[name];
+  return u || NAME_KEY + name;
+}
+// 只有名字时（签表参赛名、挑战页等）查统计用的身份
+function keyResolver(players) {
+  const byName = uidByName(players);
+  return (name, uid) => uid || byName[name] || NAME_KEY + name;
+}
+
+// 读取比赛时换成「当前昵称」展示：有 ID 的位置跟着用户走；保留原始名字在 aRaw / bRaw；统计身份在 aKeys / bKeys
 function normalizeMatches(list, players) {
-  const byUid = nameByUid(players), alias = aliasOf(players);
+  const byUid = nameByUid(players), alias = aliasOf(players), byName = uidByName(players);
   return (list || []).map((m) => {
     const out = Object.assign({}, m);
     ['a', 'b'].forEach((k) => {
       const ids = m[k + 'Ids'] || [];
       out[k + 'Raw'] = m[k] || [];
       out[k] = (m[k] || []).map((n, i) => (ids[i] && byUid[ids[i]]) || (ids[i] ? n : alias[n] || n));
+      out[k + 'Keys'] = out[k].map((n, i) => (typeof ids[i] === 'string' && ids[i]) || byName[n] || NAME_KEY + n);
     });
     return out;
   });
@@ -72,4 +89,4 @@ function drawUids(draw, signups) {
   return out;
 }
 
-module.exports = { uidByName, nameByUid, aliasOf, normalizeMatches, idsFor, drawUids };
+module.exports = { uidByName, nameByUid, aliasOf, normalizeMatches, idsFor, drawUids, keyOf, keyResolver, NAME_KEY };

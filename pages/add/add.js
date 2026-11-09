@@ -179,6 +179,7 @@ Page({
     if (!r) { wx.showToast({ title: this.data.check.msg || '请完善比分', icon: 'none' }); return; }
     const aIds = ID.idsFor(r.a, this.uidOf), bIds = ID.idsFor(r.b, this.uidOf);
     if (aIds[0] !== this.myId || aIds.concat(bIds).some((x) => !x)) { wx.showToast({ title: '双方都要是已注册球员', icon: 'none' }); return; }
+    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     this.setData({ submitting: true });
     try {
       const res = await addMatch({

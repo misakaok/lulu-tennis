@@ -24,10 +24,12 @@ function get(key, coll, fn) {
   return entry.task.then(clone);
 }
 
-// 作废某些集合（不传就全部作废）
+// 作废某些集合（不传就全部作废）。一条缓存可以依赖多个集合（coll 传数组），任一集合变了就作废
 function invalidate(colls) {
   const set = colls ? [].concat(colls) : null;
-  Object.keys(store).forEach((k) => { if (!set || set.indexOf(store[k].coll) >= 0) delete store[k]; });
+  Object.keys(store).forEach((k) => {
+    if (!set || [].concat(store[k].coll).some((c) => set.indexOf(c) >= 0)) delete store[k];
+  });
 }
 
 module.exports = { get, invalidate, TTL_MS };

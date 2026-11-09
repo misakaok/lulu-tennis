@@ -14,6 +14,9 @@
 - **系统回调**：`wxa_media_check` 推送走 `exports.main` 开头的专门分支，不经过成员校验；带 `userInfo` 的调用不能冒充推送。
 - **可信写入**：云函数写入的赛事记录没有 `_openid`。`recordedBy`、`rulingSig` 只在记录没有 `_openid` 时才可信。
 - **统计口径**：只有一套正式战绩（`utils/official.js` + `verified`）。不要新增第二套统计，弃权、退赛、轮空用 `isNormal` 排除在统计之外。
+- **统计身份**：场数、胜率、排名、等级分按「统计身份」累计（`utils/ident.js` 的 `aKeys`/`bKeys`）：有账号用用户 ID，旧记录名字唯一对应账号时算到该账号，否则为 `'n:' + 名字`。查统计时有用户 ID 就用 ID（`stats.map[uid]`、`ratings.players[uid]`），只有名字时用 `stats.keyOf(名字)` 或 `R.levelOf / R.ratingOf`，不要直接按名字取。
+- **一次性读取**：`utils/db.js` 读战绩和球员优先用云函数 `dataset`（1 次调用）；数据超过大小限制或云函数是旧版本时，自动退回分页读取。两种方式结果必须一致（`tests/client.test.js`）。
+- **订阅消息**：模板配置在 `cloudfunctions/tennis/notify-config.js`（id 为空就不发）。服务端用 `notify(kind, uids, values, page)` 发送，失败一律忽略，不影响主操作。小程序端用 `utils/notify.js` 的 `ask()` 请求权限，必须在点击事件里同步调用（前面不能有 `await`）。
 - **赛事比分**：只能经 `recordEventMatch` / `resolveFixture` 写入，每场一条记录。会推翻后续已录分场次的改动，必须由发起人确认影响并填写原因。
 - **前端缓存**：`utils/db.js` 的列表读取经 `utils/memo.js` 在内存里缓存 60 秒，写操作成功后由 `utils/cloud.js` 自动作废。新增**只读**的云函数操作时，要加进 `utils/cloud.js` 的 `READ_ONLY`（否则每次调用都会清空缓存）；写操作不用加。
 - **列表类接口**：要逐场计算比赛状态时，先调用 `prefetch()` 一次查齐数据，再调用 `matchState(..., cache)`。不要在循环里单独查数据库。写入流程不要传预取过的 cache，避免读到旧数据。

@@ -4,6 +4,7 @@
     <view class="seg-item {{tab === 'active' ? 'on' : ''}}" data-v="active" bindtap="setTab">成员</view>
     <view class="seg-item {{tab === 'import' ? 'on' : ''}}" data-v="import" bindtap="setTab">历史球友{{d.candidates.length ? ' ' + d.candidates.length : ''}}</view>
     <view class="seg-item {{tab === 'invite' ? 'on' : ''}}" data-v="invite" bindtap="setTab">邀请</view>
+    <view class="seg-item {{tab === 'audit' ? 'on' : ''}}" data-v="audit" bindtap="setTab">数据核对</view>
   </view>
   <view wx:if="{{loading}}" class="muted">加载中…</view>
 
@@ -19,7 +20,7 @@
   <block wx:elif="{{tab === 'active'}}">
     <view class="card">
       <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '云函数环境变量配置' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '云函数环境变量配置' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
       </view>
@@ -34,7 +35,7 @@
     <view wx:if="{{d.others.length}}" class="card">
       <view class="card-title">已拒绝 / 已移除</view>
       <view wx:for="{{d.others}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name}}</view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}：{{item.reason}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text></view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}：{{item.reason}}</view></view>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
       </view>
@@ -51,6 +52,23 @@
     </view>
     <view wx:if="{{d.candidates.length}}" class="btn-primary" bindtap="importPicked">导入勾选的球友</view>
   </view>
+
+  <block wx:elif="{{tab === 'audit'}}">
+    <view class="card">
+      <view class="card-title">报名数据核对<text class="sub">只检查、不修改。修复前报名名字由客户端填写，可能被冒名</text></view>
+      <view wx:if="{{auditing}}" class="muted">正在检查全部报名记录…</view>
+      <view wx:elif="{{audit}}" class="muted">共检查 {{audit.total}} 条报名，{{audit.issues.length ? '发现 ' + audit.issues.length + ' 处需要核对' : '没有发现问题 ✓'}}</view>
+      <view wx:for="{{audit.issues}}" wx:key="id" class="mrow">
+        <view class="m-main">
+          <view class="m-n">{{item.drawTitle}}{{item.drawDeleted ? '（已删除）' : ''}} · {{item.who}}「{{item.name}}」</view>
+          <view class="m-s">{{item.problem}}{{item.uid ? ' · 账号现在叫：' + (item.nickname || '未设置资料') + ' · ID 尾号 ' + item.uidTail : ''}}</view>
+        </view>
+        <text wx:if="{{item.uid}}" class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
+      </view>
+      <view class="btn-primary {{auditing ? 'disabled' : ''}}" bindtap="runAudit">{{audit ? '重新检查' : '开始检查'}}</view>
+    </view>
+    <view class="foot">名字改过（曾用名）的不算问题。确认是冒名的报名，可以在云开发控制台的 signups 集合里删除；签表已生成的赛事，删除前先联系发起人。</view>
+  </block>
 
   <block wx:else>
     <view class="btn-primary" bindtap="invite">＋ 生成邀请链接</view>

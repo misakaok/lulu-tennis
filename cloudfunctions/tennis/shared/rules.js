@@ -101,14 +101,16 @@ const outcomeOf = (m) => (m && m.outcome) || (m && m.walkover ? 'walkover' : 'no
 const isNormal = (m) => outcomeOf(m) === 'normal';
 
 // 排行榜：type = 'all' | 'single' | 'double'（只算正常完赛）
+// 按统计身份累计（m.aKeys / bKeys，见 utils/ident.js；没有时按名字）。每行带 key 和展示用的 name
 function computeRank(matches, type) {
   const map = {};
-  const get = (n) => map[n] || (map[n] = { name: n, played: 0, win: 0, setW: 0, setL: 0, gameW: 0, gameL: 0, recent: [] });
+  const get = (k, n) => map[k] || (map[k] = { key: k, name: n, played: 0, win: 0, setW: 0, setL: 0, gameW: 0, gameL: 0, recent: [] });
   matches.filter((m) => isNormal(m) && (type === 'all' || m.type === type)).forEach((m) => {
     ['a', 'b'].forEach((side) => {
       const o = side === 'a' ? 'b' : 'a';
-      (m[side] || []).forEach((n) => {
-        const p = get(n);
+      const keys = m[side + 'Keys'] || [];
+      (m[side] || []).forEach((n, i) => {
+        const p = get(keys[i] || n, n);
         p.played++;
         if (m.winner === side) p.win++;
         if (p.recent.length < 5) p.recent.push(m.winner === side ? 'W' : 'L');

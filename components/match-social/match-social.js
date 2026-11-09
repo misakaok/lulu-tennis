@@ -31,6 +31,7 @@ Component({
     },
     async confirm() {
       if (this.data.busy) return;
+      require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
       this.setData({ busy: true });
       try {
         await cloud.call('confirmResult', { matchId: this.data.matchId });

@@ -16,7 +16,7 @@
 
   <!-- 前三名领奖台 -->
   <view wx:if="{{top.length}}" class="podium {{top.length >= 3 ? '' : 'few'}}">
-    <view wx:for="{{top}}" wx:key="name" class="pod r{{item.rank}}" data-name="{{item.name}}" bindtap="tapPlayer">
+    <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}}" data-key="{{item.key}}" bindtap="tapPlayer">
       <view class="medal">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</view>
       <av-img wx:if="{{item.avatar}}" class="avatar big" src="{{item.avatar}}" />
       <view wx:else class="avatar big" style="background:{{item.color}}">{{item.initial}}</view>
@@ -35,13 +35,13 @@
       <text class="c-rank">#</text><text class="c-name">球员</text>
       <text class="c-n">水平</text><text class="c-n">胜-负</text><text class="c-n">胜率</text>
     </view>
-    <view wx:for="{{ranked}}" wx:key="name" class="tr {{item.name === myName ? 'me' : ''}}" data-name="{{item.name}}" bindtap="tapPlayer">
+    <view wx:for="{{ranked}}" wx:key="key" class="tr {{item.key === myKey ? 'me' : ''}}" data-key="{{item.key}}" bindtap="tapPlayer">
       <text class="c-rank {{item.rank > 3 ? '' : 'gold'}}">{{item.rank}}</text>
       <view class="c-name">
         <av-img wx:if="{{item.avatar}}" class="avatar sm" src="{{item.avatar}}" />
         <view wx:else class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
         <text class="nm">{{item.name}}</text>
-        <text wx:if="{{item.name === myName}}" class="me-tag">我</text>
+        <text wx:if="{{item.key === myKey}}" class="me-tag">我</text>
       </view>
       <view class="c-n"><text class="lv">{{item.levelText}}</text><text wx:if="{{item.provisional}}" class="prov">定级中</text></view>
       <text class="c-n b">{{item.win}}-{{item.lose}}</text>

@@ -222,6 +222,41 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
+test('数据核对：找出冒名报名、搭档名字不符、同赛事同名；曾用名不算问题；只有管理员能用', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'owner';
+  try {
+    env.coll('players').p_bob.formerNames = ['Bobby'];
+    env.put('signups', { _id: 's1', _openid: 'alice', drawId: 'd1', name: 'Alice' });               // 正常
+    env.put('signups', { _id: 's2', _openid: 'bob', drawId: 'd1', name: 'Bobby' });                 // 曾用名，正常
+    env.put('signups', { _id: 's3', _openid: 'eve', drawId: 'd1', name: 'Carl' });                  // 冒名
+    env.put('signups', { _id: 's4', _openid: 'carl', drawId: 'd2', name: 'Carl', partner: 'Bob', partnerId: 'eve' }); // 搭档名字不符
+    env.put('signups', { _id: 's5', _openid: 'carl', drawId: 'd1', name: 'Carl' });                 // 和 s3 同赛事同名
+    const r = ok(await env.call('owner', 'auditSignups'));
+    assert.strictEqual(r.total, 5);
+    const has = (id, re) => r.issues.some((x) => x.id.startsWith(id) && re.test(x.problem));
+    assert.ok(has('s3', /对不上/)); assert.ok(has('s4', /搭档/)); assert.ok(has('s3', /同一赛事/)); assert.ok(has('s5', /同一赛事/));
+    assert.ok(!r.issues.some((x) => x.id.startsWith('s1') || x.id.startsWith('s2')));
+    no(await env.call('alice', 'auditSignups'), /管理员/);
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+test('赛事申请列表：申请人昵称批量取，只看自己的（发起人看全部）', async () => {
+  const env = setup();
+  env.coll('draws').d1.status = 'drawn';
+  env.put('requests', { _id: 'r1', type: 'withdraw', drawId: 'd1', requesterId: 'alice', status: 'pending', createdAt: 1 });
+  env.put('requests', { _id: 'r2', type: 'withdraw', drawId: 'd1', requesterId: 'bob', status: 'pending', createdAt: 2 });
+  const o = ok(await env.call('owner', 'drawRequests', { drawId: 'd1' }));
+  assert.deepStrictEqual(o.list.map((x) => x.requester), ['Bob', 'Alice']);
+  const a = ok(await env.call('alice', 'drawRequests', { drawId: 'd1' }));
+  assert.deepStrictEqual(a.list.map((x) => x.id), ['r1']);
+});
+test('相册数量：只数审核通过的', async () => {
+  const env = setup();
+  ['pass', 'pass', 'checking', 'reject'].forEach((st, i) => env.put('event_photos', { _id: 'ph' + i, drawId: 'd1', status: st }));
+  assert.strictEqual(ok(await env.call('alice', 'eventPhotoCount', { drawId: 'd1' })).count, 2);
+});
+
 /* ---------- 邀请码、日期 ---------- */
 test('邀请码：过期 / 撤销的不会被占用', async () => {
   const env = setup();

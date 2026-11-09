@@ -18,8 +18,8 @@ Page({
     const ratings = R.computeRatings(matches, R.startLevelsFrom(players));
     const card = (name) => {
       const p = players.find((x) => x.name === name) || {};
-      const r = ratings.players[name];
-      const level = R.levelOf(ratings, name, players);
+      const r = R.ratingOf(ratings, name, players, p.uid);
+      const level = R.levelOf(ratings, name, players, p.uid);
       return {
         name, uid: p.uid || '', avatar: p.avatar || '', initial: initialOf(name), color: colorOf(name),
         level: R.fmt(level), raw: level, tier: R.tierOf(level), provisional: !r || r.provisional,

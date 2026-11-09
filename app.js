@@ -14,5 +14,6 @@ App({
   // 启动和每次回到前台都重新校验成员资格；不是正式成员就清缓存、去「仅限内部球友使用」页
   onShow() {
     require('./utils/member').check();
+    require('./utils/notify').prefetch(); // 订阅消息模板 ID：点按钮时要同步用到，提前取好
   },
 });

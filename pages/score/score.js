@@ -114,6 +114,7 @@ Page({
     const r = this.res, f = this.f, d = this.d, cfg = this.cfg;
     if (!r || !r.ok) { wx.showToast({ title: this.data.check.msg || '请完善比分', icon: 'none' }); return; }
     if (!this.data.canEdit) { wx.showToast({ title: this.data.reason, icon: 'none' }); return; }
+    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     this.setData({ submitting: true });
     try {
       // 赛事比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）

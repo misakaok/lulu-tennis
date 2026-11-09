@@ -1,10 +1,11 @@
 // 成员资格（前端）：云函数每次都会校验，这里负责「被拒绝时」清掉受保护的缓存、跳到准入页
 // 触发时机：小程序启动 / 回到前台、任何云函数返回 NOT_MEMBER
 const GATE = '/pages/gate/gate';
-const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1 };
+const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1, notify_tmpl: 1 }; // notify_tmpl：订阅消息模板 ID，不是隐私数据
 
 function clearProtected() {
   require('./memo').invalidate();
+  try { require('./avatar').clearFiles(); } catch (e) {} // 本地缓存的头像文件也删掉
   try {
     const info = wx.getStorageInfoSync();
     (info.keys || []).forEach((k) => { if (!KEEP[k]) wx.removeStorageSync(k); });

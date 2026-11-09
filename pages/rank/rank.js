@@ -2,12 +2,13 @@ const db = require('../../utils/db');
 const R = require('../../utils/rating');
 const S = require('../../utils/stats');
 const { computeRank, colorOf, initialOf } = require('../../utils/rules');
+const ID = require('../../utils/ident');
 
 Page({
   data: {
     filter: 'all', sort: 'level',
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
-    top: [], ranked: [], loading: true, myName: '',
+    top: [], ranked: [], loading: true, myKey: '',
   },
 
   onLoad() {
@@ -42,7 +43,7 @@ Page({
     // 水平分始终用全部比赛（单打 + 双打）计算
     this.ratings = R.computeRatings(this.all || [], R.startLevelsFrom(players));
     const list = computeRank(this.all || [], this.data.filter).map((p) => {
-      const r = this.ratings.players[p.name];
+      const r = this.ratings.players[p.key];
       const level = r ? r.level : R.DEFAULT_LEVEL;
       return Object.assign(p, {
         level, levelText: R.fmt(level), provisional: !r || r.provisional,
@@ -56,15 +57,16 @@ Page({
     }
     list.forEach((p, i) => { p.rank = i + 1; });
     const top = list.length >= 3 ? [list[1], list[0], list[2]] : list.slice(0, 3);
-    this.setData({ top, ranked: list, myName: this.me ? this.me.name : '' });
+    this.setData({ top, ranked: list, myKey: this.me ? this.me._openid || '' : '' });
   },
 
   // 点球员 → 球员主页（主页上可以发起挑战、评价）
+  // 排行按统计身份：key 不是 'n:' 开头的就是用户 ID
   tapPlayer(e) {
-    const name = e.currentTarget.dataset.name;
-    if (this.me && name === this.me.name) { wx.switchTab({ url: '/pages/me/me' }); return; }
-    const p = (this.players || []).find((x) => x.name === name);
-    if (!p || !p.uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
-    wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(p.uid) });
+    const key = e.currentTarget.dataset.key || '';
+    const uid = key && key.indexOf(ID.NAME_KEY) !== 0 ? key : '';
+    if (this.me && uid && uid === this.me._openid) { wx.switchTab({ url: '/pages/me/me' }); return; }
+    if (!uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
+    wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(uid) });
   },
 });

@@ -14,3 +14,5 @@
 button.m-share { flex: none; margin: 0 0 0 10rpx !important; padding: 0 20rpx !important; height: 52rpx; line-height: 52rpx; font-size: 23rpx; border-radius: 26rpx; background: #9595C4; color: #fff; width: auto !important; }
 button.m-share::after { border: none; }
 .foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 20rpx; }
+
+.m-alias { font-size: 22rpx; color: #8C8CA3; font-weight: normal; margin-left: 6rpx; }

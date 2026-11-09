@@ -4,7 +4,7 @@
 const cloud = require('../../utils/cloud');
 
 Page({
-  data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '' },
+  data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '', audit: null, auditing: false },
   onShow() { this.load(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
@@ -13,6 +13,13 @@ Page({
     catch (e) { this.setData({ loading: false }); wx.showModal({ title: '无法打开', content: e.message, showCancel: false, success: () => wx.navigateBack() }); }
   },
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
+  async runAudit() {
+    if (this.data.auditing) return;
+    this.setData({ auditing: true });
+    try { this.setData({ audit: await cloud.call('auditSignups') }); }
+    catch (e) { wx.showModal({ title: '检查失败', content: e.message, showCancel: false }); }
+    finally { this.setData({ auditing: false }); }
+  },
   // 复制用户 ID（openid）：设置管理员时粘贴到云函数环境变量 ADMIN_OPENIDS，避免手抄出错
   copyId(e) {
     const uid = e.currentTarget.dataset.uid;

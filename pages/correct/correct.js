@@ -38,6 +38,7 @@ Page({
     if (!this.res || !this.res.ok) { wx.showToast({ title: this.data.check.msg || '请填写正确比分', icon: 'none' }); return; }
     const reason = this.data.reason.trim();
     if (this.data.mode === 'request' && reason.length < 2) { wx.showToast({ title: '请填写修改原因', icon: 'none' }); return; }
+    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     this.setData({ submitting: true });
     try {
       if (this.data.mode === 'edit') await cloud.call('editMatchScore', { matchId: this.id, sets: this.res.sets });

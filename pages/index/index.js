@@ -21,8 +21,9 @@ function dateLabel(str) {
 function toView(m, avatarOf, deltas) {
   const d = deltas[m._id] || {};
   const side = (k) => (m[k] || []).map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n), avatar: avatarOf[n] || '' }));
+  const first = (k) => ((m[k + 'Keys'] || m[k] || [])[0]); // 同队两人涨跌相同，取第一位的统计身份
   const deltaText = (k) => {
-    const v = (m[k] || []).length ? d[m[k][0]] : undefined; // 同队两人涨跌相同
+    const v = (m[k] || []).length ? d[first(k)] : undefined;
     return v === undefined ? '' : R.fmtDelta(v);
   };
   return {
@@ -37,7 +38,7 @@ function toView(m, avatarOf, deltas) {
     a: side('a'),
     b: side('b'),
     aDelta: deltaText('a'), bDelta: deltaText('b'),
-    aUp: (d[(m.a || [])[0]] || 0) > 0, bUp: (d[(m.b || [])[0]] || 0) > 0,
+    aUp: (d[first('a')] || 0) > 0, bUp: (d[first('b')] || 0) > 0,
     aText: (m.a || []).join(' / '),
     bText: (m.b || []).join(' / '),
     sets: (m.sets || []).map((s) => ({
