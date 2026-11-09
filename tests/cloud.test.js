@@ -188,6 +188,25 @@ test('赛事：删除是软删除，列表不再返回，联系人和照片删�
   no(await env.call('alice', 'signUp', { drawId: 'd1' }), /删除/);
 });
 
+/* ---------- 成员管理 ---------- */
+test('成员管理：环境变量里的管理员总在「成员」里（即使以前申请过 / 被移除过）', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'boss,veg,ghost';
+  try {
+    env.put('players', { _id: 'p_veg', _openid: 'veg', self: true, name: '花椰菜', createdAt: 9 });
+    env.put('members', { _id: 'veg', status: 'pending', name: '花椰菜', appliedAt: 1 }); // 先申请过，后来被设成管理员
+    env.put('members', { _id: 'boss', status: 'removed', reason: 'x' });
+    const d = ok(await env.call('boss', 'listMembers'));
+    const act = d.active.filter((x) => x.admin).map((x) => x.uid).sort();
+    assert.deepStrictEqual(act, ['boss', 'ghost', 'veg']);
+    assert.strictEqual(d.active.find((x) => x.uid === 'veg').nickname, '花椰菜');
+    assert.ok(!d.pending.some((x) => x.uid === 'veg') && !d.others.some((x) => x.uid === 'boss'));
+    assert.strictEqual(d.active.find((x) => x.uid === 'ghost').uidTail, 'ghost'); // 没有资料的显示 ID 尾号
+    no(await env.call('alice', 'listMembers'), /管理员/);
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
 /* ---------- 邀请码、日期 ---------- */
 test('邀请码：过期 / 撤销的不会被占用', async () => {
   const env = setup();

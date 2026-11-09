@@ -58,5 +58,6 @@
     </view>
   </block>
 
-  <view wx:if="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分和评价对手 · 长按可删除自己录入的日常比赛</view>
+  <view wx:if="{{more}}" class="foot">上滑加载更多</view>
+  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分和评价对手 · 长按可删除自己录入的日常比赛</view>
 </view>

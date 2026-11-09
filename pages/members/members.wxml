@@ -18,7 +18,7 @@
   <block wx:elif="{{tab === 'active'}}">
     <view class="card">
       <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : item.admin ? '云函数环境变量配置' : '申请加入'}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '云函数环境变量配置' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
         <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
       </view>
     </view>

@@ -2,6 +2,8 @@ const db = require('../../utils/db');
 const R = require('../../utils/rating');
 const { colorOf, initialOf } = require('../../utils/rules');
 
+const PAGE = 40;        // 列表每次显示多少场，滑到底再加载
+const SEARCH_MS = 300;  // 搜索防抖
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -52,12 +54,18 @@ Page({
     stat: { total: 0, month: 0, players: 0 },
     filter: 'all',
     who: '',
+    more: false,
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
   },
 
   onLoad() {
-    this.all = db.cachedMatchesAll();
-    this.players = db.cachedPlayersFull();
+    this.limit = PAGE;
+    this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull());
+    this.render();
+  },
+  onReachBottom() {
+    if (!this.data.more) return;
+    this.limit += PAGE;
     this.render();
   },
   onShow() { this.load(); },
@@ -67,47 +75,61 @@ Page({
   async load() {
     try {
       const [m, p] = await Promise.all([db.fetchMatchesAll(), db.fetchPlayersFull()]);
-      this.all = m; this.players = p;
+      // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
+      if (this.setSource(m, p)) this.render();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
     }
-    this.setData({ loading: false });
-    this.render();
+    if (this.data.loading) this.setData({ loading: false });
   },
 
-  // 列表显示正式战绩 + 待对手确认的日常比赛；统计和水平分涨跌只算正式战绩
-  render() {
-    const shown = this.all || [];
-    const all = shown.filter((m) => m.status !== 'pending');
+  // 换数据源：水平分涨跌、头像、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
+  // 返回是否有变化
+  setSource(matches, players) {
+    const sig = JSON.stringify([matches || [], players || []]);
+    if (sig === this.sig) return false;
+    this.sig = sig;
+    const shown = matches || [];
+    const all = shown.filter((m) => m.status !== 'pending'); // 统计和水平分涨跌只算正式战绩
     const month = ymd(new Date()).slice(0, 7);
     const names = {};
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
-
-    const who = this.data.who.trim();
-    const list = shown.filter((m) =>
-      (this.data.filter === 'all' || m.type === this.data.filter) &&
-      (!who || (m.a || []).concat(m.b || []).some((n) => n.indexOf(who) >= 0)));
-
-    const players = this.players || [];
     const avatarOf = {};
-    players.forEach((p) => { if (p.avatar) avatarOf[p.name] = p.avatar; });
-    const { deltas } = R.computeRatings(all, R.startLevelsFrom(players));
+    (players || []).forEach((p) => { if (p.avatar) avatarOf[p.name] = p.avatar; });
+    this.src = {
+      shown, avatarOf,
+      deltas: R.computeRatings(all, R.startLevelsFrom(players || [])).deltas,
+      stat: { total: all.length, month: all.filter((m) => (m.date || '').indexOf(month) === 0).length, players: Object.keys(names).length },
+    };
+    return true;
+  },
+
+  // 列表显示正式战绩 + 待对手确认的日常比赛；按筛选条件过滤后只渲染前 limit 场
+  render() {
+    const { shown, avatarOf, deltas, stat } = this.src || { shown: [], avatarOf: {}, deltas: {}, stat: this.data.stat };
+    const who = (this.who !== undefined ? this.who : this.data.who).trim();
+    const filter = this.data.filter;
+    const list = shown.filter((m) =>
+      (filter === 'all' || m.type === filter) &&
+      (!who || (m.a || []).concat(m.b || []).some((n) => n.indexOf(who) >= 0)));
     const groups = [];
-    list.forEach((m) => {
+    list.slice(0, this.limit || PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
       g.items.push(toView(m, avatarOf, deltas));
     });
-
-    this.setData({
-      groups,
-      stat: { total: all.length, month: all.filter((m) => (m.date || '').indexOf(month) === 0).length, players: Object.keys(names).length },
-    });
+    this.setData({ groups, stat, more: list.length > (this.limit || PAGE) });
   },
 
-  setFilter(e) { this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
-  onSearch(e) { this.setData({ who: e.detail.value }); this.render(); },
+  setFilter(e) { this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
+  // 输入时只记下关键词，停顿 300ms 再过滤（不在每个字上重新渲染整个列表）
+  onSearch(e) {
+    this.who = e.detail.value;
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => { this.limit = PAGE; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
+  },
+  onUnload() { clearTimeout(this.searchTimer); },
   goAdd() { wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；赛事比赛在签表里录）
   // 点击比赛：详情页里可以确认赛果、评价对手；赛事比赛可以从详情页进入赛事
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
@@ -129,7 +151,7 @@ Page({
               // 需要填原因 / 确认对后续场次的影响：到比赛详情里撤销
               if (res.needReason) { wx.navigateTo({ url: '/pages/match/match?id=' + id }); return; }
               wx.showToast({ title: '已删除' });
-              this.load();
+              this.load(); // 删除会作废缓存（utils/cloud.js），这里拿到的是新数据
             } catch (err) {
               console.error(err);
               wx.showModal({ title: '删除失败', content: err.message || '请稍后再试', showCancel: false });

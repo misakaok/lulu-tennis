@@ -1598,13 +1598,16 @@ async function listMembers() {
   const profiles = (await db.collection('players').where({ self: true }).limit(1000).get()).data;
   const nameOf = {};
   profiles.forEach((p) => { if (p._openid && !nameOf[p._openid]) nameOf[p._openid] = p.name; });
-  const row = (m) => ({ uid: m._id, name: m.name || '', nickname: nameOf[m._id] || '', note: m.note || '', status: m.status, reason: m.reason || '', source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
+  // uidTail：ID 尾号，只给管理员看，用来核对环境变量里的 openid 是不是本人
+  const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', note: m.note || '', status: m.status, reason: m.reason || '', source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));
+  // 管理员一律算正式成员（和 memberOf 一致）：即使以前申请过、被拒绝或移除过，也显示在「成员」里，不出现在待审核 / 已移除中
   const invites = (await db.collection('invites').limit(200).get()).data.filter((x) => !x.usedBy && !x.revoked && x.expiresAt > Date.now()).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
   return {
-    pending: all.filter((m) => m.status === 'pending').map(row),
-    active: all.filter((m) => m.status === 'active').map(row).concat(ADMINS().filter((u) => !by[u]).map((u) => ({ uid: u, name: '', nickname: nameOf[u] || '', status: 'active', admin: true }))),
-    others: all.filter((m) => m.status === 'rejected' || m.status === 'removed').map(row),
+    pending: all.filter((m) => m.status === 'pending' && !isAdmin(m._id)).map(row),
+    active: all.filter((m) => m.status === 'active' || isAdmin(m._id)).map((m) => Object.assign(row(m), { status: 'active' }))
+      .concat(ADMINS().filter((u) => !by[u]).map((u) => ({ uid: u, uidTail: u.slice(-6), name: '', nickname: nameOf[u] || '', status: 'active', admin: true }))),
+    others: all.filter((m) => (m.status === 'rejected' || m.status === 'removed') && !isAdmin(m._id)).map(row),
     candidates, invites,
   };
 }
