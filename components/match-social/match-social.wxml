@@ -1,0 +1,54 @@
+<view class="card ms">
+  <view class="card-title">赛果确认</view>
+  <view wx:if="{{loading && !st}}" class="ms-muted">读取中…</view>
+  <view wx:elif="{{err}}" class="ms-muted">{{err}}</view>
+  <block wx:elif="{{st}}">
+    <block wx:if="{{st.finished}}">
+      <view class="ms-sides">
+        <view class="ms-side {{st.sides.a ? 'ok' : ''}}">A 方：{{st.sideA}}</view>
+        <view class="ms-side {{st.sides.b ? 'ok' : ''}}">B 方：{{st.sideB}}</view>
+      </view>
+      <view wx:if="{{st.unbound}}" class="ms-muted">这场有球员没有绑定账号（旧记录或手动添加的球员），这些位置不能确认，也不能评价或被评价。</view>
+      <view class="ms-status {{st.confirmed ? 'ok' : ''}}">{{st.confirmed ? '✅ 双方已确认，赛果生效，可以互评' : '比分需要双方各有一人认可（录入的一方自动算认可）'}}</view>
+      <view wx:if="{{st.canConfirm}}" class="btn-primary ms-btn {{busy ? 'disabled' : ''}}" bindtap="confirm">比分无误，确认</view>
+    </block>
+    <view wx:else class="ms-muted">{{st.reason}}</view>
+
+    <block wx:if="{{st.finished && st.mySide}}">
+      <view class="card-title ms-t2">评价对手<text class="sub">1～5 分，匿名展示，不影响等级和排名</text></view>
+      <view wx:for="{{st.reviews}}" wx:key="index" class="ms-opp">
+        <text class="ms-name">{{item.target}}</text>
+        <text wx:if="{{item.unbound}}" class="ms-wait">未绑定账号，无法评价</text>
+        <text wx:elif="{{item.done}}" class="ms-done">已评价 {{item.overall}} 分</text>
+        <view wx:elif="{{st.canReview}}" class="ms-go" data-id="{{item.targetId}}" data-t="{{item.target}}" bindtap="review">去评价 ›</view>
+        <text wx:else class="ms-wait">确认后可评价</text>
+      </view>
+    </block>
+    <view wx:if="{{st.finished && !st.mySide && st.reason}}" class="ms-muted">{{st.reason}}</view>
+  </block>
+  <!-- 比分纠错 -->
+  <block wx:if="{{st && st.finished}}">
+    <view wx:if="{{st.request}}" class="ms-req">
+      <view class="ms-req-t">{{st.request.mine ? '你' : st.request.requester}}申请修改比分</view>
+      <view class="ms-req-s">{{st.request.from}} → <text class="b">{{st.request.to}}</text></view>
+      <view class="ms-req-r">原因：{{st.request.reason}}</view>
+      <view class="ms-req-n">处理之前，正式战绩、排名和晋级都按原比分</view>
+      <view class="ms-req-acts">
+        <block wx:if="{{st.request.canRespond}}">
+          <view class="ms-a" data-v="0" bindtap="respond">拒绝</view>
+          <view class="ms-a main" data-v="1" bindtap="respond">同意修改</view>
+        </block>
+        <block wx:if="{{st.request.canRule}}">
+          <view class="ms-a" data-v="0" bindtap="rule">裁定：保留原比分</view>
+          <view class="ms-a main" data-v="1" bindtap="rule">裁定：采用新比分</view>
+        </block>
+        <view wx:if="{{st.request.canCancel}}" class="ms-a" bindtap="cancelRequest">撤回申请</view>
+      </view>
+      <view wx:if="{{st.request.daily && !st.request.canRespond && !st.request.mine}}" class="ms-req-n">日常比赛没有赛事发起人，只能由对方同意或拒绝</view>
+    </view>
+    <view wx:elif="{{st.canEdit || (st.drawId && st.mySide && !st.confirmed)}}" class="ms-link" bindtap="edit">比分录错了？修改比分（对方还没确认）</view>
+    <view wx:elif="{{st.canRequestChange}}" class="ms-link" bindtap="requestChange">比分有误？申请修改比分</view>
+  </block>
+
+  <view wx:if="{{revocable}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
+</view>

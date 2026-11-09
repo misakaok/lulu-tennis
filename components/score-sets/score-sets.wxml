@@ -1,0 +1,36 @@
+<view class="set-head">
+  <text class="set-name"></text>
+  <text class="col">{{aLabel}}</text>
+  <text class="col">{{bLabel}}</text>
+  <text class="del-col"></text>
+</view>
+
+<view wx:for="{{setsView}}" wx:key="index" class="set">
+  <view class="set-row">
+    <text class="set-name">第 {{index + 1}} 盘</text>
+    <view class="stepper">
+      <view class="st-btn" data-i="{{index}}" data-side="a" data-d="-1" bindtap="step">−</view>
+      <text class="st-num {{item.aw ? 'w' : ''}}">{{item.a}}</text>
+      <view class="st-btn" data-i="{{index}}" data-side="a" data-d="1" bindtap="step">+</view>
+    </view>
+    <view class="stepper">
+      <view class="st-btn" data-i="{{index}}" data-side="b" data-d="-1" bindtap="step">−</view>
+      <text class="st-num {{item.bw ? 'w' : ''}}">{{item.b}}</text>
+      <view class="st-btn" data-i="{{index}}" data-side="b" data-d="1" bindtap="step">+</view>
+    </view>
+    <view class="del-col">
+      <text wx:if="{{index > 0}}" class="del" data-i="{{index}}" bindtap="removeSet">✕</text>
+    </view>
+  </view>
+  <view wx:if="{{item.needTb}}" class="tb-box">
+    <view class="tb-title">{{tbLabel}}<text class="tb-hint">{{tbHint}}</text></view>
+    <view class="tb-row">
+      <text class="set-name"></text>
+      <view class="tb-cell"><input class="tb-in" type="number" maxlength="2" placeholder="小分" value="{{item.tbA}}" data-i="{{index}}" data-side="a" bindinput="onTb" /></view>
+      <view class="tb-cell"><input class="tb-in" type="number" maxlength="2" placeholder="小分" value="{{item.tbB}}" data-i="{{index}}" data-side="b" bindinput="onTb" /></view>
+      <text class="del-col"></text>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{canAddSet}}" class="add-set" bindtap="addSet">＋ 添加第 {{setsView.length + 1}} 盘</view>

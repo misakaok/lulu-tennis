@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "比赛详情",
+  "usingComponents": { "match-social": "/components/match-social/match-social" }
+}

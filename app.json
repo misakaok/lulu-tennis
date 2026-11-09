@@ -1,0 +1,72 @@
+{
+  "pages": [
+    "pages/draw/draw",
+    "pages/index/index",
+    "pages/add/add",
+    "pages/rank/rank",
+    "pages/me/me",
+    "pages/draw-new/draw-new",
+    "pages/draw-view/draw-view",
+    "pages/profile/profile",
+    "pages/challenge/challenge",
+    "pages/score/score",
+    "pages/event-edit/event-edit",
+    "pages/match/match",
+    "pages/review/review",
+    "pages/player/player",
+    "pages/history/history",
+    "pages/album/album",
+    "pages/todo/todo",
+    "pages/correct/correct",
+    "pages/gate/gate",
+    "pages/members/members"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#A3A3CB",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "网球战绩",
+    "backgroundColor": "#F6F6FA",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8C8CA3",
+    "selectedColor": "#6E6EA3",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/draw/draw",
+        "text": "赛事",
+        "iconPath": "images/tab/draw.png",
+        "selectedIconPath": "images/tab/draw-on.png"
+      },
+      {
+        "pagePath": "pages/index/index",
+        "text": "战绩",
+        "iconPath": "images/tab/record.png",
+        "selectedIconPath": "images/tab/record-on.png"
+      },
+      {
+        "pagePath": "pages/rank/rank",
+        "text": "排行",
+        "iconPath": "images/tab/rank.png",
+        "selectedIconPath": "images/tab/rank-on.png"
+      },
+      {
+        "pagePath": "pages/me/me",
+        "text": "我的",
+        "iconPath": "images/tab/me.png",
+        "selectedIconPath": "images/tab/me-on.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "av-img": "/components/av-img/av-img"
+  },
+  "requiredPrivateInfos": [
+    "chooseLocation"
+  ]
+}

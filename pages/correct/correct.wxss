@@ -1,0 +1,10 @@
+.muted { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 60rpx 0; }
+.c-vs { font-size: 30rpx; font-weight: 800; color: #1E1E32; }
+.c-x { color: #A5A5BA; font-weight: 400; margin: 0 8rpx; }
+.c-cur { margin-top: 10rpx; font-size: 26rpx; color: #4F4F7D; }
+.c-rule { margin-top: 8rpx; font-size: 22rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 12rpx; padding: 10rpx 14rpx; }
+.result { margin-top: 18rpx; padding: 16rpx; border-radius: 14rpx; background: #F7F7FB; color: #8686A0; font-size: 25rpx; text-align: center; }
+.result:empty { display: none; }
+.result.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 700; }
+.c-reason { width: 100%; height: 160rpx; box-sizing: border-box; background: #F7F7FB; border-radius: 14rpx; padding: 16rpx; font-size: 26rpx; }
+.note { font-size: 22rpx; color: #8686A0; line-height: 1.6; margin: 0 6rpx 20rpx; }

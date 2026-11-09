@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Dependencies and logs
+node_modules/
+*.log
+
+# Local WeChat developer settings
+project.private.config.json
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key

@@ -1,0 +1,84 @@
+<view class="page">
+  <view class="event-tip" bindtap="goEvents">🏆 赛事里的比赛请到「赛事」，在签表或赛程里点对应场次录分 ›</view>
+  <view class="confirm-tip">日常比赛提交后需要<text class="b">对手确认</text>，确认后才计入正式战绩、排名，并开放互评。</view>
+  <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的头像和昵称，才能记录比赛 ›</view>
+  <!-- 基本信息 -->
+  <view class="card">
+    <view class="line">
+      <text class="label">比赛日期</text>
+      <picker mode="date" value="{{date}}" end="{{today}}" bindchange="onDate">
+        <view class="picker">{{date}} <text class="arrow">›</text></view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="label">类型</text>
+      <view class="seg">
+        <view class="seg-item {{type === 'single' ? 'on' : ''}}" data-v="single" bindtap="setType">单打</view>
+        <view class="seg-item {{type === 'double' ? 'on' : ''}}" data-v="double" bindtap="setType">双打</view>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">每盘局数</text>
+      <view class="seg">
+        <view class="seg-item {{setGames === 4 ? 'on' : ''}}" data-v="4" bindtap="setGames">4 局制（3:3 抢七）</view>
+        <view class="seg-item {{setGames === 6 ? 'on' : ''}}" data-v="6" bindtap="setGames">6 局制（6:6 抢七）</view>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">抢七规则</text>
+      <view class="seg">
+        <view class="seg-item {{noAd ? 'on' : ''}}" data-v="1" bindtap="setNoAd">金球（净胜 1 分）</view>
+        <view class="seg-item {{noAd ? '' : 'on'}}" data-v="0" bindtap="setNoAd">占先（净胜 2 分）</view>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">盘数</text>
+      <view class="seg">
+        <view class="seg-item {{bestOf === 1 ? 'on' : ''}}" data-v="1" bindtap="setBestOf">一盘</view>
+        <view class="seg-item {{bestOf === 3 ? 'on' : ''}}" data-v="3" bindtap="setBestOf">三盘两胜</view>
+      </view>
+    </view>
+    <view class="rules-tip">{{rulesText}}</view>
+  </view>
+
+  <!-- 球员 -->
+  <view class="card">
+    <view class="card-title">选择对手<text class="sub">你固定在 A 方；点一个位置，再点下面的球员</text></view>
+    <view class="vs-box">
+      <view class="side">
+        <view wx:for="{{slotsA}}" wx:key="key" class="slot a {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
+          data-key="{{item.key}}" bindtap="tapSlot">
+          <av-img wx:if="{{item.name && item.avatar}}" class="avatar sm img" src="{{item.avatar}}" />
+          <view wx:elif="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <text class="slot-name">{{item.name || item.placeholder}}</text>
+        </view>
+      </view>
+      <view class="vs">VS</view>
+      <view class="side">
+        <view wx:for="{{slotsB}}" wx:key="key" class="slot b {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
+          data-key="{{item.key}}" bindtap="tapSlot">
+          <av-img wx:if="{{item.name && item.avatar}}" class="avatar sm img" src="{{item.avatar}}" />
+          <view wx:elif="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <text class="slot-name">{{item.name || item.placeholder}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="chips">
+      <view wx:for="{{chips}}" wx:key="name" class="chip {{item.used ? 'used' : ''}}" data-name="{{item.name}}" bindtap="pickPlayer">
+        <av-img wx:if="{{item.avatar}}" class="chip-av" src="{{item.avatar}}" />{{item.name}}
+      </view>
+      <view wx:if="{{!chips.length}}" class="chips-empty">还没有其他已注册的球员。请球友先在「我的」里设置资料</view>
+    </view>
+    <view class="chips-note">只能选设置过资料的球员：对手要用自己的微信确认比分</view>
+  </view>
+
+  <!-- 比分 -->
+  <view class="card">
+    <view class="card-title">比分</view>
+    <score-sets id="sets" set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" bind:change="onSets" />
+    <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
+  </view>
+
+  <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '保存中…' : '保存比分'}}</view>
+</view>

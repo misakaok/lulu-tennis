@@ -1,0 +1,23 @@
+<view class="rp {{disabled ? 'locked' : ''}}">
+  <view class="rp-row">
+    <text class="rp-k">局制</text>
+    <view class="rp-seg">
+      <view class="rp-i {{value.setGames === 4 ? 'on' : ''}}" data-k="setGames" data-v="4" bindtap="set">4 局（3:3 抢七）</view>
+      <view class="rp-i {{value.setGames === 6 ? 'on' : ''}}" data-k="setGames" data-v="6" bindtap="set">6 局（6:6 抢七）</view>
+    </view>
+  </view>
+  <view class="rp-row">
+    <text class="rp-k">抢七</text>
+    <view class="rp-seg">
+      <view class="rp-i {{value.noAd ? 'on' : ''}}" data-k="noAd" data-v="1" bindtap="set">金球（净胜 1 分）</view>
+      <view class="rp-i {{value.noAd ? '' : 'on'}}" data-k="noAd" data-v="0" bindtap="set">占先（净胜 2 分）</view>
+    </view>
+  </view>
+  <view class="rp-row">
+    <text class="rp-k">盘数</text>
+    <view class="rp-seg">
+      <view class="rp-i {{value.bestOf === 1 ? 'on' : ''}}" data-k="bestOf" data-v="1" bindtap="set">一盘定胜负</view>
+      <view class="rp-i {{value.bestOf === 3 ? 'on' : ''}}" data-k="bestOf" data-v="3" bindtap="set">三盘两胜</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,5 @@
+{
+  "navigationBarTitleText": "赛事",
+  "enablePullDownRefresh": true,
+  "usingComponents": { "draw-board": "/components/draw-board/draw-board" }
+}

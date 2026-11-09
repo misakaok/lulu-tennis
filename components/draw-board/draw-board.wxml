@@ -1,0 +1,76 @@
+<!-- 小组赛：积分榜 + 组内对阵 -->
+<view wx:if="{{groups.length}}" class="groups">
+  <view wx:if="{{both}}" class="stage-title">小组赛<text class="stage-sub">每组前 {{advance}} 名进入淘汰赛</text></view>
+  <view wx:for="{{groups}}" wx:key="name" wx:for-item="g" class="group">
+    <view class="g-head"><text class="g-name">{{g.name}}</text><text class="g-count">已赛 {{g.done}} / {{g.total}} 场</text></view>
+    <view class="t-row t-head">
+      <text class="t-rank">#</text><text class="t-name">球员</text>
+      <text class="t-c">胜</text><text class="t-c">负</text><text class="t-c w">净胜盘</text><text class="t-c w">净胜局</text>
+    </view>
+    <view wx:for="{{g.table}}" wx:key="name" wx:for-item="p" class="t-row {{p.mine ? 'mine' : ''}} {{p.q ? 'q' : ''}}">
+      <text class="t-rank {{p.rank === 1 && p.played ? 'first' : ''}}">{{p.rank || '—'}}</text>
+      <view class="t-name">
+        <av-img wx:for="{{p.avs}}" wx:key="*this" wx:for-item="u" class="g-av" src="{{u}}" />
+        <text class="g-pname">{{p.name}}</text>
+        <text wx:if="{{p.seed}}" class="g-seed">{{p.seed}}</text>
+        <text wx:if="{{p.wdText}}" class="wd-tag">{{p.wdText}}</text>
+      </view>
+      <text class="t-c b">{{p.win}}</text><text class="t-c">{{p.lose}}</text>
+      <text class="t-c w">{{p.setDiff > 0 ? '+' : ''}}{{p.setDiff}}</text><text class="t-c w">{{p.gameDiff > 0 ? '+' : ''}}{{p.gameDiff}}</text>
+    </view>
+    <view class="g-fix">
+      <view class="g-fix-title">组内对阵{{editable ? ' · 点击录分' : ''}}</view>
+      <view wx:for="{{g.fixtures}}" wx:key="key" wx:for-item="f" class="g-fix-item {{f.mine ? 'mine' : ''}}" data-key="{{f.key}}" bindtap="tapFixture">
+        <text class="fx-r">R{{f.round}}</text>
+        <text class="fx-p {{f.winner === 'a' ? 'w' : ''}}">{{f.a}}</text>
+        <text class="fx-s {{f.done ? 'done' : ''}}">{{f.done ? (f.score || '胜负已判') : 'vs'}}</text>
+        <text class="fx-p r {{f.winner === 'b' ? 'w' : ''}}">{{f.b}}</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 淘汰赛签表 -->
+<view wx:if="{{rounds.length}}">
+  <view wx:if="{{both}}" class="stage-title">淘汰赛<text class="stage-sub">{{koPending ? '小组赛全部结束后，按排名自动生成对阵' : '按小组排名生成'}}</text></view>
+  <view wx:if="{{champion}}" class="champ">
+    <view wx:if="{{champion.avs.length}}" class="champ-avs">
+      <av-img wx:for="{{champion.avs}}" wx:key="*this" class="champ-av" src="{{item}}" />
+    </view>
+    <text wx:else class="champ-cup">🏆</text>
+    <view><view class="champ-lbl">冠军</view><view class="champ-name">{{champion.name}}</view></view>
+  </view>
+
+  <scroll-view scroll-x class="scroller" enhanced show-scrollbar="{{false}}">
+    <view class="bracket">
+      <view wx:for="{{rounds}}" wx:key="name" wx:for-item="rd" wx:for-index="r" class="col">
+        <view class="col-title">{{rd.name}}</view>
+        <view class="col-body" style="height:{{colH}}rpx">
+          <view wx:for="{{rd.matches}}" wx:key="key" wx:for-item="m" class="cell {{r > 0 ? 'has-in' : ''}}">
+            <view class="match {{!m.auto && !m.hasBye && editable ? 'tappable' : ''}} {{m.ready && !m.done ? 'pending' : ''}}" data-r="{{r}}" data-i="{{index}}" bindtap="tapMatch">
+              <view class="pl {{m.a.win ? 'win' : ''}} {{m.a.lose ? 'lose' : ''}} {{m.a.mine ? 'mine' : ''}}">
+                <text wx:if="{{m.a.seed}}" class="seed">{{m.a.seed}}</text>
+                <av-img wx:for="{{m.a.avs}}" wx:key="*this" wx:for-item="u" class="pav" src="{{u}}" />
+                <text class="nm {{m.a.bye ? 'bye' : ''}} {{m.a.tbd ? 'tbd' : ''}}">{{m.a.bye ? '轮空' : m.a.tbd ? (m.a.label || '待定') : m.a.name}}</text>
+                <text wx:if="{{m.a.tag}}" class="otag {{m.a.win ? 'w' : ''}}">{{m.a.tag}}</text>
+                <text wx:if="{{m.a.games}}" class="gm">{{m.a.games}}</text>
+                <text wx:elif="{{m.a.win && !m.a.tag}}" class="tick">✓</text>
+              </view>
+              <view class="pl {{m.b.win ? 'win' : ''}} {{m.b.lose ? 'lose' : ''}} {{m.b.mine ? 'mine' : ''}}">
+                <text wx:if="{{m.b.seed}}" class="seed">{{m.b.seed}}</text>
+                <av-img wx:for="{{m.b.avs}}" wx:key="*this" wx:for-item="u" class="pav" src="{{u}}" />
+                <text class="nm {{m.b.bye ? 'bye' : ''}} {{m.b.tbd ? 'tbd' : ''}}">{{m.b.bye ? '轮空' : m.b.tbd ? (m.b.label || '待定') : m.b.name}}</text>
+                <text wx:if="{{m.b.tag}}" class="otag {{m.b.win ? 'w' : ''}}">{{m.b.tag}}</text>
+                <text wx:if="{{m.b.games}}" class="gm">{{m.b.games}}</text>
+                <text wx:elif="{{m.b.win && !m.b.tag}}" class="tick">✓</text>
+              </view>
+            </view>
+            <view wx:if="{{rounds.length - 1 > r}}" class="link {{index % 2 === 0 ? 'down' : 'up'}}"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+  <view class="hint">左右滑动查看全部轮次{{editable ? ' · 点击比赛录入比分' : ''}}</view>
+</view>
+

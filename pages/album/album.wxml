@@ -1,0 +1,48 @@
+<view class="page">
+  <view class="al-head">
+    <view class="al-title">{{title || '赛事相册'}}</view>
+    <view class="al-sub">{{passCount}} 张照片 · 照片通过内容审核后大家才能看到</view>
+    <view class="al-acts">
+      <view wx:if="{{canUpload}}" class="al-add" bindtap="addPhotos">＋ 添加照片</view>
+      <view wx:else class="al-note">赛事发起人和已报名的球员可以上传照片</view>
+      <view wx:if="{{photos.length && (isOwner || canUpload)}}" class="al-manage {{manage ? 'on' : ''}}" bindtap="toggleManage">{{manage ? '完成' : '管理'}}</view>
+    </view>
+  </view>
+
+  <!-- 上传队列：进度 / 失败重试 -->
+  <view wx:if="{{queue.length}}" class="card q">
+    <view class="q-title">{{uploading ? '正在上传…' : '有照片上传失败'}}</view>
+    <view class="grid">
+      <view wx:for="{{queue}}" wx:key="key" class="cell">
+        <image class="ph" src="{{item.path}}" mode="aspectFill" />
+        <view class="q-mask {{item.state}}">
+          <view wx:if="{{item.state === 'uploading'}}" class="q-bar"><view class="q-fill" style="width:{{item.progress}}%"></view></view>
+          <text class="q-st">{{item.state === 'uploading' ? item.progress + '%' : item.stateText}}</text>
+          <block wx:if="{{item.state === 'failed'}}">
+            <text class="q-btn" data-key="{{item.key}}" bindtap="retryUpload">重试</text>
+            <text class="q-x" data-key="{{item.key}}" bindtap="dropUpload">✕</text>
+          </block>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
+  <view wx:elif="{{!photos.length}}" class="empty">
+    <view class="empty-cam">📷</view>
+    <view>还没有照片</view>
+    <view class="empty-sub">{{canUpload ? '把比赛精彩瞬间传上来吧' : '报名参赛后可以上传照片'}}</view>
+  </view>
+
+  <view wx:else class="grid">
+    <view wx:for="{{photos}}" wx:key="id" class="cell" data-i="{{index}}" bindtap="preview">
+      <image wx:if="{{item.url}}" class="ph" src="{{item.url}}" mode="aspectFill" lazy-load />
+      <view wx:else class="ph ph-empty">{{item.status === 'reject' ? '已移除' : '🔒'}}</view>
+      <view wx:if="{{item.status !== 'pass'}}" class="badge {{item.status}}">{{item.statusText}}</view>
+      <view wx:if="{{item.canRetry}}" class="retry" data-i="{{index}}" catchtap="retryCheck">重新检测</view>
+      <view wx:if="{{manage && item.canDelete}}" class="del" data-i="{{index}}" catchtap="delPhoto">✕</view>
+      <view wx:if="{{manage}}" class="who">{{item.mine ? '我' : item.uploaderName}}</view>
+    </view>
+  </view>
+</view>

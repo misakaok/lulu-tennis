@@ -1,0 +1,39 @@
+<view class="page" wx:if="{{loaded}}">
+  <view class="vs-card">
+    <view class="title">⚔️ 挑战书</view>
+    <view class="vs-row">
+      <view class="pl">
+        <av-img wx:if="{{a.avatar}}" class="av" src="{{a.avatar}}" />
+        <view wx:else class="av init" style="background:{{a.color}}">{{a.initial}}</view>
+        <view class="nm">{{a.name}}</view>
+        <view class="lv">{{a.level}}</view>
+        <view class="tier">{{a.tier}}{{a.provisional ? ' · 定级中' : ''}}</view>
+        <view wx:if="{{repA}}" class="rep">口碑 {{repA.count ? repA.overall + ' 分（' + repA.count + '）' : '暂无'}}</view>
+      </view>
+      <view class="vs">VS</view>
+      <view class="pl">
+        <av-img wx:if="{{b.avatar}}" class="av" src="{{b.avatar}}" />
+        <view wx:else class="av init" style="background:{{b.color}}">{{b.initial}}</view>
+        <view class="nm">{{b.name}}</view>
+        <view class="lv">{{b.level}}</view>
+        <view class="tier">{{b.tier}}{{b.provisional ? ' · 定级中' : ''}}</view>
+        <view wx:if="{{repB}}" class="rep">口碑 {{repB.count ? repB.overall + ' 分（' + repB.count + '）' : '暂无'}}</view>
+      </view>
+    </view>
+    <view class="chance">
+      <view class="bar"><view class="fill" style="width:{{chance}}%"></view></view>
+      <view class="chance-t"><text>{{a.name}} 预计胜率 {{chance}}%</text><text>{{100 - chance}}%</text></view>
+    </view>
+    <view class="h2h">{{h2h}}</view>
+  </view>
+
+  <view wx:if="{{!ok}}" class="card warn">🚫 {{reason}}</view>
+  <view wx:else class="card info">
+    <view>✅ 可以挑战：{{a.raw > b.raw ? '水平接近，公平对决' : '低级别挑战高级别，赢了涨分更多'}}</view>
+    <view wx:if="{{gain}}" class="gain">{{gain}}</view>
+  </view>
+
+  <button wx:if="{{ok && isMine}}" class="btn-share" open-type="share">发给 {{b.name}} 下战书</button>
+  <view wx:if="{{ok}}" class="btn-primary ghost-btn" bindtap="goRecord">打完了，去记录比分</view>
+  <view class="back" bindtap="goHome">返回排行榜</view>
+</view>

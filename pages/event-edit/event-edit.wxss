@@ -1,0 +1,6 @@
+.ee-row { display: flex; align-items: center; min-height: 88rpx; border-bottom: 1rpx solid #F0F0F6; }
+.ee-row .label { width: 150rpx; flex: none; font-size: 26rpx; color: #6C6C86; }
+.ee-in { flex: 1; height: 88rpx; font-size: 30rpx; font-weight: 600; }
+.muted { color: #A5A5BA; font-size: 26rpx; text-align: center; padding: 40rpx 0; }
+.muted.small { font-size: 22rpx; padding: 10rpx 0 24rpx; }
+.warn { margin-top: 16rpx; font-size: 22rpx; color: #b34d4d; }

@@ -1,0 +1,62 @@
+<view class="hero">
+  <view class="hero-title">我们的网球战绩</view>
+  <view class="hero-sub">4 局 / 6 局制 · 抢七金球</view>
+  <view class="hero-stats">
+    <view class="hs"><text class="num">{{stat.total}}</text><text class="lbl">总场次</text></view>
+    <view class="hs"><text class="num">{{stat.month}}</text><text class="lbl">本月</text></view>
+    <view class="hs"><text class="num">{{stat.players}}</text><text class="lbl">球员</text></view>
+  </view>
+</view>
+
+<view class="page">
+  <view class="daily-entry" bindtap="goAdd">＋ 记录日常比赛<text class="de-sub">不属于赛事的约球，对手确认后计入战绩</text></view>
+  <view class="filters">
+    <view class="seg">
+      <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
+        data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+    </view>
+    <input class="search" placeholder="🔍 搜索球员" value="{{who}}" bindinput="onSearch" confirm-type="search" />
+  </view>
+
+  <view wx:if="{{!groups.length && !loading}}" class="empty">
+    <view class="empty-ball"></view>
+    <view>{{who || filter !== 'all' ? '没有符合条件的比赛' : '还没有比赛记录'}}</view>
+    <view wx:if="{{!who && filter === 'all'}}" class="btn-primary small" bindtap="goAdd">记录一场日常比赛</view>
+  </view>
+
+  <block wx:for="{{groups}}" wx:key="date" wx:for-item="g">
+    <view class="date">{{g.label}}</view>
+    <view wx:for="{{g.items}}" wx:key="_id" class="card match" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
+      <view wx:if="{{item.eventText}}" class="m-event">{{item.eventText}} ›</view>
+      <view class="m-tag">{{item.typeText}} · {{item.formatText}}<text wx:if="{{item.pending}}" class="m-pending">待对手确认 · 暂不计入战绩</text></view>
+
+      <view class="m-row {{item.winner === 'a' ? 'win' : 'lose'}}">
+        <view class="avatars">
+          <block wx:for="{{item.a}}" wx:key="name" wx:for-item="p">
+            <av-img wx:if="{{p.avatar}}" class="avatar sm img" src="{{p.avatar}}" />
+            <view wx:else class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
+          </block>
+        </view>
+        <view class="names">{{item.aText}}<text wx:if="{{item.winner === 'a'}}" class="cup"> 🏆</text><text wx:if="{{item.aDelta}}" class="delta {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</text></view>
+        <view class="scores">
+          <view wx:for="{{item.sets}}" wx:key="index" wx:for-item="s" class="sc {{s.aw ? 'w' : ''}}">{{s.a}}<text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text></view>
+        </view>
+      </view>
+
+      <view class="m-row {{item.winner === 'b' ? 'win' : 'lose'}}">
+        <view class="avatars">
+          <block wx:for="{{item.b}}" wx:key="name" wx:for-item="p">
+            <av-img wx:if="{{p.avatar}}" class="avatar sm img" src="{{p.avatar}}" />
+            <view wx:else class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
+          </block>
+        </view>
+        <view class="names">{{item.bText}}<text wx:if="{{item.winner === 'b'}}" class="cup"> 🏆</text><text wx:if="{{item.bDelta}}" class="delta {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</text></view>
+        <view class="scores">
+          <view wx:for="{{item.sets}}" wx:key="index" wx:for-item="s" class="sc {{s.bw ? 'w' : ''}}">{{s.b}}<text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分和评价对手 · 长按可删除自己录入的日常比赛</view>
+</view>

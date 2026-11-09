@@ -1,0 +1,22 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
+  <block wx:else>
+    <view class="card">
+      <view class="c-vs">{{aLabel}} <text class="c-x">vs</text> {{bLabel}}</view>
+      <view class="c-cur">原比分：{{current}}</view>
+      <view class="c-rule">本场赛制：{{ruleText}}（自动沿用）</view>
+    </view>
+    <view class="card">
+      <view class="card-title">{{mode === 'edit' ? '修改后的比分' : '正确的比分'}}</view>
+      <score-sets set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" init="{{init}}" bind:change="onSets" />
+      <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
+    </view>
+    <view wx:if="{{mode === 'request'}}" class="card">
+      <view class="card-title">修改原因<text class="sub">必填，对方和赛事发起人会看到</text></view>
+      <textarea class="c-reason" value="{{reason}}" maxlength="100" placeholder="例如：第二盘抢七小分录反了" bindinput="onReason" />
+    </view>
+    <view class="note">{{mode === 'edit' ? '比分还没被对方确认，改完后需要对方重新确认。' : '对方同意后才生效，拒绝则保留原比分；赛事比赛也可以由发起人裁定。处理之前，正式战绩、排名和晋级都不会变。'}}</view>
+    <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '提交中…' : (mode === 'edit' ? '保存修改' : '提交修改申请')}}</view>
+  </block>
+</view>

@@ -1,0 +1,25 @@
+.ms-muted { font-size: 24rpx; color: #A5A5BA; padding: 6rpx 0; }
+.ms-sides { display: flex; margin: 0 -8rpx; }
+.ms-side { flex: 1; margin: 0 8rpx; padding: 14rpx 16rpx; border-radius: 14rpx; background: #F7F7FB; font-size: 24rpx; color: #8686A0; }
+.ms-side.ok { background: #F1F1F8; color: #4F4F7D; font-weight: 600; }
+.ms-status { margin-top: 14rpx; font-size: 24rpx; color: #8686A0; }
+.ms-status.ok { color: #4F4F7D; font-weight: 700; }
+.ms-btn { margin-top: 20rpx; }
+.ms-t2 { margin-top: 30rpx; }
+.ms-t2 .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
+.ms-opp { display: flex; align-items: center; height: 80rpx; border-top: 1rpx solid #F2F2F8; }
+.ms-name { flex: 1; font-size: 28rpx; font-weight: 600; }
+.ms-done { font-size: 24rpx; color: #6E6EA3; }
+.ms-go { font-size: 26rpx; color: #fff; background: #9595C4; border-radius: 28rpx; padding: 10rpx 26rpx; font-weight: 700; }
+.ms-wait { font-size: 22rpx; color: #B7B7CC; }
+.ms-revoke { margin-top: 24rpx; text-align: center; font-size: 24rpx; color: #b34d4d; }
+.ms-req { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #fff8e6; }
+.ms-req-t { font-size: 26rpx; font-weight: 800; color: #9a6a00; }
+.ms-req-s { margin-top: 8rpx; font-size: 26rpx; color: #4F4F7D; }
+.ms-req-s .b { font-weight: 800; }
+.ms-req-r { margin-top: 6rpx; font-size: 23rpx; color: #5C5C76; }
+.ms-req-n { margin-top: 6rpx; font-size: 21rpx; color: #A5A5BA; }
+.ms-req-acts { display: flex; flex-wrap: wrap; margin-top: 14rpx; }
+.ms-a { padding: 10rpx 22rpx; margin: 0 12rpx 10rpx 0; border-radius: 28rpx; font-size: 24rpx; font-weight: 700; color: #6E6EA3; background: #fff; border: 2rpx solid #CFCFE6; }
+.ms-a.main { color: #fff; background: #9595C4; border-color: #9595C4; }
+.ms-link { margin-top: 22rpx; text-align: center; font-size: 25rpx; color: #6E6EA3; text-decoration: underline; }

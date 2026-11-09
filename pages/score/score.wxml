@@ -1,0 +1,111 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted center">加载中…</view>
+
+  <view wx:elif="{{error}}" class="empty">
+    <view class="empty-ball"></view>
+    <view>{{error}}</view>
+    <view class="btn-primary small" bindtap="goBack">返回</view>
+  </view>
+
+  <block wx:else>
+    <!-- 对阵 -->
+    <view class="head">
+      <view class="h-event">{{title}}</view>
+      <view class="h-stage">{{stage}}</view>
+      <view class="vs-row">
+        <view class="team {{done && winner === 'a' ? 'win' : ''}}">
+          <view class="avs">
+            <block wx:for="{{sideA}}" wx:key="name">
+              <av-img wx:if="{{item.avatar}}" class="av" src="{{item.avatar}}" />
+              <view wx:else class="av init" style="background:{{item.color}}">{{item.initial}}</view>
+            </block>
+          </view>
+          <view class="t-name">{{aLabel}}</view>
+          <view wx:if="{{done && winner === 'a'}}" class="t-win">胜</view>
+        </view>
+        <view class="vs">VS</view>
+        <view class="team {{done && winner === 'b' ? 'win' : ''}}">
+          <view class="avs">
+            <block wx:for="{{sideB}}" wx:key="name">
+              <av-img wx:if="{{item.avatar}}" class="av" src="{{item.avatar}}" />
+              <view wx:else class="av init" style="background:{{item.color}}">{{item.initial}}</view>
+            </block>
+          </view>
+          <view class="t-name">{{bLabel}}</view>
+          <view wx:if="{{done && winner === 'b'}}" class="t-win">胜</view>
+        </view>
+      </view>
+      <view class="h-rules">
+        <view class="hr-k">本场规则 · {{ruleStage}}{{ruleCustom ? '（单独设置）' : ''}}</view>
+        <view class="hr-v">{{typeText}} · {{ruleText}}</view>
+      </view>
+    </view>
+
+    <!-- 已有结果 -->
+    <view wx:if="{{done && !editing}}" class="card">
+      <view class="card-title">比分</view>
+      <view class="res-row head-row">
+        <text class="res-name"></text>
+        <text wx:for="{{resultSets}}" wx:key="index" class="res-sc">第{{index + 1}}盘</text>
+      </view>
+      <view class="res-row {{winner === 'a' ? 'w' : ''}}">
+        <text class="res-name">{{aLabel}}</text>
+        <text wx:for="{{resultSets}}" wx:key="index" class="res-sc {{item.aw ? 'hi' : ''}}">{{item.a}}<text wx:if="{{item.tbA !== ''}}" class="tb">{{item.tbA}}</text></text>
+      </view>
+      <view class="res-row {{winner === 'b' ? 'w' : ''}}">
+        <text class="res-name">{{bLabel}}</text>
+        <text wx:for="{{resultSets}}" wx:key="index" class="res-sc {{item.bw ? 'hi' : ''}}">{{item.b}}<text wx:if="{{item.tbB !== ''}}" class="tb">{{item.tbB}}</text></text>
+      </view>
+      <view wx:if="{{outcomeText}}" class="oc">{{outcomeText}}<text class="oc-n">（不计入完赛场数、胜率和水平分，不开放互评）</text></view>
+      <view wx:elif="{{!resultSets.length}}" class="muted small">发起人直接判定了胜者，没有局分</view>
+      <view class="muted small">比赛日期 {{date}}</view>
+    </view>
+
+    <!-- 录分 -->
+    <view wx:if="{{editing}}" class="card">
+      <view class="line">
+        <text class="label">比赛日期</text>
+        <picker mode="date" value="{{date}}" end="{{today}}" bindchange="onDate">
+          <view class="picker">{{date}} <text class="arrow">›</text></view>
+        </picker>
+      </view>
+      <view class="card-title top">局分<text class="sub">按本场规则自动设置：{{ruleText}}</text></view>
+      <score-sets set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" init="{{init}}" bind:change="onSets" />
+      <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
+    </view>
+
+    <!-- 发起人：赛前弃权 / 中途退赛 -->
+    <view wx:if="{{isOwner && !retire}}" class="card owner-tools">
+      <view class="card-title">发起人处理<text class="sub">必须填写原因，会留档</text></view>
+      <view class="ot-acts">
+        <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="walkover">判赛前弃权</view>
+        <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="retireStart">记录中途退赛</view>
+      </view>
+      <view class="muted small">弃权不填局分，另一方晋级，标「弃权胜 / 弃权负」；中途退赛保留实际已打的局分。</view>
+    </view>
+    <view wx:if="{{retire}}" class="card">
+      <view class="card-title">{{retire.name}} 中途退赛<text class="sub">填实际已打的局分（{{aLabel}} : {{bLabel}}）</text></view>
+      <view wx:for="{{retire.sets}}" wx:key="index" class="rt-row">
+        <text class="rt-n">第 {{index + 1}} 盘</text>
+        <input class="rt-in" type="number" maxlength="2" value="{{item.a}}" data-i="{{index}}" data-k="a" bindinput="retireInput" />
+        <text class="rt-c">:</text>
+        <input class="rt-in" type="number" maxlength="2" value="{{item.b}}" data-i="{{index}}" data-k="b" bindinput="retireInput" />
+      </view>
+      <view wx:if="{{retire.sets.length < 3}}" class="rt-add" bindtap="retireAddSet">＋ 再加一盘</view>
+      <textarea class="rt-reason" value="{{retire.reason}}" maxlength="100" placeholder="退赛原因（必填），例如：第二盘脚踝扭伤" bindinput="retireReason" />
+      <view class="ot-acts">
+        <view class="ot-a" bindtap="retireCancel">取消</view>
+        <view class="ot-a main {{busy ? 'dis' : ''}}" bindtap="retireSubmit">确认退赛结果</view>
+      </view>
+    </view>
+
+    <block wx:if="{{editing}}">
+      <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '保存中…' : (done ? '保存修改' : '提交比分')}}</view>
+      <view wx:if="{{done}}" class="btn-text" bindtap="cancelEdit">取消修改</view>
+      <view class="foot">提交后签表、积分榜、排行榜和水平分会自动更新</view>
+    </block>
+    <view wx:elif="{{done && canEdit}}" class="btn-ghost" bindtap="startEdit">比分录错了？修改比分</view>
+    <match-social wx:if="{{done && !editing && recordId}}" match-id="{{recordId}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+    <view wx:if="{{reason}}" class="foot">{{reason}}</view>
+  </block>
+</view>

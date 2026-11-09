@@ -1,0 +1,11 @@
+.muted { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 60rpx 0; }
+.warn { font-size: 22rpx; color: #b34d4d; margin-bottom: 16rpx; }
+.row { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
+.row:first-of-type { border-top: 0; }
+.r-main { flex: 1; min-width: 0; }
+.r-t { font-size: 22rpx; color: #8686A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-opp { margin-top: 4rpx; font-size: 28rpx; font-weight: 700; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-meta { margin-top: 6rpx; font-size: 22rpx; color: #6E6EA3; }
+.r-go { flex: none; margin-left: 12rpx; font-size: 24rpx; color: #6E6EA3; font-weight: 700; }
+.r-go.hot { color: #e5484d; }
+.r-go.muted-go { color: #A5A5BA; font-weight: 400; }

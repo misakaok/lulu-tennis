@@ -1,0 +1,57 @@
+<view class="page">
+  <view class="seg">
+    <view class="seg-item {{tab === 'pending' ? 'on' : ''}}" data-v="pending" bindtap="setTab">待审核{{d.pending.length ? ' ' + d.pending.length : ''}}</view>
+    <view class="seg-item {{tab === 'active' ? 'on' : ''}}" data-v="active" bindtap="setTab">成员</view>
+    <view class="seg-item {{tab === 'import' ? 'on' : ''}}" data-v="import" bindtap="setTab">历史球友{{d.candidates.length ? ' ' + d.candidates.length : ''}}</view>
+    <view class="seg-item {{tab === 'invite' ? 'on' : ''}}" data-v="invite" bindtap="setTab">邀请</view>
+  </view>
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+
+  <view wx:elif="{{tab === 'pending'}}" class="card">
+    <view wx:if="{{!d.pending.length}}" class="muted">没有待审核的申请</view>
+    <view wx:for="{{d.pending}}" wx:key="uid" class="mrow">
+      <view class="m-main"><view class="m-n">{{item.name}}{{item.nickname ? '（' + item.nickname + '）' : ''}}</view><view class="m-s">{{item.note || '没有说明'}}</view></view>
+      <text class="m-a" data-uid="{{item.uid}}" bindtap="reject">拒绝</text><text class="m-a main" data-uid="{{item.uid}}" bindtap="approve">批准</text>
+    </view>
+  </view>
+
+  <block wx:elif="{{tab === 'active'}}">
+    <view class="card">
+      <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : item.admin ? '云函数环境变量配置' : '申请加入'}}</view></view>
+        <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
+      </view>
+    </view>
+    <view wx:if="{{d.others.length}}" class="card">
+      <view class="card-title">已拒绝 / 已移除</view>
+      <view wx:for="{{d.others}}" wx:key="uid" class="mrow">
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name}}</view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}：{{item.reason}}</view></view>
+        <text class="m-a" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:elif="{{tab === 'import'}}" class="card">
+    <view class="card-title">历史球友<text class="sub">升级前设置过资料的账号，请逐个确认是内部球友再导入</text></view>
+    <view wx:if="{{!d.candidates.length}}" class="muted">没有待导入的历史球友</view>
+    <view wx:for="{{d.candidates}}" wx:key="uid" class="mrow" data-uid="{{item.uid}}" bindtap="pick">
+      <text class="m-ck {{picked[item.uid] ? 'on' : ''}}">{{picked[item.uid] ? '✓' : ''}}</text>
+      <view class="m-main"><view class="m-n">{{item.nickname}}</view></view>
+    </view>
+    <view wx:if="{{d.candidates.length}}" class="btn-primary" bindtap="importPicked">导入勾选的球友</view>
+  </view>
+
+  <block wx:else>
+    <view class="btn-primary" bindtap="invite">＋ 生成邀请链接</view>
+    <view class="card">
+      <view class="card-title">有效的邀请<text class="sub">一次性，7 天有效</text></view>
+      <view wx:if="{{!d.invites.length}}" class="muted">还没有有效的邀请</view>
+      <view wx:for="{{d.invites}}" wx:key="code" class="mrow">
+        <view class="m-main"><view class="m-n">{{item.note || '邀请'}}</view><view class="m-s">邀请码 {{item.code}}</view></view>
+        <text class="m-a" data-code="{{item.code}}" bindtap="revoke">作废</text>
+        <button class="m-share" open-type="share" data-code="{{item.code}}">发给球友</button>
+      </view>
+    </view>
+  </block>
+  <view class="foot">成员管理只控制「能不能用」，不改变赛事里的发起人权限</view>
+</view>

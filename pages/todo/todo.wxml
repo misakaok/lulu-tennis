@@ -1,0 +1,63 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{empty}}" class="empty"><view class="empty-ball"></view><view>没有待办，打得漂亮！</view></view>
+  <block wx:elif="{{t}}">
+    <view wx:if="{{t.error}}" class="warn">部分待办暂时读取不到：{{t.error}}</view>
+
+    <view wx:if="{{t.next.length}}" class="card">
+      <view class="card-title">下一场比赛<text class="sub">对手已确定</text></view>
+      <view wx:for="{{t.next}}" wx:key="key" class="row" data-draw="{{item.drawId}}" data-key="{{item.key}}" bindtap="openFixture">
+        <view class="r-main">
+          <view class="r-t">{{item.title}} · {{item.stage}}</view>
+          <view class="r-opp">vs {{item.opp}}</view>
+          <view class="r-meta">🕒 {{item.when}}　📍 {{item.venue}}</view>
+        </view>
+        <text class="r-go">录分 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{t.toConfirm.length}}" class="card">
+      <view class="card-title">待我确认的比分</view>
+      <view wx:for="{{t.toConfirm}}" wx:key="matchId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
+        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}</view><view class="r-opp">vs {{item.opp}}　{{item.score}}</view></view>
+        <text class="r-go hot">去确认 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{t.toRespond.length}}" class="card">
+      <view class="card-title">改分申请待处理</view>
+      <view wx:for="{{t.toRespond}}" wx:key="requestId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
+        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}{{item.asOwner ? '（你是发起人）' : ''}}</view><view class="r-opp">{{item.from}} → {{item.to}}</view></view>
+        <text class="r-go hot">处理 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{t.withdraws.length}}" class="card">
+      <view class="card-title">退赛申请待处理<text class="sub">你发起的赛事</text></view>
+      <view wx:for="{{t.withdraws}}" wx:key="requestId" class="row" data-draw="{{item.drawId}}" bindtap="openDraw">
+        <view class="r-main"><view class="r-t">{{item.title}}</view><view class="r-opp">{{item.entrant}} 申请退赛：{{item.reason}}</view></view>
+        <text class="r-go hot">处理 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{t.toReview.length}}" class="card">
+      <view class="card-title">待评价</view>
+      <view wx:for="{{t.toReview}}" wx:key="matchId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
+        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}</view><view class="r-opp">评价 {{item.todo[0]}}{{item.todo.length > 1 ? ' 等 ' + item.todo.length + ' 人' : ''}}</view></view>
+        <text class="r-go">去评价 ›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{t.waiting.length || t.myRequests.length}}" class="card">
+      <view class="card-title">等待对方处理</view>
+      <view wx:for="{{t.waiting}}" wx:key="matchId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
+        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}</view><view class="r-opp">vs {{item.opp}}　{{item.score}}</view></view>
+        <text class="r-go muted-go">等对方确认</text>
+      </view>
+      <view wx:for="{{t.myRequests}}" wx:key="requestId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
+        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}</view><view class="r-opp">改分申请 {{item.from}} → {{item.to}}</view></view>
+        <text class="r-go muted-go">等对方处理</text>
+      </view>
+    </view>
+  </block>
+</view>

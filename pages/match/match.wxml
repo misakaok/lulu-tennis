@@ -1,0 +1,29 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
+  <block wx:else>
+    <view wx:if="{{status === 'pending'}}" class="st-tip">⏳ 日常比赛：等待对手确认比分，确认后才计入正式战绩、排名，并开放互评</view>
+    <view wx:elif="{{status === 'invalid'}}" class="st-tip bad">这条赛事比分不是从赛事签表录入的，不计入战绩</view>
+    <view class="card">
+      <view wx:if="{{m.event}}" class="mt-event" bindtap="openEvent">🏆 {{m.event}} ›</view>
+      <view class="mt-meta">{{m.date}} · {{m.format}}</view>
+      <view class="mt-row {{m.winner === 'a' ? 'w' : ''}}">
+        <view class="mt-avs"><block wx:for="{{m.a}}" wx:key="name" wx:for-item="p">
+          <av-img wx:if="{{p.avatar}}" class="mt-av" src="{{p.avatar}}" />
+          <view wx:else class="mt-av init" style="background:{{p.color}}">{{p.initial}}</view>
+        </block></view>
+        <text class="mt-name">{{m.aText}}</text>
+        <text wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="mt-sc {{s.aw ? 'hi' : ''}}">{{s.a}}<text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text></text>
+      </view>
+      <view class="mt-row {{m.winner === 'b' ? 'w' : ''}}">
+        <view class="mt-avs"><block wx:for="{{m.b}}" wx:key="name" wx:for-item="p">
+          <av-img wx:if="{{p.avatar}}" class="mt-av" src="{{p.avatar}}" />
+          <view wx:else class="mt-av init" style="background:{{p.color}}">{{p.initial}}</view>
+        </block></view>
+        <text class="mt-name">{{m.bText}}</text>
+        <text wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="mt-sc {{s.bw ? 'hi' : ''}}">{{s.b}}<text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></text>
+      </view>
+    </view>
+    <match-social match-id="{{m._id}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+  </block>
+</view>

@@ -1,0 +1,23 @@
+.sum { text-align: center; font-size: 26rpx; color: #4F4F7D; font-weight: 700; margin: 6rpx 0 18rpx; }
+.seg { margin-bottom: 18rpx; }
+.muted { text-align: center; color: #A5A5BA; font-size: 24rpx; padding: 40rpx 0; }
+.card.list:empty { display: none; }
+.foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 16rpx; }
+.mr { display: flex; align-items: center; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; }
+.mr:first-of-type { border-top: 0; }
+.mr-l { flex: 1; min-width: 0; }
+.mr-top { display: flex; align-items: center; font-size: 21rpx; color: #A5A5BA; }
+.mr-date { margin-right: 12rpx; }
+.mr-ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-ev.ev { color: #6E6EA3; font-weight: 600; }
+.mr-opp { margin-top: 4rpx; font-size: 27rpx; font-weight: 600; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-pt { font-size: 21rpx; color: #A5A5BA; font-weight: 400; }
+.mr-r { flex: none; display: flex; align-items: center; margin-left: 12rpx; }
+.mr-res { font-size: 20rpx; font-weight: 800; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 10rpx; }
+.mr-res.w { background: #e7f6ec; color: #2f8a52; }
+.mr-res.l { background: #f6eeee; color: #b34d4d; }
+.mr-sc { font-size: 24rpx; color: #4F4F7D; font-weight: 700; }
+.mr-d { width: 76rpx; text-align: right; font-size: 22rpx; color: #8686A0; font-weight: 700; }
+.mr-d.up { color: #2f8a52; }
+.mr-d.down { color: #b34d4d; }
+.mr-res.wo { background: #fff8e6; color: #b7791f; }

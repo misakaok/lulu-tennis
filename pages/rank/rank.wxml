@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="seg top-seg">
+    <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
+      data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
+  </view>
+  <view class="sort-row">
+    <text class="sort-lbl">排序</text>
+    <text class="sort {{sort === 'level' ? 'on' : ''}}" data-v="level" bindtap="setSort">按水平</text>
+    <text class="sort {{sort === 'win' ? 'on' : ''}}" data-v="win" bindtap="setSort">按胜场</text>
+  </view>
+
+  <view wx:if="{{!top.length && !loading}}" class="empty">
+    <view class="empty-ball"></view>
+    <view>还没有比赛数据</view>
+  </view>
+
+  <!-- 前三名领奖台 -->
+  <view wx:if="{{top.length}}" class="podium {{top.length >= 3 ? '' : 'few'}}">
+    <view wx:for="{{top}}" wx:key="name" class="pod r{{item.rank}}" data-name="{{item.name}}" bindtap="tapPlayer">
+      <view class="medal">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</view>
+      <av-img wx:if="{{item.avatar}}" class="avatar big" src="{{item.avatar}}" />
+      <view wx:else class="avatar big" style="background:{{item.color}}">{{item.initial}}</view>
+      <view class="pod-name">{{item.name}}</view>
+      <view class="pod-rec">{{item.win}}胜 {{item.lose}}负</view>
+      <view class="pod-base">
+        <text class="pod-rate">{{sort === 'level' ? item.levelText : item.rate + '%'}}</text>
+        <text class="pod-lbl">{{sort === 'level' ? (item.provisional ? '定级中' : '水平') : '胜率'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 完整榜单 -->
+  <view wx:if="{{top.length}}" class="card table">
+    <view class="tr th">
+      <text class="c-rank">#</text><text class="c-name">球员</text>
+      <text class="c-n">水平</text><text class="c-n">胜-负</text><text class="c-n">胜率</text>
+    </view>
+    <view wx:for="{{ranked}}" wx:key="name" class="tr {{item.name === myName ? 'me' : ''}}" data-name="{{item.name}}" bindtap="tapPlayer">
+      <text class="c-rank {{item.rank > 3 ? '' : 'gold'}}">{{item.rank}}</text>
+      <view class="c-name">
+        <av-img wx:if="{{item.avatar}}" class="avatar sm" src="{{item.avatar}}" />
+        <view wx:else class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+        <text class="nm">{{item.name}}</text>
+        <text wx:if="{{item.name === myName}}" class="me-tag">我</text>
+      </view>
+      <view class="c-n"><text class="lv">{{item.levelText}}</text><text wx:if="{{item.provisional}}" class="prov">定级中</text></view>
+      <text class="c-n b">{{item.win}}-{{item.lose}}</text>
+      <view class="c-n"><view class="rate-bar"><view class="rate-fill" style="width:{{item.rate}}%"></view></view><text class="rate-t">{{item.rate}}%</text></view>
+    </view>
+  </view>
+
+  <view wx:if="{{top.length}}" class="foot">点击球员可以发起挑战 · 水平分算法见「我的」</view>
+</view>

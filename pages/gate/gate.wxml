@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="g-hero">
+    <view class="g-logo">🎾</view>
+    <view class="g-title">{{loading ? '正在确认身份…' : title}}</view>
+    <view class="g-desc">{{desc}}</view>
+    <view wx:if="{{reason}}" class="g-reason">原因：{{reason}}</view>
+  </view>
+
+  <block wx:if="{{!loading}}">
+    <view wx:if="{{status === 'active'}}" class="btn-primary" bindtap="enter">进入小程序</view>
+
+    <block wx:elif="{{status !== 'pending'}}">
+      <view class="card">
+        <view class="card-title">{{invite ? '接受邀请' : (status === 'none' ? '申请加入' : '重新申请')}}</view>
+        <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（球友认识你的名字）" bindinput="onName" />
+        <textarea wx:if="{{!invite}}" class="g-ta" value="{{note}}" maxlength="100" placeholder="说明（选填）：例如 周六一起打球的小王介绍" bindinput="onNote" />
+      </view>
+      <view wx:if="{{invite}}" class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="accept">{{busy ? '加入中…' : '接受邀请，加入球友圈'}}</view>
+      <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="apply">{{busy ? '提交中…' : '提交申请'}}</view>
+    </block>
+
+    <view wx:else class="g-wait">⏳ 已提交，管理员审核后下拉刷新即可</view>
+  </block>
+  <view class="g-foot">赛事、报名、战绩、排名、评价、联系人和照片只对正式成员开放</view>
+</view>

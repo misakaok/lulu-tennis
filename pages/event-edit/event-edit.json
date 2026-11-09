@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "编辑赛事信息",
+  "usingComponents": { "event-form": "/components/event-form/event-form" }
+}

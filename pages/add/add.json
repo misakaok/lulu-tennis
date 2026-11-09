@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "记录日常比赛",
+  "usingComponents": {
+    "score-sets": "/components/score-sets/score-sets"
+  }
+}

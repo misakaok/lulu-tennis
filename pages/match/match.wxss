@@ -1,0 +1,15 @@
+.muted { color: #A5A5BA; font-size: 26rpx; text-align: center; padding: 40rpx 0; }
+.mt-event { font-size: 24rpx; color: #6E6EA3; font-weight: 700; margin-bottom: 8rpx; }
+.mt-meta { font-size: 22rpx; color: #8686A0; margin-bottom: 12rpx; }
+.mt-row { display: flex; align-items: center; height: 84rpx; color: #8686A0; font-size: 28rpx; }
+.mt-row.w { color: #1E1E32; font-weight: 700; }
+.mt-avs { display: flex; width: 96rpx; flex: none; }
+.mt-av { width: 56rpx; height: 56rpx; border-radius: 50%; background: #f2f2f8; flex: none; }
+.mt-av + .mt-av { margin-left: -18rpx; border: 2rpx solid #fff; }
+.mt-av.init { display: flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 800; color: #22223a; }
+.mt-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-sc { width: 64rpx; text-align: center; font-size: 34rpx; font-weight: 800; color: #BDBDCE; }
+.mt-sc.hi { color: #4F4F7D; }
+.tb { font-size: 20rpx; vertical-align: super; }
+.st-tip { margin-bottom: 18rpx; padding: 16rpx 22rpx; border-radius: 16rpx; background: #fff8e6; color: #9a6a00; font-size: 24rpx; line-height: 1.6; }
+.st-tip.bad { background: #f6eeee; color: #b34d4d; }

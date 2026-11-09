@@ -1,0 +1,5 @@
+{
+  "navigationBarTitleText": "球员主页",
+  "enablePullDownRefresh": true,
+  "usingComponents": { "player-home": "/components/player-home/player-home" }
+}

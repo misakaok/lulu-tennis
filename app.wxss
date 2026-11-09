@@ -1,0 +1,44 @@
+page {
+  background: #F6F6FA;
+  color: #1E1E32;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 28rpx;
+}
+.page { padding: 24rpx 28rpx 60rpx; }
+
+.card {
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(80, 80, 140, 0.04);
+}
+.card-title { font-size: 30rpx; font-weight: 600; margin-bottom: 20rpx; }
+.card-title .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
+.label { font-size: 26rpx; color: #6C6C86; }
+
+.seg { display: flex; background: #EFEFF6; border-radius: 20rpx; padding: 6rpx; }
+.seg-item { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 16rpx; font-size: 26rpx; color: #5C5C76; }
+.seg-item.on { background: #fff; color: #4F4F7D; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
+
+.avatar {
+  width: 72rpx; height: 72rpx; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #22223A; font-size: 30rpx; flex: none;
+}
+.avatar.sm { width: 48rpx; height: 48rpx; font-size: 22rpx; }
+
+.btn-primary {
+  height: 96rpx; line-height: 96rpx; text-align: center; border-radius: 48rpx;
+  color: #fff; font-size: 32rpx; font-weight: 600;
+  background: linear-gradient(90deg, #8585B8, #A3A3CB);
+  box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.28);
+}
+.btn-primary.disabled { opacity: 0.45; box-shadow: none; }
+.btn-primary.small { display: inline-block; height: 76rpx; line-height: 76rpx; padding: 0 48rpx; font-size: 28rpx; margin-top: 30rpx; }
+
+.empty { text-align: center; color: #8686A0; padding: 100rpx 0; font-size: 28rpx; }
+.empty-ball {
+  width: 120rpx; height: 120rpx; border-radius: 50%; margin: 0 auto 28rpx;
+  background: radial-gradient(circle at 35% 30%, #f2ff9e, #c9e33a 60%, #9fbb1f);
+}

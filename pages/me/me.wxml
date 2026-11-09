@@ -1,0 +1,20 @@
+<view class="page">
+  <player-home id="home" uid="{{myId}}" />
+
+  <view wx:if="{{isAdmin}}" class="card admin" bindtap="openMembers"><text class="ad-t">成员管理</text><text class="ad-s">审核申请、邀请、移除成员（仅管理员可见）</text><text class="td-go">›</text></view>
+
+  <view class="card todo" bindtap="openTodo">
+    <view class="td-head"><text class="td-t">我的待办</text><text wx:if="{{todo.count}}" class="td-n">{{todo.count}}</text><text class="td-go">›</text></view>
+    <view wx:if="{{todo && todo.next}}" class="td-next">下一场：{{todo.next.title}} · {{todo.next.stage}} vs {{todo.next.opp}}<text class="td-when">{{todo.next.when}} · {{todo.next.venue}}</text></view>
+    <view wx:if="{{todo && todo.lines.length}}" class="td-lines"><text wx:for="{{todo.lines}}" wx:key="*this" class="td-chip">{{item}}</text></view>
+    <view wx:elif="{{todo}}" class="td-none">没有待办</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">比赛等级怎么算</view>
+    <view wx:for="{{rules}}" wx:key="*this" class="rule"><text class="rule-dot">{{index + 1}}</text><text class="rule-t">{{item}}</text></view>
+    <view class="link" bindtap="goRank">去排行榜看看 ›</view>
+  </view>
+
+  <view class="diag" bindtap="checkAvatars">{{checking ? '正在检测头像…' : '头像显示不出来？点这里检测'}}</view>
+</view>

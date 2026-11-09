@@ -1,0 +1,6 @@
+.rp-row { display: flex; align-items: center; margin-top: 14rpx; }
+.rp-k { width: 80rpx; flex: none; font-size: 24rpx; color: #8686A0; }
+.rp-seg { flex: 1; display: flex; background: #EFEFF6; border-radius: 16rpx; padding: 5rpx; }
+.rp-i { flex: 1; text-align: center; padding: 12rpx 0; border-radius: 12rpx; font-size: 23rpx; color: #5C5C76; }
+.rp-i.on { background: #fff; color: #4F4F7D; font-weight: 700; box-shadow: 0 2rpx 8rpx rgba(0,0,0,.06); }
+.rp.locked { opacity: 0.6; }

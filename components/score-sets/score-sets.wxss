@@ -1,0 +1,27 @@
+.set-head, .set-row { display: flex; align-items: center; }
+.set-head { font-size: 22rpx; color: #8686A0; padding-bottom: 6rpx; }
+.set-name { width: 110rpx; flex: none; font-size: 26rpx; color: #5C5C76; }
+.col { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8rpx; }
+.del-col { width: 48rpx; flex: none; text-align: right; }
+.del { color: #C5C5DA; font-size: 28rpx; padding: 10rpx; }
+.set { padding: 14rpx 0; border-top: 1rpx solid #F2F2F8; }
+.set:first-of-type { border-top: 0; }
+.stepper { flex: 1; display: flex; align-items: center; justify-content: center; }
+.st-btn {
+  width: 64rpx; height: 64rpx; line-height: 60rpx; text-align: center; border-radius: 50%;
+  background: #F2F2F8; color: #3A3A52; font-size: 38rpx;
+}
+.st-btn:active { background: #E3E3EF; }
+.st-num { width: 70rpx; text-align: center; font-size: 46rpx; font-weight: 800; color: #BDBDCE; }
+.st-num.w { color: #4F4F7D; }
+
+.tb-box { margin-top: 14rpx; background: #fff8e6; border-radius: 18rpx; padding: 14rpx 0 16rpx; }
+.tb-title { font-size: 24rpx; color: #a86a00; font-weight: 600; padding: 0 20rpx 10rpx; }
+.tb-hint { font-size: 20rpx; color: #b89a5a; font-weight: 400; margin-left: 14rpx; }
+.tb-row { display: flex; align-items: center; }
+.tb-cell { flex: 1; display: flex; justify-content: center; }
+.tb-in {
+  width: 140rpx; height: 72rpx; background: #fff; border: 2rpx solid #f1d58a; border-radius: 14rpx;
+  text-align: center; font-size: 34rpx; font-weight: 800; color: #7a4d00;
+}
+.add-set { margin-top: 16rpx; height: 76rpx; line-height: 76rpx; text-align: center; border: 2rpx dashed #D9D9EC; border-radius: 20rpx; color: #6E6EA3; font-size: 26rpx; }

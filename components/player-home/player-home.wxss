@@ -1,0 +1,89 @@
+/* 球员大卡片 */
+.pcard {
+  position: relative; overflow: hidden; border-radius: 36rpx; padding: 32rpx 32rpx 28rpx; color: #fff;
+  background: linear-gradient(140deg, #A3A3CB 0%, #8C8CBE 45%, #6E6EA3 100%);
+  box-shadow: 0 18rpx 40rpx rgba(110, 110, 163, 0.35);
+}
+.pcard.pcard-empty { padding-bottom: 36rpx; }
+/* 球场线 + 网球：运动感装饰 */
+.court { position: absolute; right: -120rpx; top: -40rpx; width: 460rpx; height: 560rpx; transform: rotate(-24deg); border: 3rpx solid rgba(255,255,255,0.16); border-radius: 8rpx; }
+.c-line { position: absolute; background: rgba(255,255,255,0.14); }
+.c-line.l1 { left: 0; right: 0; top: 50%; height: 3rpx; }
+.c-line.l2 { top: 0; bottom: 0; left: 50%; width: 3rpx; }
+.c-line.l3 { left: 14%; right: 14%; top: 22%; bottom: 22%; background: none; border: 3rpx solid rgba(255,255,255,0.12); }
+.pc-top { position: relative; display: flex; align-items: center; }
+.pc-photo-wrap { flex: none; padding: 6rpx; border-radius: 34rpx; background: rgba(255,255,255,0.9); }
+.pc-photo { width: 168rpx; height: 168rpx; border-radius: 28rpx; display: block; background: #ECECF6; }
+.pc-main { flex: 1; min-width: 0; margin-left: 26rpx; }
+.pc-name { font-size: 44rpx; font-weight: 900; letter-spacing: 1rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-tags { margin-top: 12rpx; display: flex; flex-wrap: wrap; }
+.pc-tag { font-size: 21rpx; background: rgba(255,255,255,0.2); border-radius: 18rpx; padding: 4rpx 14rpx; margin: 0 10rpx 8rpx 0; }
+.pc-tag.hl { background: #fff; color: #6E6EA3; font-weight: 700; }
+.pc-edit { position: absolute; right: 0; top: -6rpx; font-size: 22rpx; border: 2rpx solid rgba(255,255,255,0.75); border-radius: 26rpx; padding: 6rpx 18rpx; background: rgba(255,255,255,0.08); }
+.pc-level { position: relative; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 26rpx; }
+.pc-lv-lbl { font-size: 22rpx; opacity: 0.9; letter-spacing: 2rpx; }
+.pc-lv { font-size: 104rpx; font-weight: 900; line-height: 1; font-style: italic; letter-spacing: 2rpx; text-shadow: 0 6rpx 16rpx rgba(60,60,110,0.25); }
+.pc-lv-side { text-align: right; padding-bottom: 10rpx; }
+.pc-lv-note { font-size: 21rpx; opacity: 0.9; }
+.pc-last { font-size: 26rpx; font-weight: 800; }
+.pc-bio { position: relative; margin-top: 16rpx; font-size: 24rpx; opacity: 0.95; line-height: 1.5; }
+.pc-stats { position: relative; display: flex; margin-top: 24rpx; background: rgba(255,255,255,0.16); border-radius: 22rpx; padding: 18rpx 0; }
+.pcs { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.pcs + .pcs { border-left: 2rpx solid rgba(255,255,255,0.2); }
+.pcs .n { font-size: 38rpx; font-weight: 900; }
+.pcs .n.none { font-size: 28rpx; font-weight: 600; opacity: 0.8; }
+.pcs .l { font-size: 21rpx; opacity: 0.9; margin-top: 4rpx; }
+.pc-cta { position: relative; margin-top: 30rpx; height: 84rpx; line-height: 84rpx; text-align: center; border-radius: 42rpx; background: #fff; color: #6E6EA3; font-weight: 800; font-size: 30rpx; }
+.last.up, .pc-last.up { color: #E6FFD9; }
+.pc-last.down { color: #FFE1E1; }
+
+.pc-lv.none { font-size: 64rpx; font-style: normal; opacity: 0.85; margin-top: 16rpx; line-height: 1.1; }
+.pc-self { font-size: 22rpx; opacity: 0.95; margin-bottom: 6rpx; }
+.pc-self .b { font-size: 30rpx; font-weight: 900; margin-left: 6rpx; }
+/* 数据卡片 */
+.stats4 { display: flex; margin-top: 20rpx; background: #fff; border-radius: 24rpx; padding: 22rpx 0; box-shadow: 0 6rpx 18rpx rgba(80, 80, 140, 0.06); }
+.s4 { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.s4 + .s4 { border-left: 1rpx solid #EFEFF6; }
+.s4 .n { font-size: 38rpx; font-weight: 900; color: #4F4F7D; white-space: nowrap; }
+.s4 .n.sm { font-size: 28rpx; padding-top: 8rpx; }
+.s4 .n.none { font-size: 26rpx; font-weight: 500; color: #C5C5DA; padding-top: 10rpx; }
+.s4 .l { font-size: 21rpx; color: #8686A0; margin-top: 4rpx; }
+.foot-note { text-align: center; font-size: 21rpx; color: #A5A5BA; margin: 12rpx 0 20rpx; }
+.acts { display: flex; margin-bottom: 20rpx; }
+.act { flex: 1; height: 80rpx; line-height: 80rpx; text-align: center; border-radius: 40rpx; margin: 0 8rpx; font-size: 28rpx; font-weight: 700; color: #6E6EA3; background: #fff; border: 2rpx solid #CFCFE6; }
+.act.main { color: #fff; border-color: transparent; background: linear-gradient(90deg, #8585B8, #A3A3CB); }
+.act.dis { opacity: 0.5; }
+/* 近期比赛 */
+.row-t { display: flex; justify-content: space-between; align-items: center; }
+.more { font-size: 24rpx; color: #6E6EA3; font-weight: 500; }
+.muted { color: #A5A5BA; font-size: 24rpx; }
+.mr { display: flex; align-items: center; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; }
+.mr:first-of-type { border-top: 0; }
+.mr-l { flex: 1; min-width: 0; }
+.mr-top { display: flex; align-items: center; font-size: 21rpx; color: #A5A5BA; }
+.mr-date { margin-right: 12rpx; }
+.mr-ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-ev.ev { color: #6E6EA3; font-weight: 600; }
+.mr-opp { margin-top: 4rpx; font-size: 27rpx; font-weight: 600; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-pt { font-size: 21rpx; color: #A5A5BA; font-weight: 400; }
+.mr-r { flex: none; display: flex; align-items: center; margin-left: 12rpx; }
+.mr-res { font-size: 20rpx; font-weight: 800; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 10rpx; }
+.mr-res.w { background: #e7f6ec; color: #2f8a52; }
+.mr-res.l { background: #f6eeee; color: #b34d4d; }
+.mr-sc { font-size: 24rpx; color: #4F4F7D; font-weight: 700; }
+.mr-d { width: 76rpx; text-align: right; font-size: 22rpx; color: #8686A0; font-weight: 700; }
+.mr-d.up { color: #2f8a52; }
+.mr-d.down { color: #b34d4d; }
+.rep-top { display: flex; align-items: baseline; margin-bottom: 10rpx; }
+.rep-big { font-size: 56rpx; font-weight: 900; color: #4F4F7D; margin-right: 16rpx; }
+.rep-cnt { font-size: 22rpx; color: #8686A0; }
+.rep-dim { display: flex; align-items: center; height: 48rpx; }
+.rep-t { width: 130rpx; font-size: 24rpx; color: #5C5C76; }
+.rep-bar { flex: 1; height: 12rpx; border-radius: 6rpx; background: #EFEFF6; overflow: hidden; }
+.rep-fill { height: 100%; background: #f5b942; border-radius: 6rpx; }
+.rep-v { width: 60rpx; text-align: right; font-size: 24rpx; font-weight: 700; color: #4F4F7D; }
+.rep-txt { margin-top: 12rpx; font-size: 24rpx; color: #3A3A52; background: #F8F8FC; border-radius: 12rpx; padding: 12rpx 16rpx; }
+.rep-d { font-size: 20rpx; color: #B7B7CC; margin-left: 12rpx; }
+.pc-lv-lbl { display: flex; align-items: center; margin-bottom: 4rpx; }
+.ball-dot { width: 26rpx; height: 26rpx; border-radius: 50%; margin-right: 10rpx; background: radial-gradient(circle at 35% 35%, #F3F9B8, #D5E66B); box-shadow: 0 3rpx 8rpx rgba(0,0,0,0.12); }
+.mr-res.wo { background: #fff8e6; color: #b7791f; }

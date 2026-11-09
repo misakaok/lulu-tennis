@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="card rv-head">
+    <av-img wx:if="{{avatar}}" class="rv-av" src="{{avatar}}" />
+    <view wx:else class="rv-av init" style="background:{{color}}">{{initial}}</view>
+    <view class="rv-name">{{target}}</view>
+    <view class="rv-sub">评价会匿名展示，只影响「对手评价」，不影响等级和排名</view>
+  </view>
+
+  <view class="card">
+    <view wx:for="{{dims}}" wx:key="k" class="rv-dim">
+      <view class="rv-t">{{item.t}}<text class="rv-d">{{item.d}}</text></view>
+      <view class="rv-stars">
+        <text wx:for="{{stars}}" wx:for-item="n" wx:key="*this" class="rv-star {{n <= item.v ? 'on' : ''}}" data-k="{{item.k}}" data-v="{{n}}" bindtap="star">★</text>
+        <text class="rv-hint">{{item.hint}}</text>
+      </view>
+    </view>
+    <textarea class="rv-text" value="{{text}}" maxlength="100" placeholder="选填：说说这场球的感受（最多 100 字）" bindinput="onText" />
+    <view class="rv-count">{{text.length}}/100</view>
+  </view>
+
+  <view class="btn-primary {{canSubmit && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '提交中…' : '提交评价'}}</view>
+  <view class="rv-foot">每场比赛对同一位对手只能评价一次，提交后不能修改</view>
+</view>

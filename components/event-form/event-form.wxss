@@ -1,0 +1,14 @@
+.ef-row { display: flex; align-items: center; min-height: 88rpx; border-bottom: 1rpx solid #F0F0F6; }
+.ef-row.top { align-items: flex-start; padding-top: 22rpx; border-bottom: 0; }
+.ef-row .label { width: 150rpx; flex: none; font-size: 26rpx; color: #6C6C86; }
+.ef-pick { font-size: 28rpx; font-weight: 600; color: #4F4F7D; }
+.ef-pick.ph { color: #B7B7CC; font-weight: 400; }
+.ef-arrow { color: #B7B7CC; margin-left: 6rpx; }
+.ef-in { flex: 1; height: 88rpx; font-size: 28rpx; }
+.ef-loc { flex: 1; font-size: 28rpx; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ef-clear { font-size: 24rpx; color: #A5A5BA; padding-left: 16rpx; }
+.ef-sub { margin-top: 30rpx; font-size: 26rpx; font-weight: 700; color: #4F4F7D; }
+.ef-vis { flex: 1; }
+.ef-v { padding: 14rpx 20rpx; margin-bottom: 12rpx; border-radius: 16rpx; background: #F2F2F8; font-size: 26rpx; color: #5C5C76; }
+.ef-v.on { background: #9595C4; color: #fff; font-weight: 700; }
+.ef-note { font-size: 22rpx; color: #8686A0; background: #F7F7FB; border-radius: 12rpx; padding: 12rpx 16rpx; line-height: 1.6; }

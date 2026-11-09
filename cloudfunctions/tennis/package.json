@@ -1,0 +1,9 @@
+{
+  "name": "tennis",
+  "version": "1.0.0",
+  "description": "网球小程序：赛果确认、对手互评、联系人权限（所有校验在服务端执行）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

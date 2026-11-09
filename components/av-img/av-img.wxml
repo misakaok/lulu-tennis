@@ -1,0 +1,1 @@
+<image class="class" style="{{style}}" src="{{url}}" mode="aspectFill" binderror="onErr" />

@@ -1,0 +1,24 @@
+<view class="page">
+  <view class="sum">{{summary}}</view>
+  <view class="seg">
+    <view class="seg-item {{filter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setFilter">全部</view>
+    <view class="seg-item {{filter === 'event' ? 'on' : ''}}" data-v="event" bindtap="setFilter">赛事</view>
+    <view class="seg-item {{filter === 'daily' ? 'on' : ''}}" data-v="daily" bindtap="setFilter">日常比赛</view>
+  </view>
+  <view wx:if="{{!shown.length && !loading}}" class="muted">没有比赛记录</view>
+  <view class="card list">
+    <view wx:for="{{shown}}" wx:key="id" class="mr" data-id="{{item.id}}" bindtap="openMatch">
+      <view class="mr-l">
+        <view class="mr-top"><text class="mr-date">{{item.date}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+        <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
+      </view>
+      <view class="mr-r">
+        <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
+        <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
+        <text class="mr-sc">{{item.score}}</text>
+        <text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="foot">只列正式战绩；待对手确认的日常比赛在「战绩」页</view>
+</view>
