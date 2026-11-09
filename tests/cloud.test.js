@@ -203,7 +203,15 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
     assert.strictEqual(d.active.find((x) => x.uid === 'veg').nickname, '花椰菜');
     assert.ok(!d.pending.some((x) => x.uid === 'veg') && !d.others.some((x) => x.uid === 'boss'));
     assert.strictEqual(d.active.find((x) => x.uid === 'ghost').uidTail, 'ghost'); // 没有资料的显示 ID 尾号
+    assert.strictEqual(d.adminConfig.count, 3);
+    assert.strictEqual(d.adminConfig.items.find((x) => x.tail === 'veg').nickname, '花椰菜');
     no(await env.call('alice', 'listMembers'), /管理员/);
+    // 中文逗号、引号也能识别
+    process.env.ADMIN_OPENIDS = '"boss"，veg；ghost';
+    const d2 = ok(await env.call('boss', 'listMembers'));
+    assert.deepStrictEqual(d2.active.filter((x) => x.admin).map((x) => x.uid).sort(), ['boss', 'ghost', 'veg']);
+    assert.ok(d2.adminConfig.fullWidth);
+    assert.ok(ok(await env.call('veg', 'memberStatus')).isAdmin);
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 

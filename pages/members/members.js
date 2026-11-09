@@ -13,6 +13,11 @@ Page({
     catch (e) { this.setData({ loading: false }); wx.showModal({ title: '无法打开', content: e.message, showCancel: false, success: () => wx.navigateBack() }); }
   },
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
+  // 复制用户 ID（openid）：设置管理员时粘贴到云函数环境变量 ADMIN_OPENIDS，避免手抄出错
+  copyId(e) {
+    const uid = e.currentTarget.dataset.uid;
+    wx.setClipboardData({ data: uid, success: () => wx.showToast({ title: '已复制用户 ID', icon: 'none' }) });
+  },
   ask(title, ph) { return new Promise((r) => wx.showModal({ title, editable: true, placeholderText: ph, success: (x) => r(x.confirm ? (x.content || '').trim() : null), fail: () => r(null) })); },
   async run(action, data, ok) {
     if (this.busy) return;

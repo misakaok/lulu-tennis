@@ -1537,7 +1537,9 @@ const ping = async () => ({}); // 小程序启动时调用一次：触发旧记�
 // invites（仅管理端可读写）：_id = 邀请码，一次性、有有效期
 // 管理员：云函数环境变量 ADMIN_OPENIDS（逗号分隔的 openid），只能在云开发控制台配置，前端改不了；
 //   管理员默认是成员。成员管理员和赛事发起人是两回事：管理员不因此获得任何赛事操作权限。
-const ADMINS = () => String(process.env.ADMIN_OPENIDS || '').split(/[,\s]+/).filter(Boolean);
+// 分隔符兼容英文 / 中文逗号、分号、空格和换行，去掉误加的引号
+const adminTokens = () => String(process.env.ADMIN_OPENIDS || '').split(/[,，;；、\s]+/).map((x) => x.replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')).filter(Boolean);
+const ADMINS = () => adminTokens();
 const isAdmin = (uid) => ADMINS().indexOf(uid) >= 0;
 async function memberOf(uid) {
   if (isAdmin(uid)) return { status: 'active', admin: true };
@@ -1603,7 +1605,15 @@ async function listMembers() {
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));
   // 管理员一律算正式成员（和 memberOf 一致）：即使以前申请过、被拒绝或移除过，也显示在「成员」里，不出现在待审核 / 已移除中
   const invites = (await db.collection('invites').limit(200).get()).data.filter((x) => !x.usedBy && !x.revoked && x.expiresAt > Date.now()).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
+  // 环境变量诊断（只给管理员看）：每一项的尾号、长度、格式是否像 openid、对应的昵称
+  const raw = String(process.env.ADMIN_OPENIDS || '');
+  const adminConfig = {
+    count: ADMINS().length,
+    fullWidth: /[，；、“”‘’"']/.test(raw), // 用了中文标点或引号（已兼容，但建议改成英文逗号）
+    items: ADMINS().map((u) => ({ tail: u.slice(-6), len: u.length, looksOk: /^[\w-]{20,40}$/.test(u), nickname: nameOf[u] || '', member: !!by[u] })),
+  };
   return {
+    adminConfig,
     pending: all.filter((m) => m.status === 'pending' && !isAdmin(m._id)).map(row),
     active: all.filter((m) => m.status === 'active' || isAdmin(m._id)).map((m) => Object.assign(row(m), { status: 'active' }))
       .concat(ADMINS().filter((u) => !by[u]).map((u) => ({ uid: u, uidTail: u.slice(-6), name: '', nickname: nameOf[u] || '', status: 'active', admin: true }))),

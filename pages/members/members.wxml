@@ -11,6 +11,7 @@
     <view wx:if="{{!d.pending.length}}" class="muted">没有待审核的申请</view>
     <view wx:for="{{d.pending}}" wx:key="uid" class="mrow">
       <view class="m-main"><view class="m-n">{{item.name}}{{item.nickname ? '（' + item.nickname + '）' : ''}}</view><view class="m-s">{{item.note || '没有说明'}}</view></view>
+      <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
       <text class="m-a" data-uid="{{item.uid}}" bindtap="reject">拒绝</text><text class="m-a main" data-uid="{{item.uid}}" bindtap="approve">批准</text>
     </view>
   </view>
@@ -19,13 +20,22 @@
     <view class="card">
       <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
         <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '云函数环境变量配置' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
+        <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
       </view>
+    </view>
+    <view wx:if="{{d.adminConfig}}" class="card">
+      <view class="card-title">管理员配置<text class="sub">云函数环境变量 ADMIN_OPENIDS，共识别出 {{d.adminConfig.count}} 个</text></view>
+      <view wx:for="{{d.adminConfig.items}}" wx:key="tail" class="mrow">
+        <view class="m-main"><view class="m-n">ID 尾号 {{item.tail}}（{{item.len}} 位）</view><view class="m-s">{{!item.looksOk ? '格式不像 openid，请检查是否复制完整' : item.nickname ? '对应：' + item.nickname : '没有找到对应的资料：这个 ID 可能不是本人在本小程序里的 openid，或 TA 还没设置资料'}}</view></view>
+      </view>
+      <view wx:if="{{d.adminConfig.fullWidth}}" class="m-s">环境变量里有中文标点或引号，已自动兼容；建议改成英文逗号分隔。</view>
     </view>
     <view wx:if="{{d.others.length}}" class="card">
       <view class="card-title">已拒绝 / 已移除</view>
       <view wx:for="{{d.others}}" wx:key="uid" class="mrow">
         <view class="m-main"><view class="m-n">{{item.nickname || item.name}}</view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}：{{item.reason}}</view></view>
+        <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
       </view>
     </view>
