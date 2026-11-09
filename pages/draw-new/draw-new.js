@@ -352,7 +352,7 @@ Page({
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '发布失败', content: '请确认云数据库已创建 draws 集合。\n' + (e.errMsg || e.message || ''), showCancel: false });
+      wx.showModal({ title: '发布失败', content: e.message || e.errMsg || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }
@@ -365,10 +365,7 @@ Page({
     try {
       let id = this.drawId;
       if (id) {
-        const ok = await db.updateDraw(id, Object.assign({}, p, {
-          status: 'drawn', results: db.cmdSet({}), teams: db.cmdSet(p.teams), avatars: db.cmdSet(p.avatars), uidOf: db.cmdSet(p.uidOf),
-        }));
-        if (!ok) throw new Error('只有发起人可以生成签表');
+        await db.generateDraw(id, p);
       } else {
         id = await db.addDraw(Object.assign({}, p, this.infoFields(), { title: this.data.title.trim() || '内部赛', status: 'drawn' }));
         try { await this.saveContact(id); } catch (e) { /* 已提示，可稍后编辑补上 */ }

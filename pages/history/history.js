@@ -9,7 +9,8 @@ Page({
     this.render(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches());
     this.load();
   },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     try {
       const [players, matches] = await Promise.all([db.fetchPlayersFull(), db.fetchMatches()]);

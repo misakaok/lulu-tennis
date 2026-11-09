@@ -1,0 +1,5 @@
+#!/bin/sh
+# 提交前检查：共享文件已同步、测试全部通过
+# 启用：git config core.hooksPath .githooks
+cd "$(git rev-parse --show-toplevel)" || exit 1
+node tests/run.js > /tmp/lulu-tennis-test.log 2>&1 || { tail -30 /tmp/lulu-tennis-test.log; echo "测试没通过，提交已取消（共享文件不一致时请先运行 scripts/sync-shared.sh）"; exit 1; }

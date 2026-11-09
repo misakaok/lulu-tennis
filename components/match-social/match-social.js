@@ -104,7 +104,24 @@ Component({
         success: async (r) => {
           if (!r.confirm) return;
           try {
-            await cloud.call('revokeMatch', { matchId: this.data.matchId });
+            let res = await cloud.call('revokeMatch', { matchId: this.data.matchId });
+            if (res.needReason) {
+              // 发起人撤销已确认 / 弃权退赛 / 影响后续场次的比分：必须填原因；有影响时列出并确认
+              const impact = res.impact || [];
+              const lines = impact.map((x) => `${x.stage}：${x.a} vs ${x.b} ${x.score}`).join('\n');
+              const ask = await new Promise((done) => wx.showModal({
+                title: impact.length ? '会影响后续比赛' : '请填写撤销原因',
+                content: impact.length ? `撤销后，下面已录分的比赛比分将作废：\n${lines}` : '',
+                editable: true, placeholderText: '撤销原因（必填，会留档）',
+                confirmText: '确认撤销', confirmColor: '#e5484d',
+                success: (x) => done(x), fail: () => done({ confirm: false }),
+              }));
+              if (!ask.confirm) return;
+              const reason = String(ask.content || '').trim();
+              if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
+              res = await cloud.call('revokeMatch', { matchId: this.data.matchId, reason, confirmImpact: true });
+              if (res.needReason) { wx.showToast({ title: '比分刚刚有变动，请重试', icon: 'none' }); this.load(); return; }
+            }
             wx.showToast({ title: '已撤销', icon: 'success' });
             this.triggerEvent('revoked');
           } catch (err) { wx.showModal({ title: '撤销失败', content: err.message, showCancel: false }); }

@@ -6,7 +6,8 @@ const cloud = require('../../utils/cloud');
 Page({
   data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '' },
   onShow() { this.load(); },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     try { const d = await cloud.call('listMembers'); this.setData({ d, loading: false }); }
     catch (e) { this.setData({ loading: false }); wx.showModal({ title: '无法打开', content: e.message, showCancel: false, success: () => wx.navigateBack() }); }

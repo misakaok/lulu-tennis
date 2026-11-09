@@ -19,7 +19,8 @@ Page({
     member.clearProtected(); // 进了准入页就清掉受保护的缓存
   },
   onShow() { this.load(); },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     try {
       const r = await member.status();

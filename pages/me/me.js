@@ -22,7 +22,7 @@ Page({
     });
   },
   onShow() { this.load(); },
-  onPullDownRefresh() {
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     const c = this.selectComponent('#home');
     Promise.all([this.load(), c ? c.load() : null]).then(() => wx.stopPullDownRefresh());
   },

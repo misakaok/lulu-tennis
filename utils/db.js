@@ -18,15 +18,21 @@ const cacheGet = (k, d) => {
 };
 const cacheSet = (k, v) => { try { wx.setStorageSync(k, v); } catch (e) {} };
 
-// 小程序端每次最多取 20 条，这里循环分页取全部
-async function fetchAll(name, orders, where) {
+// 循环分页取全部。每页 100 条（数据网关单次上限），每页都是一次云函数调用，页越大调用次数越少
+// 结果按「集合 + 条件 + 排序」在内存里缓存 60 秒，并合并同时发起的相同请求（见 utils/memo.js）
+const PAGE = 100;
+const memo = require('./memo');
+function fetchAll(name, orders, where) {
+  return memo.get(JSON.stringify([name, orders || [], where || null]), name, () => fetchAllRaw(name, orders, where));
+}
+async function fetchAllRaw(name, orders, where) {
   const base = where ? db().collection(name).where(where) : db().collection(name);
   const { total } = await base.count();
   let all = [];
-  for (let skip = 0; skip < total; skip += 20) {
+  for (let skip = 0; skip < total; skip += PAGE) {
     let q = base;
     (orders || []).forEach(([field, dir]) => { q = q.orderBy(field, dir); });
-    const res = await q.skip(skip).limit(20).get();
+    const res = await q.skip(skip).limit(PAGE).get();
     all = all.concat(res.data);
   }
   return all;
@@ -101,9 +107,10 @@ const cachedMatchesAll = () => cacheGet('cache_matches_all', []);
 function addMatch(data) {
   return db().collection('matches').add({ data: Object.assign({}, data, { createdAt: db().serverDate() }) });
 }
-async function removeMatch(id) {
-  const res = await db().collection('matches').doc(id).remove();
-  return !!(res.stats && res.stats.removed);
+// 撤销 / 删除比赛：一律经云函数 revokeMatch（校验确认状态、对后续场次的影响，并留档）。
+// 返回 { needReason: true, impact } 时，需要填写原因（和确认影响）后带上再调一次
+function removeMatch(id, extra) {
+  return require('./cloud').call('revokeMatch', Object.assign({ matchId: id }, extra || {}));
 }
 
 /* ---------- 球员 / 个人资料 ---------- */
@@ -167,37 +174,19 @@ async function uploadAvatar(tempPath) {
   const ext = (tempPath.match(/\.(\w+)$/) || [])[1] || 'jpg';
   const res = await wx.cloud.uploadFile({
     // 放在 avatars/<本人用户 ID>/ 下：一看路径就知道是谁的照片；读写权限由云存储安全规则控制（见 README）
-    cloudPath: `avatars/${await myOpenid().catch(() => 'unknown')}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`,
+    cloudPath: `avatars/${await myOpenid()}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`,
     filePath: tempPath,
   });
   rememberEnv(res.fileID); // 记下当前云环境，头像诊断时用来比对
   return res.fileID; // 数据库只存 fileID，显示时再换临时链接（见 utils/avatar.js）
 }
 
-// 保存个人资料：昵称不能和别的球友重复
-// 只拦「别人」用过的昵称：按创建者（_openid）判断，自己的旧记录不算重名
+// 保存个人资料：经云函数 saveProfile（服务端检查昵称不和别人重复、照片在本人目录下）
 async function saveMyProfile({ name, avatar, avatarTemp, level, gender }) {
-  const col = db().collection('players');
-  const [me, docs, same, former] = await Promise.all([
-    myOpenid(), myProfileDocs(), col.where({ name, self: true }).get(), col.where({ formerNames: name, self: true }).get(),
-  ]);
-  if (same.data.some((p) => p._openid !== me)) throw new Error('这个昵称已经被其他球友使用了，换一个吧');
-  if (former.data.some((p) => p._openid !== me)) throw new Error('这个昵称是其他球友以前用过的，为避免混淆请换一个');
   // 只把云文件 fileID 存进数据库：本地临时路径先上传；HTTPS 临时链接会过期，绝不保存
   if (!avatarTemp && avatar && !isCloud(avatar) && /^(wxfile:|http:\/\/tmp)/.test(avatar)) avatarTemp = avatar;
   const fileID = avatarTemp ? await uploadAvatar(avatarTemp) : (isCloud(avatar) ? avatar : '');
-  const data = { name, avatar: fileID || '', level, gender: gender === 'm' || gender === 'f' ? gender : '' };
-  const mine = docs[0];
-  if (mine) {
-    // 改名：旧昵称记进 formerNames，留给本人（历史记录按用户 ID 跟着走，昵称只是展示）
-    if (mine.name && mine.name !== name) {
-      const fn = (mine.formerNames || []).filter((n) => n !== name);
-      if (fn.indexOf(mine.name) < 0) fn.push(mine.name);
-      data.formerNames = fn.slice(-10);
-    }
-    await col.doc(mine._id).update({ data });
-    docs.slice(1).forEach((d) => col.doc(d._id).remove().catch(() => {})); // 清掉多出来的重复资料
-  } else await col.add({ data: Object.assign({ self: true, createdAt: db().serverDate() }, data) });
+  await require('./cloud').call('saveProfile', { name, avatar: fileID || '', level, gender });
   return getMyProfile();
 }
 
@@ -214,24 +203,16 @@ async function getMatch(id) {
 }
 async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
 
-async function addDraw(data) {
-  const res = await db().collection('draws').add({ data: Object.assign({}, data, { createdAt: db().serverDate() }) });
-  return res._id;
-}
-// 只有创建者能改，别人改会返回 false
-async function updateDraw(id, data) {
-  const res = await db().collection('draws').doc(id).update({ data });
-  return !!(res.stats && res.stats.updated);
-}
-async function updateDrawResults(id, results) {
-  return updateDraw(id, { results: db().command.set(results) });
-}
-// 整体替换一个对象字段（普通 update 会和旧对象合并）
-const cmdSet = (v) => db().command.set(v);
-async function removeDraw(id) {
-  const res = await db().collection('draws').doc(id).remove();
-  return !!(res.stats && res.stats.removed);
-}
+// 赛事的写入都经云函数（服务端逐个字段校验；只有发起人能改）
+const cloudCall = (action, data) => require('./cloud').call(action, data);
+// 发布赛事：只有设置 → 开放报名；带 entrants / lines / groups → 直接生成签表。返回赛事 ID
+async function addDraw(data) { return (await cloudCall('createDraw', { draw: data })).id; }
+// 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
+async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
+// 编辑赛事信息：名称、日期、开始时间、场地、地址、定位
+async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
+// 删除赛事（软删除：签表不再显示，已录比分保留在战绩里）
+async function removeDraw(id) { await cloudCall('removeDraw', { drawId: id }); }
 
 /* ---------- 报名 ---------- */
 function fetchSignups(drawId) { return fetchAll('signups', [['createdAt', 'asc']], { drawId }); }
@@ -248,20 +229,12 @@ async function mySignup(drawId) {
   const res = await db().collection('signups').where({ drawId, _openid: me }).limit(1).get();
   return res.data[0] || null;
 }
-// 双打报名时可以带上搭档（partner 为空表示还没有搭档，由发起人配对）
-async function signUp(drawId, profile, partner) {
-  if (await mySignup(drawId)) return;
-  await db().collection('signups').add({
-    data: {
-      drawId, name: profile.name, avatar: profile.avatar || '', level: profile.level || null,
-      partner: (partner && partner.name) || '', partnerId: (partner && partner.uid) || '', partnerAvatar: (partner && partner.avatar) || '',
-      createdAt: db().serverDate(),
-    },
-  });
+// 报名经云函数 signUp：参赛名取本人当前资料，搭档只传用户 ID，由服务端校验（partner 为空表示还没有搭档，由发起人配对）
+async function signUp(drawId, partner) {
+  await require('./cloud').call('signUp', { drawId, partnerId: (partner && partner.uid) || '' });
 }
 async function cancelSignup(drawId) {
-  const s = await mySignup(drawId);
-  if (s) await db().collection('signups').doc(s._id).remove();
+  await require('./cloud').call('cancelSignup', { drawId });
 }
 
 module.exports = {
@@ -269,6 +242,6 @@ module.exports = {
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile,
-  fetchDraws, cachedDraws, getDraw, addDraw, updateDraw, updateDrawResults, removeDraw, cmdSet,
+  fetchDraws, cachedDraws, getDraw, addDraw, generateDraw, updateDrawInfo, removeDraw,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

@@ -25,7 +25,8 @@ Page({
 
   onLoad(options) { this.id = options.id; },
   onShow() { this.load(); }, // 从录分页 / 资料页 / 抽签页回来时刷新
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
 
   async load() {
     try {
@@ -259,14 +260,14 @@ Page({
         }
         partner = { name: pick.name, uid: pick.uid, avatar: pick.avatar || '' };
       }
-      await db.signUp(this.id, me, partner);
+      await db.signUp(this.id, partner);
       wx.showToast({ title: '报名成功', icon: 'success' });
       this.loadContact();
       this.loadPhotoCount(); // 报名后可以看到联系方式
       await this.loadSignups(this.d, this.allMatches);
     } catch (e) {
       console.error(e);
-      wx.showToast({ title: '报名失败，请确认已创建 signups 集合', icon: 'none' });
+      wx.showModal({ title: '报名失败', content: e.message || '请稍后再试', showCancel: false });
     } finally { this.setData({ busy: false }); }
   },
 
@@ -282,7 +283,7 @@ Page({
           await db.cancelSignup(this.id);
           await this.loadSignups(this.d, this.allMatches);
           wx.showToast({ title: '已取消' });
-        } catch (e) { wx.showToast({ title: '操作失败', icon: 'none' }); }
+        } catch (e) { wx.showModal({ title: '取消失败', content: e.message || '请稍后再试', showCancel: false }); }
       },
     });
   },
@@ -328,14 +329,15 @@ Page({
   remove() {
     wx.showModal({
       title: '删除这个赛事？',
-      content: '删除后所有人都看不到签表了（已录的比分仍保留在战绩里）',
+      content: '删除后所有人都看不到签表了，赛事相册的照片和联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
         try {
-          if (await db.removeDraw(this.id)) { wx.showToast({ title: '已删除' }); setTimeout(() => wx.navigateBack(), 600); }
-          else wx.showToast({ title: '只有发起人可以删除', icon: 'none' });
-        } catch (e) { wx.showToast({ title: '删除失败', icon: 'none' }); }
+          await db.removeDraw(this.id);
+          wx.showToast({ title: '已删除' });
+          setTimeout(() => wx.navigateBack(), 600);
+        } catch (e) { wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false }); }
       },
     });
   },

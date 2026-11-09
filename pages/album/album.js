@@ -26,7 +26,8 @@ Page({
     if (o.title) this.setData({ title: decodeURIComponent(o.title) });
     this.load();
   },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
 
   async load() {
     try {

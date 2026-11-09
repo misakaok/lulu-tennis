@@ -37,11 +37,9 @@ Page({
     if (!title) { wx.showToast({ title: '请填写赛事名称', icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
-      const ok = await db.updateDraw(this.id, {
-        title, date: i.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), address: (i.address || '').trim(),
-        location: i.location ? db.cmdSet(i.location) : null,
+      await db.updateDrawInfo(this.id, {
+        title, date: i.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), address: (i.address || '').trim(), location: i.location || null,
       });
-      if (!ok) throw new Error('只有赛事发起人可以编辑');
       await cloud.call('saveContact', { drawId: this.id, contact: i.contact });
       wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);

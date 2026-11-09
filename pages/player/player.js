@@ -12,7 +12,7 @@ Page({
     const p = db.cachedProfiles()[uid];
     if (p) wx.setNavigationBarTitle({ title: p.name + ' 的主页' });
   },
-  onPullDownRefresh() {
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     const c = this.selectComponent('#home');
     Promise.resolve(c ? c.load() : null).then(() => wx.stopPullDownRefresh());
   },

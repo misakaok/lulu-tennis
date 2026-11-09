@@ -50,5 +50,6 @@
     <view wx:elif="{{st.canRequestChange}}" class="ms-link" bindtap="requestChange">比分有误？申请修改比分</view>
   </block>
 
-  <view wx:if="{{revocable}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
+  <!-- 已双方确认的比分只有发起人能撤销（日常比赛不能撤销，只能申请改分）；云函数会再校验 -->
+  <view wx:if="{{revocable && (!st || !st.confirmed || st.isOwner)}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
 </view>

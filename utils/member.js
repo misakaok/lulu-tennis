@@ -4,6 +4,7 @@ const GATE = '/pages/gate/gate';
 const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1 };
 
 function clearProtected() {
+  require('./memo').invalidate();
   try {
     const info = wx.getStorageInfoSync();
     (info.keys || []).forEach((k) => { if (!KEEP[k]) wx.removeStorageSync(k); });

@@ -61,7 +61,8 @@ Page({
     this.render();
   },
   onShow() { this.load(); },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
 
   async load() {
     try {
@@ -124,12 +125,14 @@ Page({
           success: async (r) => {
             if (!r.confirm) return;
             try {
-              const ok = await db.removeMatch(id);
-              if (ok) { wx.showToast({ title: '已删除' }); this.load(); }
-              else wx.showToast({ title: '只能删除自己录入的记录', icon: 'none' });
+              const res = await db.removeMatch(id);
+              // 需要填原因 / 确认对后续场次的影响：到比赛详情里撤销
+              if (res.needReason) { wx.navigateTo({ url: '/pages/match/match?id=' + id }); return; }
+              wx.showToast({ title: '已删除' });
+              this.load();
             } catch (err) {
               console.error(err);
-              wx.showToast({ title: '删除失败', icon: 'none' });
+              wx.showModal({ title: '删除失败', content: err.message || '请稍后再试', showCancel: false });
             }
           },
         });

@@ -46,7 +46,8 @@ Page({
   data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0 },
   onLoad() { this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render(); },
   onShow() { this.load(); },
-  onPullDownRefresh() { this.load().then(() => wx.stopPullDownRefresh()); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    this.load().then(() => wx.stopPullDownRefresh()); },
   render() {
     const signed = {};
     (this.signups || []).forEach((s) => { signed[s.drawId] = 1; });
