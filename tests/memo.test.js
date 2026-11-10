@@ -45,5 +45,40 @@ test('超过 TTL 重新拉取', async () => {
     t += 2; await memo.get('k', 'c', () => ++n); assert.strictEqual(n, 2);
   } finally { Date.now = realNow; }
 });
+test('由其他缓存算出来的结果（deps）：有效期从原始数据算起，不会活得更久', async () => {
+  const memo = fresh();
+  const realNow = Date.now;
+  let t = 1e12; Date.now = () => t;
+  try {
+    let n = 0;
+    await memo.get('src', 'c', () => 1);
+    t += memo.TTL_MS - 10;
+    await memo.get('d', 'c', () => ++n, ['src']);
+    t += 5; await memo.get('d', 'c', () => ++n, ['src']); assert.strictEqual(n, 1);
+    t += 10; await memo.get('d', 'c', () => ++n, ['src']); assert.strictEqual(n, 2, '原始数据过期后，整理结果也要重算');
+    const v = { x: 1 };
+    assert.strictEqual(await memo.raw('r', 'c', () => v), v, 'raw 不复制');
+    assert.notStrictEqual(await memo.get('r', 'c', () => v), v);
+  } finally { Date.now = realNow; }
+});
+
+test('ANY：任意集合写入都作废，普通缓存保持；从零时钟开始的依赖也限制有效期', async () => {
+  const memo = fresh();
+  let n = 0;
+  await memo.get('any', memo.ANY, () => ++n);
+  await memo.get('ordinary', 'matches', () => ++n);
+  memo.invalidate(['players']);
+  assert.strictEqual(await memo.get('ordinary', 'matches', () => ++n), 2);
+  assert.strictEqual(await memo.get('any', memo.ANY, () => ++n), 3);
+  const realNow = Date.now;
+  let t = 0; Date.now = () => t;
+  try {
+    await memo.raw('src0', 'c', () => 1);
+    t = memo.TTL_MS - 1;
+    await memo.get('dep0', 'c', () => ++n, ['src0']);
+    t += 2;
+    assert.strictEqual(await memo.get('dep0', 'c', () => ++n, ['src0']), 5);
+  } finally { Date.now = realNow; }
+});
 
 module.exports = T;

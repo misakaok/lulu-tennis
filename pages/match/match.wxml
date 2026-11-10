@@ -24,6 +24,6 @@
         <text wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="mt-sc {{s.bw ? 'hi' : ''}}">{{s.b}}<text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></text>
       </view>
     </view>
-    <match-social match-id="{{m._id}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+    <match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
   </block>
 </view>

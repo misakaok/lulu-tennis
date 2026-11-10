@@ -51,5 +51,5 @@
   </block>
 
   <!-- 已双方确认的比分只有发起人能撤销（日常比赛不能撤销，只能申请改分）；云函数会再校验 -->
-  <view wx:if="{{revocable && (!st || !st.confirmed || st.isOwner)}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
+  <view wx:if="{{st && (st.isOwner || (revocable && !st.confirmed && (!st.drawId || !st.outcome || st.outcome === 'normal')))}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
 </view>

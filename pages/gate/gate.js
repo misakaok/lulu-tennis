@@ -18,7 +18,7 @@ Page({
     this.setData({ invite: o.invite || '' });
     member.clearProtected(); // 进了准入页就清掉受保护的缓存
   },
-  onShow() { this.load(); require('../../utils/notify').prefetch(); },
+  onShow() { this.load(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
@@ -40,7 +40,6 @@ Page({
   onNote(e) { this.setData({ note: e.detail.value }); },
   async apply() {
     if (this.data.busy) return;
-    require('../../utils/notify').ask(['result']); // 审核结果出来时通知我
     if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的称呼', icon: 'none' }); return; }
     this.setData({ busy: true });
     try { await cloud.call('applyMember', { name: this.data.name, note: this.data.note }); wx.showToast({ title: '已提交申请', icon: 'success' }); await this.load(); }

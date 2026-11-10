@@ -1,4 +1,4 @@
-// 编辑赛事信息（只有发起人）：名称、日期、开始时间、场地、地址、定位、联系人
+// 编辑赛事信息（发起人或管理员）：名称、日期、开始时间、场地、定位、联系人
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
 
@@ -9,7 +9,8 @@ Page({
 
   async load() {
     try {
-      const [d, owner] = await Promise.all([db.getDraw(this.id), db.isMine('draws', this.id)]);
+      const [d, myId] = await Promise.all([db.getDraw(this.id), db.myOpenid()]);
+      const owner = !!myId && d._openid === myId;
       const isAdmin = require('../../utils/member').isAdminLocal();
       if (!owner && !isAdmin) throw new Error('只有赛事发起人或管理员可以编辑');
       if (!owner) wx.setNavigationBarTitle({ title: '编辑赛事（管理员）' });
@@ -21,7 +22,7 @@ Page({
       this.info = null;
       this.setData({
         loading: false, title: d.title || '', contactNote,
-        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', address: d.address || '', location: d.location || null, contact },
+        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, contact },
       });
     } catch (e) {
       console.error(e);
@@ -40,7 +41,7 @@ Page({
     this.setData({ saving: true });
     try {
       await db.updateDrawInfo(this.id, {
-        title, date: i.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), address: (i.address || '').trim(), location: i.location || null,
+        title, date: i.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), location: i.location || null,
       });
       await cloud.call('saveContact', { drawId: this.id, contact: i.contact });
       wx.showToast({ title: '已保存', icon: 'success' });

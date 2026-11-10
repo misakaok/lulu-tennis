@@ -11,7 +11,7 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.g
 Page({
   data: {
     loading: true, error: '',
-    title: '', stage: '', formatText: '', ruleStage: '', ruleText: '', ruleCustom: false, typeText: '', setGames: 4, noAd: true, bestOf: 1,
+    title: '', stage: '', slotText: '', formatText: '', ruleStage: '', ruleText: '', ruleCustom: false, typeText: '', setGames: 4, noAd: true, bestOf: 1,
     sideA: [], sideB: [], aLabel: '', bLabel: '',
     date: '', today: '',
     done: false, resultSets: [], winner: '',
@@ -31,15 +31,15 @@ Page({
 
   async load() {
     try {
-      const [d, matches, me, owner, players, signups, myId] = await Promise.all([
+      const [d, matches, me, players, signups, myId] = await Promise.all([
         db.getDraw(this.drawId),
         db.fetchMatches(),
         db.getMyProfile().catch(() => db.cachedProfile()),
-        db.isMine('draws', this.drawId).catch(() => false),
         db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
         db.fetchSignups(this.drawId).catch(() => []),
         db.myOpenid().catch(() => ''),
       ]);
+      const owner = !!myId && d._openid === myId; // 赛事文档已经读到了，不用再查一次
       const f = E.findFixture(d, matches, this.key);
       if (!f) throw new Error('找不到这场比赛，签表可能已经重新抽过');
       if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
@@ -72,7 +72,7 @@ Page({
       wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
       this.setData({
         loading: false, error: '',
-        title: d.title, stage: f.stage, formatText: E.formatText(cfg),
+        title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '', formatText: E.formatText(cfg),
         ruleStage: cfg.stage, ruleText: E.ruleText(cfg), ruleCustom: !!cfg.custom, typeText: cfg.type === 'double' ? '双打' : '单打',
         setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
         sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
@@ -114,7 +114,6 @@ Page({
     const r = this.res, f = this.f, d = this.d, cfg = this.cfg;
     if (!r || !r.ok) { wx.showToast({ title: this.data.check.msg || '请完善比分', icon: 'none' }); return; }
     if (!this.data.canEdit) { wx.showToast({ title: this.data.reason, icon: 'none' }); return; }
-    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     this.setData({ submitting: true });
     try {
       // 赛事比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）
@@ -124,7 +123,7 @@ Page({
       setTimeout(() => wx.navigateBack(), 700);
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '保存失败', content: e.message || e.errMsg || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ submitting: false });
     }

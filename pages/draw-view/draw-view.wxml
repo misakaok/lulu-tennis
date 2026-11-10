@@ -27,8 +27,7 @@
       <view class="in-row"><text class="in-k">时间</text><text class="in-v">{{info.when || '暂无'}}</text></view>
       <block wx:if="{{!info.empty}}">
         <view class="in-row"><text class="in-k">场地</text><text class="in-v">{{info.venue || '暂无'}}</text></view>
-        <view class="in-row" bindlongpress="copyAddress"><text class="in-k">地址</text><text class="in-v">{{info.address || '暂无'}}</text></view>
-        <view wx:if="{{info.canNav || info.address}}" class="nav-btn" bindtap="openMap">{{info.canNav ? '📍 打开地图导航' : '复制地址'}}</view>
+        <view wx:if="{{info.canNav}}" class="nav-btn" bindtap="openMap">📍 打开地图导航</view>
       </block>
       <view wx:else class="muted">{{canManage ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
 
@@ -106,7 +105,7 @@
 
       <view wx:else>
         <view class="sch-bar">
-          <text class="muted">点击场次录入或查看比分</text>
+          <text class="muted">{{isOwner ? '点击场次录分；可以给每一场安排时间和场地' : '点击场次录入或查看比分'}}</text>
           <text class="mine-tg {{onlyMine ? 'on' : ''}}" bindtap="toggleMine">{{onlyMine ? '✓ ' : ''}}只看我的</text>
         </view>
         <view wx:if="{{!schedule.length}}" class="muted center">{{onlyMine ? '你在这个赛事里没有比赛' : '还没有比赛'}}</view>
@@ -136,7 +135,11 @@
             <text wx:if="{{item.winner === 'b'}}" class="sch-win">胜</text>
           </view>
           <view wx:if="{{item.score}}" class="sch-score">{{item.score}}</view>
-          <view class="sch-rule {{item.ruleCustom ? 'hl' : ''}}">{{item.ruleCustom ? '★ ' : ''}}{{item.ruleText}}</view>
+          <view wx:if="{{item.slotText && !item.done}}" class="sch-slot">🕒 {{item.slotText}}</view>
+          <view class="sch-foot">
+            <text class="sch-rule {{item.ruleCustom ? 'hl' : ''}}">{{item.ruleCustom ? '★ ' : ''}}{{item.ruleText}}</text>
+            <text wx:if="{{isOwner && !item.done}}" class="sch-plan" data-key="{{item.key}}" catchtap="planSlot">{{item.slotText ? '修改安排' : '安排时间场地'}}</text>
+          </view>
         </view>
       </view>
     </block>
@@ -157,6 +160,31 @@
         <view wx:elif="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请：{{myWd.note}}</view>
         <view wx:elif="{{canWithdraw}}" class="wd-link" bindtap="requestWithdraw">申请退赛</view>
       </block>
+    </view>
+
+    <!-- 单场安排（发起人） -->
+    <view wx:if="{{slotEdit}}" class="sheet-mask" bindtap="slotCancel"></view>
+    <view wx:if="{{slotEdit}}" class="sheet">
+      <view class="sheet-t">安排这场比赛</view>
+      <view class="sheet-s">{{slotEdit.title}}</view>
+      <view class="sheet-row">
+        <text class="label">日期</text>
+        <picker mode="date" value="{{slotEdit.date || slotEdit.defDate}}" bindchange="slotDate"><view class="sheet-pick {{slotEdit.date ? '' : 'ph'}}">{{slotEdit.date || '选择日期'}} ›</view></picker>
+      </view>
+      <view class="sheet-row">
+        <text class="label">时间</text>
+        <picker mode="time" value="{{slotEdit.time || '09:00'}}" bindchange="slotTime"><view class="sheet-pick {{slotEdit.time ? '' : 'ph'}}">{{slotEdit.time || '选择时间'}} ›</view></picker>
+      </view>
+      <view class="sheet-row">
+        <text class="label">场地</text>
+        <input class="sheet-in" value="{{slotEdit.court}}" bindinput="slotCourt" maxlength="20" placeholder="例如：3 号场" />
+      </view>
+      <view class="sheet-note">没有安排的场次，沿用赛事的日期、时间和场地。</view>
+      <view class="sheet-acts">
+        <view wx:if="{{slotEdit.had}}" class="sheet-a" bindtap="slotClear">清除安排</view>
+        <view class="sheet-a" bindtap="slotCancel">取消</view>
+        <view class="sheet-a main {{busy ? 'dis' : ''}}" bindtap="slotSave">保存</view>
+      </view>
     </view>
 
     <view class="actions">

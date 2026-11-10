@@ -51,7 +51,10 @@ Page({
   render() {
     const signed = {};
     (this.signups || []).forEach((s) => { signed[s.drawId] = 1; });
-    const list = (this.draws || []).map((d) => toView(d, this.matches || [], this.myId, signed));
+    // 先按赛事把比赛分好组，每个赛事只看自己的比赛（不用每个赛事都扫一遍全部战绩）
+    const byDraw = {};
+    (this.matches || []).forEach((m) => { if (m.drawId) (byDraw[m.drawId] = byDraw[m.drawId] || []).push(m); });
+    const list = (this.draws || []).map((d) => toView(d, byDraw[d._id] || [], this.myId, signed));
     this.list = list;
     this.setData({ mineCount: list.filter((x) => x.mine).length });
     this.apply();
@@ -60,10 +63,16 @@ Page({
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
   async load() {
     try {
-      const [list, matches, myId] = await Promise.all([db.fetchDraws(), db.fetchMatches().catch(() => db.cachedMatches()), db.myOpenid().catch(() => '')]);
-      this.draws = list; this.matches = matches; this.myId = myId;
-      this.signups = myId ? await db.fetchMySignups().catch(() => []) : [];
-      this.render();
+      const [list, matches, myId, signups] = await Promise.all([
+        db.fetchDraws(), db.fetchMatches().catch(() => db.cachedMatches()), db.myOpenid().catch(() => ''), db.fetchMySignups().catch(() => []),
+      ]);
+      // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染
+      const sig = JSON.stringify([list, matches, myId, signups]);
+      if (sig !== this.sig) {
+        this.sig = sig;
+        this.draws = list; this.matches = matches; this.myId = myId; this.signups = signups;
+        this.render();
+      }
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });

@@ -45,3 +45,10 @@ image.avatar { display: block; background: #f2f2f8; }
 .prov { font-size: 18rpx; color: #a5a5ba; margin-top: 2rpx; }
 .tr.me { background: #f6f6fb; margin: 0 -24rpx; padding: 0 24rpx; }
 .me-tag { font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; margin-left: 8rpx; flex: none; }
+
+/* 赛季筛选 / 只看关注 */
+.top-seg { margin-bottom: 18rpx; }
+.season-row { white-space: nowrap; margin-bottom: 14rpx; }
+.season { display: inline-block; font-size: 24rpx; color: #6C6C86; background: #EFEFF6; border-radius: 24rpx; padding: 8rpx 24rpx; margin-right: 14rpx; }
+.season.on { color: #fff; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
+.sort.follow { margin-left: auto; }

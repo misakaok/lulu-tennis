@@ -20,7 +20,7 @@ Page({
     draw: null, meta: '', formatText: '', seedsText: '', error: '', myName: '', myId: '',
     signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null, contact: null, contactErr: '', photoCount: -1,
-    matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0,
+    matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
   },
 
   onLoad(options) { this.id = options.id; },
@@ -30,13 +30,21 @@ Page({
 
   async load() {
     try {
-      const [d, all, me, myId, signups] = await Promise.all([
-        db.getDraw(this.id),
+      // 赛事、报名名单、我的资料、联系人、相册数量、退赛申请：云函数 drawDetail 一次取齐
+      const [bundle, all, myId] = await Promise.all([
+        db.fetchDrawDetail(this.id),
         db.fetchMatches().catch(() => db.cachedMatches()),
-        db.getMyProfile().catch(() => db.cachedProfile()),
         db.myOpenid().catch(() => ''),
-        db.fetchSignups(this.id).catch(() => []),
       ]);
+      let d, me, signups;
+      if (bundle) { d = bundle.draw; me = bundle.profile; signups = bundle.signups; }
+      else { // 云函数还是旧版本：分开读取
+        [d, me, signups] = await Promise.all([
+          db.getDraw(this.id),
+          db.getMyProfile().catch(() => db.cachedProfile()),
+          db.fetchSignups(this.id).catch(() => []),
+        ]);
+      }
       this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
       // 签表照片按账号取最新的（换照片后签表也跟着变；名字仍是生成签表时的参赛名）
       const byUid = {};
@@ -61,13 +69,18 @@ Page({
       });
       // 编辑信息、删除：发起人或管理员（管理员只决定显示按钮，权限由云函数判断）；其他赛事操作只有发起人
       const isAdmin = require('../../utils/member').isAdminLocal();
-      this.setData({ canManage: isAdmin || !!this.data.isOwner });
-      db.isMine('draws', this.id).then((isOwner) => this.setData({ isOwner, canManage: isOwner || isAdmin })).catch(() => {});
+      const isOwner = !!myId && d._openid === myId; // 赛事文档已经读到了，不用再查一次
+      this.setData({ isOwner, canManage: isOwner || isAdmin });
       this.setData({ info: this.infoOf(d) });
-      this.loadContact();
-      this.loadPhotoCount();
-      if (signing) await this.loadSignups(d, all);
-      else { this.renderSchedule(); this.loadRequests(); }
+      if (bundle) {
+        this.setData({ contact: bundle.contact && bundle.contact.has ? bundle.contact : null, contactErr: bundle.contactErr || '', photoCount: bundle.photoCount });
+      } else { this.loadContact(); this.loadPhotoCount(); }
+      if (signing) await this.loadSignups(d, all, bundle ? signups : null);
+      else {
+        this.renderSchedule();
+        if (!bundle) this.loadRequests();
+        else if (bundle.requests) this.applyRequests(bundle.requests);
+      }
     } catch (e) {
       console.error(e);
       this.setData({ error: '赛事加载失败，可能已被删除' });
@@ -81,8 +94,8 @@ Page({
     if (d.date) { const [y, m, dd] = d.date.split('-').map(Number); when = `${m}月${dd}日 周${WEEK[new Date(y, m - 1, dd).getDay()]}`; }
     if (d.startTime) when += ' ' + d.startTime;
     const loc = d.location && typeof d.location.latitude === 'number' ? d.location : null;
-    if (!d.venue && !d.address && !loc && !d.startTime) return { when, empty: true };
-    return { when, venue: d.venue || (loc && loc.name) || '', address: d.address || (loc && loc.address) || '', canNav: !!loc };
+    if (!d.venue && !loc && !d.startTime) return { when, empty: true };
+    return { when, venue: d.venue || (loc && loc.name) || '', canNav: !!loc };
   },
 
   // 联系人由云函数按可见范围返回（没报名的人看不到电话和微信）
@@ -95,8 +108,10 @@ Page({
 
   /* ---------- 退赛（签表生成后）：球员申请，发起人处理；发起人也可以直接登记 ---------- */
   async loadRequests() {
-    try {
-      const r = await cloud.call('drawRequests', { drawId: this.id });
+    try { this.applyRequests(await cloud.call('drawRequests', { drawId: this.id })); } catch (e) { console.warn(e.message); }
+  },
+  applyRequests(r) {
+    {
       const wd = E.withdrawalsOf(this.d);
       const POL = { walkover: '未赛场次判对手弃权胜', void: '取消全部小组成绩' };
       this.setData({
@@ -107,7 +122,7 @@ Page({
         wdOwner: r.owner,
         wdCandidates: (this.d.entrants || []).filter((e) => !wd[e]),
       });
-    } catch (e) { console.warn(e.message); }
+    }
   },
   ask(title, placeholder) {
     return new Promise((resolve) => wx.showModal({ title, editable: true, placeholderText: placeholder, success: (r) => resolve(r.confirm ? (r.content || '').trim() : null), fail: () => resolve(null) }));
@@ -172,12 +187,9 @@ Page({
   openMap() {
     const d = this.d, loc = d.location;
     if (loc && typeof loc.latitude === 'number') {
-      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || loc.name || '', address: d.address || loc.address || '', scale: 16 });
-    } else if (d.address) {
-      wx.setClipboardData({ data: d.address });
+      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || loc.name || '', address: loc.address || '', scale: 16 });
     }
   },
-  copyAddress() { if (this.d.address) wx.setClipboardData({ data: (this.d.venue ? this.d.venue + ' ' : '') + this.d.address }); },
   callPhone() { const c = this.data.contact; if (c && c.phone) wx.makePhoneCall({ phoneNumber: c.phone }); },
   copyWechat() { const c = this.data.contact; if (c && c.wechat) wx.setClipboardData({ data: c.wechat }); },
   // 点报名名单里的头像 / 昵称 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
@@ -190,11 +202,13 @@ Page({
   goEdit() { wx.navigateTo({ url: '/pages/event-edit/event-edit?id=' + this.id }); },
 
   /* ---------- 报名 ---------- */
-  async loadSignups(d, matches) {
-    const [list, mine, players] = await Promise.all([
-      db.fetchSignups(this.id), db.mySignup(this.id),
+  // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
+  async loadSignups(d, matches, preloaded) {
+    const [list, mineDoc, players] = await Promise.all([
+      preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
       db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
     ]);
+    const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
     // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
     const stats = S.playerStats(matches || db.cachedMatches(), players);
     const profOf = {};
@@ -240,7 +254,6 @@ Page({
 
   async join(partnerPick) {
     if (this.data.busy) return;
-    require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
     const pick = partnerPick && partnerPick.uid ? partnerPick : null;
     let me = db.cachedProfile();
     try { me = await db.getMyProfile(); } catch (e) {}
@@ -319,6 +332,41 @@ Page({
     });
   },
 
+  /* ---------- 单场安排（发起人）：这一场具体哪天、几点、哪片场地 ---------- */
+  // 对阵还没确定的场次也可以先排；没排的场次沿用赛事的日期、时间和场地
+  planSlot(e) {
+    const x = (this.items || []).find((i) => i.key === e.currentTarget.dataset.key);
+    if (!x || !this.data.isOwner) return;
+    const s = x.slot || {};
+    this.setData({ slotEdit: { key: x.key, title: `${x.stage} · ${x.aText} vs ${x.bText}`, date: s.date || '', time: s.time || '', court: s.court || '', had: !!x.slot, defDate: this.d.date || '' } });
+  },
+  slotDate(e) { this.setData({ 'slotEdit.date': e.detail.value }); },
+  slotTime(e) { this.setData({ 'slotEdit.time': e.detail.value }); },
+  slotCourt(e) { this.setData({ 'slotEdit.court': e.detail.value }); },
+  slotCancel() { this.setData({ slotEdit: null }); },
+  slotClear() { this.saveSlot({ date: '', time: '', court: '' }); },
+  slotSave() {
+    const s = this.data.slotEdit;
+    const slot = { date: s.date, time: s.time, court: (s.court || '').trim() };
+    if (!slot.date && !slot.time && !slot.court) { wx.showToast({ title: '请至少填一项', icon: 'none' }); return; }
+    this.saveSlot(slot);
+  },
+  async saveSlot(slot) {
+    if (this.data.busy) return;
+    const key = this.data.slotEdit.key;
+    this.setData({ busy: true });
+    try {
+      const r = await db.setFixtureSlot(this.id, key, slot);
+      const slots = Object.assign({}, this.d.slots || {});
+      if (r.slot) slots[key] = r.slot; else delete slots[key];
+      this.d.slots = slots;
+      this.setData({ slotEdit: null });
+      this.renderSchedule();
+      wx.showToast({ title: r.slot ? '已保存安排' : '已清除安排', icon: 'none' });
+    } catch (e) { wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false }); }
+    finally { this.setData({ busy: false }); }
+  },
+
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
   toggleMine() { this.setData({ onlyMine: !this.data.onlyMine }); this.renderSchedule(); },
 
@@ -347,9 +395,9 @@ Page({
     });
   },
 
-  // 管理员删除别人发起的赛事：必须填原因（留档，并通知发起人）
+  // 管理员删除别人发起的赛事：必须填原因（留档）
   async adminRemove() {
-    const reason = await this.ask('删除这个赛事（管理员）', '删除原因（必填，会通知发起人）。相册照片和联系人一起删除，已录比分保留');
+    const reason = await this.ask('删除这个赛事（管理员）', '删除原因（必填，会留档）。相册照片和联系人一起删除，已录比分保留');
     if (reason === null) return;
     if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
     try {

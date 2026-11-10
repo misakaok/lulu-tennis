@@ -13,7 +13,7 @@ Component({
   properties: {
     uid: { type: String, value: '', observer: 'load' },
   },
-  data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, bio: '', rep: null, busy: false },
+  data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, bio: '', rep: null, busy: false, follow: null, allBadges: false },
   lifetimes: { attached() { if (this.data.uid) this.load(); } },
   pageLifetimes: { show() { if (this.loadedOnce) this.load(); } }, // 编辑资料 / 评价后回来刷新
 
@@ -46,9 +46,37 @@ Component({
 
     // 个人简介和对手评价来自云函数（按用户 ID）
     async loadSocial(uid) {
-      cloud.call('getBios', { ids: [uid] }).then((r) => this.setData({ bio: r.bios[uid] || '' })).catch(() => {});
+      cloud.cached('getBios', { ids: [uid] }).then((r) => this.setData({ bio: r.bios[uid] || '' })).catch(() => {});
+      this.loadFollow(uid);
       const rep = await RV.summary([uid]);
       this.setData({ rep: rep ? rep[uid] || RV.view(null) : null });
+    },
+
+    // 关注：自己的主页显示「关注了多少人、多少人关注我」；别人的主页显示 TA 的粉丝数和我有没有关注
+    // 只公开人数，谁关注了谁只有本人自己看得到（云函数 followInfo）
+    loadFollow(uid) {
+      const self = !!this.myId && this.myId === uid;
+      cloud.cached('followInfo', self ? {} : { uid }).then((r) => {
+        if (this.data.uid !== uid) return;
+        this.setData({ follow: self ? { self: true, followers: r.followers, following: r.following.length } : { self: false, followers: (r.target || {}).followers || 0, on: !!(r.target && r.target.following) } });
+      }).catch(() => {});
+    },
+    async toggleFollow() {
+      const f = this.data.follow;
+      if (!f || f.self || this.data.busy) return;
+      this.setData({ busy: true });
+      try {
+        const r = await cloud.call('setFollow', { targetId: this.data.uid, on: !f.on });
+        this.setData({ follow: { self: false, on: r.following, followers: Math.max(0, f.followers + (r.following === f.on ? 0 : r.following ? 1 : -1)) } });
+        wx.showToast({ title: r.following ? '已关注' : '已取消关注', icon: 'none' });
+      } catch (e) { wx.showModal({ title: '操作失败', content: e.message, showCancel: false }); }
+      finally { this.setData({ busy: false }); }
+    },
+    openFollows() { if (this.data.isSelf) wx.navigateTo({ url: '/pages/follows/follows' }); },
+    toggleBadges() { this.setData({ allBadges: !this.data.allBadges }); },
+    badgeTip(e) {
+      const b = this.data.view.career.badges[e.currentTarget.dataset.i];
+      if (b) wx.showToast({ title: `${b.name}：${b.desc}${b.got ? '（已达成）' : '（' + b.progress + '）'}`, icon: 'none' });
     },
 
     edit() {

@@ -6,7 +6,7 @@ const path = require('path');
 const FN_PATH = path.resolve(__dirname, '../cloudfunctions/tennis/index.js');
 
 module.exports = function createEnv() {
-  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [], sent: [], subscribed: {} };
+  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [] };
   const IN = Symbol('in'), NEQ = Symbol('neq'), GT = Symbol('gt'), REMOVE = Symbol('remove');
   const SD = { serverDate: true };
   const coll = (n) => (env.store[n] = env.store[n] || {});
@@ -70,21 +70,13 @@ module.exports = function createEnv() {
       if ((env.deleteFails || []).indexOf(fileID) >= 0) return { fileID, status: -1, errMsg: 'mock fail' };
       env.deletedFiles.push(fileID); return { fileID, status: 0 };
     }) }),
-    openapi: {
-      security: {},
-      // 订阅消息：env.subscribed[uid] 为 true 才算发送成功，否则返回 43101（用户没订阅）；发送记录在 env.sent
-      subscribeMessage: { send: async (msg) => { if (!env.subscribed[msg.touser]) throw Object.assign(new Error('user refuse to accept the msg'), { errCode: 43101 }); env.sent.push(msg); return { errCode: 0 }; } },
-    },
+    openapi: { security: {} },
   };
 
   env.coll = coll;
   env.put = (n, doc) => { coll(n)[doc._id] = clone(doc); return doc; };
-  // notifyConfig：传入时替换 notify-config.js（测试订阅消息用）
-  env.load = (file, notifyConfig) => {
+  env.load = (file) => {
     const target = file || FN_PATH;
-    const cfgPath = path.join(path.dirname(target), 'notify-config.js');
-    if (notifyConfig) require.cache[cfgPath] = { id: cfgPath, filename: cfgPath, loaded: true, exports: notifyConfig };
-    else delete require.cache[cfgPath];
     const orig = Module._resolveFilename;
     Module._resolveFilename = function (req, ...a) { return req === 'wx-server-sdk' ? 'wx-server-sdk' : orig.call(this, req, ...a); };
     require.cache['wx-server-sdk'] = { id: 'wx-server-sdk', filename: 'wx-server-sdk', loaded: true, exports: sdk };

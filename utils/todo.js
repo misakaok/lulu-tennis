@@ -23,9 +23,14 @@ function nextMatches(draws, matches, myId, mySignups) {
       const a = ID.idsFor(x.aMembers, uidOf), b = ID.idsFor(x.bMembers, uidOf);
       const side = a.indexOf(myId) >= 0 ? 'a' : b.indexOf(myId) >= 0 ? 'b' : '';
       if (!side) return;
+      const s = x.slot || {};
       out.push({
         drawId: d._id, key: x.key, title: d.title || '赛事', stage: x.stage, rule: x.ruleText,
-        opp: side === 'a' ? x.b : x.a, venue: d.venue || '待安排', when: whenOf(d), sortKey: (d.date || '9999') + (d.startTime || '99:99'),
+        opp: side === 'a' ? x.b : x.a,
+        // 这一场单独排过时间 / 场地就用它，没排的沿用赛事的
+        venue: [d.venue, s.court].filter(Boolean).join(' · ') || '待安排',
+        when: whenOf({ date: s.date || d.date, startTime: s.time || (s.date ? '' : d.startTime) }),
+        sortKey: (s.date || d.date || '9999') + (s.time || (s.date ? '' : d.startTime) || '99:99'),
       });
     });
   });
@@ -33,12 +38,11 @@ function nextMatches(draws, matches, myId, mySignups) {
 }
 
 async function load() {
-  const [draws, matches, myId] = await Promise.all([db.fetchDraws(), db.fetchMatches(), db.myOpenid()]);
-  const mySignups = await db.fetchMySignups().catch(() => []);
+  const [draws, matches, myId, mySignups] = await Promise.all([db.fetchDraws(), db.fetchMatches(), db.myOpenid(), db.fetchMySignups().catch(() => [])]);
   const next = nextMatches(draws, matches, myId, mySignups);
   let srv = { toConfirm: [], waiting: [], toReview: [], toRespond: [], myRequests: [], withdraws: [] };
   let error = '';
-  try { srv = await cloud.call('myTodos'); } catch (e) { error = e.message; }
+  try { srv = await cloud.cached('myTodos'); } catch (e) { error = e.message; }
   const count = next.length + srv.toConfirm.length + srv.toReview.length + srv.toRespond.length + srv.withdraws.length;
   return Object.assign({ next, count, error }, srv);
 }

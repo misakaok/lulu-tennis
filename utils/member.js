@@ -1,11 +1,11 @@
 // 成员资格（前端）：云函数每次都会校验，这里负责「被拒绝时」清掉受保护的缓存、跳到准入页
 // 触发时机：小程序启动 / 回到前台、任何云函数返回 NOT_MEMBER
 const GATE = '/pages/gate/gate';
-const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1, notify_tmpl: 1 }; // notify_tmpl：订阅消息模板 ID，不是隐私数据
+const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1 };
 
 function clearProtected() {
   require('./memo').invalidate();
-  try { require('./avatar').clearFiles(); } catch (e) {} // 本地缓存的头像文件也删掉
+  try { require('./db').forget(); } catch (e) {} // 本机缓存清空后，下次读取要重新整理并写回
   try {
     const info = wx.getStorageInfoSync();
     (info.keys || []).forEach((k) => { if (!KEEP[k]) wx.removeStorageSync(k); });
@@ -23,7 +23,13 @@ function kickout(status) {
   wx.reLaunch({ url: GATE + (status ? '?status=' + status : ''), complete: () => { kicking = false; } });
 }
 
-async function status() {
+// 同时发起的校验合并成一次（回到前台时 app.js 和当前页面会各调一次）；不缓存结果，每次新的校验都问云函数
+let statusTask = null;
+function status() {
+  if (!statusTask) statusTask = fetchStatus().finally(() => { statusTask = null; });
+  return statusTask;
+}
+async function fetchStatus() {
   const cloud = require('./cloud');
   const r = await cloud.call('memberStatus');
   try {

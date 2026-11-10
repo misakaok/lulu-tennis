@@ -10,4 +10,3 @@
 .r-go.hot { color: #e5484d; }
 .r-go.muted-go { color: #A5A5BA; font-weight: 400; }
 
-.notify-bar { margin: 20rpx 24rpx 0; padding: 18rpx 24rpx; border-radius: 16rpx; background: #EEEEF7; color: #6E6EA3; font-size: 24rpx; }

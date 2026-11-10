@@ -26,21 +26,23 @@ const cacheSet = (k, v) => {
 };
 
 // 循环分页取全部。每页 100 条（数据网关单次上限），每页都是一次云函数调用，页越大调用次数越少
+// 不先查总数：读到不满一页就是最后一页（不到 100 条的集合只要 1 次调用）
 // 结果按「集合 + 条件 + 排序」在内存里缓存 60 秒，并合并同时发起的相同请求（见 utils/memo.js）
 const PAGE = 100;
 const memo = require('./memo');
+const keyOf = (name, orders, where) => JSON.stringify([name, orders || [], where || null]);
 function fetchAll(name, orders, where) {
-  return memo.get(JSON.stringify([name, orders || [], where || null]), name, () => fetchAllRaw(name, orders, where));
+  return memo.get(keyOf(name, orders, where), name, () => fetchAllRaw(name, orders, where));
 }
 async function fetchAllRaw(name, orders, where) {
   const base = where ? db().collection(name).where(where) : db().collection(name);
-  const { total } = await base.count();
   let all = [];
-  for (let skip = 0; skip < total; skip += PAGE) {
+  for (let skip = 0; ; skip += PAGE) {
     let q = base;
     (orders || []).forEach(([field, dir]) => { q = q.orderBy(field, dir); });
     const res = await q.skip(skip).limit(PAGE).get();
     all = all.concat(res.data);
+    if (res.data.length < PAGE) break;
   }
   return all;
 }
@@ -58,12 +60,6 @@ function myOpenid() {
   return openidTask;
 }
 
-// 当前用户是不是这条记录的创建者
-async function isMine(collection, id) {
-  const [me, res] = await Promise.all([myOpenid(), db().collection(collection).doc(id).get()]);
-  return !!res.data && res.data._openid === me;
-}
-
 /* ---------- 比赛 ---------- */
 // 赛事里同一场改过比分时，旧记录不再计入战绩和水平分
 // 名字按用户 ID 换成当前昵称（改昵称后历史记录跟着本人走），见 utils/ident.js
@@ -79,12 +75,27 @@ async function getVerified(id) {
 }
 
 // 一次取齐比赛（已标好 official / pending）和球员资料：云函数 dataset，1 次调用。
-// 数据太大（tooLarge）或云函数还是旧版本（未知操作）时返回 null，调用方改用分页读取
-function fetchDataset() {
-  return memo.get('dataset', ['matches', 'players', 'verified'], async () => {
+// 数据太大（tooLarge）或云函数还是旧版本（未知操作）时返回 null，调用方改用分页读取。
+// 带上次拿到的内容指纹（have）：内容没变时云函数只回 same，不用再下载和解析一遍。
+// 返回的是原始结果（不复制），只在本文件里用，不能修改
+const DS_COLLS = ['matches', 'players', 'verified'];
+const ORD_MATCHES = [['date', 'desc'], ['createdAt', 'desc']];
+const ORD_PLAYERS = [['createdAt', 'asc']];
+const cleared = () => Object.assign(new Error('缓存已清除'), { code: 'CACHE_CLEARED' });
+const datasetFallback = (e) => { if (e.code === 'CACHE_CLEARED') throw e; return null; };
+let generation = 0; // 清除受保护缓存后，不接受此前请求的整理结果
+let lastDs = null; // 上一次取到的数据集（只在内存里）：{ hash, matches, players }
+function datasetRaw() {
+  return memo.raw('dataset', DS_COLLS, async () => {
+    const started = generation;
     try {
-      const r = await require('./cloud').call('dataset', {});
-      return r.tooLarge ? null : { matches: r.matches || [], players: r.players || [] };
+      const r = await require('./cloud').call('dataset', lastDs ? { have: lastDs.hash } : {});
+      if (started !== generation) throw cleared();
+      if (r.tooLarge) { lastDs = null; return null; }
+      if (r.same && lastDs && r.hash === lastDs.hash) return lastDs;
+      const ds = { hash: r.hash || '', matches: r.matches || [], players: r.players || [] };
+      lastDs = ds.hash ? ds : null;
+      return ds;
     } catch (e) {
       if (/未知操作/.test((e && e.message) || '')) return null;
       throw e;
@@ -92,38 +103,60 @@ function fetchDataset() {
   });
 }
 
+// 整理后的结果（正式战绩、战绩列表、球员列表）也放进内存缓存：缓存期内不重新整理、不重写本机存储。
+// 数据集内容没变（指纹相同）时，过了缓存期也直接沿用上一次整理好的结果。
+// 这些结果的有效期跟着原始数据走（见 utils/memo.js 的 deps）。
+const DEP_KEYS = ['dataset', keyOf('matches', ORD_MATCHES), keyOf('players', ORD_PLAYERS), keyOf('verified', [])];
+let kept = {}; // 名称 → { hash, value }
+function derived(name, load, compute, noCopy) {
+  return memo[noCopy ? 'raw' : 'get']('d:' + name, DS_COLLS, async () => {
+    const started = generation;
+    const src = await load();
+    if (started !== generation) throw cleared();
+    const k = kept[name];
+    if (src.hash && k && k.hash === src.hash) return k.value;
+    const value = compute(src);
+    kept[name] = src.hash ? { hash: src.hash, value } : null;
+    return value;
+  }, DEP_KEYS);
+}
+// 本机缓存被清空时（utils/member.js 的 clearProtected）调用：忘掉沿用的结果，下次重新整理并写回本机
+function forget() { generation++; kept = {}; lastDs = null; memo.invalidate(DS_COLLS); }
+
 // 读全部比赛记录并标出状态：official 正式 / pending 日常比赛待对手确认 / invalid 不认可（见 utils/official.js）
 async function loadMatches() {
-  const ds = await fetchDataset().catch(() => null);
-  if (ds) return { tagged: ds.matches, players: buildPlayers(ds.players) };
+  const ds = await datasetRaw().catch(datasetFallback);
+  if (ds) return { hash: ds.hash, tagged: ds.matches, players: await playersBuilt() };
   const [raw, players, verified] = await Promise.all([
-    fetchAll('matches', [['date', 'desc'], ['createdAt', 'desc']]),
-    fetchPlayersFull().catch(() => cachedPlayersFull()),
+    fetchAll('matches', ORD_MATCHES),
+    playersBuilt().catch(() => cachedPlayersFull()),
     fetchVerified().catch((e) => { console.error('读取 verified 集合失败，请确认已创建（所有用户可读）', e); return null; }),
   ]);
   // verified 集合还没建：先按旧规则全部计入，避免历史战绩突然消失（README 有配置说明）
   const tagged = raw.map((m) => Object.assign({}, m, { status: verified ? OF.statusOf(m, verified) : 'official' }));
-  return { tagged, players };
+  return { hash: '', tagged, players };
 }
 
 // 正式战绩：战绩统计、排名、水平分、签表晋级、互评都只用这些
-async function fetchMatches() {
-  const { tagged, players } = await loadMatches();
-  const list = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')), players);
-  cacheSet('cache_matches', list);
-  return list;
+function fetchMatches() {
+  return derived('matches', loadMatches, ({ tagged, players }) => {
+    const list = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')), players);
+    cacheSet('cache_matches', list);
+    return list;
+  });
 }
 const cachedMatches = () => cacheGet('cache_matches', []);
 
 // 战绩列表用：正式战绩 + 待对手确认的日常比赛（标 pending，不计入任何统计）
-async function fetchMatchesAll() {
-  const { tagged, players } = await loadMatches();
-  const official = dedupe(tagged.filter((m) => m.status === 'official'));
-  const pending = tagged.filter((m) => m.status === 'pending');
-  const list = ID.normalizeMatches(official.concat(pending), players)
-    .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || (tsOf(y) - tsOf(x)));
-  cacheSet('cache_matches_all', list);
-  return list;
+function fetchMatchesAll() {
+  return derived('matchesAll', loadMatches, ({ tagged, players }) => {
+    const official = dedupe(tagged.filter((m) => m.status === 'official'));
+    const pending = tagged.filter((m) => m.status === 'pending');
+    const list = ID.normalizeMatches(official.concat(pending), players)
+      .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || (tsOf(y) - tsOf(x)));
+    cacheSet('cache_matches_all', list);
+    return list;
+  });
 }
 const cachedMatchesAll = () => cacheGet('cache_matches_all', []);
 
@@ -139,10 +172,12 @@ function removeMatch(id, extra) {
 /* ---------- 球员 / 个人资料 ---------- */
 // 球员列表：本人设置的资料（self: true）带用户 ID（uid = _openid）。
 // 同名只显示一条；如果有两个账号用了同一个昵称，这个名字不绑定任何 ID（ambiguous），避免冒用。
-async function fetchPlayersFull() {
-  const ds = await fetchDataset().catch(() => null);
-  return buildPlayers(ds ? ds.players : await fetchAll('players', [['createdAt', 'asc']]));
+async function playerDocs() {
+  const ds = await datasetRaw().catch(datasetFallback);
+  return { hash: ds ? ds.hash : '', docs: ds ? ds.players : await fetchAll('players', ORD_PLAYERS) };
 }
+const fetchPlayersFull = () => derived('players', playerDocs, (src) => buildPlayers(src.docs));
+const playersBuilt = () => derived('players', playerDocs, (src) => buildPlayers(src.docs), true); // 本文件内部用：不复制，不能修改
 function buildPlayers(list) {
   // 按用户 ID 的本人资料（每个账号取最早那条）：球员主页按 ID 找人，不受同名影响
   const byUid = {};
@@ -228,6 +263,17 @@ async function getMatch(id) {
   try { return (await db().collection('matches').doc(id).get()).data || null; } catch (e) { return null; }
 }
 async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
+// 赛事详情页一次取齐：赛事、报名名单、我的资料、联系人、相册数量、退赛申请（云函数 drawDetail，1 次调用）。
+// 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
+async function fetchDrawDetail(id) {
+  let r;
+  try { r = await require('./cloud').call('drawDetail', { drawId: id }); } catch (e) {
+    if (/未知操作/.test((e && e.message) || '')) return null;
+    throw e;
+  }
+  cacheSet('my_profile', r.profile || '');
+  return r;
+}
 
 // 赛事的写入都经云函数（服务端逐个字段校验；只有发起人能改）
 const cloudCall = (action, data) => require('./cloud').call(action, data);
@@ -235,19 +281,27 @@ const cloudCall = (action, data) => require('./cloud').call(action, data);
 async function addDraw(data) { return (await cloudCall('createDraw', { draw: data })).id; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
-// 编辑赛事信息：名称、日期、开始时间、场地、地址、定位
+// 编辑赛事信息：名称、日期、开始时间、场地、定位
 async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
 // 删除赛事（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的赛事要带原因
 async function removeDraw(id, reason) { await cloudCall('removeDraw', { drawId: id, reason: reason || '' }); }
+// 单场安排（发起人）：这一场的日期、时间、场地；三项都空 = 清除。返回 { slot }
+function setFixtureSlot(id, key, slot) { return cloudCall('setFixtureSlot', { drawId: id, key, slot }); }
 
 /* ---------- 报名 ---------- */
 function fetchSignups(drawId) { return fetchAll('signups', [['createdAt', 'asc']], { drawId }); }
 
 // 我报过名的赛事（自己报的，或被搭档带上的）：赛事页「我的赛事」用
+// 云函数 mySignups 1 次调用；云函数还是旧版本（未知操作）时分开读
 async function fetchMySignups() {
   const me = await myOpenid();
-  const [own, asPartner] = await Promise.all([fetchAll('signups', [], { _openid: me }), fetchAll('signups', [], { partnerId: me })]);
-  return own.concat(asPartner);
+  return memo.get('mySignups:' + me, 'signups', async () => {
+    try { return (await require('./cloud').call('mySignups')).list || []; } catch (e) {
+      if (!/未知操作/.test((e && e.message) || '')) throw e;
+    }
+    const [own, asPartner] = await Promise.all([fetchAll('signups', [], { _openid: me }), fetchAll('signups', [], { partnerId: me })]);
+    return own.concat(asPartner);
+  });
 }
 
 async function mySignup(drawId) {
@@ -264,10 +318,10 @@ async function cancelSignup(drawId) {
 }
 
 module.exports = {
-  myOpenid, isMine,
+  myOpenid,
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile,
-  fetchDraws, cachedDraws, getDraw, addDraw, generateDraw, updateDrawInfo, removeDraw,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

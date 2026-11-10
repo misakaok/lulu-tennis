@@ -1,0 +1,38 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{error}}" class="warn">{{error}}</view>
+  <block wx:else>
+    <view class="fo-sum">关注 {{list.length}} 人 · {{followers}} 人关注了我</view>
+
+    <view wx:if="{{!list.length}}" class="empty">
+      <view class="empty-ball"></view>
+      <view>还没有关注的球友</view>
+      <view class="fo-tip">在排行榜或报名名单里点开球员主页，就能关注 TA</view>
+      <view class="btn-primary small" bindtap="goRank">去排行榜看看</view>
+    </view>
+
+    <view wx:if="{{list.length}}" class="card">
+      <view class="card-title">关注的球友<text class="sub">点击进入主页，可以取消关注</text></view>
+      <view wx:for="{{list}}" wx:key="uid" class="fo-row" data-uid="{{item.uid}}" bindtap="openPlayer">
+        <av-img wx:if="{{item.avatar}}" class="avatar" src="{{item.avatar}}" />
+        <view wx:else class="avatar" style="background:{{item.color}}">{{item.initial}}</view>
+        <view class="fo-main">
+          <view class="fo-n">{{item.name}}<text wx:if="{{item.rank}}" class="fo-rank">{{item.rank}}</text></view>
+          <view class="fo-s">{{item.season}}</view>
+        </view>
+        <view class="fo-lv {{item.level === '暂无' ? 'none' : ''}}">{{item.level}}</view>
+        <text class="fo-go">›</text>
+      </view>
+    </view>
+
+    <view wx:if="{{list.length}}" class="card">
+      <view class="card-title">最近比赛<text class="sub">关注的球友的正式比赛</text></view>
+      <view wx:if="{{!feed.length}}" class="muted">他们还没有正式比赛记录</view>
+      <view wx:for="{{feed}}" wx:key="id" class="fd" data-id="{{item.id}}" bindtap="openMatch">
+        <view class="fd-top"><text class="fd-date">{{item.md}}</text><text class="fd-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text><text wx:if="{{item.champ}}" class="fd-champ">🏆 夺冠</text></view>
+        <view class="fd-vs"><text class="{{item.aw ? 'w' : ''}}">{{item.a}}</text><text class="fd-x">vs</text><text class="{{item.bw ? 'w' : ''}}">{{item.b}}</text></view>
+        <view class="fd-sc">{{item.score}}</view>
+      </view>
+    </view>
+  </block>
+</view>

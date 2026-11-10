@@ -2,8 +2,7 @@
   "permissions": {
     "openapi": [
       "security.msgSecCheck",
-      "security.mediaCheckAsync",
-      "subscribeMessage.send"
+      "security.mediaCheckAsync"
     ]
   }
 }

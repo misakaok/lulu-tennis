@@ -1,4 +1,3 @@
-<view wx:if="{{canNotify}}" class="notify-bar" bindtap="enableNotify">🔔 开启提醒：对方录了比分、有新申请或申请被处理时通知我 ›</view>
 <view class="page">
   <view wx:if="{{loading}}" class="muted">加载中…</view>
   <view wx:elif="{{empty}}" class="empty"><view class="empty-ball"></view><view>没有待办，打得漂亮！</view></view>

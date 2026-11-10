@@ -6,19 +6,27 @@ const cloud = require('../../utils/cloud');
 Component({
   options: { addGlobalClass: true },
   properties: {
-    matchId: { type: String, value: '', observer: 'load' },
+    matchId: { type: String, value: '' },
+    preset: { type: Object, value: null }, // 页面已经取到的 matchState 结果：第一次直接用，不再调云函数
     revocable: { type: Boolean, value: false }, // 前端提示用：录入人或发起人（云函数会再校验）
   },
+  // 多字段监听器在同批属性更新后执行，不依赖 Promise 微任务的调度时机。
+  observers: { 'matchId, preset'() { this.load(true); } },
   data: { st: null, loading: false, busy: false, err: '' },
   pageLifetimes: { show() { if (this.loaded) this.load(); } }, // 从评价页回来刷新
   methods: {
-    async load() {
+    async load(usePreset) {
       const id = this.data.matchId;
       if (!id) return;
-      this.loaded = true;
-      this.setData({ loading: true });
+      const seq = this.loadSeq = (this.loadSeq || 0) + 1;
+      const changed = this.loadedId !== id;
+      const pre = usePreset === true && this.data.preset && this.data.preset.matchId === id ? this.data.preset : null;
+      this.loaded = true; this.loadedId = id;
+      if (changed) this.setData({ st: null, err: '' });
+      if (!pre) this.setData({ loading: true });
       try {
-        const st = await cloud.call('matchState', { matchId: id });
+        const st = pre ? Object.assign({}, pre) : await cloud.call('matchState', { matchId: id });
+        if (seq !== this.loadSeq || this.data.matchId !== id) return;
         const sides = st.sides || {};
         this.setData({
           st: Object.assign(st, {
@@ -27,11 +35,10 @@ Component({
           }),
           err: '', loading: false,
         });
-      } catch (e) { this.setData({ err: e.message, loading: false }); }
+      } catch (e) { if (seq === this.loadSeq && this.data.matchId === id) this.setData({ err: e.message, loading: false }); }
     },
     async confirm() {
       if (this.data.busy) return;
-      require('../../utils/notify').ask(); // 顺便请求通知权限（必须在点击时同步调用）
       this.setData({ busy: true });
       try {
         await cloud.call('confirmResult', { matchId: this.data.matchId });

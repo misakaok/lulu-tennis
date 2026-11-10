@@ -1,10 +1,10 @@
-// 赛事信息表单（发布赛事和编辑赛事共用）：日期、开始时间、场地、地址、地图定位、联系人
+// 赛事信息表单（发布赛事和编辑赛事共用）：日期、开始时间、场地、地图定位、联系人
 // 联系人不写进 draws（draws 所有人可读），由页面通过云函数单独保存，按可见范围返回
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 const EMPTY = {
-  date: '', startTime: '', venue: '', address: '', location: null,
+  date: '', startTime: '', venue: '', location: null,
   contact: { name: '', phone: '', wechat: '', visibility: 'participants' },
 };
 
@@ -40,13 +40,12 @@ Component({
           const loc = { latitude: r.latitude, longitude: r.longitude, name: r.name || '', address: r.address || '' };
           const data = { 'v.location': loc };
           if (!this.data.v.venue && r.name) data['v.venue'] = r.name;
-          if (!this.data.v.address && r.address) data['v.address'] = r.address;
           this.setData(Object.assign(data, { locText: this.locText(loc) }));
           this.emit();
         },
         fail: (e) => {
           if (/cancel/.test(e.errMsg || '')) return;
-          wx.showModal({ title: '无法打开地图', content: '请在小程序设置里允许使用位置信息。\n' + (e.errMsg || ''), showCancel: false });
+          wx.showModal({ title: '无法打开地图', content: '请在小程序设置里允许使用位置信息。', showCancel: false });
         },
       });
     },

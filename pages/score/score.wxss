@@ -59,3 +59,4 @@
 .rt-c { margin: 0 16rpx; color: #A5A5BA; }
 .rt-add { font-size: 24rpx; color: #6E6EA3; margin: 6rpx 0 14rpx; }
 .rt-reason { width: 100%; height: 130rpx; box-sizing: border-box; background: #F7F7FB; border-radius: 14rpx; padding: 14rpx; font-size: 25rpx; margin-bottom: 14rpx; }
+.h-slot { margin-top: 6rpx; font-size: 24rpx; opacity: 0.95; }

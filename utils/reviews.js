@@ -17,7 +17,7 @@ function view(p) {
 async function summary(ids) {
   const list = (ids || []).filter(Boolean);
   try {
-    const r = list.length ? await cloud.call('reviewSummary', { ids: list }) : { players: {} };
+    const r = list.length ? await cloud.cached('reviewSummary', { ids: list }) : { players: {} };
     const out = {};
     (ids || []).forEach((k) => { if (k) out[k] = view(r.players[k]); });
     return out;

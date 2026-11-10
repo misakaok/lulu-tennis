@@ -4,6 +4,8 @@
 const R = require('./rating');
 const S = require('./stats');
 const { outcomeOf, isNormal } = require('./rules');
+const CA = require('./career');
+const SE = require('./season');
 
 const NONE = S.NONE;
 
@@ -40,8 +42,29 @@ function matchRow(m, key, name, deltaOf) {
 
 /**
  * profiles: { uid: 本人资料 }（db.cachedProfiles）；players: db.fetchPlayersFull；matches: 正式战绩
- * 返回 { profile, ambiguous, level, stats, rows }，没有这个人时 profile 为 null
+ * 返回 { profile, ambiguous, level, stats, rows, career }，没有这个人时 profile 为 null
  */
+// 生涯成就和各赛季战绩（utils/career.js），整理成页面直接能用的文字
+function careerView(matches, uid, name, history) {
+  const c = CA.career(matches, uid, name, history);
+  const cur = SE.current();
+  const lines = [];
+  if (c.single.played) lines.push({ k: '单打', v: `${c.single.win}胜 ${c.single.played - c.single.win}负` });
+  if (c.double.played) lines.push({ k: '双打', v: `${c.double.win}胜 ${c.double.played - c.double.win}负` });
+  if (c.rival) lines.push({ k: '老对手', v: `${c.rival.name} · 交手 ${c.rival.played} 场 ${c.rival.win}胜 ${c.rival.lose}负` });
+  if (c.first) lines.push({ k: '首场比赛', v: c.first });
+  return {
+    has: c.played > 0 || c.finals > 0,
+    cells: [
+      { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '决赛' }, { n: String(c.events), l: '参加赛事' },
+      { n: String(c.bestStreak), l: '最长连胜' }, { n: String(c.streak), l: '当前连胜' }, { n: c.peak === null ? NONE : R.fmt(c.peak), l: '最高等级' },
+    ],
+    lines, badges: c.badges, got: c.got, total: c.badges.length,
+    titles: c.titles.map((t) => ({ title: t.title, date: t.date })),
+    seasons: c.seasons.map((s) => ({ season: s.season, now: s.season === cur, played: s.played, wl: `${s.win}-${s.lose}`, rate: s.played ? s.rate + '%' : NONE, titles: s.titles })),
+  };
+}
+
 function playerView(profiles, players, matches, uid) {
   const p = uid && profiles ? profiles[uid] : null;
   if (!p) return { profile: null, rows: [] };
@@ -79,7 +102,8 @@ function playerView(profiles, players, matches, uid) {
       rate: played ? st.rate + '%' : NONE,
     },
     rows,
+    career: careerView(matches || [], uid, p.name, r ? r.history : []),
   };
 }
 
-module.exports = { playerView, matchRow, sideOf };
+module.exports = { playerView, matchRow, sideOf, careerView };

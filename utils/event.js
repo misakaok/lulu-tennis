@@ -365,7 +365,26 @@ function koItems(d, view, stagePrefix) {
 
 function withRule(d, x) {
   const r = ruleFor(d, x.key);
-  return Object.assign(x, { rule: r, ruleText: ruleText(r), ruleCustom: !!r.custom });
+  const slot = slotOf(d, x.key);
+  return Object.assign(x, { rule: r, ruleText: ruleText(r), ruleCustom: !!r.custom, slot, slotText: slotText(slot) });
+}
+
+/* ---------- 单场安排：这一场具体哪天、几点、哪片场地 ---------- */
+// draws.slots: { 场次 key: { date: 'YYYY-MM-DD', time: 'HH:MM', court: '3 号场' } }（只由云函数 setFixtureSlot 写入，发起人填）
+// 按场次位置存：对阵还没确定的场次（如决赛）也可以先排好；没填的场次沿用赛事的日期、时间和场地
+const WEEK = '日一二三四五六';
+function dayText(date) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+  if (!m) return '';
+  return `${Number(m[2])}月${Number(m[3])}日 周${WEEK[new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getDay()]}`;
+}
+function slotOf(d, key) {
+  const s = d && d.slots && d.slots[key];
+  return s && (s.date || s.time || s.court) ? { date: s.date || '', time: s.time || '', court: s.court || '' } : null;
+}
+function slotText(s) {
+  if (!s) return '';
+  return [[dayText(s.date), s.time].filter(Boolean).join(' '), s.court].filter(Boolean).join(' · ');
 }
 
 function scheduleOf(d, matches) {
@@ -410,5 +429,5 @@ function progressOf(d, matches) {
 module.exports = {
   TEAM_SEP, cfgOf, formatText, teamLabel, membersOf, tsOf, dedupe, indexFor, flipSets, scoreText, resultFor,
   bracketFor, roundRobin, standings, groupsFor, scheduleOf, findFixture, progressOf,
-  withdrawalsOf, outcomeText, impactOf, MODES, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,
+  withdrawalsOf, outcomeText, impactOf, dayText, slotOf, slotText, MODES, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,
 };

@@ -21,22 +21,17 @@ Component({
       this.cur = src;
       this.retried = false;
       if (!src) { this.setData({ url: A.DEFAULT }); return; }
-      const local = A.localFile(src); // 下载过的头像：直接用本地文件，不用再换临时链接
-      if (local) { this.local = true; this.setData({ url: local }); return; }
-      this.local = false;
       const now = A.peek(src);
-      if (now) { this.setData({ url: now }); A.saveLocal(src, now); return; }
+      if (now) { this.setData({ url: now }); return; }
       if (!A.isCloud(src)) { this.setData({ url: A.DEFAULT }); return; }
       this.setData({ url: '' }); // 获取中：先留空（保留样式里的底色）
       A.resolve(src).then((url) => {
         if (this.cur === src) this.setData({ url: url || A.DEFAULT });
-        if (url) A.saveLocal(src, url); // 后台存一份到本地，下次直接用
       });
     },
     onErr() {
       const src = this.cur;
       if (!src || this.data.url === A.DEFAULT) return;
-      if (this.local) { A.dropLocal(src); this.local = false; this.cur = ''; this.load(); return; } // 本地文件坏了：删掉重新取
       console.warn('[头像] 图片加载失败', src, this.data.url);
       if (A.isCloud(src) && !this.retried) {
         this.retried = true; // 缓存的临时链接可能失效了，重新获取一次

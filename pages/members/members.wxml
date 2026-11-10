@@ -20,17 +20,10 @@
   <block wx:elif="{{tab === 'active'}}">
     <view class="card">
       <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '云函数环境变量配置' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '系统指定' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
       </view>
-    </view>
-    <view wx:if="{{d.adminConfig}}" class="card">
-      <view class="card-title">管理员配置<text class="sub">云函数环境变量 ADMIN_OPENIDS，共识别出 {{d.adminConfig.count}} 个</text></view>
-      <view wx:for="{{d.adminConfig.items}}" wx:key="tail" class="mrow">
-        <view class="m-main"><view class="m-n">ID 尾号 {{item.tail}}（{{item.len}} 位）</view><view class="m-s">{{!item.looksOk ? '格式不像 openid，请检查是否复制完整' : item.nickname ? '对应：' + item.nickname : '没有找到对应的资料：这个 ID 可能不是本人在本小程序里的 openid，或 TA 还没设置资料'}}</view></view>
-      </view>
-      <view wx:if="{{d.adminConfig.fullWidth}}" class="m-s">环境变量里有中文标点或引号，已自动兼容；建议改成英文逗号分隔。</view>
     </view>
     <view wx:if="{{d.others.length}}" class="card">
       <view class="card-title">已拒绝 / 已移除</view>
@@ -55,7 +48,7 @@
 
   <block wx:elif="{{tab === 'audit'}}">
     <view class="card">
-      <view class="card-title">报名数据核对<text class="sub">只检查、不修改。修复前报名名字由客户端填写，可能被冒名</text></view>
+      <view class="card-title">报名数据核对<text class="sub">只检查、不修改。早期的报名名字可以随意填写，可能被冒名</text></view>
       <view wx:if="{{auditing}}" class="muted">正在检查全部报名记录…</view>
       <view wx:elif="{{audit}}" class="muted">共检查 {{audit.total}} 条报名，{{audit.issues.length ? '发现 ' + audit.issues.length + ' 处需要核对' : '没有发现问题 ✓'}}</view>
       <view wx:for="{{audit.issues}}" wx:key="id" class="mrow">
@@ -67,7 +60,7 @@
       </view>
       <view class="btn-primary {{auditing ? 'disabled' : ''}}" bindtap="runAudit">{{audit ? '重新检查' : '开始检查'}}</view>
     </view>
-    <view class="foot">名字改过（曾用名）的不算问题。确认是冒名的报名，可以在云开发控制台的 signups 集合里删除；签表已生成的赛事，删除前先联系发起人。</view>
+    <view class="foot">名字改过（曾用名）的不算问题。确认是冒名的报名，请联系小程序维护人员处理；签表已生成的赛事，处理前先联系发起人。</view>
   </block>
 
   <block wx:else>
@@ -82,5 +75,5 @@
       </view>
     </view>
   </block>
-  <view class="foot">管理员可以编辑、删除任何赛事（会通知发起人）；签表、录分、裁定、退赛仍由发起人处理</view>
+  <view class="foot">管理员可以编辑、删除任何赛事（会留档）；签表、录分、裁定、退赛仍由发起人处理</view>
 </view>

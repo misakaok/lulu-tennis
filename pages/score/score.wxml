@@ -12,6 +12,7 @@
     <view class="head">
       <view class="h-event">{{title}}</view>
       <view class="h-stage">{{stage}}</view>
+      <view wx:if="{{slotText}}" class="h-slot">🕒 {{slotText}}</view>
       <view class="vs-row">
         <view class="team {{done && winner === 'a' ? 'win' : ''}}">
           <view class="avs">

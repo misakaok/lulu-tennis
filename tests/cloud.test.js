@@ -203,7 +203,7 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
     assert.strictEqual(d.active.find((x) => x.uid === 'veg').nickname, '花椰菜');
     assert.ok(!d.pending.some((x) => x.uid === 'veg') && !d.others.some((x) => x.uid === 'boss'));
     assert.strictEqual(d.active.find((x) => x.uid === 'ghost').uidTail, 'ghost'); // 没有资料的显示 ID 尾号
-    assert.strictEqual(d.adminConfig.count, 3);
+    assert.ok(!Object.prototype.hasOwnProperty.call(d, 'adminConfig'), '不再返回管理员配置诊断数据');
     // 同一账号有重复资料时，取最早的那条（和其他页面一致），与数据库返回顺序无关
     env.put('players', { _id: 'a_dup', _openid: 'veg', self: true, name: '旧的重复资料', createdAt: 99 });
     const keys = Object.keys(env.coll('players'));
@@ -211,13 +211,12 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
     env.store.players = reordered;
     const d3 = ok(await env.call('boss', 'listMembers'));
     assert.strictEqual(d3.active.find((x) => x.uid === 'veg').nickname, '花椰菜');
-    assert.strictEqual(d.adminConfig.items.find((x) => x.tail === 'veg').nickname, '花椰菜');
     no(await env.call('alice', 'listMembers'), /管理员/);
     // 中文逗号、引号也能识别
     process.env.ADMIN_OPENIDS = '"boss"，veg；ghost';
     const d2 = ok(await env.call('boss', 'listMembers'));
     assert.deepStrictEqual(d2.active.filter((x) => x.admin).map((x) => x.uid).sort(), ['boss', 'ghost', 'veg']);
-    assert.ok(d2.adminConfig.fullWidth);
+    assert.ok(!Object.prototype.hasOwnProperty.call(d2, 'adminConfig'));
     assert.ok(ok(await env.call('veg', 'memberStatus')).isAdmin);
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
@@ -333,6 +332,198 @@ test('待办：myTodos 和逐场 matchState 结果一致，查询次数不随比
   for (const id of ids) { const s = ok(await env.call('alice', 'matchState', { matchId: id })); if (s.canConfirm) expect.push(id); }
   assert.deepStrictEqual(todo.toConfirm.map((x) => x.matchId).sort(), expect.sort());
   assert.ok(budget < 40, `myTodos 查询次数 ${budget}，应该是固定的少量批量查询`);
+});
+
+/* ---------- 赛事详情一次取齐 ---------- */
+test('drawDetail：各部分和原来分开调用的结果一致；联系人可见范围不变；非成员、已删除的赛事拿不到', async () => {
+  const env = setup();
+  ok(await env.call('alice', 'signUp', { drawId: 'd1' }));
+  ok(await env.call('bob', 'signUp', { drawId: 'd1' }));
+  ok(await env.call('owner', 'saveContact', { drawId: 'd1', contact: { name: '王教练', phone: '13800000000', wechat: 'wx1', visibility: 'participants' } }));
+  env.put('event_photos', { _id: 'ph1', drawId: 'd1', status: 'pass' });
+  env.put('event_photos', { _id: 'ph2', drawId: 'd1', status: 'checking' });
+  for (const u of ['alice', 'eve', 'owner']) {
+    const r = ok(await env.call(u, 'drawDetail', { drawId: 'd1' }));
+    assert.strictEqual(r.draw._id, 'd1');
+    assert.deepStrictEqual(r.signups.map((s) => s._openid), ['alice', 'bob']);
+    assert.strictEqual(r.profile._openid, u);
+    const c = ok(await env.call(u, 'getContact', { drawId: 'd1' }));
+    delete c.ok;
+    assert.deepStrictEqual(r.contact, c);
+    assert.strictEqual(r.photoCount, ok(await env.call(u, 'eventPhotoCount', { drawId: 'd1' })).count);
+    assert.strictEqual(r.requests, null, '报名阶段没有退赛申请');
+  }
+  assert.strictEqual(ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).contact.phone, '13800000000');
+  assert.strictEqual(ok(await env.call('eve', 'drawDetail', { drawId: 'd1' })).contact.phone, undefined, '没报名的人看不到电话');
+  // 签表生成后带上退赛申请（和 drawRequests 一致）
+  env.coll('draws').d1.status = 'drawn';
+  const rq = ok(await env.call('alice', 'drawRequests', { drawId: 'd1' }));
+  delete rq.ok;
+  assert.deepStrictEqual(ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).requests, rq);
+  // 非成员、已删除、不存在
+  const out = await env.call('stranger', 'drawDetail', { drawId: 'd1' });
+  assert.strictEqual(out.code, 'NOT_MEMBER');
+  env.coll('draws').d1.deleted = true;
+  no(await env.call('alice', 'drawDetail', { drawId: 'd1' }), /不存在/);
+  no(await env.call('alice', 'drawDetail', { drawId: 'nope' }), /不存在/);
+});
+
+test('mySignups：返回自己报的和被搭档带上的，不含别人的', async () => {
+  const env = setup();
+  ok(await env.call('alice', 'signUp', { drawId: 'd1' }));
+  ok(await env.call('bob', 'signUp', { drawId: 'd2', partnerId: 'alice' }));
+  ok(await env.call('eve', 'signUp', { drawId: 'd1' }));
+  const r = ok(await env.call('alice', 'mySignups'));
+  assert.deepStrictEqual(r.list.map((s) => s.drawId).sort(), ['d1', 'd2']);
+  assert.ok(r.list.every((s) => s._openid === 'alice' || s.partnerId === 'alice'));
+  assert.strictEqual((await env.call('stranger', 'mySignups')).code, 'NOT_MEMBER');
+});
+test('matchState（detail）：顺带返回比赛记录和状态；不带 detail 时不返回', async () => {
+  const env = setup();
+  env.put('matches', { _id: 'm1', _openid: 'alice', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 1 }], date: '2026-11-01', createdAt: 5 });
+  const plain = ok(await env.call('bob', 'matchState', { matchId: 'm1' }));
+  assert.ok(!('match' in plain) && !('status' in plain));
+  const d = ok(await env.call('bob', 'matchState', { matchId: 'm1', detail: true }));
+  assert.strictEqual(d.match._id, 'm1'); assert.strictEqual(d.status, 'pending');
+  ['match', 'status'].forEach((k) => delete d[k]);
+  assert.deepStrictEqual(d, plain);
+  ok(await env.call('bob', 'confirmResult', { matchId: 'm1' }));
+  assert.strictEqual(ok(await env.call('bob', 'matchState', { matchId: 'm1', detail: true })).status, 'official');
+  delete env.coll('verified').m1; // 两方已确认，但快照因旧数据等原因缺失：本次查询会补齐
+  assert.strictEqual(ok(await env.call('bob', 'matchState', { matchId: 'm1', detail: true })).status, 'official');
+  const gone = ok(await env.call('bob', 'matchState', { matchId: 'nope', detail: true }));
+  assert.strictEqual(gone.match, null); assert.strictEqual(gone.status, '');
+});
+
+test('drawDetail：超过 1000 条报名也读全；退赛申请严格保持原有可见范围', async () => {
+  const env = setup();
+  for (let i = 1004; i >= 0; i--) env.put('signups', { _id: 's' + i, drawId: 'd1', _openid: 'u' + i, createdAt: i });
+  const r = ok(await env.call('owner', 'drawDetail', { drawId: 'd1' }));
+  assert.strictEqual(r.signups.length, 1005);
+  assert.strictEqual(r.signups[0]._id, 's0');
+  assert.strictEqual(r.signups[1004]._id, 's1004');
+  env.coll('draws').d1.status = 'drawn';
+  for (const uid of ['alice', 'bob']) env.put('requests', { _id: uid, drawId: 'd1', requesterId: uid, type: 'withdraw', status: 'pending', reason: uid, createdAt: 1 });
+  for (const uid of ['owner', 'alice', 'eve']) {
+    const b = ok(await env.call(uid, 'drawDetail', { drawId: 'd1' }));
+    const old = ok(await env.call(uid, 'drawRequests', { drawId: 'd1' })); delete old.ok;
+    assert.deepStrictEqual(b.requests, old);
+    assert.strictEqual(b.requests.list.length, uid === 'owner' ? 2 : uid === 'alice' ? 1 : 0);
+  }
+});
+test('matchState：弃权退赛也返回发起人身份；detail 不绕过成员校验', async () => {
+  const env = setup();
+  for (const outcome of ['walkover', 'retired']) {
+    env.put('matches', { _id: 'special', drawId: 'd1', drawKey: '0-0', outcome, recordedBy: 'alice', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 0 }] });
+    assert.strictEqual(ok(await env.call('owner', 'matchState', { matchId: 'special', detail: true })).isOwner, true);
+    assert.strictEqual(ok(await env.call('alice', 'matchState', { matchId: 'special', detail: true })).isOwner, false);
+  }
+  for (const action of ['matchState', 'dataset', 'drawDetail', 'mySignups']) {
+    assert.strictEqual((await env.call('stranger', action, { matchId: 'special', drawId: 'd1', detail: true })).code, 'NOT_MEMBER');
+  }
+});
+
+test('管理员可以编辑 / 删除别人的赛事：留档；删除必须填原因；其他赛事操作仍然不行', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'admin';
+  try {
+    env.put('members', { _id: 'admin', status: 'active' });
+    env.put('draws', { _id: 'd9', _openid: 'owner', title: '周末赛', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    env.put('event_contacts', { _id: 'd9', name: '张三', phone: '13800000000', visibility: 'participants' });
+    // 普通成员不行
+    no(await env.call('alice', 'updateDrawInfo', { drawId: 'd9', info: { title: 'x' } }));
+    no(await env.call('alice', 'removeDraw', { drawId: 'd9', reason: '不要了' }));
+    // 管理员编辑：成功、留档；能看到完整联系人并修改；手填的地址不再保存
+    ok(await env.call('admin', 'updateDrawInfo', { drawId: 'd9', info: { title: '周末赛（改期）', date: '2026-11-22', venue: '新球场', address: '某某路 1 号' } }));
+    assert.strictEqual(env.coll('draws').d9.title, '周末赛（改期）');
+    assert.strictEqual(env.coll('draws').d9.address, undefined);
+    const log = Object.values(env.coll('requests')).find((x) => x.type === 'adminEditDraw');
+    assert.strictEqual(log.before.title, '周末赛'); assert.strictEqual(log.after.venue, '新球场');
+    assert.strictEqual(ok(await env.call('admin', 'getContact', { drawId: 'd9' })).phone, '13800000000');
+    ok(await env.call('admin', 'saveContact', { drawId: 'd9', contact: { name: '李四', phone: '13900000000' } }));
+    // 管理员不能生成签表、处理退赛
+    no(await env.call('admin', 'generateDraw', { drawId: 'd9', draw: {} }), /发起人/);
+    no(await env.call('admin', 'handleWithdraw', { drawId: 'd9', entrant: 'x', approve: true, reason: '测试一下' }), /发起人/);
+    // 管理员删除：必须填原因
+    no(await env.call('admin', 'removeDraw', { drawId: 'd9' }), /原因/);
+    ok(await env.call('admin', 'removeDraw', { drawId: 'd9', reason: '重复发布了' }));
+    assert.ok(env.coll('draws').d9.deleted && env.coll('draws').d9.deletedByAdmin);
+    const dl = Object.values(env.coll('requests')).find((x) => x.type === 'deleteDraw');
+    assert.ok(dl.byAdmin && dl.reason === '重复发布了');
+    // 发起人自己删除不需要原因
+    env.put('draws', { _id: 'd8', _openid: 'owner', title: 'T', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    ok(await env.call('owner', 'removeDraw', { drawId: 'd8' }));
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
+test('订阅消息已移除：没有 notifyTemplates 操作；录分、申请、审核照常', async () => {
+  const env = setup();
+  assert.strictEqual((await env.call('alice', 'notifyTemplates')).error, '未知操作');
+  const id = ok(await env.call('alice', 'data', { op: 'add', coll: 'matches', data: { a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 2 }], date: '2026-11-01' } }))._id;
+  ok(await env.call('bob', 'confirmResult', { matchId: id }));
+  ok(await env.call('bob', 'requestScoreChange', { matchId: id, sets: [{ a: 4, b: 1 }], reason: '记错了' }));
+  ok(await env.call('alice', 'respondScoreChange', { requestId: 'sc_' + id, accept: true }));
+  ok(await env.call('newbie', 'applyMember', { name: '新人' }));
+});
+
+/* ---------- 单场安排 ---------- */
+test('单场安排：只有发起人能排；待定场次也能排；清空即取消；重新生成签表后作废', async () => {
+  const env = setup();
+  const ents = ['Alice', 'Bob', 'Carl', 'Eve'];
+  env.put('draws', { _id: 'd5', _openid: 'owner', title: '周末赛', status: 'drawn', type: 'single', mode: 'bracket', size: 4, date: '2026-11-21', entrants: ents, lines: ents.map((n) => ({ name: n })) });
+  no(await env.call('alice', 'setFixtureSlot', { drawId: 'd5', key: '0-0', slot: { time: '09:00' } }), /发起人/);
+  no(await env.call('owner', 'setFixtureSlot', { drawId: 'd5', key: '9-9', slot: { time: '09:00' } }), /找不到/);
+  no(await env.call('owner', 'setFixtureSlot', { drawId: 'd1', key: '0-0', slot: { time: '09:00' } }), /签表生成后/);
+  // 只收合法的日期、时间；场地限长；别的字段不收
+  const r = ok(await env.call('owner', 'setFixtureSlot', { drawId: 'd5', key: '0-0', slot: { date: '2026-11-22', time: '9点', court: ' 3 号场 ', hack: 1 } }));
+  assert.deepStrictEqual(r.slot, { date: '2026-11-22', time: '', court: '3 号场' });
+  ok(await env.call('owner', 'setFixtureSlot', { drawId: 'd5', key: '1-0', slot: { time: '15:30' } })); // 决赛对阵还没定，也能先排
+  assert.deepStrictEqual(Object.keys(env.coll('draws').d5.slots).sort(), ['0-0', '1-0']);
+  // 赛程里带出安排（前端和云函数共用 utils/event.js）
+  const E = require('../utils/event');
+  const sch = E.scheduleOf(Object.assign({}, env.coll('draws').d5), []);
+  assert.strictEqual(sch.find((x) => x.key === '0-0').slotText, '11月22日 周日 · 3 号场');
+  assert.strictEqual(sch.find((x) => x.key === '1-0').slotText, '15:30');
+  assert.strictEqual(sch.find((x) => x.key === '0-1').slot, null);
+  // 三项都空：取消这一场的安排
+  assert.strictEqual(ok(await env.call('owner', 'setFixtureSlot', { drawId: 'd5', key: '0-0', slot: {} })).slot, null);
+  assert.deepStrictEqual(Object.keys(env.coll('draws').d5.slots), ['1-0']);
+  // 重新生成签表：原来的安排作废
+  ok(await env.call('owner', 'generateDraw', { drawId: 'd5', draw: { entrants: ents, seeds: [], teams: {}, lines: D.makeBracket(ents, [], 4), uidOf: {}, avatars: {} } }));
+  assert.deepStrictEqual(env.coll('draws').d5.slots, {});
+});
+
+/* ---------- 关注 ---------- */
+test('关注：只能关注有资料的正式成员，不能关注自己；重复关注只有一条；只公开人数', async () => {
+  const env = setup();
+  no(await env.call('alice', 'setFollow', { targetId: 'alice' }), /自己/);
+  no(await env.call('alice', 'setFollow', { targetId: 'nobody' }), /正式成员/);
+  env.put('members', { _id: 'ghost', status: 'active' }); // 是成员但没设置资料
+  no(await env.call('alice', 'setFollow', { targetId: 'ghost' }), /资料/);
+  assert.strictEqual((await env.call('stranger', 'setFollow', { targetId: 'bob' })).code, 'NOT_MEMBER');
+  ok(await env.call('alice', 'setFollow', { targetId: 'bob' }));
+  ok(await env.call('alice', 'setFollow', { targetId: 'bob' }));
+  ok(await env.call('alice', 'setFollow', { targetId: 'carl' }));
+  ok(await env.call('eve', 'setFollow', { targetId: 'bob' }));
+  assert.strictEqual(Object.keys(env.coll('follows')).length, 3);
+  assert.ok(Object.values(env.coll('follows')).every((f) => f.followerId && f.targetId && !f._openid));
+  // 我自己：关注了谁、多少人关注我
+  const mine = ok(await env.call('alice', 'followInfo'));
+  assert.deepStrictEqual(mine.following.slice().sort(), ['bob', 'carl']);
+  assert.strictEqual(mine.followers, 0);
+  assert.strictEqual(mine.target, undefined);
+  // 看别人的主页：只有粉丝数和「我有没有关注」，拿不到 TA 关注了谁、谁关注了 TA
+  const bob = ok(await env.call('carl', 'followInfo', { uid: 'bob' }));
+  assert.deepStrictEqual(bob.target, { uid: 'bob', followers: 2, following: false });
+  assert.deepStrictEqual(bob.following, []);
+  assert.strictEqual(ok(await env.call('alice', 'followInfo', { uid: 'bob' })).target.following, true);
+  // 取消关注（没关注过也不报错）
+  ok(await env.call('alice', 'setFollow', { targetId: 'bob', on: false }));
+  ok(await env.call('alice', 'setFollow', { targetId: 'bob', on: false }));
+  assert.strictEqual(ok(await env.call('bob', 'followInfo')).followers, 1);
+  // 网关读不到 follows
+  no(await env.call('alice', 'data', { op: 'get', coll: 'follows' }));
 });
 
 module.exports = T;

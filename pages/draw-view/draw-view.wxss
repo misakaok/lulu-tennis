@@ -131,3 +131,21 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .wd-a { flex: none; margin-left: 10rpx; padding: 6rpx 18rpx; border-radius: 22rpx; border: 2rpx solid #CFCFE6; color: #6E6EA3; font-size: 23rpx; }
 .wd-a.main { background: #9595C4; color: #fff; border-color: #9595C4; }
 .wd-link { margin-top: 12rpx; text-align: center; font-size: 25rpx; color: #6E6EA3; text-decoration: underline; }
+
+/* 单场安排 */
+.sch-slot { margin-top: 8rpx; font-size: 24rpx; color: #4F4F7D; font-weight: 600; }
+.sch-foot { display: flex; align-items: center; justify-content: space-between; }
+.sch-plan { flex: none; margin: 8rpx 0 0 16rpx; font-size: 22rpx; color: #6E6EA3; border: 2rpx solid #CFCFE6; border-radius: 20rpx; padding: 4rpx 18rpx; }
+.sheet-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(30, 30, 50, 0.45); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.sheet-t { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
+.sheet-s { margin: 6rpx 0 16rpx; font-size: 24rpx; color: #8686A0; }
+.sheet-row { display: flex; align-items: center; justify-content: space-between; height: 92rpx; border-top: 1rpx solid #F2F2F8; }
+.sheet-pick { font-size: 28rpx; color: #1E1E32; }
+.sheet-pick.ph { color: #B7B7CC; }
+.sheet-in { flex: 1; margin-left: 30rpx; text-align: right; font-size: 28rpx; }
+.sheet-note { margin-top: 12rpx; font-size: 22rpx; color: #A5A5BA; }
+.sheet-acts { display: flex; margin: 24rpx -8rpx 0; }
+.sheet-a { flex: 1; height: 84rpx; line-height: 84rpx; text-align: center; border-radius: 42rpx; margin: 0 8rpx; font-size: 28rpx; font-weight: 700; color: #6E6EA3; background: #F1F1F8; }
+.sheet-a.main { color: #fff; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
+.sheet-a.dis { opacity: 0.5; }

@@ -213,7 +213,7 @@ Page({
   // 时间地点（公开）和联系人（单独通过云函数保存，不进 draws）
   infoFields() {
     const i = this.info || {};
-    return { date: i.date || this.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), address: (i.address || '').trim(), location: i.location || null };
+    return { date: i.date || this.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), location: i.location || null };
   },
   async saveContact(id) {
     const c = (this.info || {}).contact;
@@ -352,7 +352,7 @@ Page({
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '发布失败', content: e.message || e.errMsg || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '发布失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }
@@ -374,7 +374,7 @@ Page({
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '保存失败', content: e.message || e.errMsg || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }

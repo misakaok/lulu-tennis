@@ -3,15 +3,19 @@
     <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
       data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
   </view>
+  <scroll-view scroll-x class="season-row" enhanced show-scrollbar="{{false}}">
+    <text wx:for="{{seasons}}" wx:key="value" class="season {{season === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setSeason">{{item.label}}{{item.value === 'all' ? '' : ' 赛季'}}</text>
+  </scroll-view>
   <view class="sort-row">
     <text class="sort-lbl">排序</text>
     <text class="sort {{sort === 'level' ? 'on' : ''}}" data-v="level" bindtap="setSort">按水平</text>
     <text class="sort {{sort === 'win' ? 'on' : ''}}" data-v="win" bindtap="setSort">按胜场</text>
+    <text wx:if="{{followCount}}" class="sort follow {{onlyFollow ? 'on' : ''}}" bindtap="toggleFollow">{{onlyFollow ? '✓ ' : ''}}只看关注</text>
   </view>
 
-  <view wx:if="{{!top.length && !loading}}" class="empty">
+  <view wx:if="{{none && !loading}}" class="empty">
     <view class="empty-ball"></view>
-    <view>还没有比赛数据</view>
+    <view>{{onlyFollow ? '你关注的球友在这个范围里还没有比赛' : season === 'all' ? '还没有比赛数据' : '这个赛季还没有比赛'}}</view>
   </view>
 
   <!-- 前三名领奖台 -->
@@ -30,7 +34,7 @@
   </view>
 
   <!-- 完整榜单 -->
-  <view wx:if="{{top.length}}" class="card table">
+  <view wx:if="{{ranked.length}}" class="card table">
     <view class="tr th">
       <text class="c-rank">#</text><text class="c-name">球员</text>
       <text class="c-n">水平</text><text class="c-n">胜-负</text><text class="c-n">胜率</text>
@@ -49,5 +53,5 @@
     </view>
   </view>
 
-  <view wx:if="{{top.length}}" class="foot">点击球员可以发起挑战 · 水平分算法见「我的」</view>
+  <view wx:if="{{ranked.length}}" class="foot">{{season === 'all' ? '' : '胜负和胜率只算这个赛季，水平分不分赛季 · '}}点击球员可以关注、发起挑战</view>
 </view>

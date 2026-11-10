@@ -19,7 +19,8 @@
     "pages/todo/todo",
     "pages/correct/correct",
     "pages/gate/gate",
-    "pages/members/members"
+    "pages/members/members",
+    "pages/follows/follows"
   ],
   "window": {
     "navigationBarBackgroundColor": "#A3A3CB",

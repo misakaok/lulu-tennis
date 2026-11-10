@@ -12,6 +12,7 @@
           <text class="pc-tag">{{view.level.tier}}</text>
           <text wx:if="{{view.level.provisional}}" class="pc-tag hl">定级中 {{view.level.played}}/{{view.level.need}}</text>
         </view>
+        <view wx:if="{{follow}}" class="pc-follow" catchtap="openFollows">{{follow.self ? '关注 ' + follow.following + ' · 粉丝 ' + follow.followers + ' ›' : '粉丝 ' + follow.followers}}</view>
       </block>
       <block wx:elif="{{isSelf || !loaded}}">
         <view class="pc-name">未设置资料</view>
@@ -52,8 +53,9 @@
   </view>
   <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : '数据根据正式战绩自动计算（日常比赛需对手确认）'}}</view>
 
-  <!-- 别人的主页：发起挑战 / 评价（评价必须关联已确认的交手比赛） -->
+  <!-- 别人的主页：关注 / 发起挑战 / 评价（评价必须关联已确认的交手比赛） -->
   <view wx:if="{{loaded && !isSelf}}" class="acts">
+    <view wx:if="{{follow}}" class="act {{follow.on ? 'on' : ''}} {{busy ? 'dis' : ''}}" bindtap="toggleFollow">{{follow.on ? '已关注' : '＋ 关注'}}</view>
     <view class="act" bindtap="challenge">发起挑战</view>
     <view class="act main {{busy ? 'dis' : ''}}" bindtap="reviewTa">评价 TA</view>
   </view>
@@ -74,6 +76,35 @@
         <text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
       </view>
     </view>
+  </view>
+
+  <!-- 赛季战绩：按比赛日期的自然年划分，和上面的生涯数据同一个口径 -->
+  <view wx:if="{{view.career.seasons.length}}" class="card">
+    <view class="card-title">赛季战绩<text class="sub">按自然年 · 等级分不分赛季</text></view>
+    <view class="ss-row ss-head"><text class="ss-s">赛季</text><text class="ss-c">场数</text><text class="ss-c">胜-负</text><text class="ss-c">胜率</text><text class="ss-c">冠军</text></view>
+    <view wx:for="{{view.career.seasons}}" wx:key="season" class="ss-row {{item.now ? 'now' : ''}}">
+      <text class="ss-s">{{item.season}}<text wx:if="{{item.now}}" class="ss-now">本赛季</text></text>
+      <text class="ss-c">{{item.played}}</text><text class="ss-c b">{{item.wl}}</text><text class="ss-c">{{item.rate}}</text>
+      <text class="ss-c">{{item.titles ? '🏆 ' + item.titles : '-'}}</text>
+    </view>
+  </view>
+
+  <!-- 生涯成就：由正式战绩自动计算 -->
+  <view wx:if="{{view.career.has}}" class="card">
+    <view class="card-title row-t"><text>生涯成就<text class="sub">已达成 {{view.career.got}} / {{view.career.total}}</text></text><text class="more" bindtap="toggleBadges">{{allBadges ? '收起' : '全部徽章'}} ›</text></view>
+    <view class="cr-grid">
+      <view wx:for="{{view.career.cells}}" wx:key="l" class="cr-cell"><text class="n {{item.n === '暂无' ? 'none' : ''}}">{{item.n}}</text><text class="l">{{item.l}}</text></view>
+    </view>
+    <view class="bd-wrap">
+      <block wx:for="{{view.career.badges}}" wx:key="id">
+        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? '' : 'off'}}" data-i="{{index}}" bindtap="badgeTip">
+          <text class="bd-ic">{{item.icon}}</text><text class="bd-n">{{item.name}}</text><text wx:if="{{!item.got}}" class="bd-p">{{item.progress}}</text>
+        </view>
+      </block>
+      <view wx:if="{{!view.career.got && !allBadges}}" class="muted">还没有达成的徽章，点「全部徽章」看看怎么拿</view>
+    </view>
+    <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><text class="cr-k">🏆 冠军</text><text class="cr-v">{{item.title}}<text class="cr-d">{{item.date}}</text></text></view>
+    <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
   </view>
 
   <!-- 对手评价（匿名，和竞技等级分开） -->

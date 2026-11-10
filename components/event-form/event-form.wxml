@@ -15,10 +15,6 @@
   <input class="ef-in" value="{{v.venue}}" data-k="venue" bindinput="onInput" maxlength="30" placeholder="例如：XX 网球中心 3 号场" />
 </view>
 <view class="ef-row">
-  <text class="label">详细地址</text>
-  <input class="ef-in" value="{{v.address}}" data-k="address" bindinput="onInput" maxlength="60" placeholder="街道门牌" />
-</view>
-<view class="ef-row">
   <text class="label">地图定位</text>
   <view class="ef-loc" bindtap="pickLocation">{{locText ? '📍 ' + locText : '在地图上选择'}} <text class="ef-arrow">›</text></view>
   <text wx:if="{{locText}}" class="ef-clear" bindtap="clearLocation">清除</text>
@@ -44,4 +40,4 @@
     <view class="ef-v {{v.contact.visibility === 'all' ? 'on' : ''}}" data-v="all" bindtap="setVis">所有能打开赛事的人</view>
   </view>
 </view>
-<view class="ef-note">联系方式不放在公开的赛事数据里，由云函数按上面的范围返回；{{v.contact.visibility === 'all' ? '选「所有人」后，拿到分享链接的人都能看到电话和微信号' : '没报名的人只能看到姓氏，看不到电话和微信号'}}。不填则不展示。</view>
+<view class="ef-note">联系方式只对上面选择的范围展示；{{v.contact.visibility === 'all' ? '选「所有人」后，拿到分享链接的人都能看到电话和微信号' : '没报名的人只能看到姓氏，看不到电话和微信号'}}。不填则不展示。</view>

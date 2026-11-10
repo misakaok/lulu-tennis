@@ -87,3 +87,32 @@
 .pc-lv-lbl { display: flex; align-items: center; margin-bottom: 4rpx; }
 .ball-dot { width: 26rpx; height: 26rpx; border-radius: 50%; margin-right: 10rpx; background: radial-gradient(circle at 35% 35%, #F3F9B8, #D5E66B); box-shadow: 0 3rpx 8rpx rgba(0,0,0,0.12); }
 .mr-res.wo { background: #fff8e6; color: #b7791f; }
+
+/* 关注 */
+.pc-follow { font-size: 22rpx; opacity: 0.95; margin-top: 2rpx; }
+.act.on { color: #8686A0; background: #F1F1F8; border-color: transparent; }
+/* 赛季战绩 */
+.ss-row { display: flex; align-items: center; height: 68rpx; border-top: 1rpx solid #F2F2F8; font-size: 25rpx; color: #3A3A52; }
+.ss-row.ss-head { border-top: 0; height: 44rpx; font-size: 21rpx; color: #A5A5BA; }
+.ss-row.now { font-weight: 700; color: #4F4F7D; }
+.ss-s { flex: 1.6; display: flex; align-items: center; }
+.ss-now { font-size: 19rpx; font-weight: 600; color: #6E6EA3; background: #EEEEF7; border-radius: 10rpx; padding: 2rpx 10rpx; margin-left: 10rpx; }
+.ss-c { flex: 1; text-align: center; }
+.ss-c.b { font-weight: 700; }
+/* 生涯成就 */
+.cr-grid { display: flex; flex-wrap: wrap; background: #F8F8FC; border-radius: 20rpx; padding: 10rpx 0; }
+.cr-cell { width: 33.33%; display: flex; flex-direction: column; align-items: center; padding: 12rpx 0; }
+.cr-cell .n { font-size: 36rpx; font-weight: 900; color: #4F4F7D; }
+.cr-cell .n.none { font-size: 26rpx; font-weight: 500; color: #C5C5DA; padding-top: 8rpx; }
+.cr-cell .l { font-size: 21rpx; color: #8686A0; margin-top: 2rpx; }
+.bd-wrap { display: flex; flex-wrap: wrap; margin: 20rpx -6rpx 6rpx; }
+.bd { display: flex; align-items: center; margin: 0 6rpx 12rpx; padding: 8rpx 18rpx; border-radius: 26rpx; background: #EEEEF7; color: #4F4F7D; font-size: 23rpx; font-weight: 600; }
+.bd.off { background: #F6F6FA; color: #B7B7CC; font-weight: 400; }
+.bd.off .bd-ic { opacity: 0.35; }
+.bd-ic { margin-right: 8rpx; }
+.bd-p { margin-left: 8rpx; font-size: 20rpx; }
+.bd-wrap .muted { margin: 0 6rpx 12rpx; }
+.cr-line { display: flex; padding: 12rpx 0; border-top: 1rpx solid #F2F2F8; font-size: 25rpx; }
+.cr-k { width: 150rpx; flex: none; color: #8686A0; }
+.cr-v { flex: 1; min-width: 0; color: #1E1E32; font-weight: 600; }
+.cr-d { font-size: 21rpx; color: #A5A5BA; font-weight: 400; margin-left: 12rpx; }

@@ -127,81 +127,6 @@ function resolve(src, force) {
 // 显示出错（比如缓存的临时链接已经失效）：清掉缓存，下次重新获取
 function invalidate(src) { if (cache()[src]) { delete cache()[src]; persist(); } }
 
-/* ---------- 头像图片本地缓存 ---------- */
-// 临时链接每 25 分钟换一次，链接一换图片就要重新下载。这里把下载过的头像按 fileID 存在手机本地：
-//   换照片会生成新的 fileID，所以不会显示旧图；最多 FILE_MAX 张，超过删最久没用的。
-//   真机上 wx.downloadFile 需要在公众平台把临时链接的域名加进「downloadFile 合法域名」；
-//   没配置时下载会失败，本次运行就不再尝试，照常用临时链接显示，不影响使用。
-//   被移出成员时（utils/member.js 清缓存）连同文件一起删除。
-const FILE_KEY = 'avatar_files';  // { fileID: { path, at } }
-const FILE_MAX = 300;
-let files = null, filesOn = true, filesTimer = null;
-const saving = {};
-const fsm = () => (wx.getFileSystemManager ? wx.getFileSystemManager() : null);
-const fileDir = () => `${(wx.env && wx.env.USER_DATA_PATH) || ''}/avatars`;
-function hashOf(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(16) + s.length.toString(16); }
-function fileMap() {
-  if (!files) { try { files = wx.getStorageSync(FILE_KEY) || {}; } catch (e) { files = {}; } }
-  return files;
-}
-function persistFiles() {
-  if (filesTimer) return;
-  filesTimer = setTimeout(() => { filesTimer = null; try { wx.setStorageSync(FILE_KEY, fileMap()); } catch (e) {} }, 500);
-}
-// 已缓存在本地的图片路径（文件不在了就返回 ''）
-function localFile(src) {
-  const f = isCloud(src) && fileMap()[src];
-  if (!f) return '';
-  try { fsm().accessSync(f.path); } catch (e) { delete fileMap()[src]; persistFiles(); return ''; }
-  f.at = Date.now();
-  persistFiles();
-  return f.path;
-}
-function dropLocal(src) {
-  const f = fileMap()[src];
-  if (!f) return;
-  try { fsm().unlinkSync(f.path); } catch (e) {}
-  delete fileMap()[src];
-  persistFiles();
-}
-function evict() {
-  const keys = Object.keys(fileMap());
-  if (keys.length <= FILE_MAX) return;
-  keys.sort((a, b) => fileMap()[a].at - fileMap()[b].at).slice(0, keys.length - FILE_MAX).forEach(dropLocal);
-}
-// 拿到临时链接后在后台下载并存到本地；失败不影响显示
-function saveLocal(src, url) {
-  const fs = fsm();
-  if (!filesOn || !fs || !isCloud(src) || !/^https:\/\//.test(url || '') || saving[src] || fileMap()[src]) return;
-  saving[src] = 1;
-  const done = () => { delete saving[src]; };
-  wx.downloadFile({
-    url,
-    success: (r) => {
-      if (r.statusCode !== 200 || !r.tempFilePath) { done(); return; }
-      const ext = ((src.match(/\.(\w{2,4})$/) || [])[1] || 'jpg').toLowerCase();
-      const path = `${fileDir()}/${hashOf(src)}.${ext}`;
-      try { fs.mkdirSync(fileDir(), true); } catch (e) {}
-      fs.saveFile({
-        tempFilePath: r.tempFilePath, filePath: path,
-        success: () => { fileMap()[src] = { path, at: Date.now() }; evict(); persistFiles(); done(); },
-        fail: done,
-      });
-    },
-    fail: (e) => {
-      done();
-      // 域名没配置 / 没有权限：本次运行不再尝试
-      if (/domain|url not in|合法域名|permission/i.test((e && e.errMsg) || '')) filesOn = false;
-    },
-  });
-}
-// 清掉全部本地头像文件（被移出成员时）
-function clearFiles() {
-  try { fsm().rmdirSync(fileDir(), true); } catch (e) {}
-  files = {};
-  try { wx.removeStorageSync(FILE_KEY); } catch (e) {}
-}
-
 function currentEnv() {
   try { const app = getApp(); if (app && app.globalData && app.globalData.envId) return app.globalData.envId; } catch (e) {}
   try { return wx.getStorageSync('cloud_env') || ''; } catch (e) { return ''; }
@@ -255,20 +180,15 @@ async function diagnose(list) {
   return r;
 }
 
+// 给用户看的检测结果：只说结论和怎么办。云环境、目录、权限等细节在 diagnose 的返回值里（控制台可以看）
 function reportText(r) {
   const lines = [`共 ${r.total} 个头像，正常 ${r.ok} 个`];
-  const envs = Object.keys(r.envs);
-  if (envs.length > 1) lines.push(`⚠️ 头像来自 ${envs.length} 个不同的云环境：${envs.join('、')}`);
-  if (r.envMismatch.length) lines.push(`⚠️ ${r.envMismatch.length} 个不属于当前环境 ${r.appEnv}`);
-  if (r.missing.length) lines.push(`❌ ${r.missing.length} 个云文件不存在（已被删除）`);
-  if (r.rescued.length) lines.push(`✅ ${r.rescued.length} 个由云函数代取，正常显示（别人的照片都经云函数发放，这是正常的）`);
-  if (r.notAvatar.length) lines.push(`❌ ${r.notAvatar.length} 个头像不在 avatars/ 目录，云函数不代取：请本人重新上传头像`);
-  if (r.denied.length - r.notAvatar.length > 0) lines.push(`🔒 ${r.denied.length - r.notAvatar.length} 个云函数也取不到：请确认 tennis 云函数已部署（不要为此放宽云存储规则）`);
-  if (r.malformed.length) lines.push(`❌ ${r.malformed.length} 个地址无效（不是云文件）`);
-  if (r.other.length) lines.push(`❓ ${r.other.length} 个其他错误：${r.other[0]}`);
-  if (r.ok === r.total) lines.push('✅ 全部可以正常显示');
-  else lines.push('有问题的头像会显示默认头像，本人重新设置一次头像即可恢复');
+  const bad = r.total - r.ok;
+  if (r.missing.length) lines.push(`❌ ${r.missing.length} 个头像的照片已经不在了`);
+  if (bad - r.missing.length > 0) lines.push(`❌ ${bad - r.missing.length} 个头像暂时显示不出来`);
+  if (!bad) lines.push('✅ 全部可以正常显示');
+  else lines.push('有问题的头像会显示默认头像，本人重新设置一次头像即可恢复；如果很多人都显示不出来，请联系管理员');
   return lines.join('\n');
 }
 
-module.exports = { DEFAULT, isCloud, isDirect, envOf, peek, resolve, invalidate, currentEnv, rememberEnv, diagnose, reportText, localFile, saveLocal, dropLocal, clearFiles };
+module.exports = { DEFAULT, isCloud, isDirect, envOf, peek, resolve, invalidate, currentEnv, rememberEnv, diagnose, reportText };

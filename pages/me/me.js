@@ -67,7 +67,7 @@ Page({
       wx.showModal({ title: '头像检测结果', content: A.reportText(r), showCancel: false });
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '检测失败', content: e.errMsg || e.message || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '检测失败', content: '请稍后再试', showCancel: false });
     } finally {
       this.setData({ checking: false });
     }

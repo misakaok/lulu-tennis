@@ -8,28 +8,39 @@ const store = {}; // key → { at, value, task, coll }
 
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))); // 调用方改了数据也不会污染缓存
 
-function get(key, coll, fn) {
+// 取原始结果（不复制）：只给 utils/db.js 内部做二次整理用，调用方不能修改返回值。
+// deps：这条结果是由哪些缓存算出来的（key 数组）。它的有效期从其中最早的一条算起，
+//   保证「整理后的结果」不会比它依赖的原始数据活得更久。
+function raw(key, coll, fn, deps) {
   const e = store[key];
-  if (e && e.task) return e.task.then(clone);
-  if (e && Date.now() - e.at < TTL_MS) return Promise.resolve(clone(e.value));
+  if (e && e.task) return e.task;
+  if (e && Date.now() - e.at < TTL_MS) return Promise.resolve(e.value);
   const entry = { coll, at: 0, value: undefined, task: null };
   store[key] = entry;
   entry.task = Promise.resolve().then(fn).then((v) => {
-    if (store[key] === entry) { entry.value = v; entry.at = Date.now(); entry.task = null; }
+    if (store[key] === entry) {
+      let at = Date.now();
+      (deps || []).forEach((d) => { const x = store[d]; if (x && !x.task && x.at < at) at = x.at; });
+      entry.value = v; entry.at = at; entry.task = null;
+    }
     return v;
   }, (err) => {
     if (store[key] === entry) delete store[key];
     throw err;
   });
-  return entry.task.then(clone);
+  return entry.task;
 }
+
+function get(key, coll, fn, deps) { return raw(key, coll, fn, deps).then(clone); }
+
+const ANY = '*'; // coll 传 ANY：任何集合变了都作废（云函数只读操作的结果，说不清依赖哪些集合）
 
 // 作废某些集合（不传就全部作废）。一条缓存可以依赖多个集合（coll 传数组），任一集合变了就作废
 function invalidate(colls) {
   const set = colls ? [].concat(colls) : null;
   Object.keys(store).forEach((k) => {
-    if (!set || [].concat(store[k].coll).some((c) => set.indexOf(c) >= 0)) delete store[k];
+    if (!set || [].concat(store[k].coll).some((c) => c === ANY || set.indexOf(c) >= 0)) delete store[k];
   });
 }
 
-module.exports = { get, invalidate, TTL_MS };
+module.exports = { get, raw, invalidate, TTL_MS, ANY };

@@ -55,7 +55,7 @@ Page({
       },
       fail: (e) => {
         if (/cancel/.test(e.errMsg || '')) return;
-        wx.showModal({ title: source === 'camera' ? '无法打开相机' : '无法打开相册', content: '请在小程序设置里允许使用相机 / 相册。\n' + (e.errMsg || ''), showCancel: false });
+        wx.showModal({ title: source === 'camera' ? '无法打开相机' : '无法打开相册', content: '请在小程序设置里允许使用相机 / 相册。', showCancel: false });
       },
     });
   },
@@ -113,7 +113,7 @@ Page({
       let temp = this.avatarTemp;
       if (temp) {
         try { temp = (await C.compress(temp, 'avatar')).path; }
-        catch (ce) { throw new Error('照片压缩失败，请重试：' + ((ce && (ce.message || ce.errMsg)) || '')); }
+        catch (ce) { console.error('照片压缩失败', ce); throw new Error('照片压缩失败，请重试'); }
       }
       await db.saveMyProfile({ name, avatar: this.avatar, avatarTemp: temp, level: this.data.level, gender: this.data.gender });
       this.avatarTemp = '';
@@ -126,7 +126,7 @@ Page({
     } catch (e) {
       wx.hideLoading();
       console.error(e);
-      wx.showModal({ title: '保存失败', content: e.message || e.errMsg || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }
