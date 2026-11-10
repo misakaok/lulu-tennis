@@ -1,6 +1,6 @@
-// 赛事相册：浏览（网格 + 放大左右滑）、上传（多选 / 拍照，进度和失败重试）、管理（删自己的；发起人管全部）
+// 活动相册：浏览（网格 + 放大左右滑）、上传（多选 / 拍照，进度和失败重试）、管理（删自己的；发起人管全部）
 // 权限、可见范围和内容安全检测都在云函数 tennis 里按用户 ID 处理，这里只按返回结果显示。
-// 照片存在独立目录 event-photos/<赛事 ID>/<上传者 ID>/，数据库只存 fileID，展示链接由云函数发放。
+// 照片存在独立目录 event-photos/<活动 ID>/<上传者 ID>/，数据库只存 fileID，展示链接由云函数发放。
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
 const C = require('../../utils/compress');
@@ -127,7 +127,7 @@ Page({
     const p = this.data.photos[e.currentTarget.dataset.i];
     if (!p || !p.canDelete) return;
     wx.showModal({
-      title: '删除这张照片？', content: p.mine ? '' : `这是 ${p.uploaderName} 上传的照片（你是赛事发起人）`, confirmColor: '#e5484d',
+      title: '删除这张照片？', content: p.mine ? '' : `这是 ${p.uploaderName} 上传的照片（你是活动发起人）`, confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
         try { await cloud.call('deleteEventPhoto', { photoId: p.id }); wx.showToast({ title: '已删除' }); this.load(); }

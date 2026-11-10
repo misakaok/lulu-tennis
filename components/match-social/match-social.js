@@ -55,7 +55,7 @@ Component({
     /* ---------- 比分纠错 ---------- */
     edit() {
       const st = this.data.st;
-      // 赛事比赛在赛程里改（自动沿用本场规则）；日常比赛到修改页
+      // 活动比赛在赛程里改（自动沿用本场规则）；日常比赛到修改页
       if (st.drawId) wx.navigateTo({ url: `/pages/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
       else wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=edit` });
     },

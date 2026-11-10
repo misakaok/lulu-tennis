@@ -44,7 +44,7 @@
         </block>
         <view wx:if="{{st.request.canCancel}}" class="ms-a" bindtap="cancelRequest">撤回申请</view>
       </view>
-      <view wx:if="{{st.request.daily && !st.request.canRespond && !st.request.mine}}" class="ms-req-n">日常比赛没有赛事发起人，只能由对方同意或拒绝</view>
+      <view wx:if="{{st.request.daily && !st.request.canRespond && !st.request.mine}}" class="ms-req-n">日常比赛没有活动发起人，只能由对方同意或拒绝</view>
     </view>
     <view wx:elif="{{st.canEdit || (st.drawId && st.mySide && !st.confirmed)}}" class="ms-link" bindtap="edit">比分录错了？修改比分（对方还没确认）</view>
     <view wx:elif="{{st.canRequestChange}}" class="ms-link" bindtap="requestChange">比分有误？申请修改比分</view>

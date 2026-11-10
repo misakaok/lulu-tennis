@@ -60,7 +60,7 @@
       </view>
       <view class="btn-primary {{auditing ? 'disabled' : ''}}" bindtap="runAudit">{{audit ? '重新检查' : '开始检查'}}</view>
     </view>
-    <view class="foot">名字改过（曾用名）的不算问题。确认是冒名的报名，请联系小程序维护人员处理；签表已生成的赛事，处理前先联系发起人。</view>
+    <view class="foot">名字改过（曾用名）的不算问题。确认是冒名的报名，请联系小程序维护人员处理；签表已生成的活动，处理前先联系发起人。</view>
   </block>
 
   <block wx:else>
@@ -75,5 +75,5 @@
       </view>
     </view>
   </block>
-  <view class="foot">管理员可以编辑、删除任何赛事（会留档）；签表、录分、裁定、退赛仍由发起人处理</view>
+  <view class="foot">管理员可以编辑、删除任何活动（会留档）；签表、录分、裁定、退赛仍由发起人处理</view>
 </view>

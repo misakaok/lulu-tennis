@@ -1,5 +1,5 @@
 // 球员数据（场数、胜率、排名、等级）：都由有效比赛记录实时计算
-// 「有效」= db.fetchMatches 返回的记录：赛事里改过比分只算最新一条，撤销 / 删除的不算
+// 「有效」= db.fetchMatches 返回的记录：活动里改过比分只算最新一条，撤销 / 删除的不算
 const R = require('./rating');
 const { computeRank } = require('./rules');
 const ID = require('./ident');

@@ -74,7 +74,7 @@ test('撤销：已确认的日常比赛不能单方面撤销；未确认的可�
   assert.ok(!env.coll('matches')[id2]);
   assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'revoke' && x.matchId === id2));
 });
-test('撤销：已确认的赛事比分只有发起人能撤销，必须填原因', async () => {
+test('撤销：已确认的活动比分只有发起人能撤销，必须填原因', async () => {
   const env = setup();
   env.coll('draws').d1.status = 'drawn';
   env.put('signups', { _id: 'sa', _openid: 'alice', drawId: 'd1', name: 'Alice' });
@@ -123,15 +123,15 @@ test('资料：新用户第一次保存会创建本人资料', async () => {
   assert.ok(p.self && p.name === 'Newbie' && p.level === 2.5);
 });
 
-/* ---------- 赛事 ---------- */
+/* ---------- 活动 ---------- */
 const settings = { mode: 'bracket', type: 'single', size: 4, setGames: 4, noAd: true, bestOf: 1, rules: { ko: { setGames: 4, noAd: true, bestOf: 1 }, rounds: {} } };
-test('赛事：网关不能直接写 draws', async () => {
+test('活动：网关不能直接写 draws', async () => {
   const env = setup();
   no(await env.call('owner', 'data', { op: 'update', coll: 'draws', id: 'd1', data: { withdrawals: [] } }));
   no(await env.call('owner', 'data', { op: 'add', coll: 'draws', data: { title: 'x' } }));
   no(await env.call('owner', 'data', { op: 'remove', coll: 'draws', id: 'd1' }));
 });
-test('赛事：发布 → 报名 → 生成签表（用真实的抽签结果），uidOf 只认能证明的对应', async () => {
+test('活动：创建 → 报名 → 生成签表（用真实的抽签结果），uidOf 只认能证明的对应', async () => {
   const env = setup();
   const id = ok(await env.call('owner', 'createDraw', { draw: Object.assign({ title: '周末赛', date: '2026-11-20', withdrawals: [{ x: 1 }] }, settings) })).id;
   const d = env.coll('draws')[id];
@@ -151,7 +151,7 @@ test('赛事：发布 → 报名 → 生成签表（用真实的抽签结果）�
   env.put('matches', { _id: 'ev_x', drawId: id, drawKey: 'k1-0', a: ['Alice'], b: ['Bob'], winner: 'a', sets: [{ a: 4, b: 1 }], outcome: 'normal', createdAt: 1 });
   no(await env.call('owner', 'generateDraw', { drawId: id, draw }), /录分/);
 });
-test('赛事：小组赛签表用真实分组结果；名单不一致时拒绝', async () => {
+test('活动：小组赛签表用真实分组结果；名单不一致时拒绝', async () => {
   const env = setup();
   const s = Object.assign({}, settings, { mode: 'groups', groupCount: 2, advance: 1 });
   const ents = ['A1', 'A2', 'A3', 'A4'];
@@ -159,14 +159,14 @@ test('赛事：小组赛签表用真实分组结果；名单不一致时拒绝',
   assert.strictEqual(env.coll('draws')[id].status, 'drawn');
   no(await env.call('owner', 'createDraw', { draw: Object.assign({ entrants: ents, groups: D.makeGroups(['A1', 'A2', 'A3', 'X'], [], 2) }, s) }), /签位|小组/);
 });
-test('赛事：编辑信息只改允许的字段', async () => {
+test('活动：编辑信息只改允许的字段', async () => {
   const env = setup();
   ok(await env.call('owner', 'updateDrawInfo', { drawId: 'd1', info: { title: '新名字', date: '2026-12-01', venue: '球场', status: 'drawn', location: { latitude: 1, longitude: 2, name: 'n' } } }));
   const d = env.coll('draws').d1;
   assert.strictEqual(d.title, '新名字'); assert.strictEqual(d.status, 'signup'); assert.strictEqual(d.location.latitude, 1);
   no(await env.call('alice', 'updateDrawInfo', { drawId: 'd1', info: { title: 'x' } }), /发起人/);
 });
-test('赛事：删除是软删除，列表不再返回，联系人和照片删除，申请作废', async () => {
+test('活动：删除是软删除，列表不再返回，联系人和照片删除，申请作废', async () => {
   const env = setup();
   env.put('event_contacts', { _id: 'd1', name: 'x', phone: '123456' });
   env.put('requests', { _id: 'wd_1', type: 'withdraw', drawId: 'd1', status: 'pending' });
@@ -178,7 +178,7 @@ test('赛事：删除是软删除，列表不再返回，联系人和照片删�
   assert.ok(!env.coll('event_contacts').d1);
   assert.strictEqual(env.coll('requests').wd_1.status, 'cancelled');
   assert.deepStrictEqual(env.deletedFiles.sort(), ['cloud://env1.x/event-photos/d1/alice/1.jpg', 'cloud://env1.x/event-photos/d1/bob/2.jpg']);
-  assert.deepStrictEqual(Object.keys(env.coll('event_photos')).sort(), ['p3', 'p9'], '删除失败的和别的赛事的照片记录保留');
+  assert.deepStrictEqual(Object.keys(env.coll('event_photos')).sort(), ['p3', 'p9'], '删除失败的和别的活动的照片记录保留');
   const log = Object.values(env.coll('requests')).find((x) => x.type === 'deleteDraw');
   assert.deepStrictEqual(log.photos.failedFiles, ['cloud://env1.x/event-photos/d1/bob/3.jpg']);
   const list = ok(await env.call('alice', 'data', { op: 'get', coll: 'draws' })).data;
@@ -221,7 +221,7 @@ test('成员管理：环境变量里的管理员总在「成员」里（即使�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
-test('数据核对：找出冒名报名、搭档名字不符、同赛事同名；曾用名不算问题；只有管理员能用', async () => {
+test('数据核对：找出冒名报名、搭档名字不符、同活动同名；曾用名不算问题；只有管理员能用', async () => {
   const env = setup();
   const old = process.env.ADMIN_OPENIDS;
   process.env.ADMIN_OPENIDS = 'owner';
@@ -231,16 +231,16 @@ test('数据核对：找出冒名报名、搭档名字不符、同赛事同名�
     env.put('signups', { _id: 's2', _openid: 'bob', drawId: 'd1', name: 'Bobby' });                 // 曾用名，正常
     env.put('signups', { _id: 's3', _openid: 'eve', drawId: 'd1', name: 'Carl' });                  // 冒名
     env.put('signups', { _id: 's4', _openid: 'carl', drawId: 'd2', name: 'Carl', partner: 'Bob', partnerId: 'eve' }); // 搭档名字不符
-    env.put('signups', { _id: 's5', _openid: 'carl', drawId: 'd1', name: 'Carl' });                 // 和 s3 同赛事同名
+    env.put('signups', { _id: 's5', _openid: 'carl', drawId: 'd1', name: 'Carl' });                 // 和 s3 同活动同名
     const r = ok(await env.call('owner', 'auditSignups'));
     assert.strictEqual(r.total, 5);
     const has = (id, re) => r.issues.some((x) => x.id.startsWith(id) && re.test(x.problem));
-    assert.ok(has('s3', /对不上/)); assert.ok(has('s4', /搭档/)); assert.ok(has('s3', /同一赛事/)); assert.ok(has('s5', /同一赛事/));
+    assert.ok(has('s3', /对不上/)); assert.ok(has('s4', /搭档/)); assert.ok(has('s3', /同一活动/)); assert.ok(has('s5', /同一活动/));
     assert.ok(!r.issues.some((x) => x.id.startsWith('s1') || x.id.startsWith('s2')));
     no(await env.call('alice', 'auditSignups'), /管理员/);
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
-test('赛事申请列表：申请人昵称批量取，只看自己的（发起人看全部）', async () => {
+test('活动申请列表：申请人昵称批量取，只看自己的（发起人看全部）', async () => {
   const env = setup();
   env.coll('draws').d1.status = 'drawn';
   env.put('requests', { _id: 'r1', type: 'withdraw', drawId: 'd1', requesterId: 'alice', status: 'pending', createdAt: 1 });
@@ -278,7 +278,7 @@ test('清空战绩：默认关闭、要口令、只有管理员；只删战绩�
     assert.deepStrictEqual(Object.keys(env.coll('verified')), ['__legacy_migrated__'], '保留迁移标记');
     assert.ok(env.coll('requests').wd_x, '退赛申请保留');
     assert.deepStrictEqual(env.coll('draws').d1.results, {});
-    assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice && env.coll('bios').alice, '赛事、成员、资料、简介保留');
+    assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice && env.coll('bios').alice, '活动、成员、资料、简介保留');
     assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'resetScores'), '留档');
     // 清空后排行、待办正常
     assert.strictEqual(ok(await env.call('alice', 'myTodos')).toConfirm.length, 0);
@@ -334,8 +334,8 @@ test('待办：myTodos 和逐场 matchState 结果一致，查询次数不随比
   assert.ok(budget < 40, `myTodos 查询次数 ${budget}，应该是固定的少量批量查询`);
 });
 
-/* ---------- 赛事详情一次取齐 ---------- */
-test('drawDetail：各部分和原来分开调用的结果一致；联系人可见范围不变；非成员、已删除的赛事拿不到', async () => {
+/* ---------- 活动详情一次取齐 ---------- */
+test('drawDetail：各部分和原来分开调用的结果一致；联系人可见范围不变；非成员、已删除的活动拿不到', async () => {
   const env = setup();
   ok(await env.call('alice', 'signUp', { drawId: 'd1' }));
   ok(await env.call('bob', 'signUp', { drawId: 'd1' }));
@@ -423,7 +423,7 @@ test('matchState：弃权退赛也返回发起人身份；detail 不绕过成员
   }
 });
 
-test('管理员可以编辑 / 删除别人的赛事：留档；删除必须填原因；其他赛事操作仍然不行', async () => {
+test('管理员可以编辑 / 删除别人的活动：留档；删除必须填原因；其他活动操作仍然不行', async () => {
   const env = setup();
   const old = process.env.ADMIN_OPENIDS;
   process.env.ADMIN_OPENIDS = 'admin';

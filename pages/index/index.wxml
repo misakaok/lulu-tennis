@@ -1,5 +1,5 @@
 <view class="hero">
-  <view class="hero-title">我们的网球战绩</view>
+  <view class="hero-title">战绩</view>
   <view class="hero-sub">4 局 / 6 局制 · 抢七金球</view>
   <view class="hero-stats">
     <view class="hs"><text class="num">{{stat.total}}</text><text class="lbl">总场次</text></view>
@@ -9,7 +9,7 @@
 </view>
 
 <view class="page">
-  <view class="daily-entry" bindtap="goAdd">＋ 记录日常比赛<text class="de-sub">不属于赛事的约球，对手确认后计入战绩</text></view>
+  <view class="daily-entry" bindtap="goAdd">＋ 记录日常比赛<text class="de-sub">不属于活动的约球，对手确认后计入战绩</text></view>
   <view class="filters">
     <view class="seg">
       <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"

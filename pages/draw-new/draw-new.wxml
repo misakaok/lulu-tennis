@@ -1,5 +1,5 @@
 <view class="page">
-  <!-- 赛事设置 -->
+  <!-- 活动设置 -->
   <view class="card">
     <view class="field first">
       <text class="label">比赛名称</text>
@@ -13,7 +13,7 @@
       </view>
     </view>
     <view class="field">
-      <text class="label">赛事形式</text>
+      <text class="label">活动形式</text>
       <view class="seg {{fromSignup ? 'locked' : ''}}">
         <view class="seg-item {{mode === 'groups' ? 'on' : ''}}" data-v="groups" bindtap="setMode">小组赛</view>
         <view class="seg-item {{mode === 'bracket' ? 'on' : ''}}" data-v="bracket" bindtap="setMode">淘汰赛</view>
@@ -42,15 +42,15 @@
     </view>
   </view>
 
-  <!-- 时间地点和联系人（截止报名后不再显示，到赛事详情里编辑） -->
+  <!-- 时间地点和联系人（截止报名后不再显示，到活动详情里编辑） -->
   <view wx:if="{{!fromSignup}}" class="card">
-    <view class="card-title">时间地点<text class="sub">发布后可以在赛事详情里编辑</text></view>
+    <view class="card-title">时间地点<text class="sub">创建后可以在活动详情里编辑</text></view>
     <event-form bind:change="onInfo" />
   </view>
 
   <!-- 比赛规则：录分时直接沿用，不用每场再选 -->
   <view class="card">
-    <view class="card-title">比赛规则<text class="sub">{{fromSignup ? '发布时已定好' : '录分时自动沿用'}}</text></view>
+    <view class="card-title">比赛规则<text class="sub">{{fromSignup ? '创建时已定好' : '录分时自动沿用'}}</text></view>
     <view class="field first">
       <text class="label">单打 / 双打</text>
       <view class="seg {{fromSignup ? 'locked' : ''}}">
@@ -171,5 +171,5 @@
     </view>
   </block>
 
-  <view wx:else class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="publishSignup">{{saving ? '发布中…' : '发布报名'}}</view>
+  <view wx:else class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="publishSignup">{{saving ? '创建中…' : '开始报名'}}</view>
 </view>

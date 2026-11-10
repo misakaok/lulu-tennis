@@ -49,7 +49,7 @@ Page({
         const oc = outcomeOf(m);
         feed.push({
           id: m._id, md: (m.date || '').slice(5),
-          event: m.drawId ? `${m.drawTitle || '赛事'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛', isEvent: !!m.drawId,
+          event: m.drawId ? `${m.drawTitle || '活动'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛', isEvent: !!m.drawId,
           a: (m.a || []).join(' / '), b: (m.b || []).join(' / '), aw: m.winner === 'a', bw: m.winner === 'b',
           score: oc === 'walkover' ? '弃权' : E.scoreText(m.sets) + (oc === 'retired' ? ' 退赛' : ''),
           champ: CA.isFinal(m) && ((who[0] && m.winner === 'a') || (who[1] && m.winner === 'b')), // 关注的人赢了决赛

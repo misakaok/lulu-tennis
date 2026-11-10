@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "发布赛事",
+  "navigationBarTitleText": "创建球友活动",
   "usingComponents": {
     "draw-board": "/components/draw-board/draw-board",
     "event-form": "/components/event-form/event-form",

@@ -1,4 +1,4 @@
-// 编辑赛事信息（发起人或管理员）：名称、日期、开始时间、场地、定位、联系人
+// 编辑活动信息（发起人或管理员）：名称、日期、开始时间、场地、定位、联系人
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
 
@@ -12,8 +12,8 @@ Page({
       const [d, myId] = await Promise.all([db.getDraw(this.id), db.myOpenid()]);
       const owner = !!myId && d._openid === myId;
       const isAdmin = require('../../utils/member').isAdminLocal();
-      if (!owner && !isAdmin) throw new Error('只有赛事发起人或管理员可以编辑');
-      if (!owner) wx.setNavigationBarTitle({ title: '编辑赛事（管理员）' });
+      if (!owner && !isAdmin) throw new Error('只有活动发起人或管理员可以编辑');
+      if (!owner) wx.setNavigationBarTitle({ title: '编辑活动（管理员）' });
       let contact = null, contactNote = '';
       try {
         const c = await cloud.call('getContact', { drawId: this.id });
@@ -37,7 +37,7 @@ Page({
     if (this.data.saving || !this.info) return;
     const i = this.info;
     const title = this.data.title.trim();
-    if (!title) { wx.showToast({ title: '请填写赛事名称', icon: 'none' }); return; }
+    if (!title) { wx.showToast({ title: '请填写活动名称', icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
       await db.updateDrawInfo(this.id, {

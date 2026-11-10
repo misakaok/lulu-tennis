@@ -1,10 +1,10 @@
 const E = require('../../utils/event');
 
-// 显示签表（淘汰赛）或小组积分榜（小组赛），结果由赛事里录入的比分算出
+// 显示签表（淘汰赛）或小组积分榜（小组赛），结果由活动里录入的比分算出
 Component({
   properties: {
-    draw: { type: Object, value: null },      // 赛事（draws 里的一条）
-    matches: { type: Array, value: [] },      // 这个赛事已录入的比分
+    draw: { type: Object, value: null },      // 活动（draws 里的一条）
+    matches: { type: Array, value: [] },      // 这个活动已录入的比分
     editable: { type: Boolean, value: false }, // 点比赛能否进入录分
     me: { type: String, value: '' },           // 当前用户昵称，用来高亮
   },

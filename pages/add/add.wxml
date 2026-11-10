@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="event-tip" bindtap="goEvents">🏆 赛事里的比赛请到「赛事」，在签表或赛程里点对应场次录分 ›</view>
+  <view class="event-tip" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在签表或赛程里点对应场次录分 ›</view>
   <view class="confirm-tip">日常比赛提交后需要<text class="b">对手确认</text>，确认后才计入正式战绩、排名，并开放互评。</view>
   <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的头像和昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->

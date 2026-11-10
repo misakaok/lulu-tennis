@@ -61,7 +61,7 @@ function myOpenid() {
 }
 
 /* ---------- 比赛 ---------- */
-// 赛事里同一场改过比分时，旧记录不再计入战绩和水平分
+// 活动里同一场改过比分时，旧记录不再计入战绩和水平分
 // 名字按用户 ID 换成当前昵称（改昵称后历史记录跟着本人走），见 utils/ident.js
 // 正式战绩的比分快照（verified 集合：所有人可读，只有云函数能写）
 async function fetchVerified() {
@@ -263,7 +263,7 @@ async function getMatch(id) {
   try { return (await db().collection('matches').doc(id).get()).data || null; } catch (e) { return null; }
 }
 async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
-// 赛事详情页一次取齐：赛事、报名名单、我的资料、联系人、相册数量、退赛申请（云函数 drawDetail，1 次调用）。
+// 活动详情页一次取齐：活动、报名名单、我的资料、联系人、相册数量、退赛申请（云函数 drawDetail，1 次调用）。
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
 async function fetchDrawDetail(id) {
   let r;
@@ -275,15 +275,15 @@ async function fetchDrawDetail(id) {
   return r;
 }
 
-// 赛事的写入都经云函数（服务端逐个字段校验；只有发起人能改）
+// 活动的写入都经云函数（服务端逐个字段校验；只有发起人能改）
 const cloudCall = (action, data) => require('./cloud').call(action, data);
-// 发布赛事：只有设置 → 开放报名；带 entrants / lines / groups → 直接生成签表。返回赛事 ID
+// 创建球友活动：只有设置 → 开放报名；带 entrants / lines / groups → 直接生成签表。返回活动 ID
 async function addDraw(data) { return (await cloudCall('createDraw', { draw: data })).id; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
-// 编辑赛事信息：名称、日期、开始时间、场地、定位
+// 编辑活动信息：名称、日期、开始时间、场地、定位
 async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
-// 删除赛事（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的赛事要带原因
+// 删除活动（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的活动要带原因
 async function removeDraw(id, reason) { await cloudCall('removeDraw', { drawId: id, reason: reason || '' }); }
 // 单场安排（发起人）：这一场的日期、时间、场地；三项都空 = 清除。返回 { slot }
 function setFixtureSlot(id, key, slot) { return cloudCall('setFixtureSlot', { drawId: id, key, slot }); }
@@ -291,7 +291,7 @@ function setFixtureSlot(id, key, slot) { return cloudCall('setFixtureSlot', { dr
 /* ---------- 报名 ---------- */
 function fetchSignups(drawId) { return fetchAll('signups', [['createdAt', 'asc']], { drawId }); }
 
-// 我报过名的赛事（自己报的，或被搭档带上的）：赛事页「我的赛事」用
+// 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」用
 // 云函数 mySignups 1 次调用；云函数还是旧版本（未知操作）时分开读
 async function fetchMySignups() {
   const me = await myOpenid();

@@ -1,6 +1,6 @@
 // 正式战绩：哪些比赛记录计入战绩、排名、水平分和互评
 //
-//   赛事比赛：只由云函数 tennis 写入（recordEventMatch），每一场固定一条记录。
+//   活动比赛：只由云函数 tennis 写入（recordEventMatch），每一场固定一条记录。
 //            云函数写入的记录没有 _openid；小程序端写入的记录系统一定会带 _openid，伪造不了。
 //   日常比赛：录入人写入后是「待确认」；对手确认后，云函数在 verified 集合写一份比分快照
 //            （verified 所有人可读、只有云函数能写）。记录内容和快照完全一致才算正式；
@@ -16,7 +16,7 @@ function canon(v) {
   return JSON.stringify(v === undefined ? null : v);
 }
 
-// 比分快照：双方（名字和用户 ID）、胜者、局分、所属赛事场次
+// 比分快照：双方（名字和用户 ID）、胜者、局分、所属活动场次
 function snapOf(m) {
   return canon({
     a: m.a || [], b: m.b || [], aIds: m.aIds || [], bIds: m.bIds || [],
@@ -24,7 +24,7 @@ function snapOf(m) {
   });
 }
 
-// 'official' 正式 | 'pending' 日常比赛待对手确认 | 'invalid' 不是云函数写入的赛事记录（不展示、不计入）
+// 'official' 正式 | 'pending' 日常比赛待对手确认 | 'invalid' 不是云函数写入的活动记录（不展示、不计入）
 // verified: { 比赛 _id: { snap } }
 function statusOf(m, verified) {
   if (m.drawId && !m._openid) return 'official';

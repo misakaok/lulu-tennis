@@ -1,7 +1,7 @@
 const db = require('../../utils/db');
 const E = require('../../utils/event');
 
-// 我和这个赛事的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
+// 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
 function roleOf(d, myId, signed) {
   if (!myId) return null;
   const owner = d._openid === myId;
@@ -51,7 +51,7 @@ Page({
   render() {
     const signed = {};
     (this.signups || []).forEach((s) => { signed[s.drawId] = 1; });
-    // 先按赛事把比赛分好组，每个赛事只看自己的比赛（不用每个赛事都扫一遍全部战绩）
+    // 先按活动把比赛分好组，每个活动只看自己的比赛（不用每个活动都扫一遍全部战绩）
     const byDraw = {};
     (this.matches || []).forEach((m) => { if (m.drawId) (byDraw[m.drawId] = byDraw[m.drawId] || []).push(m); });
     const list = (this.draws || []).map((d) => toView(d, byDraw[d._id] || [], this.myId, signed));

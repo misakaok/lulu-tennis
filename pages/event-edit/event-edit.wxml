@@ -4,13 +4,13 @@
   <block wx:else>
     <view class="card">
       <view class="ee-row">
-        <text class="label">赛事名称</text>
+        <text class="label">活动名称</text>
         <input class="ee-in" value="{{title}}" maxlength="20" bindinput="onTitle" />
       </view>
       <event-form value="{{value}}" bind:change="onInfo" />
       <view wx:if="{{contactNote}}" class="warn">联系人读取失败：{{contactNote}}</view>
     </view>
-    <view class="muted small">赛制（单双打、局制、签数等）发布后不能修改，以免影响已经录入的比分。</view>
+    <view class="muted small">赛制（单双打、局制、签数等）创建后不能修改，以免影响已经录入的比分。</view>
     <view class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="save">{{saving ? '保存中…' : '保存'}}</view>
   </block>
 </view>

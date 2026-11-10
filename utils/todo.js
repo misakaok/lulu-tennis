@@ -12,7 +12,7 @@ function whenOf(d) {
   return `${m}月${dd}日 周${WEEK[new Date(y, m - 1, dd).getDay()]}` + (d.startTime ? ' ' + d.startTime : '');
 }
 
-// 我在各个赛事里「对手已确定、还没打」的比赛
+// 我在各个活动里「对手已确定、还没打」的比赛
 function nextMatches(draws, matches, myId, mySignups) {
   const out = [];
   (draws || []).forEach((d) => {
@@ -25,9 +25,9 @@ function nextMatches(draws, matches, myId, mySignups) {
       if (!side) return;
       const s = x.slot || {};
       out.push({
-        drawId: d._id, key: x.key, title: d.title || '赛事', stage: x.stage, rule: x.ruleText,
+        drawId: d._id, key: x.key, title: d.title || '活动', stage: x.stage, rule: x.ruleText,
         opp: side === 'a' ? x.b : x.a,
-        // 这一场单独排过时间 / 场地就用它，没排的沿用赛事的
+        // 这一场单独排过时间 / 场地就用它，没排的沿用活动的
         venue: [d.venue, s.court].filter(Boolean).join(' · ') || '待安排',
         when: whenOf({ date: s.date || d.date, startTime: s.time || (s.date ? '' : d.startTime) }),
         sortKey: (s.date || d.date || '9999') + (s.time || (s.date ? '' : d.startTime) || '99:99'),

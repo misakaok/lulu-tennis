@@ -1,4 +1,4 @@
-// 发布赛事：先定好赛制（单双打、局制、金球、盘数、淘汰 / 小组），再开放报名或直接选人抽签
+// 创建球友活动：先定好赛制（单双打、局制、金球、盘数、淘汰 / 小组），再开放报名或直接选人抽签
 const D = require('../../utils/draw');
 const E = require('../../utils/event');
 const R = require('../../utils/rating');
@@ -64,7 +64,7 @@ Page({
     } catch (e) { console.error(e); }
   },
 
-  // 报名模式：读取赛事设置和报名名单，默认全部参赛，按水平推荐种子
+  // 报名模式：读取活动设置和报名名单，默认全部参赛，按水平推荐种子
   async loadSignups() {
     try {
       const [draw, signups, full, matches] = await Promise.all([
@@ -147,7 +147,7 @@ Page({
     let info = '', ok = false;
     if (entry === 'signup') {
       ok = true;
-      info = (mode === 'bracket' ? `发布后分享到群里，大家点「我要报名」，最多 ${size} ${unit}` : `发布后分享到群里，大家点「我要报名」，报完再分 ${groupCount} 组`)
+      info = (mode === 'bracket' ? `创建后分享到群里，大家点「我要报名」，最多 ${size} ${unit}` : `创建后分享到群里，大家点「我要报名」，报完再分 ${groupCount} 组`)
         + (dbl ? '。报名时可以选搭档，没搭档的由你来配对' : '');
     } else if (odd) info = `已选 ${this.selected.length} 人，双打还差 1 人才能凑成一队`;
     else if (mode === 'bracket') {
@@ -179,7 +179,7 @@ Page({
     }, this.ruleView()));
   },
 
-  // 当前设置组成的「草稿赛事」，用来计算淘汰赛轮次和赛制一览
+  // 当前设置组成的「草稿活动」，用来计算淘汰赛轮次和赛制一览
   draft() {
     const { mode, size, groupCount, advance, type, rules, byRound } = this.data;
     return { mode, size, groupCount, advance, type, rules: { group: rules.group, ko: rules.ko, rounds: byRound ? rules.rounds : {} } };
@@ -219,7 +219,7 @@ Page({
     const c = (this.info || {}).contact;
     if (!c || !(c.name || c.phone || c.wechat)) return;
     try { await cloud.call('saveContact', { drawId: id, contact: c }); }
-    catch (e) { wx.showModal({ title: '赛事已发布，联系人未保存', content: e.message + '\n可以稍后在赛事详情里「编辑」补上。', showCancel: false }); throw e; }
+    catch (e) { wx.showModal({ title: '活动已创建，联系人未保存', content: e.message + '\n可以稍后在活动详情里「编辑」补上。', showCancel: false }); throw e; }
   },
   setEntry(e) { this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh(); },
   setMode(e) { this.changed({ mode: e.currentTarget.dataset.v }); },
@@ -312,7 +312,7 @@ Page({
     return out;
   },
 
-  // 保存到 draws：赛事形式、分阶段 / 分轮次规则；顶层 setGames 等是首个阶段的规则（兼容旧版本）
+  // 保存到 draws：活动形式、分阶段 / 分轮次规则；顶层 setGames 等是首个阶段的规则（兼容旧版本）
   settings() {
     const d = this.draft();
     const rules = { group: d.rules.group, ko: d.rules.ko, rounds: {} };
@@ -339,7 +339,7 @@ Page({
     }
   },
 
-  // 开放报名：只发布赛事设置，抽签等报名结束后再做
+  // 开放报名：只保存活动设置，抽签等报名结束后再做
   async publishSignup() {
     if (this.data.saving) return;
     this.setData({ saving: true });
@@ -348,11 +348,11 @@ Page({
         title: this.data.title.trim() || '内部赛', status: 'signup', results: {},
       }));
       try { await this.saveContact(id); } catch (e) { setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 1500); return; }
-      wx.showToast({ title: '已发布', icon: 'success' });
+      wx.showToast({ title: '已创建', icon: 'success' });
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
-      wx.showModal({ title: '发布失败', content: e.message || '请稍后再试', showCancel: false });
+      wx.showModal({ title: '创建失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }

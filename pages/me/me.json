@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "我的",
+  "navigationBarTitleText": "LULU网球",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "player-home": "/components/player-home/player-home"

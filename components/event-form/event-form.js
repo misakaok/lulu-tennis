@@ -1,4 +1,4 @@
-// 赛事信息表单（发布赛事和编辑赛事共用）：日期、开始时间、场地、地图定位、联系人
+// 活动信息表单（创建球友活动和编辑活动共用）：日期、开始时间、场地、地图定位、联系人
 // 联系人不写进 draws（draws 所有人可读），由页面通过云函数单独保存，按可见范围返回
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };

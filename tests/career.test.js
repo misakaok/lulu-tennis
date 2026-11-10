@@ -86,7 +86,7 @@ test('球员主页：带出生涯和赛季（按用户 ID，同名的人不会�
   assert.strictEqual(PV.playerView({}, [], ms, 'ua').profile, null);
 });
 
-test('待办的下一场：排过的场次用单场安排的时间和场地，没排的沿用赛事的', () => {
+test('待办的下一场：排过的场次用单场安排的时间和场地，没排的沿用活动的', () => {
   const { nextMatches } = require('../utils/todo');
   const ents = ['A', 'B', 'C', 'D'];
   const d = { _id: 'd1', title: '周末赛', status: 'drawn', type: 'single', mode: 'groups', groupCount: 1, date: '2026-11-21', startTime: '09:00', venue: '网球中心',
@@ -100,7 +100,7 @@ test('待办的下一场：排过的场次用单场安排的时间和场地，�
   assert.strictEqual(next[0].key, first[2].key); // 排得更早的排在前面
   assert.strictEqual(next[0].when, '11月20日 周五 19:30');
   assert.strictEqual(next[0].venue, '网球中心 · 2 号场');
-  assert.strictEqual(next[2].when, '11月22日 周日'); // 只改了日期：不沿用赛事的开始时间
+  assert.strictEqual(next[2].when, '11月22日 周日'); // 只改了日期：不沿用活动的开始时间
 });
 
 module.exports = T;

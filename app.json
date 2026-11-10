@@ -37,7 +37,7 @@
     "list": [
       {
         "pagePath": "pages/draw/draw",
-        "text": "赛事",
+        "text": "活动",
         "iconPath": "images/tab/draw.png",
         "selectedIconPath": "images/tab/draw-on.png"
       },

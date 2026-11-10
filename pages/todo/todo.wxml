@@ -33,7 +33,7 @@
     </view>
 
     <view wx:if="{{t.withdraws.length}}" class="card">
-      <view class="card-title">退赛申请待处理<text class="sub">你发起的赛事</text></view>
+      <view class="card-title">退赛申请待处理<text class="sub">你发起的活动</text></view>
       <view wx:for="{{t.withdraws}}" wx:key="requestId" class="row" data-draw="{{item.drawId}}" bindtap="openDraw">
         <view class="r-main"><view class="r-t">{{item.title}}</view><view class="r-opp">{{item.entrant}} 申请退赛：{{item.reason}}</view></view>
         <text class="r-go hot">处理 ›</text>

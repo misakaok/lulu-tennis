@@ -25,7 +25,7 @@ function matchRow(m, key, name, deltaOf) {
   const h = deltaOf[m._id];
   return {
     id: m._id, date: m.date || '', md: (m.date || '').slice(5),
-    event: m.drawId ? `${m.drawTitle || '赛事'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛',
+    event: m.drawId ? `${m.drawTitle || '活动'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛',
     isEvent: !!m.drawId,
     opp: (m[o] || []).join(' / '),
     partner: (m[side] || []).filter((n, i) => (myKeys ? myKeys[i] !== key : n !== name)).join(' / '),
@@ -56,7 +56,7 @@ function careerView(matches, uid, name, history) {
   return {
     has: c.played > 0 || c.finals > 0,
     cells: [
-      { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '决赛' }, { n: String(c.events), l: '参加赛事' },
+      { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '决赛' }, { n: String(c.events), l: '参加活动' },
       { n: String(c.bestStreak), l: '最长连胜' }, { n: String(c.streak), l: '当前连胜' }, { n: c.peak === null ? NONE : R.fmt(c.peak), l: '最高等级' },
     ],
     lines, badges: c.badges, got: c.got, total: c.badges.length,

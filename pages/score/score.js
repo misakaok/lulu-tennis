@@ -1,4 +1,4 @@
-// 赛事录分：从签表 / 赛程点进来，双方和赛制都已确定，只填局分
+// 活动录分：从签表 / 赛程点进来，双方和赛制都已确定，只填局分
 const E = require('../../utils/event');
 const R = require('../../utils/rules');
 const db = require('../../utils/db');
@@ -39,7 +39,7 @@ Page({
         db.fetchSignups(this.drawId).catch(() => []),
         db.myOpenid().catch(() => ''),
       ]);
-      const owner = !!myId && d._openid === myId; // 赛事文档已经读到了，不用再查一次
+      const owner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
       const f = E.findFixture(d, matches, this.key);
       if (!f) throw new Error('找不到这场比赛，签表可能已经重新抽过');
       if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
@@ -83,7 +83,7 @@ Page({
           tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
         })),
         canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
-        reason: canEdit ? '' : (myName ? '只有这场的参赛球员或赛事发起人可以录分' : '设置头像和昵称后，参赛球员才能录分'),
+        reason: canEdit ? '' : (myName ? '只有这场的参赛球员或活动发起人可以录分' : '设置头像和昵称后，参赛球员才能录分'),
         editing: !f.done && canEdit,
         init: [],
       });
@@ -116,7 +116,7 @@ Page({
     if (!this.data.canEdit) { wx.showToast({ title: this.data.reason, icon: 'none' }); return; }
     this.setData({ submitting: true });
     try {
-      // 赛事比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）
+      // 活动比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）
       const res = await this.withImpact('recordEventMatch', { drawId: this.drawId, key: this.key, date: this.data.date, sets: r.sets });
       if (!res) return;
       wx.showToast({ title: f.done ? '比分已更新' : '比分已保存', icon: 'success' });
@@ -191,5 +191,5 @@ Page({
     } catch (e) { wx.showModal({ title: '处理失败', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },
-  onRevoked() { setTimeout(() => wx.navigateBack(), 600); }, // 回到赛事页，签表 / 积分榜重新计算
+  onRevoked() { setTimeout(() => wx.navigateBack(), 600); }, // 回到活动页，签表 / 积分榜重新计算
 });

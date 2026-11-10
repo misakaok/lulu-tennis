@@ -78,7 +78,7 @@ function normalizeMatches(list, players) {
 
 function idsFor(names, uidOf) { return (names || []).map((n) => (uidOf && uidOf[n]) || ''); }
 
-// 赛事里「参赛名 → 用户 ID」：先用签表快照，再用报名记录覆盖（报名记录是本人写的，_openid 最可信）
+// 活动里「参赛名 → 用户 ID」：先用签表快照，再用报名记录覆盖（报名记录是本人写的，_openid 最可信）
 // 云函数用完全相同的规则在服务端重新计算，不信任前端写进比赛记录的 ID
 function drawUids(draw, signups) {
   const out = Object.assign({}, (draw && draw.uidOf) || {});

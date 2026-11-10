@@ -1,7 +1,7 @@
-// 赛事：把签表 / 分组和录入的比分串起来
+// 活动：把签表 / 分组和录入的比分串起来
 //
-// 赛事里的每一场比分都存在 matches 集合里，并带上
-//   drawId  所属赛事（draws 里的 _id）
+// 活动里的每一场比分都存在 matches 集合里，并带上
+//   drawId  所属活动（draws 里的 _id）
 //   drawKey 是哪一场：淘汰赛 '轮-场'（如 '0-3'），小组赛 'g组-i-j'（如 'g0-1-2'），
 //           小组赛＋淘汰赛里的淘汰赛 'k轮-场'（如 'k1-0'）
 //   ea / eb 录入时双方的参赛名（单打是名字，双打是 '张三 / 李四'）
@@ -11,7 +11,7 @@ const D = require('./draw');
 
 const TEAM_SEP = ' / ';
 
-// 赛事设置（旧签表没有这些字段时用默认值）
+// 活动设置（旧签表没有这些字段时用默认值）
 function cfgOf(d) {
   d = d || {};
   return {
@@ -32,11 +32,11 @@ function formatText(cfg) {
   ].join(' · ');
 }
 
-/* ---------- 赛制：赛事形式 + 分阶段 / 分轮次规则 ---------- */
+/* ---------- 赛制：活动形式 + 分阶段 / 分轮次规则 ---------- */
 // mode: 'bracket' 淘汰赛 | 'groups' 小组赛 | 'groups_ko' 小组赛＋淘汰赛（每组前 advance 名进入淘汰赛）
 // rules: { group: 规则, ko: 规则, rounds: { '2': 决赛规则, '4': 半决赛规则, ... } }
 //   规则 = { setGames: 4|6, noAd: 金球?, bestOf: 1|3 }；rounds 的键是这一轮的人数（2 = 决赛）
-// 旧赛事没有 rules：所有场次都用顶层的 setGames / noAd / bestOf
+// 旧活动没有 rules：所有场次都用顶层的 setGames / noAd / bestOf
 const MODES = { bracket: '淘汰赛', groups: '小组赛', groups_ko: '小组赛＋淘汰赛' };
 const hasGroups = (d) => !!d && (d.mode === 'groups' || d.mode === 'groups_ko');
 const hasKo = (d) => !!d && (d.mode !== 'groups');
@@ -90,7 +90,7 @@ function ruleFor(d, key) {
   return Object.assign({ type, stage: `淘汰赛 · ${D.roundName(players)}`, custom: !!custom }, custom || s.ko);
 }
 
-// 赛事详情里展示的赛制：每个阶段一行；单独设置过的轮次也列出来
+// 活动详情里展示的赛制：每个阶段一行；单独设置过的轮次也列出来
 function rulesSummary(d) {
   const s = stageRules(d), out = [];
   if (hasGroups(d)) out.push({ stage: '小组赛', text: ruleText(s.group) });
@@ -371,7 +371,7 @@ function withRule(d, x) {
 
 /* ---------- 单场安排：这一场具体哪天、几点、哪片场地 ---------- */
 // draws.slots: { 场次 key: { date: 'YYYY-MM-DD', time: 'HH:MM', court: '3 号场' } }（只由云函数 setFixtureSlot 写入，发起人填）
-// 按场次位置存：对阵还没确定的场次（如决赛）也可以先排好；没填的场次沿用赛事的日期、时间和场地
+// 按场次位置存：对阵还没确定的场次（如决赛）也可以先排好；没填的场次沿用活动的日期、时间和场地
 const WEEK = '日一二三四五六';
 function dayText(date) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');

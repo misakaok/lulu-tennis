@@ -1,4 +1,4 @@
-// 赛事详情：报名 → 签表 / 积分榜 → 赛程 → 点比赛录分
+// 活动详情：报名 → 签表 / 积分榜 → 赛程 → 点比赛录分
 const E = require('../../utils/event');
 const R = require('../../utils/rating');
 const db = require('../../utils/db');
@@ -30,7 +30,7 @@ Page({
 
   async load() {
     try {
-      // 赛事、报名名单、我的资料、联系人、相册数量、退赛申请：云函数 drawDetail 一次取齐
+      // 活动、报名名单、我的资料、联系人、相册数量、退赛申请：云函数 drawDetail 一次取齐
       const [bundle, all, myId] = await Promise.all([
         db.fetchDrawDetail(this.id),
         db.fetchMatches().catch(() => db.cachedMatches()),
@@ -55,7 +55,7 @@ Page({
       d._id = d._id || this.id;
       this.d = d;
       this.allMatches = all;
-      wx.setNavigationBarTitle({ title: d.title || '赛事' });
+      wx.setNavigationBarTitle({ title: d.title || '活动' });
       const signing = d.status === 'signup';
       const cfg = E.cfgOf(d);
       const n = (d.entrants || []).length;
@@ -67,9 +67,9 @@ Page({
         draw: d, meta, seedsText, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', matches,
       });
-      // 编辑信息、删除：发起人或管理员（管理员只决定显示按钮，权限由云函数判断）；其他赛事操作只有发起人
+      // 编辑信息、删除：发起人或管理员（管理员只决定显示按钮，权限由云函数判断）；其他活动操作只有发起人
       const isAdmin = require('../../utils/member').isAdminLocal();
-      const isOwner = !!myId && d._openid === myId; // 赛事文档已经读到了，不用再查一次
+      const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
       this.setData({ isOwner, canManage: isOwner || isAdmin });
       this.setData({ info: this.infoOf(d) });
       if (bundle) {
@@ -83,7 +83,7 @@ Page({
       }
     } catch (e) {
       console.error(e);
-      this.setData({ error: '赛事加载失败，可能已被删除' });
+      this.setData({ error: '活动加载失败，可能已被删除' });
     }
   },
 
@@ -175,7 +175,7 @@ Page({
   },
   ownerWithdraw(e) { const entrant = this.data.wdCandidates[Number(e.detail.value)]; if (entrant) this.doWithdraw({ entrant }); },
 
-  // 赛事相册：只数审核通过的照片（云函数统计）
+  // 活动相册：只数审核通过的照片（云函数统计）
   loadPhotoCount() {
     cloud.call('eventPhotoCount', { drawId: this.id }).then((r) => this.setData({ photoCount: r.count })).catch(() => this.setData({ photoCount: -1 }));
   },
@@ -333,7 +333,7 @@ Page({
   },
 
   /* ---------- 单场安排（发起人）：这一场具体哪天、几点、哪片场地 ---------- */
-  // 对阵还没确定的场次也可以先排；没排的场次沿用赛事的日期、时间和场地
+  // 对阵还没确定的场次也可以先排；没排的场次沿用活动的日期、时间和场地
   planSlot(e) {
     const x = (this.items || []).find((i) => i.key === e.currentTarget.dataset.key);
     if (!x || !this.data.isOwner) return;
@@ -381,8 +381,8 @@ Page({
   remove() {
     if (!this.data.isOwner) { this.adminRemove(); return; }
     wx.showModal({
-      title: '删除这个赛事？',
-      content: '删除后所有人都看不到签表了，赛事相册的照片和联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
+      title: '删除这个活动？',
+      content: '删除后所有人都看不到签表了，活动相册的照片和联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
@@ -395,9 +395,9 @@ Page({
     });
   },
 
-  // 管理员删除别人发起的赛事：必须填原因（留档）
+  // 管理员删除别人发起的活动：必须填原因（留档）
   async adminRemove() {
-    const reason = await this.ask('删除这个赛事（管理员）', '删除原因（必填，会留档）。相册照片和联系人一起删除，已录比分保留');
+    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。相册照片和联系人一起删除，已录比分保留');
     if (reason === null) return;
     if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
     try {

@@ -1,17 +1,17 @@
 <view class="hero">
-  <view class="hero-title">赛事</view>
-  <view class="hero-sub">发布赛事 → 报名 → 抽签分组 → 赛程录分 → 自动晋级排名</view>
-  <view class="hero-btn" bindtap="goNew">＋ 发布赛事</view>
+  <view class="hero-title">活动</view>
+  <view class="hero-sub">创建球友活动 → 报名 → 抽签分组 → 赛程录分 → 自动晋级排名</view>
+  <view class="hero-btn" bindtap="goNew">＋ 创建球友活动</view>
 </view>
 
 <view class="page">
   <view class="seg tabs">
-    <view class="seg-item {{tab === 'all' ? 'on' : ''}}" data-v="all" bindtap="setTab">全部赛事</view>
-    <view class="seg-item {{tab === 'mine' ? 'on' : ''}}" data-v="mine" bindtap="setTab">我的赛事{{mineCount ? ' ' + mineCount : ''}}</view>
+    <view class="seg-item {{tab === 'all' ? 'on' : ''}}" data-v="all" bindtap="setTab">全部活动</view>
+    <view class="seg-item {{tab === 'mine' ? 'on' : ''}}" data-v="mine" bindtap="setTab">我的活动{{mineCount ? ' ' + mineCount : ''}}</view>
   </view>
   <view wx:if="{{!shown.length && !loading}}" class="empty">
     <view class="empty-ball"></view>
-    <view>{{tab === 'mine' ? '你还没有发起或报名赛事' : '还没有赛事'}}</view>
+    <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 
   <view wx:for="{{shown}}" wx:key="_id" class="card draw" data-id="{{item._id}}" bindtap="open">

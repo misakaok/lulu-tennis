@@ -2,7 +2,7 @@
   <view class="sum">{{summary}}</view>
   <view class="seg">
     <view class="seg-item {{filter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setFilter">全部</view>
-    <view class="seg-item {{filter === 'event' ? 'on' : ''}}" data-v="event" bindtap="setFilter">赛事</view>
+    <view class="seg-item {{filter === 'event' ? 'on' : ''}}" data-v="event" bindtap="setFilter">活动</view>
     <view class="seg-item {{filter === 'daily' ? 'on' : ''}}" data-v="daily" bindtap="setFilter">日常比赛</view>
   </view>
   <view wx:if="{{!shown.length && !loading}}" class="muted">没有比赛记录</view>

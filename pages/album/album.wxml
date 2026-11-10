@@ -1,10 +1,10 @@
 <view class="page">
   <view class="al-head">
-    <view class="al-title">{{title || '赛事相册'}}</view>
+    <view class="al-title">{{title || '活动相册'}}</view>
     <view class="al-sub">{{passCount}} 张照片 · 照片通过内容审核后大家才能看到</view>
     <view class="al-acts">
       <view wx:if="{{canUpload}}" class="al-add" bindtap="addPhotos">＋ 添加照片</view>
-      <view wx:else class="al-note">赛事发起人和已报名的球员可以上传照片</view>
+      <view wx:else class="al-note">活动发起人和已报名的球员可以上传照片</view>
       <view wx:if="{{photos.length && (isOwner || canUpload)}}" class="al-manage {{manage ? 'on' : ''}}" bindtap="toggleManage">{{manage ? '完成' : '管理'}}</view>
     </view>
   </view>

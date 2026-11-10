@@ -131,8 +131,8 @@ Page({
     this.searchTimer = setTimeout(() => { this.limit = PAGE; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
   },
   onUnload() { clearTimeout(this.searchTimer); },
-  goAdd() { wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；赛事比赛在签表里录）
-  // 点击比赛：详情页里可以确认赛果、评价对手；赛事比赛可以从详情页进入赛事
+  goAdd() { wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
+  // 点击比赛：详情页里可以确认赛果、评价对手；活动比赛可以从详情页进入活动
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
 
   onLong(e) {

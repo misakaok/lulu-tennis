@@ -25,7 +25,7 @@
       <input class="name-in" type="nickname" value="{{name}}" placeholder="点击填写，可用微信昵称" maxlength="10"
         bindinput="onName" bindblur="onName" bindchange="onName" />
     </view>
-    <view class="hint left">昵称只用于展示。改昵称不影响以前的战绩、赛事报名和对手评价（都按账号关联）。</view>
+    <view class="hint left">昵称只用于展示。改昵称不影响以前的战绩、活动报名和对手评价（都按账号关联）。</view>
 
     <view class="name-row">
       <text class="label">性别</text>

@@ -42,7 +42,7 @@ function seed(env) {
   const OF = require('../utils/official');
   for (let i = 0; i < 25; i += 2) env.put('verified', { _id: 'dm' + i, snap: OF.snapOf(env.coll('matches')['dm' + i]) });
   env.put('matches', { _id: 'ev1', drawId: 'd1', drawKey: '0-0', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'b', sets: [{ a: 2, b: 4 }], outcome: 'normal', date: '2026-11-01', createdAt: 100 });
-  env.put('matches', { _id: 'fake', _openid: 'carl', drawId: 'd1', drawKey: '0-0', a: ['Alice'], b: ['Carl'], winner: 'b', sets: [{ a: 0, b: 4 }], date: '2026-11-02', createdAt: 101 }); // 绕过签表写的赛事比分：不认可
+  env.put('matches', { _id: 'fake', _openid: 'carl', drawId: 'd1', drawKey: '0-0', a: ['Alice'], b: ['Carl'], winner: 'b', sets: [{ a: 0, b: 4 }], date: '2026-11-02', createdAt: 101 }); // 绕过签表写的活动比分：不认可
 }
 
 test('一次性读取（dataset）和分页读取的结果完全一致', async () => {
@@ -115,7 +115,7 @@ test('整理后的结果也缓存：缓存期内不重写本机存储；过期�
     assert.ok(writes > w2); assert.ok(c.db.cachedMatches().length > 0);
   } finally { Date.now = realNow; }
 });
-test('赛事详情一次取齐（drawDetail）：1 次调用', async () => {
+test('活动详情一次取齐（drawDetail）：1 次调用', async () => {
   const env = createEnv(); env.load(); seed(env);
   const c = client(env, 'alice');
   const r = await c.db.fetchDrawDetail('d1');

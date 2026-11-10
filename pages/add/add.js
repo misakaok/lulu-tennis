@@ -1,6 +1,6 @@
-// 记录日常比赛（不属于赛事的约球）：自己固定在 A 方，搭档和对手只能选已注册球员（按用户 ID 关联）。
+// 记录日常比赛（不属于活动的约球）：自己固定在 A 方，搭档和对手只能选已注册球员（按用户 ID 关联）。
 // 提交后是「待确认」，对手确认后才计入正式战绩、排名，并开放互评（见 utils/official.js）。
-// 赛事里的比赛不在这里录：从赛事签表 / 赛程点对应场次录分。
+// 活动里的比赛不在这里录：从活动签表 / 赛程点对应场次录分。
 const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = require('../../utils/db');

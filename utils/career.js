@@ -1,6 +1,6 @@
 // 生涯成就：全部由正式战绩（db.fetchMatches）实时计算，不单独存数据，也不能手动修改。
 //   场数、胜负、胜率只算正常完赛的比赛（isNormal），和排行榜、球员主页同一个口径；
-//   冠军 / 亚军看赛事决赛的比赛记录（弃权胜也算夺冠）；赛事删除后比分还在，冠军也还在。
+//   冠军 / 亚军看活动决赛的比赛记录（弃权胜也算夺冠）；活动删除后比分还在，冠军也还在。
 const { isNormal } = require('./rules');
 const { tsOf } = require('./event');
 const SE = require('./season');
@@ -26,10 +26,10 @@ const BADGES = [
   { id: 's3', icon: '🔥', name: '三连胜', desc: '连赢 3 场', need: 3, v: (c) => c.bestStreak },
   { id: 's5', icon: '🚀', name: '五连胜', desc: '连赢 5 场', need: 5, v: (c) => c.bestStreak },
   { id: 's10', icon: '👑', name: '十连胜', desc: '连赢 10 场', need: 10, v: (c) => c.bestStreak },
-  { id: 'final', icon: '🥈', name: '决赛选手', desc: '打进一次赛事决赛', need: 1, v: (c) => c.finals },
-  { id: 'champ', icon: '🏆', name: '冠军', desc: '赢得一项赛事', need: 1, v: (c) => c.titles.length },
-  { id: 'champ3', icon: '🏅', name: '三冠王', desc: '赢得 3 项赛事', need: 3, v: (c) => c.titles.length },
-  { id: 'ev5', icon: '📅', name: '赛事达人', desc: '参加 5 项赛事', need: 5, v: (c) => c.events },
+  { id: 'final', icon: '🥈', name: '决赛选手', desc: '打进一次活动决赛', need: 1, v: (c) => c.finals },
+  { id: 'champ', icon: '🏆', name: '冠军', desc: '在一次活动中夺冠', need: 1, v: (c) => c.titles.length },
+  { id: 'champ3', icon: '🏅', name: '三冠王', desc: '在 3 次活动中夺冠', need: 3, v: (c) => c.titles.length },
+  { id: 'ev5', icon: '📅', name: '活动达人', desc: '参加 5 次活动', need: 5, v: (c) => c.events },
   { id: 'bagel', icon: '🥚', name: '送蛋', desc: '一盘没让对手拿到一局', need: 1, v: (c) => c.bagels },
   { id: 'comeback', icon: '🔄', name: '逆转', desc: '先丢一盘后赢下比赛', need: 1, v: (c) => c.comebacks },
   { id: 'both', icon: '🤝', name: '单双全能', desc: '单打和双打都赢过', need: 2, v: (c) => (c.single.win ? 1 : 0) + (c.double.win ? 1 : 0) },
@@ -54,7 +54,7 @@ function career(matches, key, name, history) {
     if (m.drawId) draws[m.drawId] = 1;
     if (isFinal(m)) {
       c.finals++;
-      if (won) { c.titles.push({ title: m.drawTitle || '赛事', date: m.date || '', season }); if (season) seasonRow(season).titles++; }
+      if (won) { c.titles.push({ title: m.drawTitle || '活动', date: m.date || '', season }); if (season) seasonRow(season).titles++; }
     }
     if (!isNormal(m)) return; // 弃权、中途退赛：不算场数、胜负和连胜
     c.played++;

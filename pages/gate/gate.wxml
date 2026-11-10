@@ -23,6 +23,6 @@
 
     <view wx:else class="g-wait">⏳ 已提交，管理员审核后下拉刷新即可</view>
   </block>
-  <view class="g-foot">赛事、报名、战绩、排名、评价、联系人和照片只对正式成员开放</view>
+  <view class="g-foot">活动、报名、战绩、排名、评价、联系人和照片只对正式成员开放</view>
   <view wx:if="{{myId}}" class="g-id" bindtap="copyMyId">我的用户 ID：尾号 {{myIdTail}} · 点击复制</view>
 </view>
