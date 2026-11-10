@@ -1,4 +1,4 @@
-// 编辑球员资料：照片（相册 / 拍照 / 微信头像，1:1 裁剪预览）、昵称、性别、网球等级（自评）、个人简介
+// 编辑球员资料：照片（相册 / 拍照，1:1 裁剪预览；微信头像分辨率太低，已去掉这个入口）、昵称、性别、网球等级（自评）、个人简介
 // 比赛场数、胜率、排名由比赛记录自动计算，这里不能改。
 // 所有关联（战绩、报名、评价）都按用户 ID，改昵称或换照片不影响。
 const db = require('../../utils/db');
@@ -40,15 +40,12 @@ Page({
   },
 
   /* ---------- 照片 ---------- */
-  // 微信官方头像选择
-  onAvatar(e) { this.setPhoto(e.detail.avatarUrl, ''); },
-
   // 从相册选或拍照 → 1:1 裁剪 → 预览（保存时才上传）
   pickAlbum() { this.pick('album'); },
   pickCamera() { this.pick('camera'); },
   pick(source) {
     wx.chooseMedia({
-      count: 1, mediaType: ['image'], sourceType: [source], sizeType: ['compressed'], camera: 'front',
+      count: 1, mediaType: ['image'], sourceType: [source], sizeType: ['original'], camera: 'front', // 取原图：裁剪后由 utils/compress.js 统一压缩，避免微信先压一遍再裁导致模糊
       success: (r) => {
         const f = r.tempFiles && r.tempFiles[0];
         if (f) this.crop(f.tempFilePath);

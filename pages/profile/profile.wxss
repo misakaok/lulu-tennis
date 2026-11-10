@@ -6,8 +6,6 @@
 .photo-tag { position: absolute; left: 50%; bottom: -16rpx; transform: translateX(-50%); white-space: nowrap; background: #6E6EA3; color: #fff; font-size: 20rpx; padding: 4rpx 16rpx; border-radius: 20rpx; }
 .photo-btns { display: flex; margin-top: 40rpx; align-self: stretch; }
 .pb { flex: 1; margin: 0 8rpx; height: 80rpx; line-height: 80rpx; text-align: center; border-radius: 20rpx; background: #F1F1F8; color: #4F4F7D; font-size: 26rpx; font-weight: 600; padding: 0; }
-.pb.wx { line-height: 80rpx; }
-.pb.wx::after { border: none; }
 .pb-i { margin-right: 8rpx; }
 .photo-ops { margin-top: 18rpx; }
 .op { font-size: 24rpx; color: #6E6EA3; margin: 0 20rpx; text-decoration: underline; }

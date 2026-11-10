@@ -10,7 +10,6 @@
     <view class="photo-btns">
       <view class="pb" bindtap="pickAlbum"><text class="pb-i">🖼</text>相册</view>
       <view class="pb" bindtap="pickCamera"><text class="pb-i">📷</text>拍照</view>
-      <button class="pb wx" open-type="chooseAvatar" bindchooseavatar="onAvatar"><text class="pb-i">💬</text>微信头像</button>
     </view>
     <view wx:if="{{photoNew}}" class="photo-ops">
       <text wx:if="{{canRecrop}}" class="op" bindtap="recrop">重新裁剪</text>

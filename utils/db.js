@@ -230,7 +230,7 @@ async function getMyProfile() {
 }
 const cachedProfile = () => cacheGet('my_profile', null) || null;
 
-// 上传头像（chooseAvatar 得到的是临时文件，要传到云存储，别人才能看到）
+// 上传头像（选图、裁剪得到的是临时文件，要传到云存储，别人才能看到）
 async function uploadAvatar(tempPath) {
   const ext = (tempPath.match(/\.(\w+)$/) || [])[1] || 'jpg';
   const res = await wx.cloud.uploadFile({
