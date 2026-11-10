@@ -61,6 +61,7 @@ Page({
     const r = await this.run('createInvite', { note, days: 7 }, '');
     if (r) { this.setData({ lastInvite: r.code, tab: 'invite' }); wx.showToast({ title: '已生成，点「发给球友」', icon: 'none' }); }
   },
+  copyCode(e) { wx.setClipboardData({ data: e.currentTarget.dataset.code, success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' }) }); },
   revoke(e) { this.run('revokeInvite', { code: e.currentTarget.dataset.code }, '已作废'); },
   onShareAppMessage(e) {
     const code = (e && e.target && e.target.dataset && e.target.dataset.code) || this.data.lastInvite;

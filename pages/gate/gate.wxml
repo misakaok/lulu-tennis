@@ -11,12 +11,14 @@
 
     <block wx:elif="{{status !== 'pending'}}">
       <view class="card">
-        <view class="card-title">{{invite ? '接受邀请' : (status === 'none' ? '申请加入' : '重新申请')}}</view>
+        <view class="card-title">{{invite || codeMode ? '接受邀请' : (status === 'none' ? '申请加入' : '重新申请')}}</view>
+        <input wx:if="{{codeMode && !invite}}" class="g-in g-code" value="{{code}}" maxlength="32" placeholder="邀请码（管理员给的 12 位字母数字）" bindinput="onCode" />
         <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（球友认识你的名字）" bindinput="onName" />
-        <textarea wx:if="{{!invite}}" class="g-ta" value="{{note}}" maxlength="100" placeholder="说明（选填）：例如 周六一起打球的小王介绍" bindinput="onNote" />
+        <textarea wx:if="{{!invite && !codeMode}}" class="g-ta" value="{{note}}" maxlength="100" placeholder="说明（选填）：例如 周六一起打球的小王介绍" bindinput="onNote" />
       </view>
-      <view wx:if="{{invite}}" class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="accept">{{busy ? '加入中…' : '接受邀请，加入球友圈'}}</view>
+      <view wx:if="{{invite || codeMode}}" class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="accept">{{busy ? '加入中…' : '接受邀请，加入球友圈'}}</view>
       <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="apply">{{busy ? '提交中…' : '提交申请'}}</view>
+      <view wx:if="{{!invite}}" class="g-switch" bindtap="toggleCode">{{codeMode ? '没有邀请码，改为提交申请' : '我有邀请码'}}</view>
     </block>
 
     <view wx:else class="g-wait">⏳ 已提交，管理员审核后下拉刷新即可</view>

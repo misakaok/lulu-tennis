@@ -13,7 +13,7 @@ const TEXT = {
 };
 
 Page({
-  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', name: '', note: '', busy: false, myId: '', myIdTail: '' },
+  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', codeMode: false, code: '', name: '', note: '', busy: false, myId: '', myIdTail: '' },
   onLoad(o) {
     this.setData({ invite: o.invite || '' });
     member.clearProtected(); // 进了准入页就清掉受保护的缓存
@@ -37,6 +37,9 @@ Page({
     wx.setClipboardData({ data: id, success: () => wx.showToast({ title: '已复制，发给管理员即可', icon: 'none' }) });
   },
   onName(e) { this.setData({ name: e.detail.value }); },
+  // 手动输入邀请码：没有邀请链接时（例如管理员口头或文字给的邀请码）也能加入；校验和链接进来的一样，都在云函数 acceptInvite
+  onCode(e) { this.setData({ code: e.detail.value }); },
+  toggleCode() { this.setData({ codeMode: !this.data.codeMode }); },
   onNote(e) { this.setData({ note: e.detail.value }); },
   async apply() {
     if (this.data.busy) return;
@@ -48,8 +51,10 @@ Page({
   },
   async accept() {
     if (this.data.busy) return;
+    const code = this.data.invite || (this.data.code || '').replace(/\s+/g, '').toLowerCase(); // 邀请码是小写字母数字，容忍手动输入时的空格和大写
+    if (!code) { wx.showToast({ title: '请填写邀请码', icon: 'none' }); return; }
     this.setData({ busy: true });
-    try { await cloud.call('acceptInvite', { code: this.data.invite, name: this.data.name }); wx.showToast({ title: '已加入', icon: 'success' }); await this.load(); }
+    try { await cloud.call('acceptInvite', { code, name: this.data.name }); wx.showToast({ title: '已加入', icon: 'success' }); await this.load(); }
     catch (e) { wx.showModal({ title: '无法加入', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },

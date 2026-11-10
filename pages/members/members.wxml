@@ -69,7 +69,7 @@
       <view class="card-title">有效的邀请<text class="sub">一次性，7 天有效</text></view>
       <view wx:if="{{!d.invites.length}}" class="muted">还没有有效的邀请</view>
       <view wx:for="{{d.invites}}" wx:key="code" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.note || '邀请'}}</view><view class="m-s">邀请码 {{item.code}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.note || '邀请'}}</view><view class="m-s" data-code="{{item.code}}" bindtap="copyCode">邀请码 {{item.code}} · 点击复制</view></view>
         <text class="m-a" data-code="{{item.code}}" bindtap="revoke">作废</text>
         <button class="m-share" open-type="share" data-code="{{item.code}}">发给球友</button>
       </view>
