@@ -1,5 +1,5 @@
-// 赛后：确认赛果 → 互评对手；以及撤销赛果
-// 所有资格判断（是否参赛、是否对手、是否结束、是否已确认、是否重复）都由云函数完成，
+// 赛后：确认赛果、比分纠错，以及撤销赛果
+// 所有资格判断（是否参赛、是否结束、是否已确认）都由云函数完成，
 // 这里只按云函数返回的状态显示按钮，按钮被绕过也提交不成功。
 const cloud = require('../../utils/cloud');
 
@@ -13,7 +13,7 @@ Component({
   // 多字段监听器在同批属性更新后执行，不依赖 Promise 微任务的调度时机。
   observers: { 'matchId, preset'() { this.load(true); } },
   data: { st: null, loading: false, busy: false, err: '' },
-  pageLifetimes: { show() { if (this.loaded) this.load(); } }, // 从评价页回来刷新
+  pageLifetimes: { show() { if (this.loaded) this.load(); } }, // 从改分页回来刷新
   methods: {
     async load(usePreset) {
       const id = this.data.matchId;
@@ -46,11 +46,6 @@ Component({
         await this.load();
       } catch (e) { wx.showModal({ title: '无法确认', content: e.message, showCancel: false }); }
       this.setData({ busy: false });
-    },
-    // 评价对象按用户 ID 传，名字只用来显示
-    review(e) {
-      const { id, t } = e.currentTarget.dataset;
-      wx.navigateTo({ url: `/pages/review/review?matchId=${this.data.matchId}&targetId=${encodeURIComponent(id)}&target=${encodeURIComponent(t)}` });
     },
     /* ---------- 比分纠错 ---------- */
     edit() {
@@ -107,7 +102,7 @@ Component({
     revoke() {
       wx.showModal({
         title: '撤销这场比赛的赛果？',
-        content: '比分会被删除，战绩、排名、水平分和晋级结果随之更新，已有的确认和对手评价不再生效。',
+        content: '比分会被删除，战绩、排名、水平分和晋级结果随之更新，已有的确认不再生效。',
         confirmText: '撤销', confirmColor: '#e5484d',
         success: async (r) => {
           if (!r.confirm) return;

@@ -1,4 +1,4 @@
-// 调用云函数 tennis（赛果确认、互评、联系人等需要服务端校验的操作）
+// 调用云函数 tennis（赛果确认、联系人等需要服务端校验的操作）
 const NAME = 'tennis';
 
 async function call(action, data) {
@@ -25,8 +25,8 @@ async function call(action, data) {
 // 写操作成功后作废前端内存缓存（utils/memo.js），保证自己刚改的数据马上能看到。
 // 只读操作不作废；未列出的操作一律当作写操作（宁可多拉一次，也不显示旧数据）
 const READ_ONLY = {
-  memberStatus: 1, ping: 1, matchState: 1, pendingReviews: 1, reviewSummary: 1, reviewableWith: 1, myTodos: 1,
-  getContact: 1, getBios: 1, avatarUrls: 1, drawRequests: 1, listEventPhotos: 1, eventPhotoCount: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1, followInfo: 1,
+  memberStatus: 1, ping: 1, matchState: 1, myTodos: 1,
+  getContact: 1, drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
 };
 const GW_WRITE_OPS = { add: 1, update: 1, remove: 1 };
 function invalidateAfter(action, data) {

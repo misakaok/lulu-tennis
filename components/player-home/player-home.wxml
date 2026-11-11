@@ -1,9 +1,9 @@
-<!-- 顶部大卡片：照片、昵称、性别、网球等级（比赛等级 / 自评分开）、简介 -->
+<!-- 顶部大卡片：昵称、性别、网球等级（比赛等级 / 自评分开） -->
 <view class="pcard {{view.profile ? '' : 'pcard-empty'}}" bindtap="edit">
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
   <view class="pc-top">
-    <view class="pc-photo-wrap"><av-img class="pc-photo" src="{{view.profile ? view.profile.avatar : ''}}" /></view>
+    <view class="pc-photo-wrap"><view class="pc-photo init" style="background:{{view.profile ? view.profile.color : '#C9C9DE'}}">{{view.profile ? view.profile.initial : ''}}</view></view>
     <view class="pc-main">
       <block wx:if="{{view.profile}}">
         <view class="pc-name">{{view.profile.name}}</view>
@@ -12,7 +12,6 @@
           <text class="pc-tag">{{view.level.tier}}</text>
           <text wx:if="{{view.level.provisional}}" class="pc-tag hl">定级中 {{view.level.played}}/{{view.level.need}}</text>
         </view>
-        <view wx:if="{{follow}}" class="pc-follow" catchtap="openFollows">{{follow.self ? '关注 ' + follow.following + ' · 粉丝 ' + follow.followers + ' ›' : '粉丝 ' + follow.followers}}</view>
       </block>
       <block wx:elif="{{isSelf || !loaded}}">
         <view class="pc-name">未设置资料</view>
@@ -38,7 +37,6 @@
         <view wx:elif="{{view.level.match === '暂无'}}" class="pc-lv-note">打完正式比赛后自动计算</view>
       </view>
     </view>
-    <view wx:if="{{bio}}" class="pc-bio">“{{bio}}”</view>
   </block>
   <view wx:elif="{{isSelf}}" class="pc-cta">完善球员资料 ›</view>
 </view>
@@ -53,11 +51,9 @@
   </view>
   <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : '数据根据正式战绩自动计算（日常比赛需对手确认）'}}</view>
 
-  <!-- 别人的主页：关注 / 发起挑战 / 评价（评价必须关联已确认的交手比赛） -->
+  <!-- 别人的主页：发起挑战 -->
   <view wx:if="{{loaded && !isSelf}}" class="acts">
-    <view wx:if="{{follow}}" class="act {{follow.on ? 'on' : ''}} {{busy ? 'dis' : ''}}" bindtap="toggleFollow">{{follow.on ? '已关注' : '＋ 关注'}}</view>
-    <view class="act" bindtap="challenge">发起挑战</view>
-    <view class="act main {{busy ? 'dis' : ''}}" bindtap="reviewTa">评价 TA</view>
+    <view class="act main" bindtap="challenge">发起挑战</view>
   </view>
 
   <!-- 近期比赛 -->
@@ -105,20 +101,5 @@
     </view>
     <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><text class="cr-k">🏆 冠军</text><text class="cr-v">{{item.title}}<text class="cr-d">{{item.date}}</text></text></view>
     <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
-  </view>
-
-  <!-- 对手评价（匿名，和竞技等级分开） -->
-  <view wx:if="{{rep}}" class="card">
-    <view class="card-title">对手评价<text class="sub">匿名 · 不影响等级和排名</text></view>
-    <view wx:if="{{!rep.count}}" class="muted">还没有对手评价</view>
-    <block wx:else>
-      <view class="rep-top"><text class="rep-big">{{rep.overall}}</text><text class="rep-cnt">综合评分 · {{rep.count}} 条评价{{rep.few ? '（较少，仅供参考）' : ''}}</text></view>
-      <view wx:for="{{rep.dims}}" wx:key="k" class="rep-dim">
-        <text class="rep-t">{{item.t}}</text>
-        <view class="rep-bar"><view class="rep-fill" style="width:{{item.w}}%"></view></view>
-        <text class="rep-v">{{item.v}}</text>
-      </view>
-      <view wx:for="{{rep.recent}}" wx:key="index" class="rep-txt">“{{item.text}}”<text class="rep-d">{{item.date}}</text></view>
-    </block>
   </view>
 </block>

@@ -35,7 +35,6 @@
 .result:empty { display: none; }
 .result.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 700; }
 
-.avatar.img { display: block; background: #f2f2f8; }
 .event-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #F1F1F8; color: #6E6EA3; font-size: 24rpx; }
 .confirm-tip { margin-bottom: 20rpx; padding: 16rpx 24rpx; border-radius: 18rpx; background: #fff8e6; color: #9a6a00; font-size: 23rpx; line-height: 1.6; }
 .confirm-tip .b { font-weight: 800; }

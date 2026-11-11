@@ -40,14 +40,6 @@
       </view>
     </view>
 
-    <view wx:if="{{t.toReview.length}}" class="card">
-      <view class="card-title">待评价</view>
-      <view wx:for="{{t.toReview}}" wx:key="matchId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">
-        <view class="r-main"><view class="r-t">{{item.date}} · {{item.title}}</view><view class="r-opp">评价 {{item.todo[0]}}{{item.todo.length > 1 ? ' 等 ' + item.todo.length + ' 人' : ''}}</view></view>
-        <text class="r-go">去评价 ›</text>
-      </view>
-    </view>
-
     <view wx:if="{{t.waiting.length || t.myRequests.length}}" class="card">
       <view class="card-title">等待对方处理</view>
       <view wx:for="{{t.waiting}}" wx:key="matchId" class="row" data-id="{{item.matchId}}" bindtap="openMatch">

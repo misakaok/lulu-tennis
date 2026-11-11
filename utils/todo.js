@@ -1,4 +1,4 @@
-// 待办：下一场比赛（按赛程实时算）+ 云函数 myTodos（待我确认 / 等对方确认 / 待评价 / 改分申请 / 退赛申请）
+// 待办：下一场比赛（按赛程实时算）+ 云函数 myTodos（待我确认 / 等对方确认 / 改分申请 / 退赛申请）
 // 都从当前数据实时计算：已完成、取消（退赛成绩取消）或失效的事项自然不再出现
 const db = require('./db');
 const E = require('./event');
@@ -40,10 +40,10 @@ function nextMatches(draws, matches, myId, mySignups) {
 async function load() {
   const [draws, matches, myId, mySignups] = await Promise.all([db.fetchDraws(), db.fetchMatches(), db.myOpenid(), db.fetchMySignups().catch(() => [])]);
   const next = nextMatches(draws, matches, myId, mySignups);
-  let srv = { toConfirm: [], waiting: [], toReview: [], toRespond: [], myRequests: [], withdraws: [] };
+  let srv = { toConfirm: [], waiting: [], toRespond: [], myRequests: [], withdraws: [] };
   let error = '';
   try { srv = await cloud.cached('myTodos'); } catch (e) { error = e.message; }
-  const count = next.length + srv.toConfirm.length + srv.toReview.length + srv.toRespond.length + srv.withdraws.length;
+  const count = next.length + srv.toConfirm.length + srv.toRespond.length + srv.withdraws.length;
   return Object.assign({ next, count, error }, srv);
 }
 

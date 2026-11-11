@@ -1,5 +1,5 @@
 // 记录日常比赛（不属于活动的约球）：自己固定在 A 方，搭档和对手只能选已注册球员（按用户 ID 关联）。
-// 提交后是「待确认」，对手确认后才计入正式战绩、排名，并开放互评（见 utils/official.js）。
+// 提交后是「待确认」，对手确认后才计入正式战绩和排名（见 utils/official.js）。
 // 活动里的比赛不在这里录：从活动签表 / 赛程点对应场次录分。
 const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
@@ -36,9 +36,7 @@ Page({
 
   // 只有已注册（设置过资料、昵称唯一）的球员可选：对手要用自己的账号确认比分
   setPlayers(full) {
-    this.avatarOf = {};
     this.uidOf = ID.uidByName(full);
-    full.forEach((p) => { if (p.avatar) this.avatarOf[p.name] = p.avatar; });
     this.players = full.filter((p) => p.uid && this.uidOf[p.name] === p.uid && p.uid !== this.myId).map((p) => p.name);
   },
 
@@ -89,7 +87,6 @@ Page({
           key, name, active: this.active === key,
           placeholder: (side === 'a' ? 'A' : 'B') + ' 方' + (dbl ? `球员${i + 1}` : '球员'),
           initial: name ? R.initialOf(name) : '', color: name ? R.colorOf(name) : '',
-          avatar: name ? (this.avatarOf || {})[name] || '' : '',
         });
       }
       return arr;
@@ -99,7 +96,7 @@ Page({
 
     const res = this.res;
     let check;
-    if (!this.slots.a[0]) check = { ok: false, msg: '请先设置自己的头像和昵称' };
+    if (!this.slots.a[0]) check = { ok: false, msg: '请先设置自己的昵称' };
     else if (used.length < n * 2) check = { ok: false, msg: dbl ? '请选择搭档和两名对手' : '请选择对手' };
     else if (res.ok) {
       const wn = (res.winner === 'a' ? aNames : bNames).join(' / ');
@@ -109,7 +106,7 @@ Page({
 
     this.setData({
       slotsA: mk('a'), slotsB: mk('b'),
-      chips: this.players.map((p) => ({ name: p, used: used.indexOf(p) >= 0, avatar: this.avatarOf[p] || '' })),
+      chips: this.players.map((p) => ({ name: p, used: used.indexOf(p) >= 0 })),
       aLabel: aNames.filter(Boolean).join('/') || 'A 方',
       bLabel: bNames.filter(Boolean).join('/') || 'B 方',
       check,

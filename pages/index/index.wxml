@@ -33,8 +33,7 @@
       <view class="m-row {{item.winner === 'a' ? 'win' : 'lose'}}">
         <view class="avatars">
           <block wx:for="{{item.a}}" wx:key="name" wx:for-item="p">
-            <av-img wx:if="{{p.avatar}}" class="avatar sm img" src="{{p.avatar}}" />
-            <view wx:else class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
+            <view class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
           </block>
         </view>
         <view class="names">{{item.aText}}<text wx:if="{{item.winner === 'a'}}" class="cup"> 🏆</text><text wx:if="{{item.aDelta}}" class="delta {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</text></view>
@@ -46,8 +45,7 @@
       <view class="m-row {{item.winner === 'b' ? 'win' : 'lose'}}">
         <view class="avatars">
           <block wx:for="{{item.b}}" wx:key="name" wx:for-item="p">
-            <av-img wx:if="{{p.avatar}}" class="avatar sm img" src="{{p.avatar}}" />
-            <view wx:else class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
+            <view class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
           </block>
         </view>
         <view class="names">{{item.bText}}<text wx:if="{{item.winner === 'b'}}" class="cup"> 🏆</text><text wx:if="{{item.bDelta}}" class="delta {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</text></view>
@@ -59,5 +57,5 @@
   </block>
 
   <view wx:if="{{more}}" class="foot">上滑加载更多</view>
-  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分和评价对手 · 长按可删除自己录入的日常比赛</view>
+  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分 · 长按可删除自己录入的日常比赛</view>
 </view>

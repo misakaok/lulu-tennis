@@ -1,6 +1,5 @@
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
-const RV = require('../../utils/reviews');
 const { colorOf, initialOf } = require('../../utils/rules');
 
 Page({
@@ -21,7 +20,7 @@ Page({
       const r = R.ratingOf(ratings, name, players, p.uid);
       const level = R.levelOf(ratings, name, players, p.uid);
       return {
-        name, uid: p.uid || '', avatar: p.avatar || '', initial: initialOf(name), color: colorOf(name),
+        name, uid: p.uid || '', initial: initialOf(name), color: colorOf(name),
         level: R.fmt(level), raw: level, tier: R.tierOf(level), provisional: !r || r.provisional,
       };
     };
@@ -40,7 +39,6 @@ Page({
       h2h: h2h.length ? `历史交手 ${h2h.length} 场：${a.name} ${aWins} 胜 ${h2h.length - aWins} 负` : '还没有交手过',
       gain: ok ? this.preview(a.raw, b.raw) : '',
     });
-    RV.summary([a.uid, b.uid]).then((rep) => { if (rep) this.setData({ repA: a.uid ? rep[a.uid] : null, repB: b.uid ? rep[b.uid] : null }); });
   },
 
   // 预估：4:2 赢一盘大概涨多少

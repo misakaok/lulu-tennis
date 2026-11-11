@@ -3,7 +3,7 @@
 //   场数 / 胜负 / 胜率 / 排名 / 比赛等级都由比赛记录计算，和排行榜、报名名单同一套规则。
 const R = require('./rating');
 const S = require('./stats');
-const { outcomeOf, isNormal } = require('./rules');
+const { outcomeOf, isNormal, initialOf, colorOf } = require('./rules');
 const CA = require('./career');
 const SE = require('./season');
 
@@ -85,7 +85,7 @@ function playerView(profiles, players, matches, uid) {
   const selfLv = typeof p.level === 'number' ? p.level : null;
   const played = st ? st.played : 0;
   return {
-    profile: { uid, name: p.name, avatar: p.avatar || '', gender: S.GENDER[p.gender] || '性别未公开' },
+    profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未公开' },
     ambiguous,
     level: {
       // 比赛等级（由比赛算）和自评等级分开显示；没有就是「暂无」

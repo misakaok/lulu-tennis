@@ -44,15 +44,7 @@ Page({
       if (!f) throw new Error('找不到这场比赛，签表可能已经重新抽过');
       if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
 
-      const avatars = Object.assign({}, d.avatars || {});
-      players.forEach((p) => { if (p.avatar && !avatars[p.name]) avatars[p.name] = p.avatar; });
-      const byUid = {};
-      players.forEach((p) => { if (p.uid) byUid[p.uid] = p; });
-      const uidMap = ID.drawUids(d, signups);
-      const person = (n) => {
-        const cur = byUid[uidMap[n]]; // 按账号取最新照片
-        return { name: n, avatar: (cur && cur.avatar) || avatars[n] || '', initial: R.initialOf(n), color: R.colorOf(n) };
-      };
+      const person = (n) => ({ name: n, initial: R.initialOf(n), color: R.colorOf(n) });
 
       // 参赛者按用户 ID 判断（报名记录 / 签表快照），不看昵称；旧签表里没绑定 ID 的只能由发起人录
       const uidOf = ID.drawUids(d, signups);
@@ -83,7 +75,7 @@ Page({
           tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
         })),
         canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
-        reason: canEdit ? '' : (myName ? '只有这场的参赛球员或活动发起人可以录分' : '设置头像和昵称后，参赛球员才能录分'),
+        reason: canEdit ? '' : (myName ? '只有这场的参赛球员或活动发起人可以录分' : '设置昵称后，参赛球员才能录分'),
         editing: !f.done && canEdit,
         init: [],
       });

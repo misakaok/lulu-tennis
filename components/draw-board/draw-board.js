@@ -12,8 +12,6 @@ Component({
   observers: {
     'draw, matches, me'(d, matches, me) {
       if (!d) return;
-      const av = d.avatars || {};
-      const avsOf = (ent) => E.membersOf(d, ent).map((n) => av[n] || '').filter(Boolean).slice(0, 2);
       const isMe = (ent) => !!me && E.membersOf(d, ent).indexOf(me) >= 0;
       const games = (sets, side) => (sets || []).map((s) => s[side]).join(' ');
       let groups = [], rounds = [], champion = null, colH = 0, koPending = false;
@@ -22,7 +20,7 @@ Component({
         const adv = d.mode === 'groups_ko' ? (d.advance === 1 ? 1 : 2) : 0;
         groups = raw.map((g) => ({
           name: g.name, done: g.done, total: g.fixtures.length,
-          table: g.table.map((r) => Object.assign({}, r, { avs: avsOf(r.name), mine: isMe(r.name), q: adv && r.rank && r.rank <= adv, wdText: r.withdrawn === 'void' ? '退赛·成绩取消' : r.withdrawn ? '退赛' : '' })),
+          table: g.table.map((r) => Object.assign({}, r, { mine: isMe(r.name), q: adv && r.rank && r.rank <= adv, wdText: r.withdrawn === 'void' ? '退赛·成绩取消' : r.withdrawn ? '退赛' : '' })),
           fixtures: g.fixtures.map((f) => Object.assign({}, f, {
             score: f.outcome === 'void' ? '取消' : f.outcome === 'walkover' ? '弃权' : E.scoreText(f.sets) + (f.outcome === 'retired' ? ' 退赛' : ''),
             mine: isMe(f.a) || isMe(f.b),
@@ -35,7 +33,6 @@ Component({
         v.rounds.forEach((rd) => rd.matches.forEach((m) => {
           ['a', 'b'].forEach((k) => {
             const x = m[k];
-            x.avs = x.name ? avsOf(x.name) : [];
             x.games = games(m.sets, k);
             x.mine = !!x.name && isMe(x.name);
             // 结果标签：轮空晋级 / 弃权胜 / 弃权负 / 中途退赛（不生成虚假局分）
@@ -46,7 +43,6 @@ Component({
           });
           m.done = !!(m.a.win || m.b.win);
         }));
-        if (v.champion) v.champion.avs = avsOf(v.champion.name);
         rounds = v.rounds; champion = v.champion;
         colH = (rounds.length ? rounds[0].matches.length : 0) * 150;
       }

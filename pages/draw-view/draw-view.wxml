@@ -43,13 +43,6 @@
       <view wx:elif="{{contactErr && isOwner}}" class="vis-note">联系人暂时无法读取：{{contactErr}}</view>
     </view>
 
-    <!-- 活动相册入口 -->
-    <view class="card album-entry" bindtap="openAlbum">
-      <text class="ae-icon">📷</text>
-      <view class="ae-main"><view class="ae-t">活动相册</view><view class="ae-s">{{photoCount > 0 ? photoCount + ' 张照片' : photoCount === 0 ? '还没有照片，参赛球员可以上传' : '查看和上传比赛照片'}}</view></view>
-      <text class="ae-go">›</text>
-    </view>
-
     <!-- 报名中 -->
     <block wx:if="{{signing}}">
       <view class="card">
@@ -62,8 +55,7 @@
         <view wx:for="{{signups}}" wx:key="_id" class="su-team">
           <view wx:for="{{item.members}}" wx:key="name" wx:for-item="p" class="su-row" data-uid="{{p.uid}}" bindtap="openPlayer">
             <text class="su-no">{{index === 0 ? item.no : ''}}</text>
-            <av-img wx:if="{{p.avatar}}" class="su-av2" src="{{p.avatar}}" />
-            <view wx:else class="su-av2 init" style="background:{{p.color}}">{{p.initial}}</view>
+            <view class="su-av2 init" style="background:{{p.color}}">{{p.initial}}</view>
             <view class="su-main">
               <view class="su-top"><text class="su-nm">{{p.name}}</text><text class="su-g {{p.gender === '暂无' ? 'none' : ''}}">{{p.gender}}</text></view>
               <view class="su-stats">
@@ -117,8 +109,7 @@
           <view class="sch-row {{item.winner === 'a' ? 'w' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p">
-                <av-img wx:if="{{p.avatar}}" class="sch-av" src="{{p.avatar}}" />
-                <view wx:else class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
+                <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
               </block>
             </view>
             <text class="sch-name">{{item.aText}}</text>
@@ -127,8 +118,7 @@
           <view class="sch-row {{item.winner === 'b' ? 'w' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p">
-                <av-img wx:if="{{p.avatar}}" class="sch-av" src="{{p.avatar}}" />
-                <view wx:else class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
+                <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
               </block>
             </view>
             <text class="sch-name">{{item.bText}}</text>

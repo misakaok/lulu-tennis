@@ -16,6 +16,5 @@
     <view class="link" bindtap="goRank">去排行榜看看 ›</view>
   </view>
 
-  <view class="diag" bindtap="checkAvatars">{{checking ? '正在检测头像…' : '头像显示不出来？点这里检测'}}</view>
   <view wx:if="{{myId}}" class="diag" bindtap="copyMyId">我的用户 ID：尾号 {{myIdTail}} · 点击复制</view>
 </view>

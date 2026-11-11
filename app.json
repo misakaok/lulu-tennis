@@ -12,15 +12,12 @@
     "pages/score/score",
     "pages/event-edit/event-edit",
     "pages/match/match",
-    "pages/review/review",
     "pages/player/player",
     "pages/history/history",
-    "pages/album/album",
     "pages/todo/todo",
     "pages/correct/correct",
     "pages/gate/gate",
-    "pages/members/members",
-    "pages/follows/follows"
+    "pages/members/members"
   ],
   "window": {
     "navigationBarBackgroundColor": "#A3A3CB",
@@ -65,7 +62,6 @@
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
   "usingComponents": {
-    "av-img": "/components/av-img/av-img"
   },
   "requiredPrivateInfos": [
     "chooseLocation"

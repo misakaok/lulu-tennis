@@ -18,9 +18,9 @@ function dateLabel(str) {
   return (y === now.getFullYear() ? '' : `${y}年`) + `${m}月${d}日 ${w}`;
 }
 
-function toView(m, avatarOf, deltas) {
+function toView(m, deltas) {
   const d = deltas[m._id] || {};
-  const side = (k) => (m[k] || []).map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n), avatar: avatarOf[n] || '' }));
+  const side = (k) => (m[k] || []).map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n) }));
   const first = (k) => ((m[k + 'Keys'] || m[k] || [])[0]); // 同队两人涨跌相同，取第一位的统计身份
   const deltaText = (k) => {
     const v = (m[k] || []).length ? d[first(k)] : undefined;
@@ -85,7 +85,7 @@ Page({
     if (this.data.loading) this.setData({ loading: false });
   },
 
-  // 换数据源：水平分涨跌、头像、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
+  // 换数据源：水平分涨跌、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
   // 返回是否有变化
   setSource(matches, players) {
     const sig = JSON.stringify([matches || [], players || []]);
@@ -96,10 +96,8 @@ Page({
     const month = ymd(new Date()).slice(0, 7);
     const names = {};
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
-    const avatarOf = {};
-    (players || []).forEach((p) => { if (p.avatar) avatarOf[p.name] = p.avatar; });
     this.src = {
-      shown, avatarOf,
+      shown,
       deltas: R.computeRatings(all, R.startLevelsFrom(players || [])).deltas,
       stat: { total: all.length, month: all.filter((m) => (m.date || '').indexOf(month) === 0).length, players: Object.keys(names).length },
     };
@@ -108,7 +106,7 @@ Page({
 
   // 列表显示正式战绩 + 待对手确认的日常比赛；按筛选条件过滤后只渲染前 limit 场
   render() {
-    const { shown, avatarOf, deltas, stat } = this.src || { shown: [], avatarOf: {}, deltas: {}, stat: this.data.stat };
+    const { shown, deltas, stat } = this.src || { shown: [], deltas: {}, stat: this.data.stat };
     const who = (this.who !== undefined ? this.who : this.data.who).trim();
     const filter = this.data.filter;
     const list = shown.filter((m) =>
@@ -118,7 +116,7 @@ Page({
     list.slice(0, this.limit || PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
-      g.items.push(toView(m, avatarOf, deltas));
+      g.items.push(toView(m, deltas));
     });
     this.setData({ groups, stat, more: list.length > (this.limit || PAGE) });
   },
@@ -132,7 +130,7 @@ Page({
   },
   onUnload() { clearTimeout(this.searchTimer); },
   goAdd() { wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
-  // 点击比赛：详情页里可以确认赛果、评价对手；活动比赛可以从详情页进入活动
+  // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
 
   onLong(e) {

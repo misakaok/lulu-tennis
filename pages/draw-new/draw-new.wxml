@@ -106,7 +106,6 @@
       <view class="chips">
         <view wx:for="{{chips}}" wx:key="name" class="chip {{item.on ? 'on' : ''}}" data-name="{{item.name}}" bindtap="togglePlayer">
           <text wx:if="{{item.team}}" class="team-no">{{item.team}}队</text>
-          <av-img wx:elif="{{item.avatar}}" class="chip-av" src="{{item.avatar}}" />
           <text>{{item.name}}</text><text wx:if="{{item.level}}" class="chip-lv">{{item.level}}</text>
         </view>
         <view wx:if="{{!chips.length}}" class="muted">还没有球员，在下面添加</view>
@@ -142,14 +141,12 @@
       <view class="chips">
         <view wx:for="{{seedChips}}" wx:key="name" class="chip seedable {{item.seed ? 'seeded' : ''}}" data-name="{{item.name}}" bindtap="toggleSeed">
           <text wx:if="{{item.seed}}" class="badge">{{item.seed}}</text>
-          <av-img wx:elif="{{item.avatar}}" class="chip-av" src="{{item.avatar}}" />
           <text>{{item.name}}</text><text wx:if="{{item.level}}" class="chip-lv">{{item.level}}</text>
         </view>
       </view>
       <view wx:if="{{seedList.length}}" class="seed-list">
         <view wx:for="{{seedList}}" wx:key="name" class="seed-row">
           <text class="seed-no">{{item.seed}} 号种子</text>
-          <av-img wx:if="{{item.avatar}}" class="seed-av" src="{{item.avatar}}" />
           <text class="seed-name">{{item.name}}</text>
           <text wx:if="{{item.level}}" class="seed-lv">{{item.level}}</text>
           <text wx:if="{{index > 0}}" class="seed-up" data-i="{{index}}" bindtap="seedUp">↑ 上移</text>

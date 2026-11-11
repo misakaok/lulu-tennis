@@ -2,8 +2,6 @@
 //   uid：要看的球员的用户 ID。是不是本人由当前登录账号判断，只有本人看得到「编辑资料」。
 //   统计数据都按正式战绩自动计算，页面上不能改。
 const db = require('../../utils/db');
-const cloud = require('../../utils/cloud');
-const RV = require('../../utils/reviews');
 const PV = require('../../utils/player');
 
 const RECENT = 5;
@@ -13,9 +11,9 @@ Component({
   properties: {
     uid: { type: String, value: '', observer: 'load' },
   },
-  data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, bio: '', rep: null, busy: false, follow: null, allBadges: false },
+  data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, allBadges: false },
   lifetimes: { attached() { if (this.data.uid) this.load(); } },
-  pageLifetimes: { show() { if (this.loadedOnce) this.load(); } }, // 编辑资料 / 评价后回来刷新
+  pageLifetimes: { show() { if (this.loadedOnce) this.load(); } }, // 编辑资料后回来刷新
 
   methods: {
     async load() {
@@ -32,7 +30,6 @@ Component({
         this.render(db.cachedProfiles(), players, matches, uid);
       } catch (e) { console.error(e); }
       this.setData({ loaded: true });
-      this.loadSocial(uid);
     },
 
     render(profiles, players, matches, uid) {
@@ -44,35 +41,6 @@ Component({
       });
     },
 
-    // 个人简介和对手评价来自云函数（按用户 ID）
-    async loadSocial(uid) {
-      cloud.cached('getBios', { ids: [uid] }).then((r) => this.setData({ bio: r.bios[uid] || '' })).catch(() => {});
-      this.loadFollow(uid);
-      const rep = await RV.summary([uid]);
-      this.setData({ rep: rep ? rep[uid] || RV.view(null) : null });
-    },
-
-    // 关注：自己的主页显示「关注了多少人、多少人关注我」；别人的主页显示 TA 的粉丝数和我有没有关注
-    // 只公开人数，谁关注了谁只有本人自己看得到（云函数 followInfo）
-    loadFollow(uid) {
-      const self = !!this.myId && this.myId === uid;
-      cloud.cached('followInfo', self ? {} : { uid }).then((r) => {
-        if (this.data.uid !== uid) return;
-        this.setData({ follow: self ? { self: true, followers: r.followers, following: r.following.length } : { self: false, followers: (r.target || {}).followers || 0, on: !!(r.target && r.target.following) } });
-      }).catch(() => {});
-    },
-    async toggleFollow() {
-      const f = this.data.follow;
-      if (!f || f.self || this.data.busy) return;
-      this.setData({ busy: true });
-      try {
-        const r = await cloud.call('setFollow', { targetId: this.data.uid, on: !f.on });
-        this.setData({ follow: { self: false, on: r.following, followers: Math.max(0, f.followers + (r.following === f.on ? 0 : r.following ? 1 : -1)) } });
-        wx.showToast({ title: r.following ? '已关注' : '已取消关注', icon: 'none' });
-      } catch (e) { wx.showModal({ title: '操作失败', content: e.message, showCancel: false }); }
-      finally { this.setData({ busy: false }); }
-    },
-    openFollows() { if (this.data.isSelf) wx.navigateTo({ url: '/pages/follows/follows' }); },
     toggleBadges() { this.setData({ allBadges: !this.data.allBadges }); },
     badgeTip(e) {
       const b = this.data.view.career.badges[e.currentTarget.dataset.i];
@@ -91,29 +59,6 @@ Component({
       const v = this.data.view;
       if (!me) { wx.showToast({ title: '先在「我的」里设置资料', icon: 'none' }); return; }
       wx.navigateTo({ url: `/pages/challenge/challenge?from=${encodeURIComponent(me.name)}&to=${encodeURIComponent(v.profile.name)}` });
-    },
-
-    // 从主页评价：只能挑「实际交手、比分双方确认、还没评价过」的比赛，云函数列出并在提交时再校验
-    async reviewTa() {
-      if (this.data.busy) return;
-      this.setData({ busy: true });
-      try {
-        const r = await cloud.call('reviewableWith', { targetId: this.data.uid });
-        const name = this.data.view.profile.name;
-        const go = (m) => wx.navigateTo({ url: `/pages/review/review?matchId=${m.matchId}&targetId=${encodeURIComponent(this.data.uid)}&target=${encodeURIComponent(name)}` });
-        if (r.list.length === 1) go(r.list[0]);
-        else if (r.list.length > 1) {
-          const list = r.list.slice(0, 6);
-          wx.showActionSheet({ itemList: list.map((m) => `${(m.date || '').slice(5)} ${m.title} ${m.score}`), success: (x) => go(list[x.tapIndex]) });
-        } else {
-          let msg = `你和 ${name} 还没有已确认比分的交手比赛。只有实际交手、比分经双方确认后才能评价`;
-          if (r.unconfirmed) msg = `你们有 ${r.unconfirmed} 场比赛的比分还没双方确认，确认后才能评价`;
-          else if (r.reviewed) msg = `你们交手过的比赛，你都已经评价过 ${name} 了`;
-          wx.showModal({ title: '暂时不能评价', content: msg, showCancel: false });
-        }
-      } catch (e) {
-        wx.showModal({ title: '暂时不能评价', content: e.message, showCancel: false });
-      } finally { this.setData({ busy: false }); }
     },
   },
 });

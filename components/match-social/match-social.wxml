@@ -8,22 +8,12 @@
         <view class="ms-side {{st.sides.a ? 'ok' : ''}}">A 方：{{st.sideA}}</view>
         <view class="ms-side {{st.sides.b ? 'ok' : ''}}">B 方：{{st.sideB}}</view>
       </view>
-      <view wx:if="{{st.unbound}}" class="ms-muted">这场有球员没有绑定账号（旧记录或手动添加的球员），这些位置不能确认，也不能评价或被评价。</view>
-      <view class="ms-status {{st.confirmed ? 'ok' : ''}}">{{st.confirmed ? '✅ 双方已确认，赛果生效，可以互评' : '比分需要双方各有一人认可（录入的一方自动算认可）'}}</view>
+      <view wx:if="{{st.unbound}}" class="ms-muted">这场有球员没有绑定账号（旧记录或手动添加的球员），这些位置不能确认。</view>
+      <view class="ms-status {{st.confirmed ? 'ok' : ''}}">{{st.confirmed ? '✅ 双方已确认，赛果生效' : '比分需要双方各有一人认可（录入的一方自动算认可）'}}</view>
       <view wx:if="{{st.canConfirm}}" class="btn-primary ms-btn {{busy ? 'disabled' : ''}}" bindtap="confirm">比分无误，确认</view>
     </block>
     <view wx:else class="ms-muted">{{st.reason}}</view>
 
-    <block wx:if="{{st.finished && st.mySide}}">
-      <view class="card-title ms-t2">评价对手<text class="sub">1～5 分，匿名展示，不影响等级和排名</text></view>
-      <view wx:for="{{st.reviews}}" wx:key="index" class="ms-opp">
-        <text class="ms-name">{{item.target}}</text>
-        <text wx:if="{{item.unbound}}" class="ms-wait">未绑定账号，无法评价</text>
-        <text wx:elif="{{item.done}}" class="ms-done">已评价 {{item.overall}} 分</text>
-        <view wx:elif="{{st.canReview}}" class="ms-go" data-id="{{item.targetId}}" data-t="{{item.target}}" bindtap="review">去评价 ›</view>
-        <text wx:else class="ms-wait">确认后可评价</text>
-      </view>
-    </block>
     <view wx:if="{{st.finished && !st.mySide && st.reason}}" class="ms-muted">{{st.reason}}</view>
   </block>
   <!-- 比分纠错 -->

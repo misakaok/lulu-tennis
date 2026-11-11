@@ -28,7 +28,6 @@ Page({
     this.date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     this.selected = []; // 选中的球员（双打按顺序两两组队）
     this.seeds = [];    // 种子（参赛单位：单打是名字，双打是「张三 / 李四」）
-    this.avatarOf = {};
     this.players = [];
     this.setPlayers(db.cachedPlayersFull());
     let last = {};
@@ -50,7 +49,7 @@ Page({
 
   setPlayers(full) {
     this.nameUid = Object.assign(this.nameUid || {}, ID.uidByName(full));
-    const names = full.map((p) => { if (p.avatar) this.avatarOf[p.name] = p.avatar; return p.name; });
+    const names = full.map((p) => p.name);
     this.players.forEach((n) => { if (names.indexOf(n) < 0) names.push(n); });
     this.players = names;
   },
@@ -72,8 +71,6 @@ Page({
       ]);
       this.setPlayers(full);
       signups.forEach((s) => {
-        if (s.avatar) this.avatarOf[s.name] = s.avatar;
-        if (s.partner && s.partnerAvatar) this.avatarOf[s.partner] = s.partnerAvatar;
       });
       this.ratings = R.computeRatings(matches, R.startLevelsFrom(full));
       this.signUid = ID.drawUids(null, signups); // 报名记录是本人写的，ID 最可靠
@@ -164,13 +161,13 @@ Page({
     const seedInfo = `建议设 ${this.recSeeds(n)} 个种子，最多 ${max} 个` + (this.isGroups() ? '（种子按蛇形分到各组）' : '（1、2 号种子分在上下半区）');
     const lv = (x) => (this.ratings ? R.fmt(x) : '');
     const chip = (ent) => ({
-      name: ent, avatar: this.avatarOf[this.membersOf(ent)[0]] || '', level: lv(this.levelOfEnt(ent)),
+      name: ent, level: lv(this.levelOfEnt(ent)),
     });
 
     this.setData(Object.assign({
       chips: this.players.map((p) => {
         const i = this.selected.indexOf(p);
-        return { name: p, avatar: this.avatarOf[p] || '', level: lv(this.levelOf(p)), on: i >= 0, team: dbl && i >= 0 ? Math.floor(i / 2) + 1 : 0 };
+        return { name: p, level: lv(this.levelOf(p)), on: i >= 0, team: dbl && i >= 0 ? Math.floor(i / 2) + 1 : 0 };
       }),
       teamList: dbl ? ents.map((t, i) => ({ no: i + 1, name: t, level: lv(this.levelOfEnt(t)) })).concat(odd ? [{ no: ents.length + 1, name: this.selected[this.selected.length - 1] + ' / ？', level: '' }] : []) : [],
       seedChips: ents.map((p) => Object.assign(chip(p), { seed: this.seeds.indexOf(p) + 1 })),
@@ -306,12 +303,6 @@ Page({
     return out;
   },
 
-  avatarsOf(names) {
-    const out = {};
-    names.forEach((n) => { if (this.avatarOf[n]) out[n] = this.avatarOf[n]; });
-    return out;
-  },
-
   // 保存到 draws：活动形式、分阶段 / 分轮次规则；顶层 setGames 等是首个阶段的规则（兼容旧版本）
   settings() {
     const d = this.draft();
@@ -326,7 +317,7 @@ Page({
       const ents = this.entrants();
       const base = Object.assign(this.settings(), {
         entrants: ents, seeds: this.seeds.slice(), results: {},
-        teams: this.teams || {}, avatars: this.avatarsOf(this.selected), uidOf: this.uidsOf(this.selected),
+        teams: this.teams || {}, uidOf: this.uidsOf(this.selected),
       });
       const preview = !this.isGroups()
         ? Object.assign(base, { lines: D.makeBracket(ents, this.seeds, this.data.size) })

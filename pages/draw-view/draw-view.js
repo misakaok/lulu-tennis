@@ -19,7 +19,7 @@ Page({
   data: {
     draw: null, meta: '', formatText: '', seedsText: '', error: '', myName: '', myId: '',
     signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
-    partnerOpts: [], info: null, contact: null, contactErr: '', photoCount: -1,
+    partnerOpts: [], info: null, contact: null, contactErr: '',
     matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
   },
 
@@ -30,7 +30,7 @@ Page({
 
   async load() {
     try {
-      // 活动、报名名单、我的资料、联系人、相册数量、退赛申请：云函数 drawDetail 一次取齐
+      // 活动、报名名单、我的资料、联系人、退赛申请：云函数 drawDetail 一次取齐
       const [bundle, all, myId] = await Promise.all([
         db.fetchDrawDetail(this.id),
         db.fetchMatches().catch(() => db.cachedMatches()),
@@ -46,12 +46,6 @@ Page({
         ]);
       }
       this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
-      // 签表照片按账号取最新的（换照片后签表也跟着变；名字仍是生成签表时的参赛名）
-      const byUid = {};
-      db.cachedPlayersFull().forEach((p) => { if (p.uid) byUid[p.uid] = p; });
-      const av = Object.assign({}, d.avatars || {});
-      Object.keys(this.uidOf).forEach((n) => { const p = byUid[this.uidOf[n]]; if (p && p.avatar) av[n] = p.avatar; });
-      d.avatars = av;
       d._id = d._id || this.id;
       this.d = d;
       this.allMatches = all;
@@ -73,8 +67,8 @@ Page({
       this.setData({ isOwner, canManage: isOwner || isAdmin });
       this.setData({ info: this.infoOf(d) });
       if (bundle) {
-        this.setData({ contact: bundle.contact && bundle.contact.has ? bundle.contact : null, contactErr: bundle.contactErr || '', photoCount: bundle.photoCount });
-      } else { this.loadContact(); this.loadPhotoCount(); }
+        this.setData({ contact: bundle.contact && bundle.contact.has ? bundle.contact : null, contactErr: bundle.contactErr || '' });
+      } else this.loadContact();
       if (signing) await this.loadSignups(d, all, bundle ? signups : null);
       else {
         this.renderSchedule();
@@ -175,15 +169,6 @@ Page({
   },
   ownerWithdraw(e) { const entrant = this.data.wdCandidates[Number(e.detail.value)]; if (entrant) this.doWithdraw({ entrant }); },
 
-  // 活动相册：只数审核通过的照片（云函数统计）
-  loadPhotoCount() {
-    cloud.call('eventPhotoCount', { drawId: this.id }).then((r) => this.setData({ photoCount: r.count })).catch(() => this.setData({ photoCount: -1 }));
-  },
-  openAlbum() {
-    const t = this.data.draw ? this.data.draw.title : '';
-    wx.navigateTo({ url: `/pages/album/album?id=${this.id}&title=${encodeURIComponent(t)}` });
-  },
-
   openMap() {
     const d = this.d, loc = d.location;
     if (loc && typeof loc.latitude === 'number') {
@@ -192,7 +177,7 @@ Page({
   },
   callPhone() { const c = this.data.contact; if (c && c.phone) wx.makePhoneCall({ phoneNumber: c.phone }); },
   copyWechat() { const c = this.data.contact; if (c && c.wechat) wx.setClipboardData({ data: c.wechat }); },
-  // 点报名名单里的头像 / 昵称 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
+  // 点报名名单里的球员 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
   openPlayer(e) {
     const uid = e.currentTarget.dataset.uid;
     if (!uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
@@ -213,19 +198,19 @@ Page({
     const stats = S.playerStats(matches || db.cachedMatches(), players);
     const profOf = {};
     players.forEach((p) => { profOf[p.name] = p; });
-    // 报名名单按账号显示「当前」昵称和照片：改名、换照片后报名照样有效，显示也跟着更新
+    // 报名名单按账号显示「当前」昵称：改名后报名照样有效，显示也跟着更新
     const byUid = {};
     players.forEach((p) => { if (p.uid) byUid[p.uid] = p; });
-    const person = (snapName, snapAvatar, uid) => {
+    const person = (snapName, uid) => {
       const cur = uid && byUid[uid];
       const name = cur ? cur.name : snapName;
       return Object.assign({
-        name, uid: uid || '', avatar: (cur && cur.avatar) || snapAvatar || (profOf[name] && profOf[name].avatar) || '', initial: initialOf(name), color: colorOf(name),
+        name, uid: uid || '', initial: initialOf(name), color: colorOf(name),
       }, S.display(stats, name, cur || profOf[name], uid));
     };
     const signups = list.map((s, i) => {
-      const members = [person(s.name, s.avatar, s._openid)];
-      if (s.partner) members.push(person(s.partner, s.partnerAvatar, s.partnerId));
+      const members = [person(s.name, s._openid)];
+      if (s.partner) members.push(person(s.partner, s.partnerId));
       return Object.assign({ _id: s._id, no: i + 1, solo: !s.partner, members }, members[0]);
     });
     // 按用户 ID 判断谁已经报名（自己报的 _openid，或被搭档带上的 partnerId）
@@ -259,7 +244,7 @@ Page({
     try { me = await db.getMyProfile(); } catch (e) {}
     if (!me) {
       wx.showModal({
-        title: '先设置头像和昵称', content: '报名名单里会显示你的头像和昵称', confirmText: '去设置',
+        title: '先设置昵称', content: '报名名单里会显示你的昵称', confirmText: '去设置',
         success: (r) => { if (r.confirm) wx.navigateTo({ url: '/pages/profile/profile?from=signup' }); },
       });
       return;
@@ -275,12 +260,11 @@ Page({
           await this.loadSignups(this.d, this.allMatches);
           return;
         }
-        partner = { name: pick.name, uid: pick.uid, avatar: pick.avatar || '' };
+        partner = { name: pick.name, uid: pick.uid };
       }
       await db.signUp(this.id, partner);
       wx.showToast({ title: '报名成功', icon: 'success' });
       this.loadContact();
-      this.loadPhotoCount(); // 报名后可以看到联系方式
       await this.loadSignups(this.d, this.allMatches);
     } catch (e) {
       console.error(e);
@@ -313,9 +297,8 @@ Page({
   /* ---------- 签表 / 赛程 ---------- */
   renderSchedule() {
     const d = this.d, me = this.data.myName;
-    const av = d.avatars || {};
     const list = E.scheduleOf(d, this.data.matches);
-    const side = (members) => members.map((n) => ({ name: n, avatar: av[n] || '', initial: initialOf(n), color: colorOf(n) }));
+    const side = (members) => members.map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n) }));
     const items = list.map((x) => Object.assign({}, x, {
       aP: side(x.aMembers), bP: side(x.bMembers),
       aText: x.tbdA ? x.labelA || '待定' : x.a, bText: x.tbdB ? x.labelB || '待定' : x.b,
@@ -382,7 +365,7 @@ Page({
     if (!this.data.isOwner) { this.adminRemove(); return; }
     wx.showModal({
       title: '删除这个活动？',
-      content: '删除后所有人都看不到签表了，活动相册的照片和联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
+      content: '删除后所有人都看不到签表了，联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
@@ -397,7 +380,7 @@ Page({
 
   // 管理员删除别人发起的活动：必须填原因（留档）
   async adminRemove() {
-    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。相册照片和联系人一起删除，已录比分保留');
+    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。联系人一起删除，已录比分保留');
     if (reason === null) return;
     if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
     try {

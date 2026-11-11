@@ -1,7 +1,7 @@
 <view class="page">
   <view class="event-tip" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在签表或赛程里点对应场次录分 ›</view>
-  <view class="confirm-tip">日常比赛提交后需要<text class="b">对手确认</text>，确认后才计入正式战绩、排名，并开放互评。</view>
-  <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的头像和昵称，才能记录比赛 ›</view>
+  <view class="confirm-tip">日常比赛提交后需要<text class="b">对手确认</text>，确认后才计入正式战绩和排名。</view>
+  <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->
   <view class="card">
     <view class="line">
@@ -48,8 +48,7 @@
       <view class="side">
         <view wx:for="{{slotsA}}" wx:key="key" class="slot a {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
           data-key="{{item.key}}" bindtap="tapSlot">
-          <av-img wx:if="{{item.name && item.avatar}}" class="avatar sm img" src="{{item.avatar}}" />
-          <view wx:elif="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <view wx:if="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
           <text class="slot-name">{{item.name || item.placeholder}}</text>
         </view>
       </view>
@@ -57,8 +56,7 @@
       <view class="side">
         <view wx:for="{{slotsB}}" wx:key="key" class="slot b {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
           data-key="{{item.key}}" bindtap="tapSlot">
-          <av-img wx:if="{{item.name && item.avatar}}" class="avatar sm img" src="{{item.avatar}}" />
-          <view wx:elif="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <view wx:if="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
           <text class="slot-name">{{item.name || item.placeholder}}</text>
         </view>
       </view>
@@ -66,7 +64,7 @@
 
     <view class="chips">
       <view wx:for="{{chips}}" wx:key="name" class="chip {{item.used ? 'used' : ''}}" data-name="{{item.name}}" bindtap="pickPlayer">
-        <av-img wx:if="{{item.avatar}}" class="chip-av" src="{{item.avatar}}" />{{item.name}}
+        {{item.name}}
       </view>
       <view wx:if="{{!chips.length}}" class="chips-empty">还没有其他已注册的球员。请球友先在「我的」里设置资料</view>
     </view>

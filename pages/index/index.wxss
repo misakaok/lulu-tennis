@@ -33,7 +33,6 @@
 
 .foot { text-align: center; color: #A5A5BA; font-size: 22rpx; margin-top: 30rpx; }
 
-.avatar.img { display: block; background: #f2f2f8; }
 .delta { font-size: 20rpx; font-weight: 700; margin-left: 10rpx; padding: 0 8rpx; border-radius: 8rpx; }
 .delta.up { color: #2f8a52; background: #e9f6ee; }
 .delta.down { color: #b34d4d; background: #f8eeee; }

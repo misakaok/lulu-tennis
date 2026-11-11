@@ -1,23 +1,6 @@
 <view class="page">
   <view wx:if="{{tip}}" class="tip">{{tip}}</view>
 
-  <!-- 照片 -->
-  <view class="card center">
-    <view class="photo-wrap">
-      <av-img class="photo" src="{{avatarShow}}" />
-      <view wx:if="{{photoNew}}" class="photo-tag">新照片 · 保存后上传</view>
-    </view>
-    <view class="photo-btns">
-      <view class="pb" bindtap="pickAlbum"><text class="pb-i">🖼</text>相册</view>
-      <view class="pb" bindtap="pickCamera"><text class="pb-i">📷</text>拍照</view>
-    </view>
-    <view wx:if="{{photoNew}}" class="photo-ops">
-      <text wx:if="{{canRecrop}}" class="op" bindtap="recrop">重新裁剪</text>
-      <text class="op" bindtap="undoPhoto">撤销更换</text>
-    </view>
-    <view class="hint">相册和拍照的照片会先按 1:1 裁剪，预览满意后点「保存」再上传</view>
-  </view>
-
   <!-- 基本资料 -->
   <view class="card">
     <view class="name-row">
@@ -25,7 +8,7 @@
       <input class="name-in" type="nickname" value="{{name}}" placeholder="点击填写，可用微信昵称" maxlength="10"
         bindinput="onName" bindblur="onName" bindchange="onName" />
     </view>
-    <view class="hint left">昵称只用于展示。改昵称不影响以前的战绩、活动报名和对手评价（都按账号关联）。</view>
+    <view class="hint left">昵称只用于展示。改昵称不影响以前的战绩和活动报名（都按账号关联）。</view>
 
     <view class="name-row">
       <text class="label">性别</text>
@@ -36,11 +19,6 @@
       </view>
     </view>
 
-    <view class="bio-box">
-      <view class="bio-head"><text class="label">个人简介</text><text class="bio-cnt">{{bio.length}}/{{bioMax}}</text></view>
-      <textarea class="bio-in" value="{{bio}}" maxlength="{{bioMax}}" auto-height placeholder="例如：正手上旋，周末常在星光球场，欢迎约球" bindinput="onBio" />
-    </view>
-    <view class="hint left">简介会展示在你的球员卡片上，保存前会经过微信内容安全检测。</view>
   </view>
 
   <!-- 网球等级 -->

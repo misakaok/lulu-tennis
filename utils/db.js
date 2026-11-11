@@ -3,7 +3,6 @@
 //   matches  比赛记录      players  球员 / 个人资料
 //   draws    抽签          signups  报名
 const { dedupe, tsOf } = require('./event');
-const { rememberEnv, isCloud } = require('./avatar');
 const ID = require('./ident');
 const OF = require('./official');
 const GW = require('./gateway');
@@ -183,7 +182,7 @@ function buildPlayers(list) {
   const byUid = {};
   list.forEach((p) => {
     if (!p.self || !p._openid || !p.name || byUid[p._openid]) return;
-    byUid[p._openid] = { uid: p._openid, name: p.name, avatar: p.avatar || '', gender: p.gender || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
+    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
   });
   cacheSet('cache_profiles', byUid);
   const map = {}, order = [];
@@ -191,13 +190,12 @@ function buildPlayers(list) {
     if (!p.name) return;
     const cur = map[p.name];
     const item = {
-      name: p.name, avatar: p.avatar || '', level: typeof p.level === 'number' ? p.level : null, gender: p.gender || '',
+      name: p.name, level: typeof p.level === 'number' ? p.level : null, gender: p.gender || '',
       self: !!p.self, uid: p.self ? p._openid || '' : '', formerNames: p.self ? p.formerNames || [] : [],
     };
     if (!cur) { map[p.name] = item; order.push(p.name); }
     else if (item.self && cur.self && item.uid !== cur.uid) { cur.uid = ''; cur.ambiguous = true; }
     else if (item.self && !cur.self) map[p.name] = item;
-    else if (!cur.avatar && item.avatar) cur.avatar = item.avatar;
   });
   const arr = order.map((n) => map[n]);
   cacheSet('cache_players_full', arr);
@@ -230,24 +228,10 @@ async function getMyProfile() {
 }
 const cachedProfile = () => cacheGet('my_profile', null) || null;
 
-// 上传头像（选图、裁剪得到的是临时文件，要传到云存储，别人才能看到）
-async function uploadAvatar(tempPath) {
-  const ext = (tempPath.match(/\.(\w+)$/) || [])[1] || 'jpg';
-  const res = await wx.cloud.uploadFile({
-    // 放在 avatars/<本人用户 ID>/ 下：一看路径就知道是谁的照片；读写权限由云存储安全规则控制（见 README）
-    cloudPath: `avatars/${await myOpenid()}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`,
-    filePath: tempPath,
-  });
-  rememberEnv(res.fileID); // 记下当前云环境，头像诊断时用来比对
-  return res.fileID; // 数据库只存 fileID，显示时再换临时链接（见 utils/avatar.js）
-}
-
-// 保存个人资料：经云函数 saveProfile（服务端检查昵称不和别人重复、照片在本人目录下）
-async function saveMyProfile({ name, avatar, avatarTemp, level, gender }) {
-  // 只把云文件 fileID 存进数据库：本地临时路径先上传；HTTPS 临时链接会过期，绝不保存
-  if (!avatarTemp && avatar && !isCloud(avatar) && /^(wxfile:|http:\/\/tmp)/.test(avatar)) avatarTemp = avatar;
-  const fileID = avatarTemp ? await uploadAvatar(avatarTemp) : (isCloud(avatar) ? avatar : '');
-  await require('./cloud').call('saveProfile', { name, avatar: fileID || '', level, gender });
+// 保存个人资料：经云函数 saveProfile（服务端检查昵称不和别人重复）。
+// 小程序里不再上传和显示照片：以前传过的照片 fileID 原样带回去，只是为了不清掉数据库里的旧值
+async function saveMyProfile({ name, avatar, level, gender }) {
+  await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender });
   return getMyProfile();
 }
 
@@ -263,7 +247,7 @@ async function getMatch(id) {
   try { return (await db().collection('matches').doc(id).get()).data || null; } catch (e) { return null; }
 }
 async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
-// 活动详情页一次取齐：活动、报名名单、我的资料、联系人、相册数量、退赛申请（云函数 drawDetail，1 次调用）。
+// 活动详情页一次取齐：活动、报名名单、我的资料、联系人、退赛申请（云函数 drawDetail，1 次调用）。
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
 async function fetchDrawDetail(id) {
   let r;

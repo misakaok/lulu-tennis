@@ -118,12 +118,6 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch-rule { margin-top: 8rpx; font-size: 21rpx; color: #A5A5BA; }
 .sch-rule.hl { color: #6E6EA3; font-weight: 700; }
 .su-go { flex: none; margin-left: 8rpx; color: #C5C5DA; font-size: 30rpx; }
-.album-entry { display: flex; align-items: center; padding-top: 22rpx; padding-bottom: 22rpx; }
-.ae-icon { font-size: 44rpx; margin-right: 18rpx; }
-.ae-main { flex: 1; min-width: 0; }
-.ae-t { font-size: 28rpx; font-weight: 800; color: #4F4F7D; }
-.ae-s { font-size: 22rpx; color: #8686A0; margin-top: 2rpx; }
-.ae-go { color: #C5C5DA; font-size: 34rpx; }
 .wd-row { display: flex; align-items: center; padding: 12rpx 0; border-top: 1rpx solid #F2F2F8; font-size: 24rpx; }
 .wd-row:first-of-type { border-top: 0; }
 .wd-n { font-weight: 700; color: #1E1E32; margin-right: 12rpx; flex: none; }
