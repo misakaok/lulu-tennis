@@ -18,7 +18,7 @@
       <view wx:if="{{signing}}" class="h-prog">已报名 {{signCount}}</view>
     </view>
 
-    <!-- 时间地点 / 联系人 -->
+    <!-- 时间地点 -->
     <view class="card info">
       <view class="card-title row">
         <text>时间地点</text>
@@ -30,17 +30,6 @@
         <view wx:if="{{info.canNav}}" class="nav-btn" bindtap="openMap">📍 打开地图导航</view>
       </block>
       <view wx:else class="muted">{{canManage ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
-
-      <view wx:if="{{contact}}" class="contact">
-        <view class="in-row"><text class="in-k">联系人</text><text class="in-v">{{contact.name || '暂无'}}</text></view>
-        <block wx:if="{{contact.visible}}">
-          <view wx:if="{{contact.phone}}" class="in-row" bindtap="callPhone"><text class="in-k">电话</text><text class="in-v act">{{contact.phone}} · 拨打</text></view>
-          <view wx:if="{{contact.wechat}}" class="in-row" bindtap="copyWechat"><text class="in-k">微信</text><text class="in-v act">{{contact.wechat}} · 复制</text></view>
-          <view class="vis-note">{{contact.visibility === 'all' ? '发起人设置为：所有能打开活动的人可见' : '仅报名者和参赛者可见'}}{{contact.owner ? '（你是发起人）' : ''}}</view>
-        </block>
-        <view wx:else class="vis-note">🔒 {{contact.reason}}</view>
-      </view>
-      <view wx:elif="{{contactErr && isOwner}}" class="vis-note">联系人暂时无法读取：{{contactErr}}</view>
     </view>
 
     <!-- 报名中 -->
@@ -112,7 +101,8 @@
                 <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
               </block>
             </view>
-            <text class="sch-name">{{item.aText}}</text>
+            <text wx:if="{{item.aG}}" class="sch-name"><block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
+            <text wx:else class="sch-name">{{item.aText}}</text>
             <text wx:if="{{item.winner === 'a'}}" class="sch-win">胜</text>
           </view>
           <view class="sch-row {{item.winner === 'b' ? 'w' : ''}}">
@@ -121,7 +111,8 @@
                 <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
               </block>
             </view>
-            <text class="sch-name">{{item.bText}}</text>
+            <text wx:if="{{item.bG}}" class="sch-name"><block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
+            <text wx:else class="sch-name">{{item.bText}}</text>
             <text wx:if="{{item.winner === 'b'}}" class="sch-win">胜</text>
           </view>
           <view wx:if="{{item.score}}" class="sch-score">{{item.score}}</view>

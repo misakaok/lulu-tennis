@@ -4,7 +4,6 @@ const E = require('../../utils/event');
 const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
-const cloud = require('../../utils/cloud');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const SIZES = [8, 12, 16, 24, 32];
@@ -207,16 +206,10 @@ Page({
   onTitle(e) { this.setData({ title: e.detail.value }); },
   onInfo(e) { this.info = e.detail; },
 
-  // 时间地点（公开）和联系人（单独通过云函数保存，不进 draws）
+  // 时间地点
   infoFields() {
     const i = this.info || {};
     return { date: i.date || this.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), location: i.location || null };
-  },
-  async saveContact(id) {
-    const c = (this.info || {}).contact;
-    if (!c || !(c.name || c.phone || c.wechat)) return;
-    try { await cloud.call('saveContact', { drawId: id, contact: c }); }
-    catch (e) { wx.showModal({ title: '活动已创建，联系人未保存', content: e.message + '\n可以稍后在活动详情里「编辑」补上。', showCancel: false }); throw e; }
   },
   setEntry(e) { this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh(); },
   setMode(e) { this.changed({ mode: e.currentTarget.dataset.v }); },
@@ -338,7 +331,6 @@ Page({
       const id = await db.addDraw(Object.assign(this.settings(), this.infoFields(), {
         title: this.data.title.trim() || '内部赛', status: 'signup', results: {},
       }));
-      try { await this.saveContact(id); } catch (e) { setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 1500); return; }
       wx.showToast({ title: '已创建', icon: 'success' });
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
@@ -359,7 +351,6 @@ Page({
         await db.generateDraw(id, p);
       } else {
         id = await db.addDraw(Object.assign({}, p, this.infoFields(), { title: this.data.title.trim() || '内部赛', status: 'drawn' }));
-        try { await this.saveContact(id); } catch (e) { /* 已提示，可稍后编辑补上 */ }
       }
       wx.showToast({ title: '已生成', icon: 'success' });
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);

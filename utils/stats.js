@@ -37,4 +37,11 @@ function display(stats, name, profile, uid) {
   };
 }
 
-module.exports = { rankOrder, playerStats, display, GENDER, NONE };
+// 名字旁边显示性别用：有用户 ID 按 ID 找，否则按名字（同名对应多个账号时不显示）。没填返回 ''
+function genderFinder(players) {
+  const byUid = {}, byName = {};
+  (players || []).forEach((p) => { if (p.uid) byUid[p.uid] = p.gender; if (!p.ambiguous) byName[p.name] = p.gender; });
+  return (name, uid) => GENDER[uid ? byUid[uid] : byName[name]] || '';
+}
+
+module.exports = { rankOrder, playerStats, display, genderFinder, GENDER, NONE };

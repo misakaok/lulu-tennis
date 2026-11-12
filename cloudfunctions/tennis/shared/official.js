@@ -2,10 +2,9 @@
 //
 //   活动比赛：只由云函数 tennis 写入（recordEventMatch），每一场固定一条记录。
 //            云函数写入的记录没有 _openid；小程序端写入的记录系统一定会带 _openid，伪造不了。
-//   日常比赛：录入人写入后是「待确认」；对手确认后，云函数在 verified 集合写一份比分快照
-//            （verified 所有人可读、只有云函数能写）。记录内容和快照完全一致才算正式；
-//            之后录入人再改比分，就和快照对不上，回到待确认。
-//   升级前的旧记录：云函数第一次运行时给当时已有的全部记录写快照（legacy），照常计入。
+//   日常比赛：有一个人录了就生效，不需要对手确认（只能经云函数网关新增、经云函数修改，小程序端改不了）。
+//            以前「对手确认后才计入」的规则已取消，当时还在待确认的记录也一并计入。
+//            verified 集合不再决定日常比赛是否计入，只留着管理员更正的标记（adminSig）和旧快照。
 //
 // 这个文件小程序端和云函数共用（cloudfunctions/tennis/shared/official.js 是复制件，用 scripts/sync-shared.sh 同步）。
 
@@ -24,13 +23,13 @@ function snapOf(m) {
   });
 }
 
-// 'official' 正式 | 'pending' 日常比赛待对手确认 | 'invalid' 不是云函数写入的活动记录（不展示、不计入）
-// verified: { 比赛 _id: { snap } }
+// 'official' 正式 | 'invalid' 不是云函数写入的活动记录（不展示、不计入）
+// verified: { 比赛 _id: { snap } }，只用来认升级前小程序端写入的活动旧记录
 function statusOf(m, verified) {
-  if (m.drawId && !m._openid) return 'official';
+  if (!m.drawId) return 'official';
+  if (!m._openid) return 'official';
   const v = verified && verified[m._id];
-  if (v && v.snap === snapOf(m)) return 'official';
-  return m.drawId ? 'invalid' : 'pending';
+  return v && v.snap === snapOf(m) ? 'official' : 'invalid';
 }
 
 const META_ID = '__legacy_migrated__'; // verified 集合里标记「旧记录已迁移」的文档

@@ -9,7 +9,7 @@
 </view>
 
 <view class="page">
-  <view class="daily-entry" bindtap="goAdd">＋ 记录日常比赛<text class="de-sub">不属于活动的约球，对手确认后计入战绩</text></view>
+  <view class="daily-entry" bindtap="goAdd">＋ 记录日常比赛<text class="de-sub">不属于活动的约球，录入后直接计入战绩</text></view>
   <view class="filters">
     <view class="seg">
       <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
@@ -36,7 +36,7 @@
             <view class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
           </block>
         </view>
-        <view class="names">{{item.aText}}<text wx:if="{{item.winner === 'a'}}" class="cup"> 🏆</text><text wx:if="{{item.aDelta}}" class="delta {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</text></view>
+        <view class="names"><block wx:for="{{item.a}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block><text wx:if="{{item.winner === 'a'}}" class="cup"> 🏆</text><text wx:if="{{item.aDelta}}" class="delta {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</text></view>
         <view class="scores">
           <view wx:for="{{item.sets}}" wx:key="index" wx:for-item="s" class="sc {{s.aw ? 'w' : ''}}">{{s.a}}<text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text></view>
         </view>
@@ -48,7 +48,7 @@
             <view class="avatar sm" style="background:{{p.color}}">{{p.initial}}</view>
           </block>
         </view>
-        <view class="names">{{item.bText}}<text wx:if="{{item.winner === 'b'}}" class="cup"> 🏆</text><text wx:if="{{item.bDelta}}" class="delta {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</text></view>
+        <view class="names"><block wx:for="{{item.b}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block><text wx:if="{{item.winner === 'b'}}" class="cup"> 🏆</text><text wx:if="{{item.bDelta}}" class="delta {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</text></view>
         <view class="scores">
           <view wx:for="{{item.sets}}" wx:key="index" wx:for-item="s" class="sc {{s.bw ? 'w' : ''}}">{{s.b}}<text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></view>
         </view>
@@ -57,5 +57,5 @@
   </block>
 
   <view wx:if="{{more}}" class="foot">上滑加载更多</view>
-  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、确认比分 · 长按可删除自己录入的日常比赛</view>
+  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己录入的日常比赛</view>
 </view>

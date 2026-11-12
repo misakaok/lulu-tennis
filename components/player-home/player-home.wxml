@@ -49,7 +49,7 @@
     <view class="s4"><text class="n sm {{view.stats.wl === '暂无' ? 'none' : ''}}">{{view.stats.wl}}</text><text class="l">胜负</text></view>
     <view class="s4"><text class="n {{view.stats.rate === '暂无' ? 'none' : ''}}">{{view.stats.rate}}</text><text class="l">胜率</text></view>
   </view>
-  <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : '数据根据正式战绩自动计算（日常比赛需对手确认）'}}</view>
+  <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : '数据根据正式战绩自动计算（日常比赛录入即计入）'}}</view>
 
   <!-- 别人的主页：发起挑战 -->
   <view wx:if="{{loaded && !isSelf}}" class="acts">

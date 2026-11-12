@@ -19,7 +19,7 @@ Page({
   data: {
     draw: null, meta: '', formatText: '', seedsText: '', error: '', myName: '', myId: '',
     signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
-    partnerOpts: [], info: null, contact: null, contactErr: '',
+    partnerOpts: [], info: null,
     matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
   },
 
@@ -30,7 +30,7 @@ Page({
 
   async load() {
     try {
-      // 活动、报名名单、我的资料、联系人、退赛申请：云函数 drawDetail 一次取齐
+      // 活动、报名名单、我的资料、退赛申请：云函数 drawDetail 一次取齐
       const [bundle, all, myId] = await Promise.all([
         db.fetchDrawDetail(this.id),
         db.fetchMatches().catch(() => db.cachedMatches()),
@@ -66,9 +66,6 @@ Page({
       const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
       this.setData({ isOwner, canManage: isOwner || isAdmin });
       this.setData({ info: this.infoOf(d) });
-      if (bundle) {
-        this.setData({ contact: bundle.contact && bundle.contact.has ? bundle.contact : null, contactErr: bundle.contactErr || '' });
-      } else this.loadContact();
       if (signing) await this.loadSignups(d, all, bundle ? signups : null);
       else {
         this.renderSchedule();
@@ -81,7 +78,7 @@ Page({
     }
   },
 
-  /* ---------- 时间地点 / 联系人 ---------- */
+  /* ---------- 时间地点 ---------- */
   infoOf(d) {
     const WEEK = '日一二三四五六';
     let when = d.date || '';
@@ -90,14 +87,6 @@ Page({
     const loc = d.location && typeof d.location.latitude === 'number' ? d.location : null;
     if (!d.venue && !loc && !d.startTime) return { when, empty: true };
     return { when, venue: d.venue || (loc && loc.name) || '', canNav: !!loc };
-  },
-
-  // 联系人由云函数按可见范围返回（没报名的人看不到电话和微信）
-  async loadContact() {
-    try {
-      const c = await cloud.call('getContact', { drawId: this.id });
-      this.setData({ contact: c.has ? c : null, contactErr: '' });
-    } catch (e) { this.setData({ contact: null, contactErr: e.message }); }
   },
 
   /* ---------- 退赛（签表生成后）：球员申请，发起人处理；发起人也可以直接登记 ---------- */
@@ -175,8 +164,6 @@ Page({
       wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || loc.name || '', address: loc.address || '', scale: 16 });
     }
   },
-  callPhone() { const c = this.data.contact; if (c && c.phone) wx.makePhoneCall({ phoneNumber: c.phone }); },
-  copyWechat() { const c = this.data.contact; if (c && c.wechat) wx.setClipboardData({ data: c.wechat }); },
   // 点报名名单里的球员 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
   openPlayer(e) {
     const uid = e.currentTarget.dataset.uid;
@@ -298,9 +285,13 @@ Page({
   renderSchedule() {
     const d = this.d, me = this.data.myName;
     const list = E.scheduleOf(d, this.data.matches);
-    const side = (members) => members.map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n) }));
+    // 名字后面带性别（读个人资料，按账号找）；双打的队名和成员名对不上时只显示队名
+    const gOf = S.genderFinder(db.cachedPlayersFull());
+    const uidOf = this.uidOf || {};
+    const side = (members) => members.map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n), gender: gOf(n, uidOf[n]) }));
     const items = list.map((x) => Object.assign({}, x, {
       aP: side(x.aMembers), bP: side(x.bMembers),
+      aG: !x.tbdA && x.aMembers.join(' / ') === x.a, bG: !x.tbdB && x.bMembers.join(' / ') === x.b,
       aText: x.tbdA ? x.labelA || '待定' : x.a, bText: x.tbdB ? x.labelB || '待定' : x.b,
       mine: !!this.data.myId && ID.idsFor(x.aMembers.concat(x.bMembers), this.uidOf).indexOf(this.data.myId) >= 0,
       status: x.done ? 'done' : x.ready ? 'ready' : 'tbd',
@@ -365,7 +356,7 @@ Page({
     if (!this.data.isOwner) { this.adminRemove(); return; }
     wx.showModal({
       title: '删除这个活动？',
-      content: '删除后所有人都看不到签表了，联系人信息会一起删除，未处理的申请会作废（已录的比分仍保留在战绩里）',
+      content: '删除后所有人都看不到签表了，未处理的申请会作废（已录的比分仍保留在战绩里）',
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
@@ -380,7 +371,7 @@ Page({
 
   // 管理员删除别人发起的活动：必须填原因（留档）
   async adminRemove() {
-    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。联系人一起删除，已录比分保留');
+    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。已录比分保留');
     if (reason === null) return;
     if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
     try {

@@ -42,7 +42,7 @@
     </view>
   </view>
 
-  <!-- 时间地点和联系人（截止报名后不再显示，到活动详情里编辑） -->
+  <!-- 时间地点（截止报名后不再显示，到活动详情里编辑） -->
   <view wx:if="{{!fromSignup}}" class="card">
     <view class="card-title">时间地点<text class="sub">创建后可以在活动详情里编辑</text></view>
     <event-form bind:change="onInfo" />

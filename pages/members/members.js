@@ -47,6 +47,14 @@ Page({
     if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
     this.run('removeMember', { uid, reason }, '已移除');
   },
+  // 替没选性别的成员补选（点已有的性别可以更正）；成员本人之后仍可在编辑资料里改
+  setGender(e) {
+    const { uid, name } = e.currentTarget.dataset;
+    wx.showActionSheet({
+      alertText: `${name || '该成员'}的性别`, itemList: ['男', '女'],
+      success: (r) => this.run('setMemberGender', { uid, gender: r.tapIndex === 0 ? 'm' : 'f' }, '已保存'),
+    });
+  },
   restore(e) { this.run('reviewMember', { uid: e.currentTarget.dataset.uid, approve: true }, '已恢复为成员'); },
   pick(e) { const uid = e.currentTarget.dataset.uid; this.setData({ [`picked.${uid}`]: !this.data.picked[uid] }); },
   async importPicked() {

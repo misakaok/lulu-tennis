@@ -85,10 +85,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .in-row { display: flex; padding: 12rpx 0; font-size: 27rpx; line-height: 1.5; }
 .in-k { width: 110rpx; flex: none; color: #8686A0; }
 .in-v { flex: 1; color: #1E1E32; word-break: break-all; }
-.in-v.act { color: #6E6EA3; font-weight: 600; }
 .nav-btn { margin-top: 12rpx; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 38rpx; background: #F1F1F8; color: #4F4F7D; font-weight: 700; font-size: 27rpx; }
-.contact { margin-top: 18rpx; padding-top: 12rpx; border-top: 1rpx solid #F0F0F6; }
-.vis-note { font-size: 22rpx; color: #8686A0; margin-top: 6rpx; }
 
 /* 报名名单（排名 / 场数 / 胜率 / 等级） */
 .su-team { border-top: 1rpx solid #F2F2F8; padding: 6rpx 0; }

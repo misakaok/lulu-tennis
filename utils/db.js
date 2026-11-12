@@ -247,7 +247,7 @@ async function getMatch(id) {
   try { return (await db().collection('matches').doc(id).get()).data || null; } catch (e) { return null; }
 }
 async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
-// 活动详情页一次取齐：活动、报名名单、我的资料、联系人、退赛申请（云函数 drawDetail，1 次调用）。
+// 活动详情页一次取齐：活动、报名名单、我的资料、退赛申请（云函数 drawDetail，1 次调用）。
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
 async function fetchDrawDetail(id) {
   let r;

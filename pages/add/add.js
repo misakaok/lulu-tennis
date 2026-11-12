@@ -1,8 +1,9 @@
 // 记录日常比赛（不属于活动的约球）：自己固定在 A 方，搭档和对手只能选已注册球员（按用户 ID 关联）。
-// 提交后是「待确认」，对手确认后才计入正式战绩和排名（见 utils/official.js）。
+// 提交后直接生效，计入正式战绩和排名，不需要对手确认（见 utils/official.js）。
 // 活动里的比赛不在这里录：从活动签表 / 赛程点对应场次录分。
 const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
+const S = require('../../utils/stats');
 const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = require('../../utils/db');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -34,9 +35,11 @@ Page({
     this.loadPlayers().then(() => this.applyPrefill());
   },
 
-  // 只有已注册（设置过资料、昵称唯一）的球员可选：对手要用自己的账号确认比分
+  // 只有已注册（设置过资料、昵称唯一）的球员可选：战绩按账号累计
   setPlayers(full) {
     this.uidOf = ID.uidByName(full);
+    this.genderOf = {};
+    full.forEach((p) => { if (p.uid) this.genderOf[p.name] = S.GENDER[p.gender] || ''; });
     this.players = full.filter((p) => p.uid && this.uidOf[p.name] === p.uid && p.uid !== this.myId).map((p) => p.name);
   },
 
@@ -106,7 +109,7 @@ Page({
 
     this.setData({
       slotsA: mk('a'), slotsB: mk('b'),
-      chips: this.players.map((p) => ({ name: p, used: used.indexOf(p) >= 0 })),
+      chips: this.players.map((p) => ({ name: p, used: used.indexOf(p) >= 0, gender: (this.genderOf || {})[p] || '' })),
       aLabel: aNames.filter(Boolean).join('/') || 'A 方',
       bLabel: bNames.filter(Boolean).join('/') || 'B 方',
       check,
@@ -184,9 +187,9 @@ Page({
         a: r.a, b: r.b, aIds, bIds,
         sets: r.sets, winner: r.winner, setsWon: r.won,
       });
-      wx.showToast({ title: '已提交，等对手确认', icon: 'success' });
+      wx.showToast({ title: '已记录，计入战绩', icon: 'success' });
       this.resetSets();
-      // 去比赛详情：能看到确认状态；对手在「我的」待办里确认
+      // 去比赛详情：录错了可以在那里直接改
       setTimeout(() => wx.redirectTo({ url: '/pages/match/match?id=' + res._id }), 700);
     } catch (e) {
       console.error(e);

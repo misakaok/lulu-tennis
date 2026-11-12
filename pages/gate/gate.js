@@ -6,7 +6,7 @@ const member = require('../../utils/member');
 
 const TEXT = {
   none: { t: '仅限内部球友使用', d: '这是内部球友的小程序。提交加入申请，管理员审核通过后就能使用。' },
-  pending: { t: '申请已提交，等待审核', d: '管理员审核通过后就能使用。可以下拉刷新查看最新状态。' },
+  pending: { t: '申请已提交，等待审核', d: '管理员审核通过后就能使用。可以下拉刷新查看最新状态；有邀请码可以直接加入。' },
   rejected: { t: '申请未通过', d: '如有疑问可以联系管理员，也可以修改说明后重新申请。' },
   removed: { t: '成员资格已取消', d: '你已不能查看和使用内部数据。如有疑问请联系管理员，也可以重新申请。' },
   active: { t: '你已是正式成员', d: '欢迎回来！' },
@@ -54,7 +54,7 @@ Page({
     const code = this.data.invite || (this.data.code || '').replace(/\s+/g, '').toLowerCase(); // 邀请码是小写字母数字，容忍手动输入时的空格和大写
     if (!code) { wx.showToast({ title: '请填写邀请码', icon: 'none' }); return; }
     this.setData({ busy: true });
-    try { await cloud.call('acceptInvite', { code, name: this.data.name }); wx.showToast({ title: '已加入', icon: 'success' }); await this.load(); }
+    try { await cloud.call('acceptInvite', { code, name: this.data.name }); await this.load(); if (this.data.status === 'active') this.enter(); } // 邀请码有效就直接成为正式成员并进入小程序，不需要管理员审核，也不用再点一次
     catch (e) { wx.showModal({ title: '无法加入', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },

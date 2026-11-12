@@ -1,9 +1,8 @@
-// 编辑活动信息（发起人或管理员）：名称、日期、开始时间、场地、定位、联系人
+// 编辑活动信息（发起人或管理员）：名称、日期、开始时间、场地、定位
 const db = require('../../utils/db');
-const cloud = require('../../utils/cloud');
 
 Page({
-  data: { loading: true, error: '', title: '', value: null, saving: false, contactNote: '' },
+  data: { loading: true, error: '', title: '', value: null, saving: false },
 
   onLoad(o) { this.id = o.id; this.load(); },
 
@@ -14,15 +13,10 @@ Page({
       const isAdmin = require('../../utils/member').isAdminLocal();
       if (!owner && !isAdmin) throw new Error('只有活动发起人或管理员可以编辑');
       if (!owner) wx.setNavigationBarTitle({ title: '编辑活动（管理员）' });
-      let contact = null, contactNote = '';
-      try {
-        const c = await cloud.call('getContact', { drawId: this.id });
-        if (c.has) contact = { name: c.name, phone: c.phone, wechat: c.wechat, visibility: c.visibility };
-      } catch (e) { contactNote = e.message; }
       this.info = null;
       this.setData({
-        loading: false, title: d.title || '', contactNote,
-        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, contact },
+        loading: false, title: d.title || '',
+        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null },
       });
     } catch (e) {
       console.error(e);
@@ -43,7 +37,6 @@ Page({
       await db.updateDrawInfo(this.id, {
         title, date: i.date, startTime: i.startTime || '', venue: (i.venue || '').trim(), location: i.location || null,
       });
-      await cloud.call('saveContact', { drawId: this.id, contact: i.contact });
       wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);
     } catch (e) {

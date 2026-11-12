@@ -38,7 +38,7 @@ function seed(env) {
   for (let i = 0; i < 25; i++) {
     env.put('matches', { _id: 'dm' + i, _openid: i % 2 ? 'alice' : 'bob', a: [i % 2 ? 'Alice' : 'Bob'], b: [i % 2 ? 'Bob' : 'Carl'], aIds: [i % 2 ? 'alice' : 'bob'], bIds: [i % 2 ? 'bob' : 'carl'], winner: 'a', sets: [{ a: 4, b: i % 4 }], date: '2026-10-' + String(1 + (i % 28)).padStart(2, '0'), createdAt: i });
   }
-  // 一部分已确认（有正式战绩快照），一部分待确认
+  // 一部分有旧的战绩快照，一部分没有：日常比赛录入即生效，都算正式
   const OF = require('../utils/official');
   for (let i = 0; i < 25; i += 2) env.put('verified', { _id: 'dm' + i, snap: OF.snapOf(env.coll('matches')['dm' + i]) });
   env.put('matches', { _id: 'ev1', drawId: 'd1', drawKey: '0-0', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'b', sets: [{ a: 2, b: 4 }], outcome: 'normal', date: '2026-11-01', createdAt: 100 });
@@ -54,7 +54,8 @@ test('一次性读取（dataset）和分页读取的结果完全一致', async (
   const [m2, all2, p2] = [await b.db.fetchMatches(), await b.db.fetchMatchesAll(), await b.db.fetchPlayersFull()];
   assert.deepStrictEqual(m1, m2); assert.deepStrictEqual(all1, all2); assert.deepStrictEqual(p1, p2);
   assert.ok(!m1.some((m) => m._id === 'fake'), '不认可的记录不出现');
-  assert.ok(all1.some((m) => m.status === 'pending') && !m1.some((m) => m.status === 'pending'));
+  assert.ok(!all1.some((m) => m.status === 'pending'), '日常比赛录入即生效，没有待确认');
+  assert.ok(m1.some((m) => m._id === 'dm1') && m1.some((m) => m._id === 'dm0'), '有没有快照都计入');
   assert.ok(used <= 2, `dataset 方式应该只调用 1～2 次云函数，实际 ${used} 次`);
   assert.ok(b.calls() > used * 3, `分页方式调用次数 ${b.calls()}，应该明显更多`);
 });
@@ -227,7 +228,7 @@ test('draw-view：报名中和已出签表的 bundle / 旧路径渲染一致（�
       try { require(file); } finally { global.Page = previous; }
       const page = Object.assign({}, definition, { id: 'd1', data: JSON.parse(JSON.stringify(definition.data)), setData(p) { Object.assign(this.data, p); } });
       await page.load();
-      await new Promise((r) => setImmediate(r)); // 旧路径的联系人、相册、申请分别异步加载
+      await new Promise((r) => setImmediate(r)); // 旧路径的申请异步加载
       assert.strictEqual(page.data.error, '');
       return JSON.parse(JSON.stringify(page.data));
     };

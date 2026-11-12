@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
+const S = require('../../utils/stats');
 const { colorOf, initialOf } = require('../../utils/rules');
 
 Page({
@@ -20,7 +21,7 @@ Page({
       const r = R.ratingOf(ratings, name, players, p.uid);
       const level = R.levelOf(ratings, name, players, p.uid);
       return {
-        name, uid: p.uid || '', initial: initialOf(name), color: colorOf(name),
+        name, uid: p.uid || '', initial: initialOf(name), color: colorOf(name), gender: S.GENDER[p.gender] || '',
         level: R.fmt(level), raw: level, tier: R.tierOf(level), provisional: !r || r.provisional,
       };
     };

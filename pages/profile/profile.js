@@ -32,6 +32,7 @@ Page({
     const name = (this.data.name || '').trim();
     if (!name) { wx.showToast({ title: '请填写昵称', icon: 'none' }); return; }
     if (name.length > 10) { wx.showToast({ title: '昵称最多 10 个字', icon: 'none' }); return; }
+    if (this.data.gender !== 'm' && this.data.gender !== 'f') { wx.showToast({ title: '请选择性别', icon: 'none' }); return; }
     if (this.data.saving) return;
     this.setData({ saving: true });
     wx.showLoading({ title: '保存中', mask: true });

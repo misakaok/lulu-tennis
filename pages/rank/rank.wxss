@@ -50,3 +50,7 @@
 .season-row { white-space: nowrap; margin-bottom: 14rpx; }
 .season { display: inline-block; font-size: 24rpx; color: #6C6C86; background: #EFEFF6; border-radius: 24rpx; padding: 8rpx 24rpx; margin-right: 14rpx; }
 .season.on { color: #fff; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
+
+/* 性别（个人资料里填了才显示） */
+.g-tag { flex: none; margin-left: 8rpx; font-size: 18rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 0 8rpx; }
+.pod-g { font-size: 20rpx; color: #6E6EA3; margin-top: 2rpx; }

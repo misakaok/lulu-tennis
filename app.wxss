@@ -42,3 +42,6 @@ page {
   width: 120rpx; height: 120rpx; border-radius: 50%; margin: 0 auto 28rpx;
   background: radial-gradient(circle at 35% 30%, #f2ff9e, #c9e33a 60%, #9fbb1f);
 }
+
+/* 名字后面的性别（个人资料里填的） */
+.gd { font-size: 20rpx; font-weight: 400; color: #8E8EB8; }

@@ -1,4 +1,4 @@
-// 调用云函数 tennis（赛果确认、联系人等需要服务端校验的操作）
+// 调用云函数 tennis（赛果确认等需要服务端校验的操作）
 const NAME = 'tennis';
 
 async function call(action, data) {

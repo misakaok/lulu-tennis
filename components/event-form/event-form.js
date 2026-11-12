@@ -1,12 +1,8 @@
-// 活动信息表单（创建球友活动和编辑活动共用）：日期、开始时间、场地、地图定位、联系人
-// 联系人不写进 draws（draws 所有人可读），由页面通过云函数单独保存，按可见范围返回
+// 活动信息表单（创建球友活动和编辑活动共用）：日期、开始时间、场地、地图定位
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
-const EMPTY = {
-  date: '', startTime: '', venue: '', location: null,
-  contact: { name: '', phone: '', wechat: '', visibility: 'participants' },
-};
+const EMPTY = { date: '', startTime: '', venue: '', location: null };
 
 Component({
   options: { addGlobalClass: true },
@@ -19,7 +15,6 @@ Component({
     init(val) {
       this.inited = true;
       const v = Object.assign({}, EMPTY, val || {});
-      v.contact = Object.assign({}, EMPTY.contact, (val && val.contact) || {});
       if (!v.date) v.date = today();
       this.setData({ v, today: today(), locText: this.locText(v.location) });
       this.emit();
@@ -31,7 +26,6 @@ Component({
     onDate(e) { this.set('date', e.detail.value); },
     onTime(e) { this.set('startTime', e.detail.value); },
     onInput(e) { this.set(e.currentTarget.dataset.k, e.detail.value); },
-    setVis(e) { this.set('contact.visibility', e.currentTarget.dataset.v); },
 
     // 地图选点：需要在 app.json 声明 requiredPrivateInfos: ["chooseLocation"]
     pickLocation() {

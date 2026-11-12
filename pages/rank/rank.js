@@ -61,12 +61,16 @@ Page({
   setSeason(e) { this.limit = PAGE; this.setData({ season: e.currentTarget.dataset.v }); this.render(); },
 
   render() {
+    // 性别读个人资料：有账号按用户 ID 找，没有账号的按名字；没填（不公开）就不显示
+    const gUid = {}, gName = {};
+    (this.players || []).forEach((x) => { if (x.uid) gUid[x.uid] = x.gender; if (!(x.name in gName)) gName[x.name] = x.gender; });
     let list = computeRank(SE.inSeason(this.all || [], this.data.season), this.data.filter).map((p) => {
       const r = this.ratings.players[p.key];
       const level = r ? r.level : R.DEFAULT_LEVEL;
       return Object.assign(p, {
         level, levelText: R.fmt(level), provisional: !r || r.provisional,
         initial: initialOf(p.name), color: colorOf(p.name),
+        gender: S.GENDER[String(p.key).indexOf('n:') === 0 ? gName[p.name] : gUid[p.key]] || '',
         diffText: (p.diff > 0 ? '+' : '') + p.diff,
       });
     });

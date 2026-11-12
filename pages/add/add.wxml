@@ -1,6 +1,6 @@
 <view class="page">
   <view class="event-tip" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在签表或赛程里点对应场次录分 ›</view>
-  <view class="confirm-tip">日常比赛提交后需要<text class="b">对手确认</text>，确认后才计入正式战绩和排名。</view>
+  <view class="confirm-tip">日常比赛提交后<text class="b">直接计入</text>正式战绩和排名，不需要对手确认；录错了双方都可以在比赛详情里修改。</view>
   <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->
   <view class="card">
@@ -64,11 +64,11 @@
 
     <view class="chips">
       <view wx:for="{{chips}}" wx:key="name" class="chip {{item.used ? 'used' : ''}}" data-name="{{item.name}}" bindtap="pickPlayer">
-        {{item.name}}
+        {{item.name}}<text wx:if="{{item.gender}}" class="chip-g">{{item.gender}}</text>
       </view>
       <view wx:if="{{!chips.length}}" class="chips-empty">还没有其他已注册的球员。请球友先在「我的」里设置资料</view>
     </view>
-    <view class="chips-note">只能选设置过资料的球员：对手要用自己的微信确认比分</view>
+    <view class="chips-note">只能选设置过资料的球员：战绩按账号累计</view>
   </view>
 
   <!-- 比分 -->

@@ -54,6 +54,7 @@ Component({
       if (st.drawId) wx.navigateTo({ url: `/pages/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
       else wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=edit` });
     },
+    adminFix() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
     requestChange() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
     ask(title, placeholder) {
       return new Promise((resolve) => wx.showModal({
@@ -108,6 +109,17 @@ Component({
           if (!r.confirm) return;
           try {
             let res = await cloud.call('revokeMatch', { matchId: this.data.matchId });
+            if (res.needConfirm) {
+              // 管理员撤销会推翻后续已录分的比赛：列出影响，确认后才执行（不用填原因，照样留档）
+              const lines = (res.impact || []).map((x) => `${x.stage}：${x.a} vs ${x.b} ${x.score}`).join('\n');
+              const go = await new Promise((done) => wx.showModal({
+                title: '会影响后续比赛', content: `撤销后，下面已录分的比赛比分将作废：\n${lines}`,
+                confirmText: '确认撤销', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false),
+              }));
+              if (!go) return;
+              res = await cloud.call('revokeMatch', { matchId: this.data.matchId, confirmImpact: true });
+              if (res.needConfirm || res.needReason) { wx.showToast({ title: '比分刚刚有变动，请重试', icon: 'none' }); this.load(); return; }
+            }
             if (res.needReason) {
               // 发起人撤销已确认 / 弃权退赛 / 影响后续场次的比分：必须填原因；有影响时列出并确认
               const impact = res.impact || [];

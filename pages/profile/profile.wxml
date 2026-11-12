@@ -15,7 +15,6 @@
       <view class="gseg">
         <view class="g-item {{gender === 'm' ? 'on' : ''}}" data-v="m" bindtap="pickGender">男</view>
         <view class="g-item {{gender === 'f' ? 'on' : ''}}" data-v="f" bindtap="pickGender">女</view>
-        <view class="g-item {{gender === '' ? 'on' : ''}}" data-v="" bindtap="pickGender">不公开</view>
       </view>
     </view>
 

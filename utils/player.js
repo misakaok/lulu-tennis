@@ -85,7 +85,7 @@ function playerView(profiles, players, matches, uid) {
   const selfLv = typeof p.level === 'number' ? p.level : null;
   const played = st ? st.played : 0;
   return {
-    profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未公开' },
+    profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未填' },
     ambiguous,
     level: {
       // 比赛等级（由比赛算）和自评等级分开显示；没有就是「暂无」

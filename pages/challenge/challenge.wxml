@@ -6,14 +6,14 @@
         <view class="av init" style="background:{{a.color}}">{{a.initial}}</view>
         <view class="nm">{{a.name}}</view>
         <view class="lv">{{a.level}}</view>
-        <view class="tier">{{a.tier}}{{a.provisional ? ' · 定级中' : ''}}</view>
+        <view class="tier">{{a.gender ? a.gender + ' · ' : ''}}{{a.tier}}{{a.provisional ? ' · 定级中' : ''}}</view>
       </view>
       <view class="vs">VS</view>
       <view class="pl">
         <view class="av init" style="background:{{b.color}}">{{b.initial}}</view>
         <view class="nm">{{b.name}}</view>
         <view class="lv">{{b.level}}</view>
-        <view class="tier">{{b.tier}}{{b.provisional ? ' · 定级中' : ''}}</view>
+        <view class="tier">{{b.gender ? b.gender + ' · ' : ''}}{{b.tier}}{{b.provisional ? ' · 定级中' : ''}}</view>
       </view>
     </view>
     <view class="chance">

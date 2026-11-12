@@ -16,3 +16,5 @@ button.m-share::after { border: none; }
 .foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 20rpx; }
 
 .m-alias { font-size: 22rpx; color: #8C8CA3; font-weight: normal; margin-left: 6rpx; }
+
+.m-g { margin-left: 10rpx; font-size: 19rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 2rpx 10rpx; font-weight: 400; }

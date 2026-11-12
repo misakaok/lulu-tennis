@@ -18,9 +18,9 @@ function dateLabel(str) {
   return (y === now.getFullYear() ? '' : `${y}年`) + `${m}月${d}日 ${w}`;
 }
 
-function toView(m, deltas) {
+function toView(m, deltas, gOf) {
   const d = deltas[m._id] || {};
-  const side = (k) => (m[k] || []).map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n) }));
+  const side = (k) => (m[k] || []).map((n, i) => ({ name: n, initial: initialOf(n), color: colorOf(n), gender: gOf ? gOf(n, (m[k + 'Ids'] || [])[i]) : '' }));
   const first = (k) => ((m[k + 'Keys'] || m[k] || [])[0]); // 同队两人涨跌相同，取第一位的统计身份
   const deltaText = (k) => {
     const v = (m[k] || []).length ? d[first(k)] : undefined;
@@ -96,6 +96,7 @@ Page({
     const month = ymd(new Date()).slice(0, 7);
     const names = {};
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
+    this.gOf = require('../../utils/stats').genderFinder(players);
     this.src = {
       shown,
       deltas: R.computeRatings(all, R.startLevelsFrom(players || [])).deltas,
@@ -116,7 +117,7 @@ Page({
     list.slice(0, this.limit || PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
-      g.items.push(toView(m, deltas));
+      g.items.push(toView(m, deltas, this.gOf));
     });
     this.setData({ groups, stat, more: list.length > (this.limit || PAGE) });
   },
