@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "球员主页",
   "enablePullDownRefresh": true,
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false,
   "usingComponents": { "player-home": "/components/player-home/player-home" }
 }

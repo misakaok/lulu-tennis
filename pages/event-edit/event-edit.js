@@ -33,7 +33,7 @@ Page({
     const i = this.info;
     const title = this.data.title.trim();
     if (!title || title.length > E.TITLE_MAX) {
-      wx.showToast({ title: title ? `活动名称最多 ${E.TITLE_MAX} 个字` : '请填写活动名称', icon: 'none' });
+      wx.showToast({ title: title ? `比赛名称最多 ${E.TITLE_MAX} 个字` : '请填写比赛名称', icon: 'none' });
       return;
     }
     this.setData({ saving: true });

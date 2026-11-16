@@ -5,6 +5,7 @@ const db = require('../../utils/db');
 Page({
   data: { uid: '' },
   async onLoad(o) {
+    wx.hideShareMenu(); // 过审：球员主页不能分享
     const uid = decodeURIComponent(o.uid || '');
     const me = await db.myOpenid().catch(() => '');
     if (uid && uid === me) { wx.switchTab({ url: '/pages/me/me' }); return; }
@@ -15,8 +16,5 @@ Page({
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     const c = this.selectComponent('#home');
     Promise.resolve(c ? c.load() : null).then(() => wx.stopPullDownRefresh());
-  },
-  onShareAppMessage() {
-    return { title: 'LULU网球 · 球员主页', path: '/pages/player/player?uid=' + encodeURIComponent(this.data.uid) };
   },
 });

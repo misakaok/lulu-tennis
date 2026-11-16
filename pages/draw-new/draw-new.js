@@ -52,6 +52,7 @@ Page({
       wx.setNavigationBarTitle({ title: '截止报名 · 生成对阵' });
       this.loadSignups();
     } else {
+      this.setData({ title: `${d.getMonth() + 1}月${d.getDate()}日 内部赛` }); // 默认填好当天的名称，可以改
       this.loadPlayers();
     }
     this.refresh();
@@ -239,7 +240,7 @@ Page({
   inputTitle() {
     const title = this.data.title.trim();
     if (!title || title.length > E.TITLE_MAX) {
-      wx.showToast({ title: title ? `活动名称最多 ${E.TITLE_MAX} 个字` : '请填写活动名称', icon: 'none' });
+      wx.showToast({ title: title ? `比赛名称最多 ${E.TITLE_MAX} 个字` : '请填写比赛名称', icon: 'none' });
       return '';
     }
     return title;

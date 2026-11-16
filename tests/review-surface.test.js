@@ -61,7 +61,7 @@ T.push({ name: '所有注册页面和组件：没有多行文字框和可输入�
 
 T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、种子、抽签、赛程、决赛、晋级等）', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  const banned = /小组赛|淘汰赛|签表|种子|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事|比赛名称/;
+  const banned = /小组赛|淘汰赛|签表|种子|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事/; // 「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
   const seen = new Set();
   const inspect = (base) => {
     if (seen.has(base)) return;

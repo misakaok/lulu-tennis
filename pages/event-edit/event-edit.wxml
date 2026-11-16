@@ -4,8 +4,8 @@
   <block wx:else>
     <view class="card">
       <view class="ee-row">
-        <text class="label">活动名称</text>
-        <input class="ee-in" value="{{title}}" maxlength="20" bindinput="onTitle" placeholder="请输入活动名称" />
+        <text class="label">比赛名称</text>
+        <input class="ee-in" value="{{title}}" maxlength="20" bindinput="onTitle" placeholder="请输入比赛名称" />
       </view>
       <event-form value="{{value}}" bind:change="onInfo" />
     </view>

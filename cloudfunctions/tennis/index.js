@@ -337,10 +337,10 @@ async function requireSafeText(text, uid, label) {
 
 async function checkedTitle(value, uid) {
   const title = typeof value === 'string' ? value.trim() : '';
-  if (!title) deny('请填写活动名称');
-  if (title.length > E.TITLE_MAX) deny(`活动名称最多 ${E.TITLE_MAX} 个字`);
-  if (/[\u0000-\u001f\u007f]/.test(title)) deny('活动名称里有不支持的字符');
-  await requireSafeText(title, uid, '活动名称');
+  if (!title) deny('请填写比赛名称');
+  if (title.length > E.TITLE_MAX) deny(`比赛名称最多 ${E.TITLE_MAX} 个字`);
+  if (/[\u0000-\u001f\u007f]/.test(title)) deny('比赛名称里有不支持的字符');
+  await requireSafeText(title, uid, '比赛名称');
   return title;
 }
 
