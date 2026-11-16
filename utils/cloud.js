@@ -26,7 +26,7 @@ async function call(action, data) {
 // 只读操作不作废；未列出的操作一律当作写操作（宁可多拉一次，也不显示旧数据）
 const READ_ONLY = {
   memberStatus: 1, ping: 1, matchState: 1, myTodos: 1,
-  getContact: 1, drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
+  drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
 };
 const GW_WRITE_OPS = { add: 1, update: 1, remove: 1 };
 function invalidateAfter(action, data) {

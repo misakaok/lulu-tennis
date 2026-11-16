@@ -1,0 +1,29 @@
+.season-row { white-space: nowrap; margin-bottom: 20rpx; }
+.season { display: inline-block; padding: 8rpx 22rpx; margin-right: 12rpx; border-radius: 24rpx; font-size: 24rpx; color: #8686A0; background: #F2F2F8; }
+.season.on { background: #A3A3CB; color: #fff; font-weight: 600; }
+
+.hero { border-radius: 28rpx; padding: 40rpx 30rpx 34rpx; margin-bottom: 24rpx; color: #fff; text-align: center; background: linear-gradient(160deg, #A3A3CB, #8484B6); }
+.h-av { width: 112rpx; height: 112rpx; line-height: 112rpx; border-radius: 50%; margin: 0 auto; font-size: 46rpx; font-weight: 800; border: 5rpx solid rgba(255,255,255,0.8); }
+.h-name { margin-top: 16rpx; font-size: 38rpx; font-weight: 900; }
+.h-sub { margin-top: 4rpx; font-size: 24rpx; opacity: 0.9; letter-spacing: 2rpx; }
+.h-row { display: flex; margin-top: 28rpx; background: rgba(255,255,255,0.16); border-radius: 22rpx; padding: 20rpx 0; }
+.h-cell { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.h-cell .n { font-size: 40rpx; font-weight: 900; }
+.h-cell .l { font-size: 21rpx; opacity: 0.85; margin-top: 4rpx; }
+.h-none { margin-top: 24rpx; font-size: 24rpx; opacity: 0.9; }
+
+.mo-bars { display: flex; align-items: flex-end; height: 170rpx; border-bottom: 2rpx solid #ECECF5; }
+.mo-col { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.mo-n { font-size: 18rpx; color: #8686A0; margin-bottom: 4rpx; }
+.mo-bar { width: 56%; max-height: 80%; border-radius: 6rpx 6rpx 0 0; background: linear-gradient(180deg, #B3B3D6, #8484B6); }
+.mo-x { display: flex; margin-top: 8rpx; }
+.mo-l { flex: 1; text-align: center; font-size: 19rpx; color: #A5A5BA; }
+
+.kv { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; font-size: 26rpx; }
+.kv:first-of-type { border-top: 0; }
+.kv .k { flex: none; color: #8686A0; margin-right: 20rpx; }
+.kv .v { flex: 1; min-width: 0; text-align: right; color: #1E1E32; font-weight: 600; }
+.kv .d { margin-left: 12rpx; font-size: 22rpx; color: #8686A0; }
+.kv .d.up { color: #2f8a52; }
+.kv .d.down { color: #b34d4d; }
+.foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 16rpx; line-height: 1.6; }

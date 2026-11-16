@@ -1,7 +1,7 @@
 .tip { background: #fff8e6; color: #9a6a00; font-size: 24rpx; padding: 18rpx 22rpx; border-radius: 16rpx; margin-bottom: 20rpx; }
 .center { display: flex; flex-direction: column; align-items: center; padding-top: 40rpx; }
 
-.hint { font-size: 22rpx; color: #a5a5ba; margin-top: 16rpx; }
+.hint { font-size: 22rpx; color: #A5A5BA; margin-top: 16rpx; }
 .hint.left { align-self: stretch; }
 
 .name-row { align-self: stretch; display: flex; align-items: center; margin-top: 36rpx; background: #f7f7fb; border-radius: 18rpx; padding: 0 24rpx; }

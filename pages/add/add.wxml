@@ -1,7 +1,9 @@
+<view wx:if="{{!canRecordDaily}}" class="page muted">{{authError || '正在校验管理员身份…'}}</view>
+<block wx:else>
 <view class="page">
-  <view class="event-tip" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在签表或赛程里点对应场次录分 ›</view>
-  <view class="confirm-tip">日常比赛提交后<text class="b">直接计入</text>正式战绩和排名，不需要对手确认；录错了双方都可以在比赛详情里修改。</view>
-  <view wx:if="{{noProfile}}" class="card np" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
+  <view class="event-tip" hover-class="tap-on" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在对阵表或场次里点对应场次录分 ›</view>
+  <view class="confirm-tip">日常比赛提交后<text class="b">直接计入</text>正式战绩和排名，不需要对手确认；参加者可在比赛详情里修改；已锁定的比分由对方确认后生效。</view>
+  <view wx:if="{{noProfile}}" class="card np" hover-class="tap-on" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->
   <view class="card">
     <view class="line">
@@ -78,5 +80,7 @@
     <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
   </view>
 
-  <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '保存中…' : '保存比分'}}</view>
+  <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" hover-class="tap-on" bindtap="submit">{{submitting ? '保存中…' : '保存比分'}}</view>
 </view>
+
+</block>

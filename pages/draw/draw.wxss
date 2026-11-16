@@ -20,3 +20,23 @@
 .tag.hot { background: #fff1d6; color: #9a6a00; font-weight: 700; }
 .seg.tabs { margin-bottom: 20rpx; }
 .tag.role { background: #6E6EA3; color: #fff; }
+
+/* 日历 */
+.cal { padding-bottom: 20rpx; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; }
+.cal-title { font-size: 30rpx; font-weight: 700; color: #1E1E32; }
+.cal-nav { width: 80rpx; text-align: center; font-size: 44rpx; line-height: 1; color: #6E6EA3; }
+.cal-week, .cal-grid { display: flex; flex-wrap: wrap; }
+.cal-w { width: 14.28%; text-align: center; font-size: 21rpx; color: #A5A5BA; padding-bottom: 8rpx; }
+.cal-cell { width: 14.28%; height: 76rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16rpx; }
+.cal-d { font-size: 26rpx; color: #A5A5BA; }
+.cal-d.has { color: #1E1E32; font-weight: 700; }
+.cal-cell.today .cal-d { color: #6E6EA3; font-weight: 800; }
+.cal-cell.on { background: #A3A3CB; }
+.cal-cell.on .cal-d { color: #fff; }
+.cal-dot { width: 10rpx; height: 10rpx; border-radius: 50%; margin-top: 4rpx; border: 2rpx solid #8484B6; box-sizing: border-box; }
+.cal-dot.mine { background: #8484B6; }
+.cal-cell.on .cal-dot { border-color: #fff; }
+.cal-cell.on .cal-dot.mine { background: #fff; }
+.cal-foot { margin-top: 12rpx; text-align: center; font-size: 21rpx; color: #A5A5BA; }
+.empty.cal-empty { padding: 50rpx 0; }

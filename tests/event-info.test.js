@@ -1,0 +1,164 @@
+// 表单行为：手动名称不会被其他选项覆盖，地图返回的可编辑文字不进入表单数据。
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { createRequire } = require('module');
+const T = [];
+const test = (name, fn) => T.push({ name, fn });
+const plain = (v) => JSON.parse(JSON.stringify(v));
+
+function load(file, wx, kind, deps) {
+  const filename = path.resolve(__dirname, '..', file);
+  let def;
+  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
+    require: (id) => deps && deps[id] || createRequire(filename)(id), wx, [kind]: (d) => { def = d; },
+  });
+  return Object.assign({}, kind === 'Component' ? def.methods : def, {
+    data: plain(def.data),
+    setData(p) {
+      Object.entries(p).forEach(([key, value]) => {
+        const parts = key.split('.');
+        let target = this.data;
+        parts.slice(0, -1).forEach((part) => { target = target[part]; });
+        target[parts[parts.length - 1]] = value;
+      });
+    },
+  });
+}
+
+test('发布页面：普通成员直接进入创建和编辑页不会显示表单或提交，管理员可进入', async () => {
+  let submitted = 0, loaded = 0;
+  let member = { status: 'active', isAdmin: false, uid: 'alice' };
+  const deps = {
+    '../../utils/member': { status: async () => member },
+    '../../utils/db': {
+      addDraw() { submitted++; }, generateDraw() { submitted++; },
+      cachedPlayersFull: () => [], fetchPlayersFull: async () => { loaded++; return []; }, fetchMatches: async () => [],
+      getDraw: async () => ({ _openid: 'alice', title: '历史活动' }),
+    },
+  };
+  const wx = { getStorageSync: () => ({}), setNavigationBarTitle() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  await p.onLoad({});
+  assert.strictEqual(p.data.canPublish, false);
+  assert.match(p.data.authError, /管理员/);
+  await p.publishSignup(); await p.save();
+  assert.strictEqual(submitted, 0); assert.strictEqual(loaded, 0);
+  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps);
+  e.id = 'legacy'; await e.load();
+  assert.match(e.data.error, /管理员/); assert.strictEqual(e.data.value, null);
+  member = { status: 'active', isAdmin: true, uid: 'admin' };
+  const a = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  await a.onLoad({});
+  assert.strictEqual(a.data.canPublish, true); assert.strictEqual(a.data.authError, '');
+});
+
+test('活动列表：管理员入口随服务端身份变化，普通成员不能通过处理函数进入创建页', async () => {
+  let admin = false, navigations = 0;
+  const deps = {
+    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: admin }) },
+    '../../utils/db': { fetchDraws: async () => [], fetchMatches: async () => [], myOpenid: async () => 'alice', fetchMySignups: async () => [] },
+  };
+  const p = load('pages/draw/draw.js', { navigateTo() { navigations++; }, showToast() {} }, 'Page', deps);
+  await p.load(); p.goNew();
+  assert.strictEqual(p.data.canPublish, false); assert.strictEqual(navigations, 0);
+  admin = true; await p.load(); p.goNew();
+  assert.strictEqual(p.data.canPublish, true); assert.strictEqual(navigations, 1);
+  admin = false; await p.load(); p.goNew();
+  assert.strictEqual(p.data.canPublish, false); assert.strictEqual(navigations, 1);
+});
+
+test('普通用户无法经日常录分页提交；管理员入口经实时身份校验', async () => {
+  let admin = false, submitted = 0, loaded = 0;
+  const deps = { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: admin }) }, '../../utils/db': { addMatch() { submitted++; } } };
+  const p = load('pages/add/add.js', {}, 'Page', deps);
+  p.loadPlayers = async () => { loaded++; };
+  await p.onShow(); await p.submit();
+  assert.strictEqual(p.data.canRecordDaily, false); assert.match(p.data.authError, /管理员/);
+  assert.strictEqual(submitted, 0); assert.strictEqual(loaded, 0);
+  admin = true; await p.onShow();
+  assert.strictEqual(p.data.canRecordDaily, true); assert.strictEqual(loaded, 1);
+  admin = false; await p.onShow();
+  assert.strictEqual(p.data.canRecordDaily, false);
+});
+
+test('创建和编辑：名称手动输入，改日期、单双打、组别、赛制都不会覆盖', () => {
+  const wx = { setStorageSync() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page');
+  p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-14';
+  assert.strictEqual(p.data.title, '');
+  p.onTitle({ detail: { value: '周末球友赛' } });
+  p.onInfo({ detail: { date: '2026-11-14' } });
+  assert.strictEqual(p.data.title, '周末球友赛');
+  const pick = (v) => ({ currentTarget: { dataset: { v } } });
+  p.setCategory(pick('m'));
+  assert.strictEqual(p.data.title, '周末球友赛');
+  p.setType(pick('double')); p.setCategory(pick('mixed')); p.setMode(pick('groups_ko'));
+  assert.strictEqual(p.data.title, '周末球友赛');
+  p.onInfo({ detail: { date: '2026-11-15' } });
+  assert.strictEqual(p.data.title, '周末球友赛');
+  p.setType(pick('single'));
+  assert.strictEqual(p.data.title, '周末球友赛');
+  const e = load('pages/event-edit/event-edit.js', wx, 'Page');
+  e.onTitle({ detail: { value: '女子双打友谊赛' } });
+  e.onInfo({ detail: { date: '2026-11-16' } });
+  assert.strictEqual(e.data.title, '女子双打友谊赛');
+});
+
+test('名称为空时创建和编辑都不提交', async () => {
+  let submitted = 0;
+  const deps = { '../../utils/db': { addDraw() { submitted++; }, updateDrawInfo() { submitted++; } } };
+  const wx = { showToast() {}, showModal() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  p.data.title = '   ';
+  await p.publishSignup();
+  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps);
+  e.info = { date: '2026-11-14' };
+  await e.save();
+  assert.strictEqual(submitted, 0); assert.strictEqual(p.data.saving, false); assert.strictEqual(e.data.saving, false);
+});
+
+test('分享范围：总结和挑战无分享回调，活动分享保留活动名称', () => {
+  const deps = { '../../utils/db': {}, '../../utils/cloud': {} };
+  const wx = {};
+  const pl = load('pages/player/player.js', wx, 'Page', deps);
+  pl.data.uid = 'alice';
+  assert.strictEqual(pl.onShareAppMessage().title, 'LULU网球 · 球员主页');
+  const su = load('pages/summary/summary.js', wx, 'Page', deps);
+  assert.strictEqual(su.onShareAppMessage, undefined);
+  const ch = load('pages/challenge/challenge.js', wx, 'Page', deps);
+  assert.strictEqual(ch.onShareAppMessage, undefined);
+  const dv = load('pages/draw-view/draw-view.js', wx, 'Page', deps);
+  dv.id = 'd1'; dv.data.draw = { title: '周末球友赛' }; dv.data.signing = true;
+  assert.strictEqual(dv.onShareAppMessage().title, '周末球友赛 开始报名啦，点击报名');
+});
+
+test('挑战书旧链接：不加载球员、不记录比分、不提供分享', () => {
+  let hidden = 0;
+  const p = load('pages/challenge/challenge.js', { hideShareMenu() { hidden++; } }, 'Page');
+  p.onLoad({ from: '任意文字', to: 'Bob' });
+  assert.strictEqual(hidden, 1); assert.strictEqual(p.goRecord, undefined);
+  assert.strictEqual(p.onShareAppMessage, undefined);
+  assert.deepStrictEqual(plain(p.data), {});
+});
+
+test('场地表单：旧文字和地图文字不回填，只保留坐标并从固定编号中选择', () => {
+  const wx = { chooseLocation({ success }) { success({ latitude: 32, longitude: 122, name: '用户编辑的地图名', address: '用户编辑的地图地址' }); } };
+  const c = load('components/event-form/event-form.js', wx, 'Component');
+  let value;
+  c.triggerEvent = (_, v) => { value = plain(v); };
+  c.init({ date: '2026-11-14', venue: '旧自定义球场', location: { latitude: 31, longitude: 121, name: '旧地图文字' } });
+  assert.strictEqual(value.venue, '');
+  assert.deepStrictEqual(value.location, { latitude: 31, longitude: 121 });
+  assert.strictEqual(c.data.locText, '已选择地图位置');
+  c.pickLocation();
+  assert.strictEqual(value.venue, '');
+  assert.deepStrictEqual(value.location, { latitude: 32, longitude: 122 });
+  c.onCourt({ detail: { value: '3' } });
+  assert.strictEqual(value.venue, '3 号场');
+  c.clearLocation();
+  assert.strictEqual(value.location, null); assert.strictEqual(value.venue, '3 号场');
+});
+
+module.exports = T;

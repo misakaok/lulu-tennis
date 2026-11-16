@@ -37,9 +37,67 @@ function formatText(cfg) {
 // rules: { group: 规则, ko: 规则, rounds: { '2': 决赛规则, '4': 半决赛规则, ... } }
 //   规则 = { setGames: 4|6, noAd: 金球?, bestOf: 1|3 }；rounds 的键是这一轮的人数（2 = 决赛）
 // 旧活动没有 rules：所有场次都用顶层的 setGames / noAd / bestOf
-const MODES = { bracket: '淘汰赛', groups: '小组赛', groups_ko: '小组赛＋淘汰赛' };
+// 界面用语：分组循环 / 单淘汰 / 最后一轮 / 对阵表（不用小组赛、淘汰赛、决赛、签表这类赛事说法）
+const MODES = { bracket: '单淘汰', groups: '分组循环', groups_ko: '循环＋淘汰' };
+// 旧比分记录里存的阶段名（「淘汰赛 · 半决赛」等）换成现在的叫法；只用于展示，数据库不动
+function stageText(s) {
+  return typeof s === 'string' ? s.replace(/小组赛/g, '分组循环').replace(/淘汰赛/g, '单淘汰')
+    .replace(/1\/4 决赛/g, '8 强').replace(/半决赛/g, '4 强').replace(/决赛/g, '最后一轮') : s;
+}
 const hasGroups = (d) => !!d && (d.mode === 'groups' || d.mode === 'groups_ko');
 const hasKo = (d) => !!d && (d.mode !== 'groups');
+
+// 名称按用户输入展示；场地只选固定编号，地图只保留坐标。
+const TITLE_MAX = 20;
+const COURTS = [''].concat(Array.from({ length: 30 }, (_, i) => `${i + 1} 号场`));
+function courtOf(v) {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return COURTS.indexOf(s) >= 0 ? s : '';
+}
+function locationOf(l) {
+  return l && Number.isFinite(l.latitude) && Math.abs(l.latitude) <= 90
+    && Number.isFinite(l.longitude) && Math.abs(l.longitude) <= 180
+    ? { latitude: l.latitude, longitude: l.longitude } : null;
+}
+// 原因只能从固定选项里选（改分、退赛、弃权、裁定、撤销、删除活动、成员审核），不接受手写文字。
+// 每组最多 6 项（选择菜单的上限）。reasonOf：是固定选项就原样返回，否则返回空（旧记录里手写的原因不再展示）
+const REASONS = {
+  score: ['比分录反了', '局数录错了', '抢七小分录错了', '盘数录错了', '录错了场次'], // 申请改分
+  decline: ['原比分没有问题', '新比分也不对', '需要双方再核对'], // 对方拒绝改分
+  rule: ['核对后采用新比分', '核对后保留原比分', '双方说法不一致'], // 发起人裁定
+  withdraw: ['受伤', '身体不适', '临时有事', '时间冲突', '天气原因', '未到场'], // 退赛、弃权
+  keep: ['已经开赛，请打完', '临近开赛，来不及调整', '请先和发起人沟通'], // 拒绝退赛申请
+  fix: ['比分录错了', '录错了场次', '重复录入', '比赛没有打', '发起人更正'], // 撤销、影响后续场次的改动
+  drop: ['活动取消', '重复创建', '创建错了', '报名人数不够'], // 删除活动
+  member: ['不认识这位球友', '信息不完整，请重新申请', '本人要求退出', '长期不参加活动'], // 拒绝申请、移除成员
+};
+const ALL_REASONS = Object.keys(REASONS).reduce((all, k) => all.concat(REASONS[k]), []);
+const reasonOf = (v) => (typeof v === 'string' && ALL_REASONS.indexOf(v.trim()) >= 0 ? v.trim() : '');
+function titleOf(d) {
+  return d && typeof d.title === 'string' && d.title.trim() ? d.title.trim() : '网球活动';
+}
+function publicDraw(d) {
+  if (!d) return d;
+  const out = Object.assign({}, d, { title: titleOf(d), venue: courtOf(d.venue), location: locationOf(d.location) });
+  delete out.address;
+  if (Array.isArray(d.withdrawals)) out.withdrawals = d.withdrawals.map((w) => {
+    const row = Object.assign({}, w); delete row.reason; return row;
+  });
+  if (d.slots) {
+    out.slots = {};
+    Object.keys(d.slots).forEach((key) => { const s = slotOf(d, key); if (s) out.slots[key] = s; });
+  }
+  return out;
+}
+// 保留录分时的活动名称快照；处理原因只留在服务端审计，不随公开战绩下发。
+function publicMatch(m) {
+  if (!m) return m;
+  const out = Object.assign({}, m);
+  if (m.drawId) { out.drawTitle = titleOf({ title: m.drawTitle }); if (m.stage) out.stage = stageText(m.stage); }
+  else { delete out.drawTitle; delete out.stage; } // 日常比赛没有自定义活动标题入口。
+  if (m.resolution) { out.resolution = Object.assign({}, m.resolution); delete out.resolution.reason; }
+  return out;
+}
 
 function normRule(r, fb) {
   r = r || {}; fb = fb || {};
@@ -83,21 +141,21 @@ function stageRules(d) {
 function ruleFor(d, key) {
   const type = cfgOf(d).type;
   const s = stageRules(d);
-  if (/^g/.test(key || '')) return Object.assign({ type, stage: '小组赛' }, s.group);
+  if (/^g/.test(key || '')) return Object.assign({ type, stage: MODES.groups }, s.group);
   const r = parseInt(String(key || '0').replace(/^k/, ''), 10) || 0;
   const players = Math.max(2, koSize(d) >> r);
   const custom = s.rounds[players];
-  return Object.assign({ type, stage: `淘汰赛 · ${D.roundName(players)}`, custom: !!custom }, custom || s.ko);
+  return Object.assign({ type, stage: `${MODES.bracket} · ${D.roundName(players)}`, custom: !!custom }, custom || s.ko);
 }
 
 // 活动详情里展示的赛制：每个阶段一行；单独设置过的轮次也列出来
 function rulesSummary(d) {
   const s = stageRules(d), out = [];
-  if (hasGroups(d)) out.push({ stage: '小组赛', text: ruleText(s.group) });
+  if (hasGroups(d)) out.push({ stage: MODES.groups, text: ruleText(s.group) });
   if (hasKo(d)) {
     const rs = koRounds(d), custom = rs.filter((x) => s.rounds[x.players] && !sameRule(s.rounds[x.players], s.ko));
     const others = rs.filter((x) => custom.indexOf(x) < 0);
-    if (others.length) out.push({ stage: custom.length ? `淘汰赛（${others.map((x) => x.name).join('、')}）` : '淘汰赛', text: ruleText(s.ko) });
+    if (others.length) out.push({ stage: custom.length ? `${MODES.bracket}（${others.map((x) => x.name).join('、')}）` : MODES.bracket, text: ruleText(s.ko) });
     custom.forEach((x) => out.push({ stage: x.name, text: ruleText(s.rounds[x.players]), hl: true }));
   }
   return out;
@@ -105,6 +163,33 @@ function rulesSummary(d) {
 
 const teamLabel = (names) => names.filter(Boolean).join(TEAM_SEP);
 const membersOf = (d, ent) => (d && d.teams && d.teams[ent]) || [ent];
+
+// 活动组别（按个人资料里的性别限制报名）：'' 不限 | 'm' 男子 | 'f' 女子 | 'mixed' 混双（只有双打才有，搭档必须一男一女）
+const CATEGORIES = { m: '男子', f: '女子', mixed: '混双' };
+function categoryOf(d) {
+  const c = d && d.category;
+  if (c === 'm' || c === 'f') return c;
+  return c === 'mixed' && cfgOf(d).type === 'double' ? 'mixed' : '';
+}
+const categoryText = (d) => CATEGORIES[categoryOf(d)] || '';
+
+// 报名名额，按人数算（双打一队 2 人）：淘汰赛是签数，小组赛是创建时填的上限（没填 = 不限，返回 0）
+function capacityOf(d) {
+  const n = d && (d.mode === 'bracket' ? d.size : d.limit);
+  return n > 0 ? n * (cfgOf(d).type === 'double' ? 2 : 1) : 0;
+}
+// 候补：按报名先后排队，名额用完之后报名的都是候补（前面有人取消，后面的自动递补，不用存状态）。
+// 返回 { 报名记录 _id: 1 }
+function waitingOf(signups, cap) {
+  const out = {};
+  if (!(cap > 0)) return out;
+  let used = 0, full = false;
+  (signups || []).slice().sort((x, y) => tsOf(x) - tsOf(y) || String(x._id).localeCompare(String(y._id))).forEach((s) => {
+    const n = s.partner ? 2 : 1;
+    if (full || used + n > cap) { full = true; out[s._id] = 1; } else used += n;
+  });
+  return out;
+}
 
 function tsOf(m) {
   const t = m && m.createdAt;
@@ -370,7 +455,7 @@ function withRule(d, x) {
 }
 
 /* ---------- 单场安排：这一场具体哪天、几点、哪片场地 ---------- */
-// draws.slots: { 场次 key: { date: 'YYYY-MM-DD', time: 'HH:MM', court: '3 号场' } }（只由云函数 setFixtureSlot 写入，发起人填）
+// draws.slots: { 场次 key: { date: 'YYYY-MM-DD', time: 'HH:MM', court: '3 号场' } }（只由云函数 setFixtureSlot 写入，场地从 COURTS 选）
 // 按场次位置存：对阵还没确定的场次（如决赛）也可以先排好；没填的场次沿用活动的日期、时间和场地
 const WEEK = '日一二三四五六';
 function dayText(date) {
@@ -380,7 +465,8 @@ function dayText(date) {
 }
 function slotOf(d, key) {
   const s = d && d.slots && d.slots[key];
-  return s && (s.date || s.time || s.court) ? { date: s.date || '', time: s.time || '', court: s.court || '' } : null;
+  const court = courtOf(s && s.court);
+  return s && (s.date || s.time || court) ? { date: s.date || '', time: s.time || '', court } : null;
 }
 function slotText(s) {
   if (!s) return '';
@@ -396,7 +482,7 @@ function scheduleOf(d, matches) {
     groups.forEach((g) => g.fixtures.forEach((f) => all.push(f)));
     all.sort((x, y) => x.round - y.round); // 按轮次穿插各组
     out = all.map((f) => item(d, Object.assign({}, f)));
-    if (d.mode === 'groups_ko') out = out.concat(koItems(d, knockoutFor(d, matches, groups), '淘汰赛 · '));
+    if (d.mode === 'groups_ko') out = out.concat(koItems(d, knockoutFor(d, matches, groups), MODES.bracket + ' · '));
   } else out = koItems(d, bracketFor(d, matches), '');
   return out.map((x) => withRule(d, x));
 }
@@ -427,7 +513,9 @@ function progressOf(d, matches) {
 }
 
 module.exports = {
+  TITLE_MAX, REASONS, reasonOf, COURTS, courtOf, locationOf, titleOf, publicDraw, publicMatch,
+  CATEGORIES, categoryOf, categoryText, capacityOf, waitingOf,
   TEAM_SEP, cfgOf, formatText, teamLabel, membersOf, tsOf, dedupe, indexFor, flipSets, scoreText, resultFor,
   bracketFor, roundRobin, standings, groupsFor, scheduleOf, findFixture, progressOf,
-  withdrawalsOf, outcomeText, impactOf, dayText, slotOf, slotText, MODES, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,
+  withdrawalsOf, outcomeText, impactOf, dayText, slotOf, slotText, MODES, stageText, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,
 };

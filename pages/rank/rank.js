@@ -9,7 +9,9 @@ const PAGE = 50; // 榜单每次显示多少名，滑到底再加载
 
 Page({
   data: {
-    filter: 'all', sort: 'level',
+    filter: 'all', sort: 'level', gender: 'all', board: false, colLbl: '水平', emptyText: '',
+    sorts: [{ label: '按水平', value: 'level' }, { label: '按胜场', value: 'win' }, { label: '本月活跃', value: 'active' }, { label: '连胜', value: 'streak' }, { label: '本月进步', value: 'gain' }],
+    genders: [{ label: '不限', value: 'all' }, { label: '男', value: '男' }, { label: '女', value: '女' }],
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
     top: [], ranked: [], more: false, loading: true, myKey: '',
     season: SE.ALL, seasons: [{ label: '生涯', value: SE.ALL }],
@@ -58,13 +60,16 @@ Page({
 
   setFilter(e) { this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
   setSort(e) { this.limit = PAGE; this.setData({ sort: e.currentTarget.dataset.v }); this.render(); },
+  setGender(e) { this.limit = PAGE; this.setData({ gender: e.currentTarget.dataset.v }); this.render(); },
   setSeason(e) { this.limit = PAGE; this.setData({ season: e.currentTarget.dataset.v }); this.render(); },
 
   render() {
     // 性别读个人资料：有账号按用户 ID 找，没有账号的按名字；没填（不公开）就不显示
     const gUid = {}, gName = {};
     (this.players || []).forEach((x) => { if (x.uid) gUid[x.uid] = x.gender; if (!(x.name in gName)) gName[x.name] = x.gender; });
-    let list = computeRank(SE.inSeason(this.all || [], this.data.season), this.data.filter).map((p) => {
+    // 趣味榜单（本月活跃 / 连胜 / 本月进步）不分赛季：人从生涯战绩里取，再按榜单数值排
+    const sort = this.data.sort, board = sort === 'active' || sort === 'streak' || sort === 'gain';
+    let list = computeRank(board ? this.all || [] : SE.inSeason(this.all || [], this.data.season), this.data.filter).map((p) => {
       const r = this.ratings.players[p.key];
       const level = r ? r.level : R.DEFAULT_LEVEL;
       return Object.assign(p, {
@@ -74,19 +79,42 @@ Page({
         diffText: (p.diff > 0 ? '+' : '') + p.diff,
       });
     });
-    if (this.data.sort === 'level') {
+    if (sort === 'level') {
       // 定级完成的排前面，再按水平从高到低
       list.splice(0, list.length, ...S.rankOrder(list)); // 和报名列表里的「排名」用同一个排序
     }
-    list.forEach((p, i) => { p.rank = i + 1; });
+    if (board) {
+      const d = new Date();
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const val = S.boards(this.all || [], this.ratings, this.data.filter, month)[sort];
+      list.forEach((p) => { p.val = val[p.key] || 0; });
+      list = list.filter((p) => p.val > 0).sort((x, y) => y.val - x.val || y.level - x.level);
+    }
+    // 按性别筛选（个人资料里填的）：名次在筛选后的榜单里重新排
+    if (this.data.gender !== 'all') list = list.filter((p) => p.gender === this.data.gender);
+    list.forEach((p, i) => {
+      p.rank = i + 1;
+      // 领奖台和榜单第一列显示什么：随排序 / 榜单变化
+      if (sort === 'active') { p.mainText = p.val + ' 场'; p.mainLbl = '本月'; }
+      else if (sort === 'streak') { p.mainText = p.val + ' 连胜'; p.mainLbl = '当前'; }
+      else if (sort === 'gain') { p.mainText = R.fmtDelta(p.val); p.mainLbl = '本月'; }
+      else if (sort === 'level') { p.mainText = p.levelText; p.mainLbl = p.provisional ? '定级中' : '水平'; }
+      else { p.mainText = p.rate + '%'; p.mainLbl = '胜率'; }
+      p.colText = board ? p.mainText : p.levelText;
+    });
     const top = list.length >= 3 ? [list[1], list[0], list[2]] : list.slice(0, 3);
     this.list = list;
     // 榜单先显示前 limit 名，滑到底再加载
     const limit = this.limit || PAGE;
-    this.setData({ top, ranked: list.slice(0, limit), more: list.length > limit, myKey: this.myId || '', none: !list.length });
+    const emptyText = sort === 'active' ? '这个月还没有比赛' : sort === 'streak' ? '现在没有人在连胜' : sort === 'gain' ? '这个月还没有人涨分' : this.data.season === 'all' ? '还没有比赛数据' : '这个赛季还没有比赛';
+    this.setData({
+      top, ranked: list.slice(0, limit), more: list.length > limit, myKey: this.myId || '', none: !list.length, board,
+      colLbl: sort === 'active' ? '本月' : sort === 'streak' ? '连胜' : sort === 'gain' ? '涨幅' : '水平',
+      emptyText: this.data.gender !== 'all' && !list.length ? '没有符合条件的球员' : emptyText,
+    });
   },
 
-  // 点球员 → 球员主页（主页上可以发起挑战）
+  // 点球员 → 球员主页（只展示比赛统计）
   // 排行按统计身份：key 不是 'n:' 开头的就是用户 ID
   tapPlayer(e) {
     const key = e.currentTarget.dataset.key || '';

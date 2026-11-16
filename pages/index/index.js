@@ -1,6 +1,9 @@
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
-const { colorOf, initialOf } = require('../../utils/rules');
+const { colorOf, initialOf, isNormal } = require('../../utils/rules');
+const S = require('../../utils/stats');
+const H = require('../../utils/highlight');
+const Anim = require('../../utils/anim');
 
 const PAGE = 40;        // 列表每次显示多少场，滑到底再加载
 const SEARCH_MS = 300;  // 搜索防抖
@@ -18,7 +21,21 @@ function dateLabel(str) {
   return (y === now.getFullYear() ? '' : `${y}年`) + `${m}月${d}日 ${w}`;
 }
 
-function toView(m, deltas, gOf) {
+// 记分牌中间的比分：打多盘显示盘分，只打一盘显示局分；下面一行列出每盘（有抢七时带括号）
+function scoreOf(m) {
+  const sets = m.sets || [];
+  const oc = m.outcome || (m.walkover ? 'walkover' : 'normal');
+  const setText = sets.map((s) => `${s.a}-${s.b}` + (s.tbA !== undefined && s.tbB !== undefined ? `(${Math.min(s.tbA, s.tbB)})` : '')).join('  ');
+  let big = ['-', '-'];
+  if (sets.length === 1) big = [sets[0].a, sets[0].b];
+  else if (sets.length) big = [sets.filter((s) => s.a > s.b).length, sets.filter((s) => s.b > s.a).length];
+  return {
+    bigA: big[0], bigB: big[1],
+    setText: oc === 'walkover' ? '弃权' : (sets.length > 1 || /\(/.test(setText) ? setText : '') + (oc === 'retired' ? ' 中途退赛' : ''),
+  };
+}
+
+function toView(m, deltas, gOf, tagsOf) {
   const d = deltas[m._id] || {};
   const side = (k) => (m[k] || []).map((n, i) => ({ name: n, initial: initialOf(n), color: colorOf(n), gender: gOf ? gOf(n, (m[k + 'Ids'] || [])[i]) : '' }));
   const first = (k) => ((m[k + 'Keys'] || m[k] || [])[0]); // 同队两人涨跌相同，取第一位的统计身份
@@ -30,7 +47,8 @@ function toView(m, deltas, gOf) {
     _id: m._id,
     drawId: m.drawId || '',
     pending: m.status === 'pending',
-    eventText: m.drawId && m.drawTitle ? `🏆 ${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '',
+    tags: (tagsOf && tagsOf[m._id]) || [],
+    eventText: m.drawId && m.drawTitle ? `${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '',
     typeText: m.type === 'double' ? '双打' : '单打',
     formatText: (m.bestOf === 1 ? '一盘' : '三盘两胜') + ` · ${m.setGames || 4}局制`
       + (m.noAd === false ? ' · 占先' : ' · 金球'),
@@ -41,10 +59,7 @@ function toView(m, deltas, gOf) {
     aUp: (d[first('a')] || 0) > 0, bUp: (d[first('b')] || 0) > 0,
     aText: (m.a || []).join(' / '),
     bText: (m.b || []).join(' / '),
-    sets: (m.sets || []).map((s) => ({
-      a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a,
-      tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
-    })),
+    ...scoreOf(m),
   };
 }
 
@@ -53,7 +68,8 @@ Page({
     loading: true,
     groups: [],
     stat: { total: 0, month: 0, players: 0 },
-    filter: 'all',
+    me: null, // 我的战绩卡：没有账号或还没打过比赛时不显示，顶部改为显示全部比赛的统计
+    filter: 'all', canRecordDaily: false,
     who: '',
     more: false,
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
@@ -61,7 +77,7 @@ Page({
 
   onLoad() {
     this.limit = PAGE;
-    this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull());
+    this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull(), (db.cachedProfile() || {})._openid || '');
     this.render();
   },
   onReachBottom() {
@@ -74,10 +90,13 @@ Page({
     this.load().then(() => wx.stopPullDownRefresh()); },
 
   async load() {
+    this.setData({ canRecordDaily: false });
     try {
-      const [m, p] = await Promise.all([db.fetchMatchesAll(), db.fetchPlayersFull()]);
+      const member = await require('../../utils/member').status();
+      this.setData({ canRecordDaily: member.status === 'active' && !!member.isAdmin });
+      const [m, p, myId] = await Promise.all([db.fetchMatchesAll(), db.fetchPlayersFull(), db.myOpenid().catch(() => this.myId || '')]);
       // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
-      if (this.setSource(m, p)) this.render();
+      if (this.setSource(m, p, myId)) this.render();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
@@ -87,8 +106,8 @@ Page({
 
   // 换数据源：水平分涨跌、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
   // 返回是否有变化
-  setSource(matches, players) {
-    const sig = JSON.stringify([matches || [], players || []]);
+  setSource(matches, players, myId) {
+    const sig = JSON.stringify([matches || [], players || [], myId || '']);
     if (sig === this.sig) return false;
     this.sig = sig;
     const shown = matches || [];
@@ -96,10 +115,15 @@ Page({
     const month = ymd(new Date()).slice(0, 7);
     const names = {};
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
-    this.gOf = require('../../utils/stats').genderFinder(players);
+    this.gOf = S.genderFinder(players);
+    this.myId = myId || '';
+    // 和排行榜同一套口径（S.playerStats：名次按水平排序）
+    const st = S.playerStats(all, players || []);
     this.src = {
       shown,
-      deltas: R.computeRatings(all, R.startLevelsFrom(players || [])).deltas,
+      me: this.meCard(all, st, players || []),
+      deltas: st.ratings.deltas,
+      tags: H.matchTags(all, st.ratings), // 亮点标签（爆冷、逆转…）：只在数据变化时算一次
       stat: { total: all.length, month: all.filter((m) => (m.date || '').indexOf(month) === 0).length, players: Object.keys(names).length },
     };
     return true;
@@ -107,7 +131,7 @@ Page({
 
   // 列表显示正式战绩 + 待对手确认的日常比赛；按筛选条件过滤后只渲染前 limit 场
   render() {
-    const { shown, deltas, stat } = this.src || { shown: [], deltas: {}, stat: this.data.stat };
+    const { shown, deltas, stat, me, tags } = this.src || { shown: [], deltas: {}, stat: this.data.stat, me: null, tags: {} };
     const who = (this.who !== undefined ? this.who : this.data.who).trim();
     const filter = this.data.filter;
     const list = shown.filter((m) =>
@@ -117,10 +141,31 @@ Page({
     list.slice(0, this.limit || PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
-      g.items.push(toView(m, deltas, this.gOf));
+      g.items.push(toView(m, deltas, this.gOf, tags));
     });
-    this.setData({ groups, stat, more: list.length > (this.limit || PAGE) });
+    // 顶部卡片的数字第一次显示时从 0 滚到实际值（滚动帧按路径改 data，所以 me / stat 传副本，不动 this.src 里那份）
+    const nums = me
+      ? { 'me.level': me.level, 'me.played': me.played, 'me.win': me.win, 'me.lose': me.lose, 'me.rate': me.rate }
+      : { 'stat.total': stat.total, 'stat.month': stat.month, 'stat.players': stat.players };
+    this.setData(Object.assign({ groups, stat: Object.assign({}, stat), me: me && Object.assign({}, me), more: list.length > (this.limit || PAGE) }, Anim.roll(this, nums)));
   },
+
+  // 我的战绩卡：水平分、名次、场次、胜负、胜率、最近 6 场（只算正式战绩里正常完赛的）
+  meCard(all, st, players) {
+    const uid = this.myId, s = uid && st.map[uid];
+    if (!s) return null;
+    const p = players.find((x) => x.uid === uid) || {};
+    const name = p.name || '';
+    const recent = all.filter((m) => isNormal(m) && ((m.aKeys || []).indexOf(uid) >= 0 || (m.bKeys || []).indexOf(uid) >= 0))
+      .slice(0, 6).map((m, i) => ({ i, w: m.winner === ((m.aKeys || []).indexOf(uid) >= 0 ? 'a' : 'b') }));
+    return {
+      name, initial: initialOf(name), color: colorOf(name),
+      level: R.fmt(s.level), levelLbl: s.provisional ? '定级中' : '水平分',
+      rankText: s.provisional ? '打满几场后参与排名' : `排名第 ${s.rank} 位`,
+      played: s.played, win: s.win, lose: s.played - s.win, rate: s.rate, recent,
+    };
+  },
+  goMe() { wx.switchTab({ url: '/pages/me/me' }); },
 
   setFilter(e) { this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
   // 输入时只记下关键词，停顿 300ms 再过滤（不在每个字上重新渲染整个列表）
@@ -129,8 +174,8 @@ Page({
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => { this.limit = PAGE; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
   },
-  onUnload() { clearTimeout(this.searchTimer); },
-  goAdd() { wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
+  onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
+  goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
 

@@ -2,25 +2,51 @@
   <view wx:if="{{loading}}" class="muted">加载中…</view>
   <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
   <block wx:else>
-    <view wx:if="{{status === 'invalid'}}" class="st-tip bad">这条活动比分不是从活动签表录入的，不计入战绩</view>
-    <view class="card">
-      <view wx:if="{{m.event}}" class="mt-event" bindtap="openEvent">🏆 {{m.event}} ›</view>
-      <view class="mt-meta">{{m.date}} · {{m.format}}</view>
-      <view class="mt-row {{m.winner === 'a' ? 'w' : ''}}">
-        <view class="mt-avs"><block wx:for="{{m.a}}" wx:key="name" wx:for-item="p">
-          <view class="mt-av init" style="background:{{p.color}}">{{p.initial}}</view>
-        </block></view>
-        <text class="mt-name"><block wx:for="{{m.a}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
-        <text wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="mt-sc {{s.aw ? 'hi' : ''}}">{{s.a}}<text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text></text>
+    <view wx:if="{{status === 'invalid'}}" class="st-tip bad">这条活动比分不是从活动对阵表录入的，不计入战绩</view>
+
+    <!-- 记分牌 -->
+    <view class="hero">
+      <view class="hero-top">
+        <view class="hero-tag" bindtap="openEvent">{{m.event || '日常比赛'}}{{m.event ? ' ›' : ''}}</view>
+        <view class="hero-meta">{{m.date}} · {{m.typeText}} · {{m.format}}</view>
+        <view wx:if="{{tags.length}}" class="hero-tags"><text wx:for="{{tags}}" wx:key="k" class="hero-hl {{item.k}}">{{item.t}}</text></view>
       </view>
-      <view class="mt-row {{m.winner === 'b' ? 'w' : ''}}">
-        <view class="mt-avs"><block wx:for="{{m.b}}" wx:key="name" wx:for-item="p">
-          <view class="mt-av init" style="background:{{p.color}}">{{p.initial}}</view>
-        </block></view>
-        <text class="mt-name"><block wx:for="{{m.b}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
-        <text wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="mt-sc {{s.bw ? 'hi' : ''}}">{{s.b}}<text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></text>
+      <view class="hero-main">
+        <view class="hs {{m.winner === 'a' ? 'w' : 'l'}}">
+          <view class="hs-avs"><view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
+          <view class="hs-badge {{m.winner === 'a' ? 'win' : ''}}">{{m.winner === 'a' ? '胜' : m.loseText}}</view>
+        </view>
+        <view class="hero-mid">
+          <view class="hero-big"><text class="{{m.winner === 'a' ? '' : 'dim'}}">{{m.bigA}}</text><text class="colon">:</text><text class="{{m.winner === 'b' ? '' : 'dim'}}">{{m.bigB}}</text></view>
+          <view class="hero-sub">{{m.bigLbl}}</view>
+        </view>
+        <view class="hs {{m.winner === 'b' ? 'w' : 'l'}}">
+          <view class="hs-avs"><view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
+          <view class="hs-badge {{m.winner === 'b' ? 'win' : ''}}">{{m.winner === 'b' ? '胜' : m.loseText}}</view>
+        </view>
+      </view>
+      <!-- 每盘比分 -->
+      <view wx:if="{{m.showSets}}" class="hero-sets">
+        <view wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="hset">
+          <view class="hset-l">第 {{index + 1}} 盘</view>
+          <view class="hset-v"><text class="{{s.aw ? 'on' : ''}}">{{s.a}}</text><text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text><text class="hset-c">-</text><text class="{{s.bw ? 'on' : ''}}">{{s.b}}</text><text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></view>
+        </view>
       </view>
     </view>
+
     <match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+
+    <view wx:if="{{changes.length}}" class="card">
+      <view class="card-title">比分修改记录<text class="sub">{{changes.length}} 次</text></view>
+      <view wx:for="{{changes}}" wx:key="i" class="chg">
+        <view class="chg-dot"></view>
+        <view class="chg-b">
+          <view class="chg-t"><text class="chg-w">{{item.text}}</text><text class="chg-d">{{item.when}}</text></view>
+          <view class="chg-s"><text class="chg-from">{{item.from}}</text><text class="chg-ar">→</text><text class="b">{{item.to}}</text></view>
+        </view>
+      </view>
+    </view>
   </block>
 </view>

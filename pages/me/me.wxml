@@ -1,9 +1,9 @@
 <view class="page">
   <player-home id="home" uid="{{myId}}" />
 
-  <view wx:if="{{isAdmin}}" class="card admin" bindtap="openMembers"><text class="ad-t">成员管理</text><text class="ad-s">审核申请、邀请、移除成员（仅管理员可见）</text><text class="td-go">›</text></view>
+  <view wx:if="{{isAdmin}}" class="card admin" hover-class="tap-on" bindtap="openMembers"><text class="ad-t">成员管理</text><text wx:if="{{pendingApply}}" class="ad-n">{{pendingApply}} 个新申请待审核</text><text class="ad-s">{{pendingApply ? '' : '审核申请、邀请、移除成员（仅管理员可见）'}}</text><text class="td-go">›</text></view>
 
-  <view class="card todo" bindtap="openTodo">
+  <view class="card todo" hover-class="tap-on" bindtap="openTodo">
     <view class="td-head"><text class="td-t">我的待办</text><text wx:if="{{todo.count}}" class="td-n">{{todo.count}}</text><text class="td-go">›</text></view>
     <view wx:if="{{todo && todo.next}}" class="td-next">下一场：{{todo.next.title}} · {{todo.next.stage}} vs {{todo.next.opp}}<text class="td-when">{{todo.next.when}} · {{todo.next.venue}}</text></view>
     <view wx:if="{{todo && todo.lines.length}}" class="td-lines"><text wx:for="{{todo.lines}}" wx:key="*this" class="td-chip">{{item}}</text></view>

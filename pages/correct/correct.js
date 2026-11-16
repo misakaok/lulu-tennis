@@ -9,7 +9,7 @@ const E = require('../../utils/event');
 const ID = require('../../utils/ident');
 
 Page({
-  data: { loading: true, error: '', mode: 'request', aLabel: '', bLabel: '', current: '', ruleText: '', setGames: 4, noAd: true, bestOf: 1, init: [], reason: '', check: { ok: false, msg: '' }, submitting: false },
+  data: { loading: true, error: '', mode: 'request', aLabel: '', bLabel: '', current: '', ruleText: '', setGames: 4, noAd: true, bestOf: 1, init: [], reason: '', reasons: E.REASONS.score, check: { ok: false, msg: '' }, submitting: false },
 
   onLoad(o) { this.id = o.matchId; const mode = o.mode === 'edit' || o.mode === 'admin' ? o.mode : 'request'; this.setData({ mode }); wx.setNavigationBarTitle({ title: mode === 'edit' ? '修改比分' : mode === 'admin' ? '更正比分' : '申请修改比分' }); this.load(); },
 
@@ -32,14 +32,14 @@ Page({
     const r = e.detail;
     this.setData({ check: r.ok ? { ok: true, msg: `改为：${(r.winner === 'a' ? this.data.aLabel : this.data.bLabel)} 以 ${Math.max(r.won.a, r.won.b)}:${Math.min(r.won.a, r.won.b)} 获胜` } : { ok: false, msg: r.msg } });
   },
-  onReason(e) { this.setData({ reason: e.detail.value }); },
+  onReason(e) { this.setData({ reason: e.currentTarget.dataset.v }); }, // 原因只从固定选项里选
 
   async submit() {
     if (this.data.submitting) return; // 防重复提交（云函数里也有同一场只能有一条待处理申请的校验）
     if (!this.res || !this.res.ok) { wx.showToast({ title: this.data.check.msg || '请填写正确比分', icon: 'none' }); return; }
-    const reason = this.data.reason.trim();
+    const reason = E.reasonOf(this.data.reason);
     const mode = this.data.mode;
-    if (mode === 'request' && reason.length < 2) { wx.showToast({ title: '请填写修改原因', icon: 'none' }); return; }
+    if (mode === 'request' && !reason) { wx.showToast({ title: '请选择修改原因', icon: 'none' }); return; }
     this.setData({ submitting: true });
     try {
       if (mode === 'edit') await cloud.call('editMatchScore', { matchId: this.id, sets: this.res.sets });

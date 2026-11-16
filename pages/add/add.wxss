@@ -19,7 +19,7 @@
 .slot.filled { border-style: solid; color: #1E1E32; font-weight: 600; font-size: 28rpx; }
 .slot.a.filled { background: #F4F4FA; border-color: #D9D9EC; }
 .slot.b.filled { background: #edf6ff; border-color: #b8dbff; }
-.slot.active { border: 3rpx solid #9595C4; box-shadow: 0 0 0 6rpx rgba(133, 133, 184, 0.12); color: #6E6EA3; }
+.slot.active { border: 3rpx solid #6E6EA3; box-shadow: 0 0 0 6rpx rgba(133, 133, 184, 0.12); color: #6E6EA3; }
 
 .chips { display: flex; flex-wrap: wrap; margin: 26rpx -8rpx 0; }
 .chip { padding: 12rpx 26rpx; margin: 8rpx; border-radius: 30rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; }

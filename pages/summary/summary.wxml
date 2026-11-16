@@ -1,0 +1,54 @@
+<view class="page">
+  <scroll-view scroll-x class="season-row" enhanced show-scrollbar="{{false}}">
+    <text wx:for="{{seasons}}" wx:key="*this" class="season {{season === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setSeason">{{item}} 赛季</text>
+  </scroll-view>
+
+  <view wx:if="{{!s && !loading}}" class="empty"><view class="empty-ball"></view><view>这位球员还没有设置资料</view></view>
+  <block wx:elif="{{s}}">
+    <view class="hero ani-in">
+      <view class="h-av" style="background:{{color}}">{{initial}}</view>
+      <view class="h-name">{{name}}</view>
+      <view class="h-sub">{{s.label}}总结</view>
+      <view wx:if="{{s.has}}" class="h-row">
+        <view class="h-cell"><text class="n">{{s.played}}</text><text class="l">场比赛</text></view>
+        <view class="h-cell"><text class="n">{{s.win}}-{{s.lose}}</text><text class="l">胜-负</text></view>
+        <view class="h-cell"><text class="n">{{s.rate}}</text><text class="l">胜率</text></view>
+      </view>
+      <view wx:else class="h-none">这个赛季还没有正式比赛</view>
+    </view>
+
+    <block wx:if="{{s.has}}">
+      <view class="card">
+        <view class="card-title">每月场数<text wx:if="{{s.busy}}" class="sub">最忙的是 {{s.busy}}</text></view>
+        <view class="mo-bars">
+          <view wx:for="{{s.months}}" wx:key="m" class="mo-col">
+            <text class="mo-n">{{item.n || ''}}</text>
+            <view class="mo-bar ani-grow-y" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view>
+          </view>
+        </view>
+        <view class="mo-x"><text wx:for="{{s.months}}" wx:key="m" class="mo-l">{{item.m}}</text></view>
+      </view>
+
+      <view class="card">
+        <view class="card-title">这个赛季</view>
+        <view class="kv"><text class="k">单打</text><text class="v">{{s.singlePlayed ? s.single : '没有打'}}</text></view>
+        <view class="kv"><text class="k">双打</text><text class="v">{{s.doublePlayed ? s.double : '没有打'}}</text></view>
+        <view class="kv"><text class="k">最长连胜</text><text class="v">{{s.bestStreak}} 场</text></view>
+        <view wx:if="{{s.level}}" class="kv"><text class="k">比赛等级</text><text class="v">{{s.level.from}} → {{s.level.to}}<text class="d {{s.level.up ? 'up' : ''}} {{s.level.down ? 'down' : ''}}">{{s.level.delta}}</text></text></view>
+        <view wx:if="{{s.level && s.level.peak}}" class="kv"><text class="k">赛季最高等级</text><text class="v">{{s.level.peak}}</text></view>
+        <view class="kv"><text class="k">参加活动</text><text class="v">{{s.events}} 次{{s.finals ? '，' + s.finals + ' 次打进最后一轮' : ''}}</text></view>
+        <view wx:if="{{s.rival}}" class="kv"><text class="k">交手最多</text><text class="v">{{s.rival}}</text></view>
+        <view wx:if="{{s.partnerMost}}" class="kv"><text class="k">搭档最多</text><text class="v">{{s.partnerMost}}</text></view>
+        <view wx:if="{{s.partner}}" class="kv"><text class="k">最佳搭档</text><text class="v">{{s.partner}}</text></view>
+        <view wx:if="{{s.bagels}}" class="kv"><text class="k">送蛋</text><text class="v">{{s.bagels}} 次</text></view>
+        <view wx:if="{{s.comebacks}}" class="kv"><text class="k">逆转取胜</text><text class="v">{{s.comebacks}} 次</text></view>
+      </view>
+
+      <view wx:if="{{s.titles.length}}" class="card">
+        <view class="card-title">冠军<text class="sub">{{s.titles.length}} 个</text></view>
+        <view wx:for="{{s.titles}}" wx:key="title" class="kv"><text class="k">🏆 {{item.title}}</text><text class="v">{{item.date}}</text></view>
+      </view>
+    </block>
+    <view class="foot">全部由正式战绩自动计算，只算正常完赛的比赛；等级分不分赛季，这里显示的是赛季内的变化</view>
+  </block>
+</view>

@@ -2,6 +2,7 @@
 // 所有资格判断（是否参赛、是否结束、是否已确认）都由云函数完成，
 // 这里只按云函数返回的状态显示按钮，按钮被绕过也提交不成功。
 const cloud = require('../../utils/cloud');
+const pick = require('../../utils/pick');
 
 Component({
   options: { addGlobalClass: true },
@@ -56,12 +57,6 @@ Component({
     },
     adminFix() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
     requestChange() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
-    ask(title, placeholder) {
-      return new Promise((resolve) => wx.showModal({
-        title, editable: true, placeholderText: placeholder,
-        success: (r) => resolve(r.confirm ? (r.content || '').trim() : null), fail: () => resolve(null),
-      }));
-    },
     async act(action, data, okText) {
       if (this.data.busy) return null; // 防重复点击（云函数里还有原子领取，重复处理只会生效一次）
       this.setData({ busy: true });
@@ -74,16 +69,15 @@ Component({
     },
     async respond(e) {
       const accept = e.currentTarget.dataset.v === '1';
-      const note = accept ? '' : await this.ask('拒绝修改', '可以写一下原因（选填）');
+      const note = accept ? '' : await pick.reason('decline', '拒绝修改的原因');
       if (note === null) return;
       const r = await this.act('respondScoreChange', { requestId: this.data.st.request.id, accept, note }, accept ? '已同意，新比分生效' : '已拒绝，保留原比分');
       if (r) { this.load(); this.triggerEvent('changed'); }
     },
     async rule(e) {
       const accept = e.currentTarget.dataset.v === '1';
-      const reason = await this.ask(accept ? '裁定：采用新比分' : '裁定：保留原比分', '裁定原因（必填）');
-      if (reason === null) return;
-      if (reason.length < 2) { wx.showToast({ title: '请填写裁定原因', icon: 'none' }); return; }
+      const reason = await pick.reason('rule', accept ? '裁定：采用新比分' : '裁定：保留原比分');
+      if (!reason) return;
       const data = { requestId: this.data.st.request.id, accept, reason };
       let r = await this.act('ruleScoreChange', data, accept ? '已裁定，新比分生效' : '已裁定，保留原比分');
       if (r && r.needConfirm) {
@@ -103,7 +97,7 @@ Component({
     revoke() {
       wx.showModal({
         title: '撤销这场比赛的赛果？',
-        content: '比分会被删除，战绩、排名、水平分和晋级结果随之更新，已有的确认不再生效。',
+        content: '比分会被删除，战绩、排名、水平分和后面的对阵随之更新，已有的确认不再生效。',
         confirmText: '撤销', confirmColor: '#e5484d',
         success: async (r) => {
           if (!r.confirm) return;
@@ -121,19 +115,18 @@ Component({
               if (res.needConfirm || res.needReason) { wx.showToast({ title: '比分刚刚有变动，请重试', icon: 'none' }); this.load(); return; }
             }
             if (res.needReason) {
-              // 发起人撤销已确认 / 弃权退赛 / 影响后续场次的比分：必须填原因；有影响时列出并确认
+              // 发起人撤销已确认 / 弃权退赛 / 影响后续场次的比分：必须选原因；有影响时先列出并确认
               const impact = res.impact || [];
-              const lines = impact.map((x) => `${x.stage}：${x.a} vs ${x.b} ${x.score}`).join('\n');
-              const ask = await new Promise((done) => wx.showModal({
-                title: impact.length ? '会影响后续比赛' : '请填写撤销原因',
-                content: impact.length ? `撤销后，下面已录分的比赛比分将作废：\n${lines}` : '',
-                editable: true, placeholderText: '撤销原因（必填，会留档）',
-                confirmText: '确认撤销', confirmColor: '#e5484d',
-                success: (x) => done(x), fail: () => done({ confirm: false }),
-              }));
-              if (!ask.confirm) return;
-              const reason = String(ask.content || '').trim();
-              if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
+              if (impact.length) {
+                const lines = impact.map((x) => `${x.stage}：${x.a} vs ${x.b} ${x.score}`).join('\n');
+                const go = await new Promise((done) => wx.showModal({
+                  title: '会影响后续比赛', content: `撤销后，下面已录分的比赛比分将作废：\n${lines}`,
+                  confirmText: '继续', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false),
+                }));
+                if (!go) return;
+              }
+              const reason = await pick.reason('fix', '撤销原因（会留档）');
+              if (!reason) return;
               res = await cloud.call('revokeMatch', { matchId: this.data.matchId, reason, confirmImpact: true });
               if (res.needReason) { wx.showToast({ title: '比分刚刚有变动，请重试', icon: 'none' }); this.load(); return; }
             }

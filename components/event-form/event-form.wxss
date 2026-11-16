@@ -3,6 +3,5 @@
 .ef-pick { font-size: 28rpx; font-weight: 600; color: #4F4F7D; }
 .ef-pick.ph { color: #B7B7CC; font-weight: 400; }
 .ef-arrow { color: #B7B7CC; margin-left: 6rpx; }
-.ef-in { flex: 1; height: 88rpx; font-size: 28rpx; }
 .ef-loc { flex: 1; font-size: 28rpx; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ef-clear { font-size: 24rpx; color: #A5A5BA; padding-left: 16rpx; }
+.ef-clear { height: 56rpx; line-height: 50rpx; margin: 0 0 0 16rpx; padding: 0 16rpx; font-size: 24rpx; }

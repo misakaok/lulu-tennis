@@ -1,4 +1,4 @@
-.vs-card { background: linear-gradient(155deg, #a3a3cb, #8484b6); border-radius: 32rpx; padding: 32rpx 28rpx; color: #fff; margin-bottom: 24rpx; box-shadow: 0 14rpx 30rpx rgba(133, 133, 184, 0.35); }
+.vs-card { background: linear-gradient(155deg, #A3A3CB, #8484B6); border-radius: 32rpx; padding: 32rpx 28rpx; color: #fff; margin-bottom: 24rpx; box-shadow: 0 14rpx 30rpx rgba(133, 133, 184, 0.35); }
 .title { text-align: center; font-size: 32rpx; font-weight: 800; letter-spacing: 4rpx; }
 .vs-row { display: flex; align-items: center; margin-top: 28rpx; }
 .pl { flex: 1; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
@@ -16,11 +16,11 @@
 
 .warn { background: #fdf1f0; color: #a3423d; font-size: 26rpx; line-height: 1.6; }
 .info { background: #f1f1f8; color: #4f4f7d; font-size: 26rpx; line-height: 1.6; }
-.gain { margin-top: 8rpx; font-size: 24rpx; color: #6e6ea3; }
+.gain { margin-top: 8rpx; font-size: 24rpx; color: #6E6EA3; }
 
-.btn-share { height: 96rpx; line-height: 96rpx; border-radius: 48rpx; color: #fff; font-size: 32rpx; font-weight: 600; background: linear-gradient(90deg, #8585b8, #a3a3cb); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); margin-bottom: 20rpx; }
+.btn-share { height: 96rpx; line-height: 96rpx; border-radius: 48rpx; color: #fff; font-size: 32rpx; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); margin-bottom: 20rpx; }
 .btn-share::after { border: none; }
 button.btn-share { display: flex !important; align-items: center; justify-content: center; padding: 0 !important; width: auto !important; line-height: normal !important; box-sizing: border-box; }
-.ghost-btn { background: #fff; color: #6e6ea3; border: 2rpx solid #cfcfe6; box-shadow: none; }
-.back { text-align: center; color: #8686a0; font-size: 26rpx; margin-top: 30rpx; }
+.ghost-btn { background: #fff; color: #6E6EA3; border: 2rpx solid #cfcfe6; box-shadow: none; }
+.back { text-align: center; color: #8686A0; font-size: 26rpx; margin-top: 30rpx; }
 .rep { margin-top: 6rpx; font-size: 22rpx; opacity: 0.9; }

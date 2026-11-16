@@ -30,18 +30,18 @@
 .th .c-n { display: block; }
 .b { font-weight: 700; }
 .rate-bar { width: 80rpx; height: 8rpx; border-radius: 4rpx; background: #EFEFF6; overflow: hidden; }
-.rate-fill { height: 100%; background: #A3A3CB; border-radius: 4rpx; }
+.rate-fill { transition: width 0.4s ease-out; height: 100%; background: #A3A3CB; border-radius: 4rpx; }
 .rate-t { font-size: 22rpx; color: #5C5C76; margin-top: 6rpx; }
 .up { color: #6E6EA3; font-weight: 600; }
 .down { color: #e5484d; font-weight: 600; }
 .foot { text-align: center; color: #A5A5BA; font-size: 22rpx; margin-top: 20rpx; }
 
 .sort-row { display: flex; align-items: center; justify-content: flex-end; margin: -10rpx 4rpx 24rpx; font-size: 24rpx; }
-.sort-lbl { color: #a5a5ba; margin-right: 12rpx; }
+.sort-lbl { color: #A5A5BA; margin-right: 12rpx; }
 .sort { padding: 6rpx 18rpx; border-radius: 20rpx; color: #6c6c86; margin-left: 8rpx; }
 .sort.on { background: #a3a3cb; color: #fff; font-weight: 600; }
 .lv { font-weight: 800; color: #4f4f7d; font-size: 28rpx; }
-.prov { font-size: 18rpx; color: #a5a5ba; margin-top: 2rpx; }
+.prov { font-size: 18rpx; color: #A5A5BA; margin-top: 2rpx; }
 .tr.me { background: #f6f6fb; margin: 0 -24rpx; padding: 0 24rpx; }
 .me-tag { font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; margin-left: 8rpx; flex: none; }
 
@@ -54,3 +54,8 @@
 /* 性别（个人资料里填了才显示） */
 .g-tag { flex: none; margin-left: 8rpx; font-size: 18rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 0 8rpx; }
 .pod-g { font-size: 20rpx; color: #6E6EA3; margin-top: 2rpx; }
+
+/* 排序 / 榜单一行可以横向滑动 */
+.sort-scroll { flex: 1; width: 0; white-space: nowrap; }
+.pod-rate.sm { font-size: 32rpx; }
+.sort-scroll .sort { display: inline-block; }

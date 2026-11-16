@@ -1,12 +1,14 @@
+<view wx:if="{{!canPublish}}" class="page muted">{{authError || '正在校验管理员身份…'}}</view>
+<block wx:else>
 <view class="page">
   <!-- 活动设置 -->
   <view class="card">
     <view class="field first">
-      <text class="label">比赛名称</text>
-      <input class="title-in" value="{{title}}" maxlength="20" bindinput="onTitle" placeholder="例如：11月 内部赛" disabled="{{fromSignup}}" />
+      <text class="label">活动名称</text>
+      <input class="title-in" value="{{title}}" maxlength="20" bindinput="onTitle" placeholder="请输入活动名称，例如：周末约球" disabled="{{fromSignup}}" />
     </view>
     <view wx:if="{{!fromSignup}}" class="field">
-      <text class="label">参赛方式</text>
+      <text class="label">参加方式</text>
       <view class="seg">
         <view class="seg-item {{entry === 'signup' ? 'on' : ''}}" data-v="signup" bindtap="setEntry">开放报名</view>
         <view class="seg-item {{entry === 'pick' ? 'on' : ''}}" data-v="pick" bindtap="setEntry">我来选人</view>
@@ -15,9 +17,9 @@
     <view class="field">
       <text class="label">活动形式</text>
       <view class="seg {{fromSignup ? 'locked' : ''}}">
-        <view class="seg-item {{mode === 'groups' ? 'on' : ''}}" data-v="groups" bindtap="setMode">小组赛</view>
-        <view class="seg-item {{mode === 'bracket' ? 'on' : ''}}" data-v="bracket" bindtap="setMode">淘汰赛</view>
-        <view class="seg-item {{mode === 'groups_ko' ? 'on' : ''}}" data-v="groups_ko" bindtap="setMode">小组赛＋淘汰赛</view>
+        <view class="seg-item {{mode === 'groups' ? 'on' : ''}}" data-v="groups" bindtap="setMode">分组循环</view>
+        <view class="seg-item {{mode === 'bracket' ? 'on' : ''}}" data-v="bracket" bindtap="setMode">单淘汰</view>
+        <view class="seg-item {{mode === 'groups_ko' ? 'on' : ''}}" data-v="groups_ko" bindtap="setMode">循环＋淘汰</view>
       </view>
     </view>
     <view wx:if="{{mode === 'bracket'}}" class="field">
@@ -29,13 +31,13 @@
     <view wx:else class="field">
       <text class="label">分几组</text>
       <view class="pills {{fromSignup ? 'locked' : ''}}">
-        <view wx:for="{{groupOpts}}" wx:key="*this" class="pill {{groupCount === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setGroups">{{item}} 组</view>
+        <view wx:for="{{groupOpts}}" wx:key="*this" class="pill {{groupCount === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setGroups">{{item === 1 ? '1 组（大循环）' : item + ' 组'}}</view>
       </view>
     </view>
     <view wx:if="{{mode === 'groups_ko'}}" class="field">
-      <text class="label">每组出线</text>
+      <text class="label">每组进入下一轮</text>
       <view class="seg {{fromSignup ? 'locked' : ''}}">
-        <view class="seg-item {{advance === 1 ? 'on' : ''}}" data-v="1" bindtap="setAdvance">第 1 名</view>
+        <view class="seg-item {{advance === 1 ? 'on' : ''}} {{groupCount === 1 ? 'off' : ''}}" data-v="1" bindtap="setAdvance">第 1 名</view>
         <view class="seg-item {{advance === 2 ? 'on' : ''}}" data-v="2" bindtap="setAdvance">前 2 名</view>
       </view>
       <view class="muted small">{{koInfo}}</view>
@@ -50,7 +52,7 @@
 
   <!-- 比赛规则：录分时直接沿用，不用每场再选 -->
   <view class="card">
-    <view class="card-title">比赛规则<text class="sub">{{fromSignup ? '创建时已定好' : '录分时自动沿用'}}</text></view>
+    <view class="card-title">计分规则<text class="sub">{{fromSignup ? '创建时已定好' : '录分时自动沿用'}}</text></view>
     <view class="field first">
       <text class="label">单打 / 双打</text>
       <view class="seg {{fromSignup ? 'locked' : ''}}">
@@ -58,30 +60,48 @@
         <view class="seg-item {{type === 'double' ? 'on' : ''}}" data-v="double" bindtap="setType">双打</view>
       </view>
     </view>
+    <view class="field">
+      <text class="label">组别</text>
+      <view class="pills {{fromSignup ? 'locked' : ''}}">
+        <view class="pill {{category === '' ? 'on' : ''}}" data-v="" bindtap="setCategory">不限</view>
+        <view class="pill {{category === 'm' ? 'on' : ''}}" data-v="m" bindtap="setCategory">男子</view>
+        <view class="pill {{category === 'f' ? 'on' : ''}}" data-v="f" bindtap="setCategory">女子</view>
+        <view wx:if="{{type === 'double'}}" class="pill {{category === 'mixed' ? 'on' : ''}}" data-v="mixed" bindtap="setCategory">混双</view>
+      </view>
+      <view wx:if="{{category}}" class="muted small">{{category === 'mixed' ? '报名时搭档必须一男一女；没搭档的由你配对' : '报名时按个人资料里的性别限制'}}{{entry === 'pick' && !fromSignup ? '。「我来选人」不会自动检查性别，请自己把关' : ''}}</view>
+    </view>
+    <view wx:if="{{mode !== 'bracket' && entry === 'signup' && !fromSignup}}" class="field">
+      <text class="label">报名上限</text>
+      <view class="pills">
+        <view wx:for="{{limits}}" wx:key="*this" class="pill {{limit === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setLimit">{{item ? item + (type === 'double' ? ' 队' : ' 人') : '不限'}}</view>
+      </view>
+      <view class="muted small">满了之后还能报名，排进候补；前面有人取消就自动递补</view>
+    </view>
+    <view wx:if="{{waitInfo}}" class="muted small">{{waitInfo}}</view>
 
     <!-- 小组赛规则 -->
     <view wx:if="{{mode !== 'bracket'}}" class="stage">
-      <view class="stage-h">小组赛规则</view>
+      <view class="stage-h">分组循环的规则</view>
       <rule-picker value="{{rules.group}}" disabled="{{fromSignup}}" data-stage="group" bind:change="onRule" />
     </view>
 
     <!-- 淘汰赛规则：统一一套，或按轮次单独设置 -->
     <view wx:if="{{mode !== 'groups'}}" class="stage">
       <view class="stage-h row">
-        <text>淘汰赛规则</text>
+        <text>单淘汰的规则</text>
         <view class="seg mini {{fromSignup ? 'locked' : ''}}">
           <view class="seg-item {{byRound ? '' : 'on'}}" data-v="0" bindtap="setByRound">统一</view>
           <view class="seg-item {{byRound ? 'on' : ''}}" data-v="1" bindtap="setByRound">按轮次</view>
         </view>
       </view>
-      <view wx:if="{{byRound}}" class="muted small">下面是其他轮次的默认规则；需要不同规则的轮次（如决赛）打开「单独设置」</view>
+      <view wx:if="{{byRound}}" class="muted small">下面是其他轮次的默认规则；需要不同规则的轮次（如最后一轮）打开「单独设置」</view>
       <rule-picker value="{{rules.ko}}" disabled="{{fromSignup}}" data-stage="ko" bind:change="onRule" />
       <block wx:if="{{byRound}}">
         <view wx:for="{{koRoundList}}" wx:key="players" class="round">
           <view class="round-h">
             <text class="round-n">{{item.name}}</text>
             <text class="round-t">{{item.custom ? '单独设置' : '同上：' + item.text}}</text>
-            <switch class="round-sw" checked="{{item.custom}}" disabled="{{fromSignup}}" color="#9595C4" data-p="{{item.players}}" bindchange="toggleRound" />
+            <switch class="round-sw" checked="{{item.custom}}" disabled="{{fromSignup}}" color="#5C5C94" data-p="{{item.players}}" bindchange="toggleRound" />
           </view>
           <rule-picker wx:if="{{item.custom}}" value="{{item.rule}}" disabled="{{fromSignup}}" data-stage="{{item.players}}" bind:change="onRule" />
         </view>
@@ -89,7 +109,7 @@
     </view>
 
     <view class="sum">
-      <view class="sum-h">赛制一览（录分时按场次自动使用）</view>
+      <view class="sum-h">规则一览（录分时按场次自动使用）</view>
       <view wx:for="{{rulesSum}}" wx:key="stage" class="sum-row {{item.hl ? 'hl' : ''}}"><text class="sum-k">{{item.stage}}</text><text class="sum-v">{{item.text}}</text></view>
     </view>
 
@@ -100,7 +120,7 @@
     <!-- 参赛球员 -->
     <view class="card">
       <view class="card-title row">
-        <text>{{fromSignup ? '报名名单' : '参赛球员'}}</text>
+        <text>{{fromSignup ? '报名名单' : '参加的球员'}}</text>
         <view class="links"><text class="link" bindtap="selectAll">全选</text><text class="link" bindtap="clearAll">清空</text></view>
       </view>
       <view class="chips">
@@ -108,11 +128,7 @@
           <text wx:if="{{item.team}}" class="team-no">{{item.team}}队</text>
           <text>{{item.name}}</text><text wx:if="{{item.level}}" class="chip-lv">{{item.level}}</text>
         </view>
-        <view wx:if="{{!chips.length}}" class="muted">还没有球员，在下面添加</view>
-      </view>
-      <view class="new-player">
-        <input class="np-input" placeholder="{{fromSignup ? '添加没有报名的球员' : '添加新球员'}}" value="{{newName}}" maxlength="8" bindinput="onNewName" bindconfirm="addNew" confirm-type="done" />
-        <view class="np-btn" bindtap="addNew">添加</view>
+        <view wx:if="{{!chips.length}}" class="muted">还没有球员。球友加入小程序并填好资料后，会出现在这里</view>
       </view>
       <view class="info {{canDraw ? 'ok' : ''}}">{{info}}</view>
     </view>
@@ -134,10 +150,10 @@
     <!-- 种子 -->
     <view wx:if="{{seedChips.length}}" class="card">
       <view class="card-title row">
-        <text>种子选手</text>
+        <text>分开排位</text>
         <text class="link" bindtap="autoSeeds">按水平推荐</text>
       </view>
-      <view class="muted small top">按顺序点选：第一个点的是 1 号种子</view>
+      <view class="muted small top">选出水平靠前的球友，排对阵时把他们分开。按顺序点选：第一个点的排 1 号位</view>
       <view class="chips">
         <view wx:for="{{seedChips}}" wx:key="name" class="chip seedable {{item.seed ? 'seeded' : ''}}" data-name="{{item.name}}" bindtap="toggleSeed">
           <text wx:if="{{item.seed}}" class="badge">{{item.seed}}</text>
@@ -146,7 +162,7 @@
       </view>
       <view wx:if="{{seedList.length}}" class="seed-list">
         <view wx:for="{{seedList}}" wx:key="name" class="seed-row">
-          <text class="seed-no">{{item.seed}} 号种子</text>
+          <text class="seed-no">{{item.seed}} 号位</text>
           <text class="seed-name">{{item.name}}</text>
           <text wx:if="{{item.level}}" class="seed-lv">{{item.level}}</text>
           <text wx:if="{{index > 0}}" class="seed-up" data-i="{{index}}" bindtap="seedUp">↑ 上移</text>
@@ -155,18 +171,20 @@
       <view class="muted small">{{seedInfo}}</view>
     </view>
 
-    <view class="btn-primary {{canDraw ? '' : 'disabled'}}" bindtap="doDraw">{{preview ? '重新抽签' : (mode === 'bracket' ? '开始抽签' : '随机分组')}}</view>
+    <view class="btn-primary {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" bindtap="doDraw">{{preview ? '重新排' : (mode === 'bracket' ? '随机排对阵' : '随机分组')}}</view>
 
     <!-- 抽签结果预览 -->
     <view wx:if="{{preview}}" id="preview" class="preview">
-      <view class="preview-title">抽签结果</view>
+      <view class="preview-title">对阵预览</view>
       <draw-board draw="{{preview}}" />
       <view class="actions">
-        <view class="btn-ghost" bindtap="doDraw">重新抽</view>
-        <view class="btn-primary grow {{saving ? 'disabled' : ''}}" bindtap="save">{{saving ? '保存中…' : '确定，生成赛程'}}</view>
+        <view class="btn-ghost" hover-class="tap-on" bindtap="doDraw">重新抽</view>
+        <view class="btn-primary grow {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : (fromSignup ? '确定，生成对阵' : '创建活动，生成对阵')}}</view>
       </view>
     </view>
   </block>
 
-  <view wx:else class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="publishSignup">{{saving ? '创建中…' : '开始报名'}}</view>
+  <view wx:else class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="publishSignup">{{saving ? '创建中…' : '开始报名'}}</view>
 </view>
+
+</block>

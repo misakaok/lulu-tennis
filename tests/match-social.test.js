@@ -46,4 +46,14 @@ test('撤销按钮：发起人、录入人、其他人；确认前后和弃权�
     assert.strictEqual(show({ confirmed, drawId: '' }, true), !confirmed);
   }
 });
+test('旧云函数的改分原因：前端只给参赛者、申请人或发起人展示', () => {
+  const xml = fs.readFileSync(path.join(__dirname, '../components/match-social/match-social.wxml'), 'utf8');
+  const expr = xml.match(/wx:if="{{([^"\n]+)}}" class="ms-req-r"/)[1];
+  const show = new Function('st', 'return !!(' + expr + ')');
+  assert.strictEqual(show({ request: { reason: '私密原因' } }), false);
+  assert.strictEqual(show({ mySide: 'a', request: { reason: '私密原因' } }), true);
+  assert.strictEqual(show({ request: { reason: '私密原因', mine: true } }), true);
+  assert.strictEqual(show({ request: { reason: '私密原因', canRule: true } }), true);
+  assert.strictEqual(show({ mySide: 'b', request: { reason: '' } }), false);
+});
 module.exports = T;

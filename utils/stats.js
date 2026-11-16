@@ -37,6 +37,31 @@ function display(stats, name, profile, uid) {
   };
 }
 
+// 趣味榜单（排行页）：本月活跃（本月完赛场数）、连胜（当前连胜场数）、进步（本月等级涨幅）。
+// 都从同一套正式战绩和水平分算，只数正常完赛的比赛；type = 'all' | 'single' | 'double'（进步榜的等级不分单双打）
+// month: 'YYYY-MM'。返回 { active, streak, gain }，各自是 { 统计身份: 数值 }
+function boards(matches, ratings, type, month) {
+  const { isNormal } = require('./rules');
+  const { tsOf } = require('./event');
+  const active = {}, streak = {}, gain = {};
+  (matches || []).filter((m) => isNormal(m) && (type === 'all' || m.type === type))
+    .sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || tsOf(x) - tsOf(y))
+    .forEach((m) => ['a', 'b'].forEach((side) => {
+      const keys = m[side + 'Keys'] || [];
+      (m[side] || []).forEach((n, i) => {
+        const k = keys[i] || n;
+        if (String(m.date || '').indexOf(month) === 0) active[k] = (active[k] || 0) + 1;
+        streak[k] = m.winner === side ? (streak[k] || 0) + 1 : 0;
+      });
+    }));
+  const ps = (ratings && ratings.players) || {};
+  Object.keys(ps).forEach((k) => {
+    const hs = (ps[k].history || []).filter((h) => String(h.date || '').indexOf(month) === 0);
+    if (hs.length) gain[k] = Math.round(hs.reduce((s, h) => s + h.delta, 0) * 100) / 100;
+  });
+  return { active, streak, gain };
+}
+
 // 名字旁边显示性别用：有用户 ID 按 ID 找，否则按名字（同名对应多个账号时不显示）。没填返回 ''
 function genderFinder(players) {
   const byUid = {}, byName = {};
@@ -44,4 +69,4 @@ function genderFinder(players) {
   return (name, uid) => GENDER[uid ? byUid[uid] : byName[name]] || '';
 }
 
-module.exports = { rankOrder, playerStats, display, genderFinder, GENDER, NONE };
+module.exports = { rankOrder, playerStats, display, genderFinder, boards, GENDER, NONE };

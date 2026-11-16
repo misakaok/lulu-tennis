@@ -14,6 +14,7 @@
     "pages/match/match",
     "pages/player/player",
     "pages/history/history",
+    "pages/summary/summary",
     "pages/todo/todo",
     "pages/correct/correct",
     "pages/gate/gate",

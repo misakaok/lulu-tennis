@@ -7,10 +7,11 @@
   </view>
   <view wx:if="{{!shown.length && !loading}}" class="muted">没有比赛记录</view>
   <view class="card list">
-    <view wx:for="{{shown}}" wx:key="id" class="mr" data-id="{{item.id}}" bindtap="openMatch">
+    <view wx:for="{{shown}}" wx:key="id" class="mr {{index < 12 ? 'ani-in' : ''}}" style="animation-delay:{{index < 12 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
       <view class="mr-l">
         <view class="mr-top"><text class="mr-date">{{item.date}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
         <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
+        <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
       </view>
       <view class="mr-r">
         <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>

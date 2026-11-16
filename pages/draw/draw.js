@@ -26,14 +26,14 @@ function toView(d, matches, myId, signed) {
   if (role) {
     if (role.owner) roleTags.push('我发起');
     if (signing && role.signed) roleTags.push('已报名');
-    if (!signing && role.entrant) roleTags.push(finished ? '已结束' : '参赛中');
+    if (!signing && role.entrant) roleTags.push(finished ? '已结束' : '参加中');
     else if (!signing && finished && role.owner) roleTags.push('已结束');
   }
   return {
     _id: d._id, signing, mine: !!role, roleTags,
     title: d.title,
-    modeText: d.mode === 'groups_ko' ? `小组赛＋淘汰赛 · ${d.groupCount} 组` : isG ? `小组赛 · ${d.groupCount} 组` : `淘汰赛 · ${d.size} 签`,
-    typeText: cfg.type === 'double' ? '双打' : '单打',
+    modeText: d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`,
+    typeText: (E.categoryText(d) && E.categoryOf(d) !== 'mixed' ? E.categoryText(d) : '') + (E.categoryOf(d) === 'mixed' ? '混双' : cfg.type === 'double' ? '双打' : '单打'),
     count: (d.entrants || []).length,
     unit: cfg.type === 'double' ? '队' : '人',
     seeds: (d.seeds || []).length,
@@ -43,7 +43,7 @@ function toView(d, matches, myId, signed) {
 }
 
 Page({
-  data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0 },
+  data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, cal: null, canPublish: false },
   onLoad() { this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render(); },
   onShow() { this.load(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
@@ -59,13 +59,58 @@ Page({
     this.setData({ mineCount: list.filter((x) => x.mine).length });
     this.apply();
   },
-  apply() { this.setData({ shown: this.data.tab === 'mine' ? this.list.filter((x) => x.mine) : this.list }); },
+  apply() {
+    if (this.data.tab === 'cal') { this.applyCal(); return; }
+    this.setData({ shown: this.data.tab === 'mine' ? this.list.filter((x) => x.mine) : this.list });
+  },
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
+
+  /* ---------- 日历：按月看活动（按活动日期），点某一天只看那天的 ---------- */
+  applyCal() {
+    const p2 = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const today = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+    if (!this.calYm) this.calYm = today.slice(0, 7);
+    const ym = this.calYm, y = Number(ym.slice(0, 4)), mo = Number(ym.slice(5, 7));
+    const inMonth = (this.list || []).filter((x) => (x.date || '').indexOf(ym) === 0);
+    const byDay = {};
+    inMonth.forEach((x) => { const r = byDay[x.date] || (byDay[x.date] = { n: 0, mine: false }); r.n++; if (x.mine) r.mine = true; });
+    if (this.calDay && this.calDay.indexOf(ym) !== 0) this.calDay = '';
+    const cells = [];
+    const lead = (new Date(y, mo - 1, 1).getDay() + 6) % 7; // 周一排第一列
+    for (let i = 0; i < lead; i++) cells.push({ k: 'b' + i, d: '' });
+    const days = new Date(y, mo, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const date = `${ym}-${p2(d)}`, r = byDay[date];
+      cells.push({ k: date, d, date, n: r ? r.n : 0, mine: !!(r && r.mine), today: date === today, on: date === this.calDay });
+    }
+    const shown = inMonth.filter((x) => !this.calDay || x.date === this.calDay).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    this.setData({
+      shown,
+      cal: { title: `${y} 年 ${mo} 月`, cells, count: inMonth.length, day: this.calDay ? `${Number(this.calDay.slice(5, 7))} 月 ${Number(this.calDay.slice(8, 10))} 日` : '' },
+    });
+  },
+  calMove(e) {
+    const step = Number(e.currentTarget.dataset.v);
+    const d = new Date(Number(this.calYm.slice(0, 4)), Number(this.calYm.slice(5, 7)) - 1 + step, 1);
+    this.calYm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    this.calDay = '';
+    this.applyCal();
+  },
+  calToday() { this.calYm = ''; this.calDay = ''; this.applyCal(); },
+  calPick(e) {
+    const date = e.currentTarget.dataset.date;
+    if (!date) return;
+    this.calDay = this.calDay === date ? '' : date; // 再点一次取消
+    this.applyCal();
+  },
   async load() {
     try {
-      const [list, matches, myId, signups] = await Promise.all([
+      const [list, matches, myId, signups, member] = await Promise.all([
         db.fetchDraws(), db.fetchMatches().catch(() => db.cachedMatches()), db.myOpenid().catch(() => ''), db.fetchMySignups().catch(() => []),
+        require('../../utils/member').status(),
       ]);
+      this.setData({ canPublish: member.status === 'active' && !!member.isAdmin });
       // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染
       const sig = JSON.stringify([list, matches, myId, signups]);
       if (sig !== this.sig) {
@@ -74,11 +119,12 @@ Page({
         this.render();
       }
     } catch (e) {
+      this.setData({ canPublish: false });
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
     }
     this.setData({ loading: false });
   },
-  goNew() { wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
+  goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
   open(e) { wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + e.currentTarget.dataset.id }); },
 });

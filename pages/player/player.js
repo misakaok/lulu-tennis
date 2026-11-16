@@ -17,7 +17,6 @@ Page({
     Promise.resolve(c ? c.load() : null).then(() => wx.stopPullDownRefresh());
   },
   onShareAppMessage() {
-    const p = db.cachedProfiles()[this.data.uid];
-    return { title: p ? `${p.name} 的网球主页` : '球员主页', path: '/pages/player/player?uid=' + encodeURIComponent(this.data.uid) };
+    return { title: 'LULU网球 · 球员主页', path: '/pages/player/player?uid=' + encodeURIComponent(this.data.uid) };
   },
 });

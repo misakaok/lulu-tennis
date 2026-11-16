@@ -4,7 +4,7 @@
   <view wx:elif="{{error}}" class="empty">
     <view class="empty-ball"></view>
     <view>{{error}}</view>
-    <view class="btn-primary small" bindtap="goBack">返回</view>
+    <view class="btn-primary small" hover-class="tap-on" bindtap="goBack">返回</view>
   </view>
 
   <block wx:else>
@@ -75,12 +75,12 @@
 
     <!-- 发起人：赛前弃权 / 中途退赛 -->
     <view wx:if="{{isOwner && !retire}}" class="card owner-tools">
-      <view class="card-title">发起人处理<text class="sub">必须填写原因，会留档</text></view>
+      <view class="card-title">发起人处理<text class="sub">必须选择原因，会留档</text></view>
       <view class="ot-acts">
         <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="walkover">判赛前弃权</view>
         <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="retireStart">记录中途退赛</view>
       </view>
-      <view class="muted small">弃权不填局分，另一方晋级，标「弃权胜 / 弃权负」；中途退赛保留实际已打的局分。</view>
+      <view class="muted small">弃权不填局分，另一方进入下一轮，标「弃权胜 / 弃权负」；中途退赛保留实际已打的局分。</view>
     </view>
     <view wx:if="{{retire}}" class="card">
       <view class="card-title">{{retire.name}} 中途退赛<text class="sub">填实际已打的局分（{{aLabel}} : {{bLabel}}）</text></view>
@@ -91,7 +91,10 @@
         <input class="rt-in" type="number" maxlength="2" value="{{item.b}}" data-i="{{index}}" data-k="b" bindinput="retireInput" />
       </view>
       <view wx:if="{{retire.sets.length < 3}}" class="rt-add" bindtap="retireAddSet">＋ 再加一盘</view>
-      <textarea class="rt-reason" value="{{retire.reason}}" maxlength="100" placeholder="退赛原因（必填），例如：第二盘脚踝扭伤" bindinput="retireReason" />
+      <view class="rt-reason-t">退赛原因（必选）</view>
+      <view class="rt-reasons">
+        <view wx:for="{{withdrawReasons}}" wx:key="*this" class="rt-reason {{retire.reason === item ? 'on' : ''}}" data-v="{{item}}" bindtap="retireReason">{{item}}</view>
+      </view>
       <view class="ot-acts">
         <view class="ot-a" bindtap="retireCancel">取消</view>
         <view class="ot-a main {{busy ? 'dis' : ''}}" bindtap="retireSubmit">确认退赛结果</view>
@@ -99,11 +102,11 @@
     </view>
 
     <block wx:if="{{editing}}">
-      <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" bindtap="submit">{{submitting ? '保存中…' : (done ? '保存修改' : '提交比分')}}</view>
+      <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" hover-class="tap-on" bindtap="submit">{{submitting ? '保存中…' : (done ? '保存修改' : '提交比分')}}</view>
       <view wx:if="{{done}}" class="btn-text" bindtap="cancelEdit">取消修改</view>
-      <view class="foot">提交后签表、积分榜、排行榜和水平分会自动更新</view>
+      <view class="foot">提交后对阵表、积分榜、排行榜和水平分会自动更新</view>
     </block>
-    <view wx:elif="{{done && canEdit}}" class="btn-ghost" bindtap="startEdit">比分录错了？修改比分</view>
+    <view wx:elif="{{done && canEdit}}" class="btn-ghost" hover-class="tap-on" bindtap="startEdit">比分录错了？修改比分</view>
     <match-social wx:if="{{done && !editing && recordId}}" match-id="{{recordId}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
     <view wx:if="{{reason}}" class="foot">{{reason}}</view>
   </block>

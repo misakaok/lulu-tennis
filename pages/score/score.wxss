@@ -51,12 +51,15 @@
 .ot-acts { display: flex; margin-top: 6rpx; }
 .ot-a { flex: 1; margin-right: 14rpx; height: 72rpx; line-height: 72rpx; text-align: center; border-radius: 36rpx; border: 2rpx solid #CFCFE6; color: #6E6EA3; font-size: 25rpx; font-weight: 700; background: #fff; }
 .ot-a:last-child { margin-right: 0; }
-.ot-a.main { background: #9595C4; color: #fff; border-color: #9595C4; }
+.ot-a.main { background: #6E6EA3; color: #fff; border-color: #6E6EA3; }
 .ot-a.dis { opacity: 0.5; }
 .rt-row { display: flex; align-items: center; height: 80rpx; }
 .rt-n { width: 120rpx; font-size: 25rpx; color: #5C5C76; }
 .rt-in { width: 110rpx; height: 64rpx; text-align: center; background: #F7F7FB; border-radius: 12rpx; font-size: 30rpx; font-weight: 800; }
 .rt-c { margin: 0 16rpx; color: #A5A5BA; }
 .rt-add { font-size: 24rpx; color: #6E6EA3; margin: 6rpx 0 14rpx; }
-.rt-reason { width: 100%; height: 130rpx; box-sizing: border-box; background: #F7F7FB; border-radius: 14rpx; padding: 14rpx; font-size: 25rpx; margin-bottom: 14rpx; }
+.rt-reason-t { font-size: 24rpx; color: #6C6C86; margin: 6rpx 0 12rpx; }
+.rt-reasons { display: flex; flex-wrap: wrap; margin-bottom: 4rpx; }
+.rt-reason { padding: 12rpx 24rpx; margin: 0 14rpx 14rpx 0; border-radius: 999rpx; background: #F7F7FB; color: #6C6C86; font-size: 25rpx; }
+.rt-reason.on { background: #ECECF6; color: #6E6EA3; font-weight: 600; }
 .h-slot { margin-top: 6rpx; font-size: 24rpx; opacity: 0.95; }

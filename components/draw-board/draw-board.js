@@ -37,7 +37,7 @@ Component({
             x.mine = !!x.name && isMe(x.name);
             // 结果标签：轮空晋级 / 弃权胜 / 弃权负 / 中途退赛（不生成虚假局分）
             x.tag = '';
-            if (m.auto && x.win) x.tag = '轮空晋级';
+            if (m.auto && x.win) x.tag = '轮空';
             else if (m.outcome === 'walkover') x.tag = x.win ? '弃权胜' : x.lose ? '弃权负' : '';
             else if (m.outcome === 'retired' && x.lose) x.tag = '退赛';
           });

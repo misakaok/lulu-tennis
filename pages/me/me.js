@@ -5,7 +5,7 @@ const R = require('../../utils/rating');
 const T = require('../../utils/todo');
 
 Page({
-  data: { myId: '', myIdTail: '', todo: null, rules: [], isAdmin: false },
+  data: { myId: '', myIdTail: '', todo: null, rules: [], isAdmin: false, pendingApply: 0 },
 
   onLoad() {
     this.setData({
@@ -27,8 +27,11 @@ Page({
 
   async load() {
     try {
-      const ms = await require('../../utils/member').status(); // 顺便确认管理员身份（服务端决定）
+      // 顺便确认管理员身份（服务端决定）。只用来显示，缓存 60 秒：回到前台时 app.js 已经校验过成员资格，切换 tab 不用每次再调一次
+      const ms = await require('../../utils/member').statusCached();
       if (ms.uid !== this.data.myId || ms.isAdmin !== this.data.isAdmin) this.setData({ myId: ms.uid, myIdTail: String(ms.uid || '').slice(-6), isAdmin: ms.isAdmin });
+      const n = ms.isAdmin ? ms.pendingApply || 0 : 0; // 待审核的加入申请数（只有管理员有）
+      if (n !== this.data.pendingApply) this.setData({ pendingApply: n });
     } catch (e) { console.error(e); }
     // 待办入口：下一场比赛、待我确认、等对方确认、改分申请（状态变了自动更新）
     T.load().then((t) => this.setData({

@@ -21,3 +21,5 @@
 .mr-d.up { color: #2f8a52; }
 .mr-d.down { color: #b34d4d; }
 .mr-res.wo { background: #fff8e6; color: #b7791f; }
+.mr-tags { display: flex; flex-wrap: wrap; margin-top: 6rpx; }
+.mr-tag { margin: 0 8rpx 4rpx 0; padding: 0 12rpx; font-size: 20rpx; }

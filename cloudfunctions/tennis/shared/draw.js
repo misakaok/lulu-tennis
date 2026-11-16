@@ -38,9 +38,9 @@ function maxSeeds(mode, size, count) {
  */
 function makeBracket(entrants, seeds, drawSize) {
   const P = entrants.length, n = nextPow2(drawSize);
-  if (P < 2) throw new Error('至少需要 2 名参赛者');
-  if (P > drawSize) throw new Error(`参赛人数 ${P} 超过了 ${drawSize} 签`);
-  if (seeds.length > n / 2) throw new Error(`${drawSize} 签最多设 ${n / 2} 个种子`);
+  if (P < 2) throw new Error('至少需要 2 名参加者');
+  if (P > drawSize) throw new Error(`参加人数 ${P} 超过了 ${drawSize} 签`);
+  if (seeds.length > n / 2) throw new Error(`${drawSize} 签最多选 ${n / 2} 个分开排位`);
 
   const order = bracketOrder(n);
   const lines = new Array(n).fill(null);
@@ -103,10 +103,8 @@ function makeGroups(entrants, seeds, groupCount) {
 }
 
 function roundName(players) {
-  if (players === 2) return '决赛';
-  if (players === 4) return '半决赛';
-  if (players === 8) return '1/4 决赛';
-  return `${players} 强`;
+  // 界面用语不用「决赛 / 半决赛」这类赛事说法（个人主体不能办赛事）；旧记录里存的旧叫法由 E.stageText 换成现在的
+  return players === 2 ? '最后一轮' : `${players} 强`;
 }
 
 /**

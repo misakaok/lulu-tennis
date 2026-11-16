@@ -6,7 +6,7 @@ const path = require('path');
 const FN_PATH = path.resolve(__dirname, '../cloudfunctions/tennis/index.js');
 
 module.exports = function createEnv() {
-  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [] };
+  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [], textChecks: [] };
   const IN = Symbol('in'), NEQ = Symbol('neq'), GT = Symbol('gt'), REMOVE = Symbol('remove');
   const SD = { serverDate: true };
   const coll = (n) => (env.store[n] = env.store[n] || {});
@@ -70,7 +70,10 @@ module.exports = function createEnv() {
       if ((env.deleteFails || []).indexOf(fileID) >= 0) return { fileID, status: -1, errMsg: 'mock fail' };
       env.deletedFiles.push(fileID); return { fileID, status: 0 };
     }) }),
-    openapi: { security: {} },
+    openapi: { security: { msgSecCheck: async (params) => {
+      env.textChecks.push(params);
+      return env.checkText ? env.checkText(params) : { errCode: 0, result: { suggest: 'pass' } };
+    } } },
   };
 
   env.coll = coll;

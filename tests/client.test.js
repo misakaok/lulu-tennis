@@ -124,6 +124,50 @@ test('活动详情一次取齐（drawDetail）：1 次调用', async () => {
   assert.strictEqual(r.draw._id, 'd1'); assert.strictEqual(r.profile.name, 'Alice');
   assert.strictEqual(c.db.cachedProfile().name, 'Alice');
 });
+test('旧云函数和本机缓存：保留手动活动名称、历史名称快照，场地只展示固定编号', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  Object.assign(env.coll('draws').d1, { date: '2026-11-14', title: '旧自由活动名称', venue: '旧自由球场名称', location: { latitude: 31, longitude: 121, name: '旧地图名', address: '旧地址' } });
+  env.coll('matches').ev1.drawTitle = '旧自由活动名称';
+  const results = [];
+  for (const oldCloud of [false, true]) {
+    const c = client(env, 'alice', { oldCloud });
+    // 模拟尚未部署新云函数时，下发的活动和比分仍带旧文字。
+    const call = wx.cloud.callFunction;
+    wx.cloud.callFunction = async (args) => {
+      const r = await call(args), d = args.data, out = r.result;
+      if (!out.ok) return r;
+      if (d.action === 'drawDetail') out.draw = JSON.parse(JSON.stringify(env.coll('draws').d1));
+      if (d.action === 'data' && d.coll === 'draws') out.data = d.op === 'doc' ? env.coll('draws').d1 : [env.coll('draws').d1];
+      const list = d.action === 'dataset' ? out.matches : d.action === 'data' && d.coll === 'matches' ? (Array.isArray(out.data) ? out.data : [out.data]) : [];
+      (list || []).forEach((m) => { if (m && m.drawId) m.drawTitle = '旧自由活动名称'; });
+      return r;
+    };
+    c.storage.cache_draws = [env.coll('draws').d1];
+    c.storage.cache_matches = [env.coll('matches').ev1];
+    c.storage.cache_matches_all = [env.coll('matches').ev1];
+    const before = JSON.stringify(c.storage.cache_draws);
+    for (const d of [c.db.cachedDraws()[0], (await c.db.fetchDraws())[0], await c.db.getDraw('d1'), (await c.db.fetchDrawDetail('d1')).draw]) {
+      assert.strictEqual(d.title, '旧自由活动名称'); assert.strictEqual(d.venue, '');
+      assert.deepStrictEqual(d.location, { latitude: 31, longitude: 121 });
+    }
+    assert.ok(before.includes('旧自由活动名称'));
+    for (const m of [c.db.cachedMatches()[0], c.db.cachedMatchesAll()[0], await c.db.getMatch('ev1')]) {
+      assert.strictEqual(m.drawTitle, '旧自由活动名称');
+    }
+    const all = await c.db.fetchMatchesAll();
+    assert.strictEqual(all.find((m) => m._id === 'ev1').drawTitle, '旧自由活动名称');
+    const baseCall = wx.cloud.callFunction;
+    wx.cloud.callFunction = (args) => args.data.action === 'myTodos' ? Promise.resolve({ result: { ok: true,
+      toConfirm: [{ matchId: 'ev1', title: '旧自由活动名称', date: '2026-11-01' }], waiting: [], toRespond: [], myRequests: [],
+      withdraws: [{ drawId: 'd1', title: '旧自由活动名称' }],
+    } }) : baseCall(args);
+    const todo = await require('../utils/todo').load();
+    assert.strictEqual(todo.toConfirm[0].title, '旧自由活动名称');
+    assert.strictEqual(todo.withdraws[0].title, '旧自由活动名称');
+    results.push(all);
+  }
+  assert.deepStrictEqual(results[0], results[1]);
+});
 test('写入后缓存作废：新录的日常比赛马上能看到', async () => {
   const env = createEnv(); env.load(); seed(env);
   const c = client(env, 'alice');
@@ -131,7 +175,11 @@ test('写入后缓存作废：新录的日常比赛马上能看到', async () =>
   const n = c.calls();
   await c.db.fetchMatchesAll();
   assert.strictEqual(c.calls(), n, '缓存期内不重复调用');
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'alice';
+  try {
   await c.db.addMatch({ a: ['Alice'], b: ['Carl'], aIds: ['alice'], bIds: ['carl'], winner: 'a', sets: [{ a: 4, b: 0 }], date: '2026-11-05' });
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
   assert.strictEqual((await c.db.fetchMatchesAll()).length, before + 1);
 });
 test('分页读取不先查总数：不满一页的集合只调用 1 次，超过一页的也能读全', async () => {

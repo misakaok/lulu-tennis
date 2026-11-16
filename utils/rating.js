@@ -50,11 +50,12 @@ function timeOf(m) {
 /**
  * matches: 全部比赛（带 aKeys / bKeys 统计身份，见 utils/ident.js；没有时按名字）
  * startLevels: { 统计身份或名字: 自评水平 }（startLevelsFrom）
- * 返回 { players: { 统计身份: { key, name, level, played, provisional, history } }, deltas: { 比赛id: { 统计身份: 变化 } } }
+ * 返回 { players: { 统计身份: { key, name, level, played, provisional, history } }, deltas: { 比赛id: { 统计身份: 变化 } },
+ *        pre: { 比赛id: { a, b, prov } } 赛前双方的等级（双打是两人平均）、是否有人还在定级期，亮点标签「爆冷」用 }
  */
 function computeRatings(matches, startLevels) {
   startLevels = startLevels || {};
-  const P = {}, deltas = {};
+  const P = {}, deltas = {}, pre = {};
   const startOf = (k, n) => {
     if (typeof startLevels[k] === 'number') return startLevels[k];
     // 账号（用户 ID）没有自评就用默认值，不按名字去借别人的；只有按名字统计的才按名字找
@@ -77,6 +78,7 @@ function computeRatings(matches, startLevels) {
     if (!total) return;
 
     const ra = avg(A.map((p) => p.rating)), rb = avg(B.map((p) => p.rating));
+    if (m._id) pre[m._id] = { a: round2(ra), b: round2(rb), prov: A.concat(B).some((p) => p.played < PROVISIONAL) };
     const S = ga / total, E = expectedShare(ra, rb);
     const weight = Math.min(1, total / 10); // 局数太少的比赛影响小一些
     const d = {};
@@ -99,7 +101,7 @@ function computeRatings(matches, startLevels) {
     p.level = round2(p.rating);
     p.provisional = p.played < PROVISIONAL;
   });
-  return { players: P, deltas };
+  return { players: P, deltas, pre };
 }
 
 // 从球员资料里取自评水平：有账号的按用户 ID，只有名字的球员按名字（同名的账号不按名字给）

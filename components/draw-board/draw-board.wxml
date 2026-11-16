@@ -1,6 +1,6 @@
 <!-- 小组赛：积分榜 + 组内对阵 -->
 <view wx:if="{{groups.length}}" class="groups">
-  <view wx:if="{{both}}" class="stage-title">小组赛<text class="stage-sub">每组前 {{advance}} 名进入淘汰赛</text></view>
+  <view wx:if="{{both}}" class="stage-title">分组循环<text class="stage-sub">每组前 {{advance}} 名进入单淘汰</text></view>
   <view wx:for="{{groups}}" wx:key="name" wx:for-item="g" class="group">
     <view class="g-head"><text class="g-name">{{g.name}}</text><text class="g-count">已赛 {{g.done}} / {{g.total}} 场</text></view>
     <view class="t-row t-head">
@@ -19,7 +19,7 @@
     </view>
     <view class="g-fix">
       <view class="g-fix-title">组内对阵{{editable ? ' · 点击录分' : ''}}</view>
-      <view wx:for="{{g.fixtures}}" wx:key="key" wx:for-item="f" class="g-fix-item {{f.mine ? 'mine' : ''}}" data-key="{{f.key}}" bindtap="tapFixture">
+      <view wx:for="{{g.fixtures}}" wx:key="key" wx:for-item="f" class="g-fix-item {{f.mine ? 'mine' : ''}}" hover-class="tap-row-on" data-key="{{f.key}}" bindtap="tapFixture">
         <text class="fx-r">R{{f.round}}</text>
         <text class="fx-p {{f.winner === 'a' ? 'w' : ''}}">{{f.a}}</text>
         <text class="fx-s {{f.done ? 'done' : ''}}">{{f.done ? (f.score || '胜负已判') : 'vs'}}</text>
@@ -31,7 +31,7 @@
 
 <!-- 淘汰赛签表 -->
 <view wx:if="{{rounds.length}}">
-  <view wx:if="{{both}}" class="stage-title">淘汰赛<text class="stage-sub">{{koPending ? '小组赛全部结束后，按排名自动生成对阵' : '按小组排名生成'}}</text></view>
+  <view wx:if="{{both}}" class="stage-title">单淘汰<text class="stage-sub">{{koPending ? '分组循环全部结束后，按排名自动生成对阵' : '按小组排名生成'}}</text></view>
   <view wx:if="{{champion}}" class="champ">
     <text class="champ-cup">🏆</text>
     <view><view class="champ-lbl">冠军</view><view class="champ-name">{{champion.name}}</view></view>

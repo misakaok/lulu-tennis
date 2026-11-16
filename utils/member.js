@@ -29,6 +29,12 @@ function status() {
   if (!statusTask) statusTask = fetchStatus().finally(() => { statusTask = null; });
   return statusTask;
 }
+// 只用来显示（「我的」页的用户 ID、管理员入口、待审核数）：结果在内存里缓存 60 秒（utils/memo.js），
+// 自己的任何写操作、下拉刷新都会作废；正在进行的校验直接复用。不能用来判断成员资格（那个用 status / check）
+function statusCached() {
+  const memo = require('./memo');
+  return memo.get('memberStatus', memo.ANY, status);
+}
 async function fetchStatus() {
   const cloud = require('./cloud');
   const r = await cloud.call('memberStatus');
@@ -37,7 +43,18 @@ async function fetchStatus() {
     wx.setStorageSync('is_admin', !!r.isAdmin); // 只用来决定显示哪些按钮，权限由云函数判断
     if (r.status === 'active') wx.setStorageSync('member_ok_at', Date.now()); else clearProtected();
   } catch (e) {}
+  applyBadge(r);
   return r;
+}
+
+// 管理员：有新的加入申请待审核时，底部「我的」上显示红点（处理完自动消失）。当前不在 tab 页时设置会失败，忽略即可
+const ME_TAB = 3;
+function applyBadge(r) {
+  try {
+    const n = r && r.isAdmin && r.status === 'active' ? r.pendingApply || 0 : 0;
+    if (n > 0) wx.showTabBarRedDot({ index: ME_TAB, fail() {} });
+    else wx.hideTabBarRedDot({ index: ME_TAB, fail() {} });
+  } catch (e) {}
 }
 
 // 启动 / 回到前台时重新校验；不是正式成员就清缓存、去准入页
@@ -52,4 +69,4 @@ async function check() {
 // 当前用户是不是管理员（本机记录，只用于界面显示；最近一次校验成员资格时更新）
 function isAdminLocal() { try { return !!wx.getStorageSync('is_admin'); } catch (e) { return false; } }
 
-module.exports = { status, check, kickout, clearProtected, isAdminLocal, GATE };
+module.exports = { status, statusCached, check, kickout, clearProtected, isAdminLocal, GATE };

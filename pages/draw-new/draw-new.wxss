@@ -3,25 +3,23 @@
 .field .label { display: block; margin-bottom: 14rpx; }
 .title-in { height: 80rpx; background: #F7F7FB; border-radius: 18rpx; padding: 0 22rpx; font-size: 30rpx; font-weight: 600; }
 
-.pills { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
-.pill { flex: 1; min-width: 110rpx; margin: 0 8rpx; height: 72rpx; line-height: 72rpx; text-align: center; border-radius: 18rpx; background: #F2F2F8; font-size: 26rpx; color: #5C5C76; }
-.pill.on { background: #9595C4; color: #fff; font-weight: 700; box-shadow: 0 6rpx 14rpx rgba(133, 133, 184, 0.3); }
+/* 选项按文字宽度排，放不下就换行（「1 组（大循环）」这类长文字不会被截断） */
+.pills { display: flex; flex-wrap: wrap; margin: 0 -8rpx -16rpx; }
+.pill { flex: 1 0 auto; box-sizing: border-box; min-width: 110rpx; padding: 0 20rpx; white-space: nowrap; margin: 0 8rpx 16rpx; height: 72rpx; line-height: 72rpx; text-align: center; border-radius: 18rpx; background: #F2F2F8; font-size: 26rpx; color: #5C5C76; }
+.pill.on { background: #6E6EA3; color: #fff; font-weight: 700; box-shadow: 0 6rpx 14rpx rgba(133, 133, 184, 0.3); }
 
 .row { display: flex; justify-content: space-between; align-items: center; }
 .links .link { font-size: 24rpx; color: #6E6EA3; font-weight: 500; margin-left: 24rpx; }
 
 .chips { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
 .chip { padding: 12rpx 24rpx; margin: 8rpx; border-radius: 30rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; display: flex; align-items: center; }
-.chip.on { background: #9595C4; color: #fff; }
+.chip.on { background: #6E6EA3; color: #fff; }
 .chip.seedable { background: #fff; border: 2rpx solid #E3E3EF; }
 .chip.seeded { background: #fff7e0; border-color: #f5c84c; color: #8a5a00; font-weight: 700; }
 .badge { width: 34rpx; height: 34rpx; line-height: 34rpx; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 20rpx; text-align: center; margin-right: 10rpx; }
 .muted { color: #A5A5BA; font-size: 24rpx; padding: 8rpx; }
 .muted.small { font-size: 22rpx; margin-top: 10rpx; }
 
-.new-player { display: flex; margin-top: 18rpx; }
-.np-input { flex: 1; height: 72rpx; background: #F7F7FB; border-radius: 18rpx; padding: 0 22rpx; font-size: 26rpx; }
-.np-btn { width: 120rpx; height: 72rpx; line-height: 72rpx; text-align: center; margin-left: 16rpx; border-radius: 18rpx; background: #ECECF6; color: #6E6EA3; font-weight: 600; font-size: 26rpx; }
 .info { margin-top: 18rpx; padding: 16rpx 18rpx; border-radius: 14rpx; background: #F7F7FB; color: #8686A0; font-size: 24rpx; }
 .info.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 600; }
 
@@ -43,7 +41,7 @@
 .chip-lv { font-size: 20rpx; margin-left: 8rpx; opacity: 0.75; }
 .muted.top { margin: -8rpx 0 8rpx; padding: 0; }
 .seed-av { width: 44rpx; height: 44rpx; border-radius: 50%; margin-right: 12rpx; }
-.seed-lv { font-size: 22rpx; color: #6e6ea3; font-weight: 700; margin-right: 12rpx; }
+.seed-lv { font-size: 22rpx; color: #6E6EA3; font-weight: 700; margin-right: 12rpx; }
 .pills.locked { opacity: 0.6; }
 .card-title .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
 .rules-tip { margin-top: 20rpx; font-size: 22rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 12rpx; padding: 12rpx 18rpx; }
@@ -69,3 +67,4 @@
 .sum-k { width: 230rpx; flex: none; color: #8686A0; }
 .sum-row.hl .sum-k { color: #6E6EA3; }
 .sum-v { flex: 1; }
+.seg-item.off { color: #B7B7CC; }

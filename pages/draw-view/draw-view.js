@@ -4,15 +4,16 @@ const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
+const pick = require('../../utils/pick');
 const S = require('../../utils/stats');
 const { colorOf, initialOf } = require('../../utils/rules');
 
 const NO_PARTNER = '暂时没有搭档（由发起人配对）';
 
 function modeText(d) {
-  if (d.mode === 'groups') return `小组赛 · ${d.groupCount} 组`;
-  if (d.mode === 'groups_ko') return `小组赛＋淘汰赛 · ${d.groupCount} 组 · 每组前 ${d.advance === 1 ? 1 : 2} 名出线`;
-  return `淘汰赛 · ${d.size} 签`;
+  if (d.mode === 'groups') return `${E.MODES.groups} · ${d.groupCount} 组`;
+  if (d.mode === 'groups_ko') return `${E.MODES.groups_ko} · ${d.groupCount} 组 · 每组前 ${d.advance === 1 ? 1 : 2} 名进入下一轮`;
+  return `${E.MODES.bracket} · ${d.size} 签`;
 }
 
 Page({
@@ -21,6 +22,7 @@ Page({
     signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null,
     matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
+    courts: E.COURTS.map((c) => c || '沿用活动场地'),
   },
 
   onLoad(options) { this.id = options.id; },
@@ -54,17 +56,17 @@ Page({
       const cfg = E.cfgOf(d);
       const n = (d.entrants || []).length;
       const unit = cfg.type === 'double' ? '队' : '人';
-      const meta = modeText(d) + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
+      const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
       const seedsText = (d.seeds || []).map((s, i) => `${i + 1}. ${s}`).join('   ');
       const matches = all.filter((m) => m.drawId === this.id);
       this.setData({
         draw: d, meta, seedsText, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', matches,
       });
-      // 编辑信息、删除：发起人或管理员（管理员只决定显示按钮，权限由云函数判断）；其他活动操作只有发起人
+      // 发布和编辑仅管理员；生成对阵还需为发起人。历史发起人保留删除能力，云端逐项校验。
       const isAdmin = require('../../utils/member').isAdminLocal();
       const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
-      this.setData({ isOwner, canManage: isOwner || isAdmin });
+      this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin });
       this.setData({ info: this.infoOf(d) });
       if (signing) await this.loadSignups(d, all, bundle ? signups : null);
       else {
@@ -86,7 +88,7 @@ Page({
     if (d.startTime) when += ' ' + d.startTime;
     const loc = d.location && typeof d.location.latitude === 'number' ? d.location : null;
     if (!d.venue && !loc && !d.startTime) return { when, empty: true };
-    return { when, venue: d.venue || (loc && loc.name) || '', canNav: !!loc };
+    return { when, venue: d.venue || (loc ? '已设置地图位置' : ''), canNav: !!loc };
   },
 
   /* ---------- 退赛（签表生成后）：球员申请，发起人处理；发起人也可以直接登记 ---------- */
@@ -101,19 +103,15 @@ Page({
         wdPending: r.list.filter((x) => x.type === 'withdraw' && x.status === 'pending'),
         myWd: r.list.find((x) => x.type === 'withdraw' && !r.owner) || null,
         canWithdraw: !r.owner || r.myEntrants.length ? r.myEntrants.some((e) => !wd[e]) : false,
-        withdrawn: (r.withdrawals || []).map((w) => ({ entrant: w.entrant, reason: w.reason, text: w.stage === 'group' ? POL[w.policy] || '' : '淘汰赛退赛，下一场对手弃权胜' })),
+        withdrawn: (r.withdrawals || []).map((w) => ({ entrant: w.entrant, text: w.stage === 'group' ? POL[w.policy] || '' : '单淘汰阶段退赛，下一场对手弃权胜' })),
         wdOwner: r.owner,
         wdCandidates: (this.d.entrants || []).filter((e) => !wd[e]),
       });
     }
   },
-  ask(title, placeholder) {
-    return new Promise((resolve) => wx.showModal({ title, editable: true, placeholderText: placeholder, success: (r) => resolve(r.confirm ? (r.content || '').trim() : null), fail: () => resolve(null) }));
-  },
   async requestWithdraw() {
-    const reason = await this.ask('申请退赛', '退赛原因（必填），发起人会看到');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
+    const reason = await pick.reason('withdraw', '退赛原因（发起人会看到）');
+    if (!reason) return;
     try { await cloud.call('requestWithdraw', { drawId: this.id, reason }); wx.showToast({ title: '已提交，等发起人处理', icon: 'none' }); this.loadRequests(); }
     catch (e) { wx.showModal({ title: '提交失败', content: e.message, showCancel: false }); }
   },
@@ -132,9 +130,8 @@ Page({
   async doWithdraw(base) {
     let policy;
     if (this.needPolicy()) { policy = await this.pickPolicy(base.entrant); if (!policy) return; }
-    const reason = await this.ask(`${base.entrant || '该球员'} 退赛`, '处理原因（必填），会留档');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
+    const reason = await pick.reason('withdraw', '退赛原因（会留档）');
+    if (!reason) return;
     const data = Object.assign({ drawId: this.id, approve: true, policy, reason }, base);
     try {
       let r = await cloud.call('handleWithdraw', data);
@@ -151,7 +148,7 @@ Page({
   approveWithdraw(e) { const x = this.data.wdPending[e.currentTarget.dataset.i]; this.doWithdraw({ requestId: x.id, entrant: x.entrant }); },
   async rejectWithdraw(e) {
     const x = this.data.wdPending[e.currentTarget.dataset.i];
-    const reason = await this.ask('拒绝退赛申请', '原因（必填）');
+    const reason = await pick.reason('keep', '拒绝退赛申请的原因');
     if (!reason) return;
     try { await cloud.call('handleWithdraw', { drawId: this.id, requestId: x.id, approve: false, reason }); wx.showToast({ title: '已拒绝', icon: 'none' }); this.loadRequests(); }
     catch (err) { wx.showModal({ title: '处理失败', content: err.message, showCancel: false }); }
@@ -161,7 +158,7 @@ Page({
   openMap() {
     const d = this.d, loc = d.location;
     if (loc && typeof loc.latitude === 'number') {
-      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || loc.name || '', address: loc.address || '', scale: 16 });
+      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || '比赛场地', scale: 16 });
     }
   },
   // 点报名名单里的球员 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
@@ -171,7 +168,7 @@ Page({
     if (uid === this.data.myId) { wx.switchTab({ url: '/pages/me/me' }); return; }
     wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(uid) });
   },
-  goEdit() { wx.navigateTo({ url: '/pages/event-edit/event-edit?id=' + this.id }); },
+  goEdit() { if (!this.data.canEdit) return; wx.navigateTo({ url: '/pages/event-edit/event-edit?id=' + this.id }); },
 
   /* ---------- 报名 ---------- */
   // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
@@ -195,26 +192,30 @@ Page({
         name, uid: uid || '', initial: initialOf(name), color: colorOf(name),
       }, S.display(stats, name, cur || profOf[name], uid));
     };
+    // 候补：名额（淘汰赛的签数 / 小组赛的报名上限）用完之后报名的，按报名先后排队，前面有人取消自动递补
+    const capP = E.capacityOf(d);
+    const wait = E.waitingOf(list, capP);
     const signups = list.map((s, i) => {
       const members = [person(s.name, s._openid)];
       if (s.partner) members.push(person(s.partner, s.partnerId));
-      return Object.assign({ _id: s._id, no: i + 1, solo: !s.partner, members }, members[0]);
+      return Object.assign({ _id: s._id, no: i + 1, solo: !s.partner, waiting: !!wait[s._id], members }, members[0]);
     });
+    const waitPeople = list.reduce((n, s) => n + (wait[s._id] ? (s.partner ? 2 : 1) : 0), 0);
     // 按用户 ID 判断谁已经报名（自己报的 _openid，或被搭档带上的 partnerId）
     const takenId = {};
     let people = 0;
     list.forEach((s) => { people += s.partner ? 2 : 1; if (s._openid) takenId[s._openid] = 1; if (s.partnerId) takenId[s.partnerId] = 1; });
     const myId = this.data.myId;
     const isDouble = this.data.isDouble;
-    const cap = d.mode === 'bracket' ? d.size * (isDouble ? 2 : 1) : 999;
     // 搭档只能选已设置资料的球员（有用户 ID），同名资料不能被选
     this.partnerPool = players.filter((p) => p.uid && p.uid !== myId && !takenId[p.uid]);
     const partnerOpts = [NO_PARTNER].concat(this.partnerPool.map((p) => p.name));
     this.setData({
       signups, partnerOpts,
       joined: !!mine || (!!myId && !!takenId[myId]),
-      full: people >= cap,
-      signCount: isDouble ? `${people} 人` + (d.mode === 'bracket' ? ` / 最多 ${d.size} 队` : '') : `${people}` + (d.mode === 'bracket' ? ` / ${d.size}` : '') + ' 人',
+      full: capP > 0 && people >= capP, // 满了还能报，只是进候补
+      myWaiting: !!mine && !!wait[mine._id] || signups.some((x) => x.waiting && x.members.some((p) => p.uid && p.uid === myId)),
+      signCount: (capP ? `${people - waitPeople} / ${capP} 人` : `${people} 人`) + (waitPeople ? ` · 候补 ${waitPeople} 人` : ''),
     });
   },
 
@@ -236,7 +237,6 @@ Page({
       });
       return;
     }
-    if (this.data.full) { wx.showToast({ title: '名额已满', icon: 'none' }); return; }
     this.setData({ busy: true });
     try {
       let partner = null;
@@ -249,8 +249,8 @@ Page({
         }
         partner = { name: pick.name, uid: pick.uid };
       }
-      await db.signUp(this.id, partner);
-      wx.showToast({ title: '报名成功', icon: 'success' });
+      const res = await db.signUp(this.id, partner);
+      wx.showToast(res && res.waiting ? { title: '名额已满，已排进候补', icon: 'none' } : { title: '报名成功', icon: 'success' });
       this.loadContact();
       await this.loadSignups(this.d, this.allMatches);
     } catch (e) {
@@ -277,6 +277,7 @@ Page({
   },
 
   startDraw() {
+    if (!this.data.canPublish) return;
     if (this.data.signups.length < 2) { wx.showToast({ title: '报名的还不够', icon: 'none' }); return; }
     wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + this.id });
   },
@@ -312,16 +313,19 @@ Page({
     const x = (this.items || []).find((i) => i.key === e.currentTarget.dataset.key);
     if (!x || !this.data.isOwner) return;
     const s = x.slot || {};
-    this.setData({ slotEdit: { key: x.key, title: `${x.stage} · ${x.aText} vs ${x.bText}`, date: s.date || '', time: s.time || '', court: s.court || '', had: !!x.slot, defDate: this.d.date || '' } });
+    this.setData({ slotEdit: { key: x.key, title: `${x.stage} · ${x.aText} vs ${x.bText}`, date: s.date || '', time: s.time || '', court: E.courtOf(s.court), courtIndex: E.COURTS.indexOf(E.courtOf(s.court)), had: !!x.slot, defDate: this.d.date || '' } });
   },
   slotDate(e) { this.setData({ 'slotEdit.date': e.detail.value }); },
   slotTime(e) { this.setData({ 'slotEdit.time': e.detail.value }); },
-  slotCourt(e) { this.setData({ 'slotEdit.court': e.detail.value }); },
+  slotCourt(e) {
+    const index = Number(e.detail.value);
+    this.setData({ 'slotEdit.court': E.COURTS[index] || '', 'slotEdit.courtIndex': index });
+  },
   slotCancel() { this.setData({ slotEdit: null }); },
   slotClear() { this.saveSlot({ date: '', time: '', court: '' }); },
   slotSave() {
     const s = this.data.slotEdit;
-    const slot = { date: s.date, time: s.time, court: (s.court || '').trim() };
+    const slot = { date: s.date, time: s.time, court: E.courtOf(s.court) };
     if (!slot.date && !slot.time && !slot.court) { wx.showToast({ title: '请至少填一项', icon: 'none' }); return; }
     this.saveSlot(slot);
   },
@@ -356,7 +360,7 @@ Page({
     if (!this.data.isOwner) { this.adminRemove(); return; }
     wx.showModal({
       title: '删除这个活动？',
-      content: '删除后所有人都看不到签表了，未处理的申请会作废（已录的比分仍保留在战绩里）',
+      content: '删除后所有人都看不到这个活动了，未处理的申请会作废（已录的比分仍保留在战绩里）',
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
@@ -369,11 +373,12 @@ Page({
     });
   },
 
-  // 管理员删除别人发起的活动：必须填原因（留档）
+  // 管理员删除别人发起的活动：必须选原因（留档）
   async adminRemove() {
-    const reason = await this.ask('删除这个活动（管理员）', '删除原因（必填，会留档）。已录比分保留');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因（至少 2 个字）', icon: 'none' }); return; }
+    const go = await new Promise((done) => wx.showModal({ title: '删除这个活动（管理员）', content: '已录比分保留在战绩里。下一步选择删除原因，会留档。', confirmText: '继续', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false) }));
+    if (!go) return;
+    const reason = await pick.reason('drop', '删除原因');
+    if (!reason) return;
     try {
       await db.removeDraw(this.id, reason);
       wx.showToast({ title: '已删除' });
@@ -387,7 +392,7 @@ Page({
     const d = this.data.draw;
     const t = d ? d.title : '网球';
     return {
-      title: this.data.signing ? `${t} 开始报名啦，点击报名` : `${t} · 签表和赛程`,
+      title: this.data.signing ? `${t} 开始报名啦，点击报名` : `${t} · 对阵和场次`,
       path: `/pages/draw-view/draw-view?id=${this.id}`,
     };
   },

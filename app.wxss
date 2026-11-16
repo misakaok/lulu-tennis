@@ -1,3 +1,12 @@
+/*
+ * 全局样式（淡紫风格）
+ * 颜色：
+ *   重点淡紫渐变 #A3A3CB → #8484B6：每页只给最重要的一块用（记分牌、个人卡、领奖台、活动头部）
+ *   主题淡紫 #A3A3CB：描边、装饰；紫色文字 #6E6EA3；深紫文字 #4F4F7D
+ *   浅紫底 #EFEFF6：标签、选中、次要底色
+ *   网球黄绿 #C9E33A（文字 #2E3600）：只用在「胜」「冠军」「报名中」这类正向状态
+ *   正文 #1E1E32；说明 #8686A0；更淡的说明 #A5A5BA；撤销 / 作废 #b34d4d
+ */
 page {
   background: #F6F6FA;
   color: #1E1E32;
@@ -8,18 +17,18 @@ page {
 
 .card {
   background: #fff;
-  border-radius: 28rpx;
-  padding: 28rpx;
+  border-radius: 36rpx;
+  padding: 30rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(80, 80, 140, 0.04);
+  box-shadow: 0 4rpx 16rpx rgba(80, 80, 140, 0.05);
 }
-.card-title { font-size: 30rpx; font-weight: 600; margin-bottom: 20rpx; }
+.card-title { font-size: 32rpx; font-weight: 700; margin-bottom: 20rpx; }
 .card-title .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
 .label { font-size: 26rpx; color: #6C6C86; }
 
-.seg { display: flex; background: #EFEFF6; border-radius: 20rpx; padding: 6rpx; }
-.seg-item { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 16rpx; font-size: 26rpx; color: #5C5C76; }
-.seg-item.on { background: #fff; color: #4F4F7D; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
+.seg { display: flex; background: #EFEFF6; border-radius: 24rpx; padding: 6rpx; }
+.seg-item { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 20rpx; font-size: 26rpx; color: #5C5C76; }
+.seg-item.on { background: #fff; color: #6E6EA3; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
 
 .avatar {
   width: 72rpx; height: 72rpx; border-radius: 50%;
@@ -28,14 +37,32 @@ page {
 }
 .avatar.sm { width: 48rpx; height: 48rpx; font-size: 22rpx; }
 
+/* 按钮只有三种：主按钮（渐变实心）、次按钮（紫色描边）、危险按钮（红色描边） */
 .btn-primary {
   height: 96rpx; line-height: 96rpx; text-align: center; border-radius: 48rpx;
-  color: #fff; font-size: 32rpx; font-weight: 600;
-  background: linear-gradient(90deg, #8585B8, #A3A3CB);
-  box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.28);
+  color: #fff; font-size: 32rpx; font-weight: 700;
+  background: linear-gradient(150deg, #A3A3CB, #8484B6);
+  box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3);
 }
 .btn-primary.disabled { opacity: 0.45; box-shadow: none; }
 .btn-primary.small { display: inline-block; height: 76rpx; line-height: 76rpx; padding: 0 48rpx; font-size: 28rpx; margin-top: 30rpx; }
+.btn-line, .btn-danger {
+  height: 84rpx; line-height: 80rpx; text-align: center; border-radius: 42rpx; box-sizing: border-box;
+  font-size: 28rpx; font-weight: 600; background: #fff; white-space: nowrap;
+}
+.btn-line { color: #6E6EA3; border: 3rpx solid #B9B9DA; }
+.btn-danger { color: #b34d4d; border: 3rpx solid #E5C4C4; }
+
+/* 小标签：性别、组别、候补中、定级中…… */
+.ui-tag { display: inline-block; padding: 2rpx 14rpx; border-radius: 16rpx; font-size: 22rpx; line-height: 1.6; color: #6E6EA3; background: #EFEFF6; font-weight: 400; }
+.ui-tag.lime { color: #2E3600; background: #C9E33A; font-weight: 700; }
+.ui-tag.solid { color: #fff; background: #6E6EA3; font-weight: 600; }
+.ui-tag.warn { color: #6B5200; background: #FBF0C8; font-weight: 600; }
+.ui-tag.bad { color: #b34d4d; background: #F7E9E9; font-weight: 600; }
+
+/* 数字大而粗，说明小而淡 */
+.stat-n { font-size: 44rpx; font-weight: 800; line-height: 1.15; }
+.stat-l { font-size: 22rpx; color: #8686A0; margin-top: 4rpx; }
 
 .empty { text-align: center; color: #8686A0; padding: 100rpx 0; font-size: 28rpx; }
 .empty-ball {
@@ -45,3 +72,21 @@ page {
 
 /* 名字后面的性别（个人资料里填的） */
 .gd { font-size: 20rpx; font-weight: 400; color: #8E8EB8; }
+
+/*
+ * 动画（只用 transform / opacity，都写成全局类，页面和组件直接加类名）
+ *   .ani-in      列表行、卡片出现时向上滑入并淡入；用 style="animation-delay:..." 逐行错开，只给前 10 行左右加
+ *   .ani-grow-x  横向进度条从 0 拉开；.ani-grow-y 柱子从底部长出来
+ *   hover-class="tap-on"      按钮、卡片按下时略微缩小
+ *   hover-class="tap-row-on"  卡片里的行按下时变淡（行不缩放）
+ * 数字滚动在 utils/anim.js。
+ */
+@keyframes ani-in { from { opacity: 0; transform: translateY(16rpx); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ani-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.ani-in { animation: ani-in 0.36s ease-out backwards; }
+.ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.tap-on { transform: scale(0.97); opacity: 0.86; transition: transform 0.12s ease-out, opacity 0.12s ease-out; }
+.tap-row-on { opacity: 0.5; transition: opacity 0.12s ease-out; }
+.disabled.tap-on, .dis.tap-on { transform: none; opacity: 0.45; }

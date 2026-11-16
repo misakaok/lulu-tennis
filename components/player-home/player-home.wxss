@@ -2,7 +2,7 @@
 .pcard {
   position: relative; overflow: hidden; border-radius: 36rpx; padding: 32rpx 32rpx 28rpx; color: #fff;
   background: linear-gradient(140deg, #A3A3CB 0%, #8C8CBE 45%, #6E6EA3 100%);
-  box-shadow: 0 18rpx 40rpx rgba(110, 110, 163, 0.35);
+  box-shadow: 0 18rpx 40rpx rgba(133, 133, 184, 0.35);
 }
 .pcard.pcard-empty { padding-bottom: 36rpx; }
 /* 球场线 + 网球：运动感装饰 */
@@ -51,7 +51,7 @@
 .foot-note { text-align: center; font-size: 21rpx; color: #A5A5BA; margin: 12rpx 0 20rpx; }
 .acts { display: flex; margin-bottom: 20rpx; }
 .act { flex: 1; height: 80rpx; line-height: 80rpx; text-align: center; border-radius: 40rpx; margin: 0 8rpx; font-size: 28rpx; font-weight: 700; color: #6E6EA3; background: #fff; border: 2rpx solid #CFCFE6; }
-.act.main { color: #fff; border-color: transparent; background: linear-gradient(90deg, #8585B8, #A3A3CB); }
+.act.main { color: #fff; border-color: transparent; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
 /* 近期比赛 */
 .row-t { display: flex; justify-content: space-between; align-items: center; }
 .more { font-size: 24rpx; color: #6E6EA3; font-weight: 500; }
@@ -102,3 +102,31 @@
 .cr-k { width: 150rpx; flex: none; color: #8686A0; }
 .cr-v { flex: 1; min-width: 0; color: #1E1E32; font-weight: 600; }
 .cr-d { font-size: 21rpx; color: #A5A5BA; font-weight: 400; margin-left: 12rpx; }
+
+/* 交手记录、等级走势 */
+.h2h-sum { font-size: 22rpx; color: #6E6EA3; font-weight: 600; }
+.h2h-more { margin-top: 12rpx; font-size: 21rpx; color: #A5A5BA; text-align: center; }
+.tr-box { display: flex; height: 180rpx; }
+.tr-y { flex: none; width: 64rpx; display: flex; flex-direction: column; justify-content: space-between; font-size: 20rpx; color: #A5A5BA; }
+.tr-bars { flex: 1; display: flex; align-items: flex-end; border-bottom: 2rpx solid #ECECF5; }
+.tr-col { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.tr-bar { width: 62%; max-width: 22rpx; min-height: 6rpx; border-radius: 6rpx 6rpx 0 0; background: #C9C9DE; }
+.tr-bar.up { background: #6FBF8B; }
+.tr-bar.down { background: #E29A9A; }
+.tr-x { display: flex; justify-content: space-between; margin: 10rpx 0 0 64rpx; font-size: 20rpx; color: #A5A5BA; }
+
+.pt-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-go { flex: none; width: 24rpx; text-align: right; color: #C5C5DA; }
+.ss-head::after { content: ''; flex: none; width: 24rpx; }
+.mr-tags { display: flex; flex-wrap: wrap; margin-top: 6rpx; }
+.mr-tag { margin: 0 8rpx 4rpx 0; padding: 0 12rpx; font-size: 20rpx; }
+
+/* 苦主 / 福星 / 最佳拍档 */
+.rl-row { display: flex; background: #F8F8FC; border-radius: 20rpx; padding: 20rpx 0; }
+.rl { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 0 8rpx; }
+.rl-l { font-size: 21rpx; color: #8686A0; }
+.rl-av { width: 76rpx; height: 76rpx; margin: 12rpx 0 10rpx; border-radius: 50%; color: #fff; font-size: 32rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.rl-av.none { background: #E6E6F0; color: #B7B7CC; }
+.rl-n { max-width: 100%; font-size: 25rpx; font-weight: 700; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-n.none { color: #C5C5DA; font-weight: 500; }
+.rl-r { margin-top: 2rpx; font-size: 21rpx; color: #8686A0; }

@@ -13,7 +13,7 @@ const TEXT = {
 };
 
 Page({
-  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', codeMode: false, code: '', name: '', note: '', busy: false, myId: '', myIdTail: '' },
+  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', codeMode: false, code: '', name: '', busy: false, myId: '', myIdTail: '' },
   onLoad(o) {
     this.setData({ invite: o.invite || '' });
     member.clearProtected(); // 进了准入页就清掉受保护的缓存
@@ -40,12 +40,11 @@ Page({
   // 手动输入邀请码：没有邀请链接时（例如管理员口头或文字给的邀请码）也能加入；校验和链接进来的一样，都在云函数 acceptInvite
   onCode(e) { this.setData({ code: e.detail.value }); },
   toggleCode() { this.setData({ codeMode: !this.data.codeMode }); },
-  onNote(e) { this.setData({ note: e.detail.value }); },
   async apply() {
     if (this.data.busy) return;
     if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的称呼', icon: 'none' }); return; }
     this.setData({ busy: true });
-    try { await cloud.call('applyMember', { name: this.data.name, note: this.data.note }); wx.showToast({ title: '已提交申请', icon: 'success' }); await this.load(); }
+    try { await cloud.call('applyMember', { name: this.data.name }); wx.showToast({ title: '已提交申请', icon: 'success' }); await this.load(); }
     catch (e) { wx.showModal({ title: '提交失败', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },

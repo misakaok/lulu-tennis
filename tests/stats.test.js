@@ -73,4 +73,99 @@ test('旧缓存里的比赛没有统计身份时，仍按名字计算（不报�
   assert.strictEqual(rt.players.A.name, 'A');
 });
 
+test('交手记录：按用户 ID、只算分在两边的比赛（搭档不算）；弃权不计胜负；同名账号不混', () => {
+  const players = [{ name: 'Ann', uid: 'ann', self: true }, { name: 'Bob', uid: 'bob', self: true }, { name: 'Cat', uid: 'cat', self: true }, { name: 'Dan', uid: 'dan', self: true }];
+  const raw = [
+    m('h1', ['Ann'], ['Bob'], ['ann'], ['bob'], 'a', 4, 1, '2026-10-01'),
+    m('h2', ['Bob'], ['Ann'], ['bob'], ['ann'], 'a', 4, 2, '2026-10-02'),
+    m('h3', ['Ann', 'Bob'], ['Cat', 'Dan'], ['ann', 'bob'], ['cat', 'dan'], 'a', 4, 0, '2026-10-03'), // 搭档：不算交手
+    m('h4', ['Ann', 'Cat'], ['Bob', 'Dan'], ['ann', 'cat'], ['bob', 'dan'], 'b', 3, 4, '2026-10-04'), // 双打对手：算
+    Object.assign(m('h5', ['Ann'], ['Bob'], ['ann'], ['bob'], 'a', 0, 0, '2026-10-05'), { sets: [], outcome: 'walkover' }),
+    m('h6', ['Bob'], ['Ann'], ['bob2'], ['ann'], 'a', 4, 0, '2026-10-06'), // 另一个也叫 Bob 的账号：不算
+  ];
+  const ms = ID.normalizeMatches(raw, players);
+  const h = PV.h2hView(ms, 'ann', 'Ann', 'bob', 'Bob');
+  assert.deepStrictEqual([h.played, h.win, h.lose, h.total], [3, 1, 2, 4]);
+  assert.deepStrictEqual(h.rows.map((x) => x.id), ['h5', 'h4', 'h2', 'h1']);
+  assert.strictEqual(h.rows[0].outcomeTag, '弃权胜');
+  assert.strictEqual(h.rows[2].score, '2-4'); // 比分从「我」的角度看
+  // 反过来看，胜负正好相反
+  const r = PV.h2hView(ms, 'bob', 'Bob', 'ann', 'Ann');
+  assert.deepStrictEqual([r.played, r.win, r.lose], [3, 2, 1]);
+  assert.strictEqual(PV.h2hView(ms, 'ann', 'Ann', 'ann', 'Ann'), null);
+  assert.strictEqual(PV.h2hView(ms, '', '', 'bob', 'Bob'), null);
+  assert.deepStrictEqual(PV.h2hView(ms, 'cat', 'Cat', 'dan', 'Dan').rows.map((x) => x.id), ['h4']); // h3 是搭档，只有 h4 是对手
+});
+test('等级走势：取最近 30 场，柱高在 18～100 之间，和等级历史一致；不足 2 场不显示', () => {
+  const players = [{ name: 'Ann', uid: 'ann', self: true, level: 3 }, { name: 'Bob', uid: 'bob', self: true, level: 3 }];
+  const raw = [];
+  for (let i = 0; i < 34; i++) raw.push(m('t' + String(i).padStart(2, '0'), ['Ann'], ['Bob'], ['ann'], ['bob'], i % 3 ? 'a' : 'b', i % 3 ? 4 : 1, i % 3 ? 1 : 4, '2026-09-' + String(1 + (i % 28)).padStart(2, '0')));
+  const ms = ID.normalizeMatches(raw, players);
+  const v = PV.playerView({ ann: { name: 'Ann', level: 3 }, bob: { name: 'Bob', level: 3 } }, players, ms, 'ann');
+  const hist = R.computeRatings(ms, R.startLevelsFrom(players)).players.ann.history;
+  assert.strictEqual(v.trend.n, 30);
+  assert.strictEqual(v.trend.bars.length, 30);
+  assert.ok(v.trend.bars.every((b) => b.h >= 18 && b.h <= 100));
+  assert.strictEqual(v.trend.last, R.fmt(hist[hist.length - 1].level));
+  assert.strictEqual(v.trend.first, R.fmt(hist[hist.length - 30].level));
+  const lv = hist.slice(-30).map((x) => x.level);
+  assert.strictEqual(v.trend.max, R.fmt(Math.max.apply(null, lv)));
+  assert.strictEqual(v.trend.bars[lv.indexOf(Math.max.apply(null, lv))].h, 100);
+  assert.strictEqual(PV.trendView(hist.slice(0, 1)), null);
+  assert.strictEqual(PV.playerView({ zed: { name: 'Zed' } }, players, ms, 'zed').trend, null);
+});
+
+test('搭档统计：按搭档累计场数和胜率；最佳搭档从打满 3 场的里面选；单打不算', () => {
+  const players = ['Ann', 'Bob', 'Cat', 'Dan', 'Eli'].map((n) => ({ name: n, uid: n.toLowerCase(), self: true }));
+  const d = (id, a, b, w, date) => Object.assign(m(id, a, b, a.map((n) => n.toLowerCase()), b.map((n) => n.toLowerCase()), w, w === 'a' ? 4 : 1, w === 'a' ? 1 : 4, date), { type: 'double' });
+  const raw = [
+    d('p1', ['Ann', 'Bob'], ['Cat', 'Dan'], 'a', '2026-03-01'), d('p2', ['Ann', 'Bob'], ['Cat', 'Dan'], 'a', '2026-03-02'),
+    d('p3', ['Cat', 'Dan'], ['Bob', 'Ann'], 'a', '2026-03-03'), d('p4', ['Ann', 'Bob'], ['Cat', 'Eli'], 'b', '2026-03-04'),
+    d('p5', ['Ann', 'Cat'], ['Bob', 'Dan'], 'a', '2026-04-01'), d('p6', ['Ann', 'Cat'], ['Bob', 'Dan'], 'a', '2026-04-02'), d('p7', ['Dan', 'Bob'], ['Cat', 'Ann'], 'b', '2026-04-03'),
+    d('p8', ['Ann', 'Dan'], ['Bob', 'Cat'], 'a', '2026-05-01'),
+    m('p9', ['Ann'], ['Bob'], ['ann'], ['bob'], 'a', 4, 0, '2026-05-02'), // 单打
+    Object.assign(d('pa', ['Ann', 'Bob'], ['Cat', 'Dan'], 'a', '2026-05-03'), { sets: [], outcome: 'walkover' }), // 弃权不算
+  ];
+  const ms = ID.normalizeMatches(raw, players);
+  const pv = PV.partnersView(ms, 'ann', 'Ann');
+  assert.deepStrictEqual(pv.list.map((x) => [x.name, x.played, x.win, x.rate]), [['Bob', 4, 2, 50], ['Cat', 3, 3, 100], ['Dan', 1, 1, 100]]);
+  assert.strictEqual(pv.best.name, 'Cat'); // Dan 只打了 1 场，不参选
+  assert.strictEqual(PV.partnersView(ms, 'eli', 'Eli').best, null);
+  assert.strictEqual(PV.partnersView(ID.normalizeMatches([raw[8]], players), 'ann', 'Ann'), null);
+  // 赛季总结：和 computeRank 同一个口径
+  const hist = R.computeRatings(ms, R.startLevelsFrom(players)).players.ann.history;
+  const s = PV.seasonSummary(ms, 'ann', 'Ann', '2026', hist);
+  const rk = computeRank(ms, 'all').find((x) => x.key === 'ann');
+  assert.deepStrictEqual([s.played, s.win, s.lose], [rk.played, rk.win, rk.lose]);
+  assert.strictEqual(s.months[2].n, 4); assert.strictEqual(s.months[3].n, 3); assert.strictEqual(s.months[4].n, 2);
+  assert.strictEqual(s.busy, '3 月（4 场）');
+  assert.ok(/^Cat/.test(s.partner) && /^Bob/.test(s.partnerMost));
+  assert.strictEqual(s.level.to, R.fmt(hist[hist.length - 1].level));
+  assert.strictEqual(s.level.from, R.fmt(hist[0].level - hist[0].delta));
+  assert.ok(!PV.seasonSummary(ms, 'ann', 'Ann', '2025', hist).has);
+});
+test('趣味榜单：本月活跃、当前连胜、本月进步；只算正常完赛，按单双打筛选', () => {
+  const players = [{ name: 'Ann', uid: 'ann', self: true, level: 3 }, { name: 'Bob', uid: 'bob', self: true, level: 3 }, { name: 'Cat', uid: 'cat', self: true, level: 3 }];
+  const raw = [
+    m('b1', ['Ann'], ['Bob'], ['ann'], ['bob'], 'b', 1, 4, '2026-10-20'),
+    m('b2', ['Ann'], ['Bob'], ['ann'], ['bob'], 'a', 4, 1, '2026-11-01'),
+    m('b3', ['Ann'], ['Cat'], ['ann'], ['cat'], 'a', 4, 2, '2026-11-02'),
+    Object.assign(m('b4', ['Cat'], ['Ann'], ['cat'], ['ann'], 'a', 0, 0, '2026-11-03'), { sets: [], outcome: 'walkover' }), // 弃权：不打断连胜，也不算场数
+  ].map((x) => Object.assign({ type: 'single' }, x));
+  const ms = ID.normalizeMatches(raw, players);
+  const rt = R.computeRatings(ms, R.startLevelsFrom(players));
+  const b = S.boards(ms, rt, 'all', '2026-11');
+  assert.deepStrictEqual([b.active.ann, b.active.bob, b.active.cat], [2, 1, 1]);
+  assert.deepStrictEqual([b.streak.ann, b.streak.bob, b.streak.cat], [2, 0, 0]);
+  const sum = (k) => Math.round(rt.players[k].history.filter((h) => h.date.indexOf('2026-11') === 0).reduce((t, h) => t + h.delta, 0) * 100) / 100;
+  assert.strictEqual(b.gain.ann, sum('ann'));
+  assert.ok(b.gain.ann > 0 && b.gain.bob < 0);
+  assert.deepStrictEqual(S.boards(ms, rt, 'double', '2026-11').active, {});
+  assert.deepStrictEqual(S.boards(ms, rt, 'all', '2026-12').active, {});
+});
+test('性别查找：有用户 ID 按 ID，没有按名字；同名多个账号按名字找不到', () => {
+  const g = S.genderFinder([{ name: 'Ann', uid: 'ann', gender: 'f' }, { name: 'Bob', uid: 'bob', gender: 'm' }, { name: 'Sam', uid: '', ambiguous: true, gender: 'm' }, { name: 'Zed', uid: 'zed', gender: '' }]);
+  assert.deepStrictEqual([g('Ann', 'ann'), g('改过名', 'bob'), g('Ann'), g('Sam'), g('Zed', 'zed'), g('Ann', 'nobody')], ['女', '男', '女', '', '', '']);
+});
+
 module.exports = T;

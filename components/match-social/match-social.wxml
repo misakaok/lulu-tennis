@@ -1,17 +1,26 @@
 <view class="card ms">
-  <view class="card-title">赛果确认</view>
+  <view class="card-title">比分状态</view>
   <view wx:if="{{loading && !st}}" class="ms-muted">读取中…</view>
   <view wx:elif="{{err}}" class="ms-muted">{{err}}</view>
   <block wx:elif="{{st}}">
-    <view wx:if="{{st.finished && st.daily && !st.confirmed}}" class="ms-status ok">✅ 比分已生效，计入战绩（日常比赛不需要对方确认）</view>
+    <view wx:if="{{st.finished && st.daily && !st.confirmed}}" class="ms-banner ok">
+      <view class="ms-ic">✓</view>
+      <view class="ms-bt"><view class="ms-b1">比分已生效</view><view class="ms-b2">已计入战绩，日常比赛不需要对方确认</view></view>
+    </view>
     <block wx:elif="{{st.finished}}">
+      <view class="ms-banner {{st.confirmed ? 'ok' : ''}}">
+        <view class="ms-ic">✓</view>
+        <view class="ms-bt">
+          <view class="ms-b1">{{st.confirmed ? '比分已锁定' : '比分已生效'}}</view>
+          <view class="ms-b2">{{st.confirmed ? '修改需要对方同意' : '双方各有一人认可后锁定，录入的一方自动算认可'}}</view>
+        </view>
+      </view>
       <view class="ms-sides">
-        <view class="ms-side {{st.sides.a ? 'ok' : ''}}">A 方：{{st.sideA}}</view>
-        <view class="ms-side {{st.sides.b ? 'ok' : ''}}">B 方：{{st.sideB}}</view>
+        <view class="ms-side {{st.sides.a ? 'ok' : ''}}"><view class="ms-sl">A 方</view><view class="ms-sv">{{st.sideA}}</view></view>
+        <view class="ms-side {{st.sides.b ? 'ok' : ''}}"><view class="ms-sl">B 方</view><view class="ms-sv">{{st.sideB}}</view></view>
       </view>
       <view wx:if="{{st.unbound}}" class="ms-muted">这场有球员没有绑定账号（旧记录或手动添加的球员），这些位置不能确认。</view>
-      <view class="ms-status {{st.confirmed ? 'ok' : ''}}">{{st.confirmed ? '✅ 比分已锁定，修改需要对方同意' : '比分已生效；双方各有一人认可后锁定（录入的一方自动算认可）'}}</view>
-      <view wx:if="{{st.canConfirm}}" class="btn-primary ms-btn {{busy ? 'disabled' : ''}}" bindtap="confirm">比分无误，确认</view>
+      <view wx:if="{{st.canConfirm}}" class="btn-primary ms-btn {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="confirm">比分无误，确认</view>
     </block>
     <view wx:else class="ms-muted">{{st.reason}}</view>
 
@@ -22,8 +31,8 @@
     <view wx:if="{{st.request}}" class="ms-req">
       <view class="ms-req-t">{{st.request.mine ? '你' : st.request.requester}}申请修改比分</view>
       <view class="ms-req-s">{{st.request.from}} → <text class="b">{{st.request.to}}</text></view>
-      <view class="ms-req-r">原因：{{st.request.reason}}</view>
-      <view class="ms-req-n">处理之前，正式战绩、排名和晋级都按原比分</view>
+      <view wx:if="{{st.request.reason && (st.mySide || st.request.mine || st.request.canRule)}}" class="ms-req-r">原因：{{st.request.reason}}</view>
+      <view class="ms-req-n">处理之前，正式战绩、排名和后面的对阵都按原比分</view>
       <view class="ms-req-acts">
         <block wx:if="{{st.request.canRespond}}">
           <view class="ms-a" data-v="0" bindtap="respond">拒绝</view>
@@ -37,11 +46,15 @@
       </view>
       <view wx:if="{{st.request.daily && !st.request.canRespond && !st.request.mine}}" class="ms-req-n">日常比赛没有活动发起人，只能由对方同意或拒绝</view>
     </view>
-    <view wx:elif="{{st.canEdit || (st.drawId && st.mySide && !st.confirmed)}}" class="ms-link" bindtap="edit">比分录错了？修改比分{{st.drawId ? '（对方还没确认）' : ''}}</view>
-    <view wx:elif="{{st.canRequestChange}}" class="ms-link" bindtap="requestChange">比分有误？申请修改比分</view>
-    <view wx:if="{{st.canAdminFix}}" class="ms-link" bindtap="adminFix">管理员：更正比分</view>
   </block>
 
-  <!-- 已锁定的比分只有发起人能撤销（日常比赛不能撤销，只能申请改分）；云函数会再校验 -->
-  <view wx:if="{{st && (st.isOwner || st.canAdminRevoke || (revocable && !st.confirmed && (!st.drawId || !st.outcome || st.outcome === 'normal')))}}" class="ms-revoke" bindtap="revoke">撤销这场赛果</view>
+  <!-- 操作：改分、管理员更正、撤销。已锁定的比分只有发起人 / 管理员能撤销；云函数会再校验 -->
+  <view wx:if="{{st}}" class="ms-acts">
+    <block wx:if="{{st.finished && !st.request}}">
+      <view wx:if="{{st.canEdit || (st.drawId && st.mySide && !st.confirmed)}}" class="ms-act" bindtap="edit">修改比分</view>
+      <view wx:elif="{{st.canRequestChange}}" class="ms-act" bindtap="requestChange">申请修改比分</view>
+    </block>
+    <view wx:if="{{st.finished && st.canAdminFix}}" class="ms-act" bindtap="adminFix">管理员更正</view>
+    <view wx:if="{{st && (st.isOwner || st.canAdminRevoke || (revocable && !st.confirmed && (!st.drawId || !st.outcome || st.outcome === 'normal')))}}" class="ms-revoke" bindtap="revoke">撤销赛果</view>
+  </view>
 </view>

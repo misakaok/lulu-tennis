@@ -3,6 +3,7 @@ const E = require('../../utils/event');
 const R = require('../../utils/rules');
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
+const pick = require('../../utils/pick');
 const ID = require('../../utils/ident');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -15,7 +16,7 @@ Page({
     sideA: [], sideB: [], aLabel: '', bLabel: '',
     date: '', today: '',
     done: false, resultSets: [], winner: '',
-    editing: false, init: [], canEdit: false, reason: '',
+    editing: false, init: [], canEdit: false, reason: '', withdrawReasons: E.REASONS.withdraw,
     check: { ok: false, msg: '' }, submitting: false,
     recordId: '', revocable: false,
     isOwner: false, outcomeText: '', retire: null, busy: false,
@@ -41,7 +42,7 @@ Page({
       ]);
       const owner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
       const f = E.findFixture(d, matches, this.key);
-      if (!f) throw new Error('找不到这场比赛，签表可能已经重新抽过');
+      if (!f) throw new Error('找不到这场比赛，对阵表可能已经重新生成');
       if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
 
       const person = (n) => ({ name: n, initial: R.initialOf(n), color: R.colorOf(n) });
@@ -75,7 +76,7 @@ Page({
           tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
         })),
         canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
-        reason: canEdit ? '' : (myName ? '只有这场的参赛球员或活动发起人可以录分' : '设置昵称后，参赛球员才能录分'),
+        reason: canEdit ? '' : (myName ? '只有这场的球员或活动发起人可以录分' : '设置昵称后，这场的球员才能录分'),
         editing: !f.done && canEdit,
         init: [],
       });
@@ -123,24 +124,21 @@ Page({
 
   goBack() { wx.navigateBack(); },
 
-  /* ---------- 影响后续比赛时：先列出影响，确认（并填原因）后再提交 ---------- */
-  ask(title, placeholder) {
-    return new Promise((resolve) => wx.showModal({ title, editable: true, placeholderText: placeholder, success: (r) => resolve(r.confirm ? (r.content || '').trim() : null), fail: () => resolve(null) }));
-  },
+  /* ---------- 影响后续比赛时：先列出影响，确认（并选原因）后再提交 ---------- */
   async withImpact(action, data) {
     let r = await cloud.call(action, data);
     if (r.needConfirm) {
       const list = r.impact.map((x) => `${x.stage}：${x.a} vs ${x.b} ${x.score}`).join('\n');
       const ok = await new Promise((res) => wx.showModal({ title: '会影响后续比赛', content: `下面已录分的比赛对阵会变化，比分将作废并留档：\n${list}`, confirmText: '继续', confirmColor: '#e5484d', success: (x) => res(x.confirm) }));
       if (!ok) return null;
-      const reason = data.reason || (await this.ask('处理原因', '必填，会留档'));
+      const reason = data.reason || (await pick.reason('fix', '处理原因（会留档）'));
       if (!reason) return null;
       r = await cloud.call(action, Object.assign({}, data, { confirmImpact: true, reason }));
     }
     return r;
   },
 
-  /* ---------- 发起人：赛前弃权 / 中途退赛（不伪造局分，必须填原因） ---------- */
+  /* ---------- 发起人：赛前弃权 / 中途退赛（不伪造局分，必须选原因） ---------- */
   pickSide(title) {
     return new Promise((resolve) => wx.showActionSheet({ itemList: [`${this.data.aLabel}`, `${this.data.bLabel}`], success: (r) => resolve(r.tapIndex === 0 ? 'a' : 'b'), fail: () => resolve(null) }));
   },
@@ -148,9 +146,8 @@ Page({
     if (this.data.busy) return;
     const side = await this.pickSide('谁弃权？');
     if (!side) return;
-    const reason = await this.ask(`${side === 'a' ? this.data.aLabel : this.data.bLabel} 赛前弃权`, '弃权原因（必填）');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
+    const reason = await pick.reason('withdraw', '弃权原因');
+    if (!reason) return;
     this.setData({ busy: true });
     try {
       const r = await this.withImpact('resolveFixture', { drawId: this.drawId, key: this.key, kind: 'walkover', loser: side, reason });
@@ -168,17 +165,17 @@ Page({
     this.setData({ [`retire.sets[${i}].${k}`]: e.detail.value });
   },
   retireAddSet() { if (this.data.retire.sets.length < 3) this.setData({ 'retire.sets': this.data.retire.sets.concat([{ a: '', b: '' }]) }); },
-  retireReason(e) { this.setData({ 'retire.reason': e.detail.value }); },
+  retireReason(e) { this.setData({ 'retire.reason': e.currentTarget.dataset.v }); },
   retireCancel() { this.setData({ retire: null }); },
   async retireSubmit() {
     if (this.data.busy) return;
     const rt = this.data.retire;
     const sets = rt.sets.filter((s) => s.a !== '' || s.b !== '').map((s) => ({ a: parseInt(s.a, 10) || 0, b: parseInt(s.b, 10) || 0 }));
     if (!sets.length) { wx.showToast({ title: '请填写实际已打的局分', icon: 'none' }); return; }
-    if ((rt.reason || '').trim().length < 2) { wx.showToast({ title: '请填写退赛原因', icon: 'none' }); return; }
+    if (!E.reasonOf(rt.reason)) { wx.showToast({ title: '请选择退赛原因', icon: 'none' }); return; }
     this.setData({ busy: true });
     try {
-      const r = await this.withImpact('resolveFixture', { drawId: this.drawId, key: this.key, kind: 'retired', loser: rt.side, reason: rt.reason.trim(), sets, date: this.data.date });
+      const r = await this.withImpact('resolveFixture', { drawId: this.drawId, key: this.key, kind: 'retired', loser: rt.side, reason: rt.reason, sets, date: this.data.date });
       if (r) { wx.showToast({ title: '已记录退赛', icon: 'success' }); setTimeout(() => wx.navigateBack(), 700); }
     } catch (e) { wx.showModal({ title: '处理失败', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }

@@ -2,7 +2,7 @@
   <view wx:if="{{error}}" class="empty">
     <view class="empty-ball"></view>
     <view>{{error}}</view>
-    <view class="btn-primary small" bindtap="goHome">返回活动列表</view>
+    <view class="btn-primary small" hover-class="tap-on" bindtap="goHome">返回活动列表</view>
   </view>
 
   <block wx:if="{{draw}}">
@@ -10,10 +10,10 @@
       <view class="h-title">{{draw.title}}</view>
       <view class="h-meta">{{meta}} · {{draw.date}}</view>
       <view class="h-rules">
-        <view class="hr-title">赛制 · {{formatText}}</view>
+        <view class="hr-title">规则 · {{formatText}}</view>
         <view wx:for="{{rulesSum}}" wx:key="stage" class="hr-row {{item.hl ? 'hl' : ''}}"><text class="hr-k">{{item.stage}}</text><text class="hr-v">{{item.text}}</text></view>
       </view>
-      <view wx:if="{{seedsText}}" class="h-seeds"><text class="h-lbl">种子</text>{{seedsText}}</view>
+      <view wx:if="{{seedsText}}" class="h-seeds"><text class="h-lbl">分开排位</text>{{seedsText}}</view>
       <view wx:if="{{!signing && progress}}" class="h-prog">{{progress}}</view>
       <view wx:if="{{signing}}" class="h-prog">已报名 {{signCount}}</view>
     </view>
@@ -22,14 +22,14 @@
     <view class="card info">
       <view class="card-title row">
         <text>时间地点</text>
-        <text wx:if="{{canManage}}" class="link" bindtap="goEdit">编辑</text>
+        <text wx:if="{{canEdit}}" class="link" bindtap="goEdit">编辑</text>
       </view>
       <view class="in-row"><text class="in-k">时间</text><text class="in-v">{{info.when || '暂无'}}</text></view>
       <block wx:if="{{!info.empty}}">
         <view class="in-row"><text class="in-k">场地</text><text class="in-v">{{info.venue || '暂无'}}</text></view>
-        <view wx:if="{{info.canNav}}" class="nav-btn" bindtap="openMap">📍 打开地图导航</view>
+        <view wx:if="{{info.canNav}}" class="nav-btn" hover-class="tap-on" bindtap="openMap">📍 打开地图导航</view>
       </block>
-      <view wx:else class="muted">{{canManage ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
+      <view wx:else class="muted">{{canEdit ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
     </view>
 
     <!-- 报名中 -->
@@ -42,7 +42,7 @@
         <view wx:if="{{!signups.length}}" class="muted">还没有人报名，把它分享到群里吧</view>
 
         <view wx:for="{{signups}}" wx:key="_id" class="su-team">
-          <view wx:for="{{item.members}}" wx:key="name" wx:for-item="p" class="su-row" data-uid="{{p.uid}}" bindtap="openPlayer">
+          <view wx:for="{{item.members}}" wx:key="name" wx:for-item="p" class="su-row" hover-class="tap-row-on" data-uid="{{p.uid}}" bindtap="openPlayer">
             <text class="su-no">{{index === 0 ? item.no : ''}}</text>
             <view class="su-av2 init" style="background:{{p.color}}">{{p.initial}}</view>
             <view class="su-main">
@@ -56,30 +56,31 @@
             <view class="su-lv2 {{p.level === '暂无' ? 'none' : ''}}">{{p.level}}</view>
             <text class="su-go">›</text>
           </view>
-          <view wx:if="{{isDouble && item.solo}}" class="su-solo">找搭档中，由发起人配对</view>
+          <view wx:if="{{item.waiting}}" class="su-solo su-wait">候补中：前面有人取消就自动递补</view>
+          <view wx:elif="{{isDouble && item.solo}}" class="su-solo">找搭档中，由发起人配对</view>
         </view>
       </view>
 
       <view wx:if="{{joined}}" class="joined">
         <view class="joined-ic">✓</view>
         <view class="joined-main">
-          <view class="joined-t">你已报名</view>
+          <view class="joined-t">{{myWaiting ? '你在候补名单里' : '你已报名'}}</view>
           <view class="joined-s">{{isDouble ? '截止报名前可以取消，会连同搭档一起取消' : '截止报名前可以随时取消'}}</view>
         </view>
         <view class="quit" hover-class="quit-hover" bindtap="quit">取消报名</view>
       </view>
-      <picker wx:elif="{{isDouble && myName && !full}}" range="{{partnerOpts}}" bindchange="joinDouble">
-        <view class="btn-primary {{busy ? 'disabled' : ''}}">我要报名（选择搭档）</view>
+      <picker wx:elif="{{isDouble && myName}}" range="{{partnerOpts}}" bindchange="joinDouble">
+        <view class="btn-primary {{busy ? 'disabled' : ''}}">{{full ? '名额已满，排队候补（选择搭档）' : '我要报名（选择搭档）'}}</view>
       </picker>
-      <view wx:else class="btn-primary {{full || busy ? 'disabled' : ''}}" bindtap="join">{{full ? '名额已满' : '我要报名'}}</view>
-      <view wx:if="{{isOwner}}" class="btn-owner" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' ? '签表' : '分组'}}</view>
+      <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '名额已满，排队候补' : '我要报名'}}</view>
+      <view wx:if="{{canPublish}}" class="btn-owner" hover-class="tap-on" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' ? '对阵' : '分组'}}</view>
     </block>
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
     <block wx:else>
       <view class="tabs">
-        <view class="tab {{tab === 'board' ? 'on' : ''}}" data-v="board" bindtap="setTab">{{draw.mode === 'groups' ? '积分榜' : draw.mode === 'groups_ko' ? '积分榜 · 签表' : '签表'}}</view>
-        <view class="tab {{tab === 'schedule' ? 'on' : ''}}" data-v="schedule" bindtap="setTab">赛程<text wx:if="{{todo}}" class="dot">{{todo}}</text></view>
+        <view class="tab {{tab === 'board' ? 'on' : ''}}" data-v="board" bindtap="setTab">{{draw.mode === 'groups' ? '积分榜' : draw.mode === 'groups_ko' ? '积分榜 · 对阵表' : '对阵表'}}</view>
+        <view class="tab {{tab === 'schedule' ? 'on' : ''}}" data-v="schedule" bindtap="setTab">场次<text wx:if="{{todo}}" class="dot">{{todo}}</text></view>
       </view>
 
       <draw-board wx:if="{{tab === 'board'}}" draw="{{draw}}" matches="{{matches}}" me="{{myName}}" editable="{{true}}" bind:open="onOpen" />
@@ -90,7 +91,7 @@
           <text class="mine-tg {{onlyMine ? 'on' : ''}}" bindtap="toggleMine">{{onlyMine ? '✓ ' : ''}}只看我的</text>
         </view>
         <view wx:if="{{!schedule.length}}" class="muted center">{{onlyMine ? '你在这个活动里没有比赛' : '还没有比赛'}}</view>
-        <view wx:for="{{schedule}}" wx:key="key" class="sch {{item.status}} {{item.mine ? 'mine' : ''}}" data-key="{{item.key}}" bindtap="tapItem">
+        <view wx:for="{{schedule}}" wx:key="key" class="sch {{item.status}} {{item.mine ? 'mine' : ''}}" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapItem">
           <view class="sch-top">
             <text class="sch-stage">{{item.stage}}</text>
             <text class="sch-st">{{item.status === 'done' ? '已完赛' : item.status === 'ready' ? (item.mine ? '待录分 ›' : '待赛') : '待定'}}</text>
@@ -127,18 +128,18 @@
 
     <!-- 退赛 -->
     <view wx:if="{{!signing && (withdrawn.length || wdOwner || canWithdraw || myWd)}}" class="card wd">
-      <view class="card-title">退赛<text class="sub">签表生成后由发起人处理，不直接删除参赛者</text></view>
-      <view wx:for="{{withdrawn}}" wx:key="entrant" class="wd-row"><text class="wd-n">{{item.entrant}}</text><text class="wd-t">已退赛 · {{item.text}}{{item.reason ? '（' + item.reason + '）' : ''}}</text></view>
+      <view class="card-title">退赛<text class="sub">对阵生成后由发起人处理，不直接删除参加者</text></view>
+      <view wx:for="{{withdrawn}}" wx:key="entrant" class="wd-row"><text class="wd-n">{{item.entrant}}</text><text class="wd-t">已退赛 · {{item.text}}</text></view>
       <block wx:if="{{wdOwner}}">
         <view wx:for="{{wdPending}}" wx:key="id" class="wd-row">
-          <text class="wd-n">{{item.entrant}}</text><text class="wd-t">申请退赛：{{item.reason}}</text>
+          <text class="wd-n">{{item.entrant}}</text><text class="wd-t">申请退赛{{item.reason ? '：' + item.reason : ''}}</text>
           <text class="wd-a" data-i="{{index}}" bindtap="rejectWithdraw">拒绝</text><text class="wd-a main" data-i="{{index}}" bindtap="approveWithdraw">同意</text>
         </view>
         <picker wx:if="{{wdCandidates.length}}" range="{{wdCandidates}}" bindchange="ownerWithdraw"><view class="wd-link">登记球员退赛 / 缺席</view></picker>
       </block>
       <block wx:else>
         <view wx:if="{{myWd && myWd.status === 'pending'}}" class="wd-t">你的退赛申请等待发起人处理</view>
-        <view wx:elif="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请：{{myWd.note}}</view>
+        <view wx:elif="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请{{myWd.note ? '：' + myWd.note : ''}}</view>
         <view wx:elif="{{canWithdraw}}" class="wd-link" bindtap="requestWithdraw">申请退赛</view>
       </block>
     </view>
@@ -157,8 +158,8 @@
         <picker mode="time" value="{{slotEdit.time || '09:00'}}" bindchange="slotTime"><view class="sheet-pick {{slotEdit.time ? '' : 'ph'}}">{{slotEdit.time || '选择时间'}} ›</view></picker>
       </view>
       <view class="sheet-row">
-        <text class="label">场地</text>
-        <input class="sheet-in" value="{{slotEdit.court}}" bindinput="slotCourt" maxlength="20" placeholder="例如：3 号场" />
+        <text class="label">场地编号</text>
+        <picker range="{{courts}}" value="{{slotEdit.courtIndex}}" bindchange="slotCourt"><view class="sheet-pick {{slotEdit.court ? '' : 'ph'}}">{{courts[slotEdit.courtIndex]}} ›</view></picker>
       </view>
       <view class="sheet-note">没有安排的场次，沿用活动的日期、时间和场地。</view>
       <view class="sheet-acts">
@@ -169,7 +170,7 @@
     </view>
 
     <view class="actions">
-      <button class="share" open-type="share">{{signing ? '分享到群，邀请报名' : '分享活动到群'}}</button>
+      <button class="share" open-type="share">{{signing ? '发给球友报名' : '发给球友'}}</button>
       <view wx:if="{{canManage}}" class="del" hover-class="del-hover" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view>
     </view>
   </block>

@@ -2,6 +2,7 @@
 //   待审核：批准 / 拒绝（填原因）   成员：移除（填原因，立即生效，不删历史记录）
 //   历史球友：升级前设置过资料的账号，管理员确认后再导入，不自动成为成员   邀请：生成一次性邀请链接
 const cloud = require('../../utils/cloud');
+const pick = require('../../utils/pick');
 
 Page({
   data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '', audit: null, auditing: false },
@@ -25,7 +26,6 @@ Page({
     const uid = e.currentTarget.dataset.uid;
     wx.setClipboardData({ data: uid, success: () => wx.showToast({ title: '已复制用户 ID', icon: 'none' }) });
   },
-  ask(title, ph) { return new Promise((r) => wx.showModal({ title, editable: true, placeholderText: ph, success: (x) => r(x.confirm ? (x.content || '').trim() : null), fail: () => r(null) })); },
   async run(action, data, ok) {
     if (this.busy) return;
     this.busy = true;
@@ -35,16 +35,16 @@ Page({
   },
   approve(e) { this.run('reviewMember', { uid: e.currentTarget.dataset.uid, approve: true }, '已批准'); },
   async reject(e) {
-    const reason = await this.ask('拒绝申请', '原因（必填，申请人会看到）');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
+    const reason = await pick.reason('member', '拒绝原因（申请人会看到）');
+    if (!reason) return;
     this.run('reviewMember', { uid: e.currentTarget.dataset.uid, approve: false, reason }, '已拒绝');
   },
   async remove(e) {
     const { uid, name } = e.currentTarget.dataset;
-    const reason = await this.ask(`移除 ${name || '该成员'}`, '原因（必填）。移除后立即不能使用，历史比分和记录保留');
-    if (reason === null) return;
-    if (reason.length < 2) { wx.showToast({ title: '请填写原因', icon: 'none' }); return; }
+    const go = await new Promise((done) => wx.showModal({ title: `移除 ${name || '该成员'}`, content: '移除后立即不能使用，历史比分和记录保留。下一步选择原因。', confirmText: '继续', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false) }));
+    if (!go) return;
+    const reason = await pick.reason('member', '移除原因');
+    if (!reason) return;
     this.run('removeMember', { uid, reason }, '已移除');
   },
   // 替没选性别的成员补选（点已有的性别可以更正）；成员本人之后仍可在编辑资料里改
@@ -64,9 +64,7 @@ Page({
     if (r) { this.setData({ picked: {} }); wx.showToast({ title: `已导入 ${r.imported} 人`, icon: 'none' }); }
   },
   async invite() {
-    const note = await this.ask('邀请新球友', '备注（选填），例如 小王');
-    if (note === null) return;
-    const r = await this.run('createInvite', { note, days: 7 }, '');
+    const r = await this.run('createInvite', { days: 7 }, '');
     if (r) { this.setData({ lastInvite: r.code, tab: 'invite' }); wx.showToast({ title: '已生成，点「发给球友」', icon: 'none' }); }
   },
   copyCode(e) { wx.setClipboardData({ data: e.currentTarget.dataset.code, success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' }) }); },

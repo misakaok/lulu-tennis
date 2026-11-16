@@ -12,7 +12,7 @@ const CFG_KEY = 'last_rules';
 
 Page({
   data: {
-    date: '', today: '', type: 'single', bestOf: 3, setGames: 4, noAd: true,
+    canRecordDaily: false, authError: '', date: '', today: '', type: 'single', bestOf: 3, setGames: 4, noAd: true,
     slotsA: [], slotsB: [], chips: [], me: '', noProfile: false,
     aLabel: 'A 方', bLabel: 'B 方',
     check: { ok: false, msg: '' }, submitting: false, rulesText: '',
@@ -31,8 +31,16 @@ Page({
     this.refresh();
   },
 
-  onShow() {
-    this.loadPlayers().then(() => this.applyPrefill());
+  async onShow() {
+    this.setData({ canRecordDaily: false });
+    try {
+      const member = await require('../../utils/member').status();
+      if (member.status !== 'active' || !member.isAdmin) {
+        this.setData({ authError: '只有管理员可以录入日常比赛' }); return;
+      }
+      this.setData({ canRecordDaily: true, authError: '' });
+      await this.loadPlayers();
+    } catch (e) { this.setData({ canRecordDaily: false, authError: '身份校验失败，请返回后重试' }); }
   },
 
   // 只有已注册（设置过资料、昵称唯一）的球员可选：战绩按账号累计
@@ -174,6 +182,7 @@ Page({
 
   /* ---------- 保存 ---------- */
   async submit() {
+    if (!this.data.canRecordDaily) return;
     if (this.data.submitting) return;
     const r = this.result;
     if (!r) { wx.showToast({ title: this.data.check.msg || '请完善比分', icon: 'none' }); return; }

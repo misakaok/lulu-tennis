@@ -2,7 +2,7 @@
 // 而是经云函数 tennis 的数据网关（utils/gateway.js），先校验成员资格，再按「成员可读、创建者可改」执行。
 //   matches  比赛记录      players  球员 / 个人资料
 //   draws    抽签          signups  报名
-const { dedupe, tsOf } = require('./event');
+const { dedupe, tsOf, publicDraw, publicMatch } = require('./event');
 const ID = require('./ident');
 const OF = require('./official');
 const GW = require('./gateway');
@@ -139,25 +139,25 @@ async function loadMatches() {
 // 正式战绩：战绩统计、排名、水平分、签表晋级、互评都只用这些
 function fetchMatches() {
   return derived('matches', loadMatches, ({ tagged, players }) => {
-    const list = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')), players);
+    const list = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')).map(publicMatch), players);
     cacheSet('cache_matches', list);
     return list;
   });
 }
-const cachedMatches = () => cacheGet('cache_matches', []);
+const cachedMatches = () => cacheGet('cache_matches', []).map(publicMatch);
 
 // 战绩列表用：正式战绩 + 待对手确认的日常比赛（标 pending，不计入任何统计）
 function fetchMatchesAll() {
   return derived('matchesAll', loadMatches, ({ tagged, players }) => {
     const official = dedupe(tagged.filter((m) => m.status === 'official'));
     const pending = tagged.filter((m) => m.status === 'pending');
-    const list = ID.normalizeMatches(official.concat(pending), players)
+    const list = ID.normalizeMatches(official.concat(pending).map(publicMatch), players)
       .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || (tsOf(y) - tsOf(x)));
     cacheSet('cache_matches_all', list);
     return list;
   });
 }
-const cachedMatchesAll = () => cacheGet('cache_matches_all', []);
+const cachedMatchesAll = () => cacheGet('cache_matches_all', []).map(publicMatch);
 
 function addMatch(data) {
   return db().collection('matches').add({ data: Object.assign({}, data, { createdAt: db().serverDate() }) });
@@ -237,16 +237,16 @@ async function saveMyProfile({ name, avatar, level, gender }) {
 
 /* ---------- 抽签 ---------- */
 async function fetchDraws() {
-  const list = await fetchAll('draws', [['createdAt', 'desc']]);
+  const list = (await fetchAll('draws', [['createdAt', 'desc']])).map(publicDraw);
   cacheSet('cache_draws', list);
   return list;
 }
-const cachedDraws = () => cacheGet('cache_draws', []);
+const cachedDraws = () => cacheGet('cache_draws', []).map(publicDraw);
 
 async function getMatch(id) {
-  try { return (await db().collection('matches').doc(id).get()).data || null; } catch (e) { return null; }
+  try { return publicMatch((await db().collection('matches').doc(id).get()).data) || null; } catch (e) { return null; }
 }
-async function getDraw(id) { return (await db().collection('draws').doc(id).get()).data; }
+async function getDraw(id) { return publicDraw((await db().collection('draws').doc(id).get()).data); }
 // 活动详情页一次取齐：活动、报名名单、我的资料、退赛申请（云函数 drawDetail，1 次调用）。
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
 async function fetchDrawDetail(id) {
@@ -256,6 +256,7 @@ async function fetchDrawDetail(id) {
     throw e;
   }
   cacheSet('my_profile', r.profile || '');
+  r.draw = publicDraw(r.draw);
   return r;
 }
 
@@ -265,7 +266,7 @@ const cloudCall = (action, data) => require('./cloud').call(action, data);
 async function addDraw(data) { return (await cloudCall('createDraw', { draw: data })).id; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
-// 编辑活动信息：名称、日期、开始时间、场地、定位
+// 编辑活动信息：手动名称、日期、开始时间、场地编号、定位；公开文字先经云端检测
 async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
 // 删除活动（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的活动要带原因
 async function removeDraw(id, reason) { await cloudCall('removeDraw', { drawId: id, reason: reason || '' }); }
@@ -295,7 +296,7 @@ async function mySignup(drawId) {
 }
 // 报名经云函数 signUp：参赛名取本人当前资料，搭档只传用户 ID，由服务端校验（partner 为空表示还没有搭档，由发起人配对）
 async function signUp(drawId, partner) {
-  await require('./cloud').call('signUp', { drawId, partnerId: (partner && partner.uid) || '' });
+  return require('./cloud').call('signUp', { drawId, partnerId: (partner && partner.uid) || '' });
 }
 async function cancelSignup(drawId) {
   await require('./cloud').call('cancelSignup', { drawId });

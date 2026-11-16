@@ -25,10 +25,10 @@ function nextMatches(draws, matches, myId, mySignups) {
       if (!side) return;
       const s = x.slot || {};
       out.push({
-        drawId: d._id, key: x.key, title: d.title || '活动', stage: x.stage, rule: x.ruleText,
+        drawId: d._id, key: x.key, title: E.titleOf(d), stage: x.stage, rule: x.ruleText,
         opp: side === 'a' ? x.b : x.a,
         // 这一场单独排过时间 / 场地就用它，没排的沿用活动的
-        venue: [d.venue, s.court].filter(Boolean).join(' · ') || '待安排',
+        venue: s.court || E.courtOf(d.venue) || (E.locationOf(d.location) ? '已设置地图位置' : '待安排'),
         when: whenOf({ date: s.date || d.date, startTime: s.time || (s.date ? '' : d.startTime) }),
         sortKey: (s.date || d.date || '9999') + (s.time || (s.date ? '' : d.startTime) || '99:99'),
       });
@@ -43,6 +43,18 @@ async function load() {
   let srv = { toConfirm: [], waiting: [], toRespond: [], myRequests: [], withdraws: [] };
   let error = '';
   try { srv = await cloud.cached('myTodos'); } catch (e) { error = e.message; }
+  // 优先使用已整理的活动 / 比赛名称，缺少完整记录时保留服务端的手动名称。
+  const matchOf = {}, drawOf = {};
+  matches.forEach((m) => { matchOf[m._id] = m; });
+  draws.forEach((d) => { drawOf[d._id] = d; });
+  ['toConfirm', 'waiting', 'toRespond', 'myRequests'].forEach((key) => {
+    srv[key] = (srv[key] || []).map((row) => {
+      const m = matchOf[row.matchId];
+      const title = m ? (m.drawId ? `${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛') : E.titleOf(row);
+      return Object.assign({}, row, { title });
+    });
+  });
+  srv.withdraws = (srv.withdraws || []).map((row) => Object.assign({}, row, { title: E.titleOf(drawOf[row.drawId] || row) }));
   const count = next.length + srv.toConfirm.length + srv.toRespond.length + srv.withdraws.length;
   return Object.assign({ next, count, error }, srv);
 }
