@@ -54,10 +54,11 @@ test('发布页面：普通成员直接进入创建和编辑页不会显示表�
   assert.strictEqual(a.data.canPublish, true); assert.strictEqual(a.data.authError, '');
 });
 
-test('活动列表：管理员入口随服务端身份变化，普通成员不能通过处理函数进入创建页', async () => {
+test('活动列表：管理员入口随服务端身份（60 秒缓存）变化，普通成员不能通过处理函数进入创建页', async () => {
   let admin = false, navigations = 0;
   const deps = {
-    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: admin }) },
+    // 列表页只用缓存版身份决定按钮显示，不每次切 tab 都实时调云函数
+    '../../utils/member': { statusCached: async () => ({ status: 'active', isAdmin: admin }), status: async () => { throw new Error('列表页不应实时查身份'); } },
     '../../utils/db': { fetchDraws: async () => [], fetchMatches: async () => [], myOpenid: async () => 'alice', fetchMySignups: async () => [] },
   };
   const p = load('pages/draw/draw.js', { navigateTo() { navigations++; }, showToast() {} }, 'Page', deps);
@@ -67,6 +68,31 @@ test('活动列表：管理员入口随服务端身份变化，普通成员不�
   assert.strictEqual(p.data.canPublish, true); assert.strictEqual(navigations, 1);
   admin = false; await p.load(); p.goNew();
   assert.strictEqual(p.data.canPublish, false); assert.strictEqual(navigations, 1);
+});
+
+test('战绩页：「记一场」用缓存版身份显示，和读数据同时进行；查不到身份时收起按钮，列表照常显示', async () => {
+  let admin = true, fail = false, realtime = 0, rendered = 0;
+  const deps = {
+    '../../utils/member': {
+      statusCached: async () => { if (fail) throw new Error('网络异常'); return { status: 'active', isAdmin: admin }; },
+      status: async () => { realtime++; return { status: 'active', isAdmin: admin }; },
+    },
+    '../../utils/db': {
+      cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null,
+      fetchMatchesAll: async () => [], fetchPlayersFull: async () => [], myOpenid: async () => 'alice',
+    },
+  };
+  const p = load('pages/index/index.js', { showToast() {}, getStorageSync: () => '' }, 'Page', deps);
+  p.render = () => { rendered++; };
+  p.sig = null;
+  await p.load();
+  assert.strictEqual(p.data.canRecordDaily, true);
+  admin = false; p.sig = null; await p.load();
+  assert.strictEqual(p.data.canRecordDaily, false);
+  admin = true; fail = true; p.sig = null; await p.load();
+  assert.strictEqual(p.data.canRecordDaily, false);
+  assert.strictEqual(rendered, 3); assert.strictEqual(p.data.loading, false);
+  assert.strictEqual(realtime, 0);
 });
 
 test('普通用户无法经日常录分页提交；管理员入口经实时身份校验', async () => {

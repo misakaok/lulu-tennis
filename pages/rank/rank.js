@@ -4,6 +4,7 @@ const S = require('../../utils/stats');
 const { computeRank, colorOf, initialOf } = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const SE = require('../../utils/season');
+const Anim = require('../../utils/anim');
 
 const PAGE = 50; // 榜单每次显示多少名，滑到底再加载
 
@@ -13,7 +14,7 @@ Page({
     sorts: [{ label: '按水平', value: 'level' }, { label: '按胜场', value: 'win' }, { label: '本月活跃', value: 'active' }, { label: '连胜', value: 'streak' }, { label: '本月进步', value: 'gain' }],
     genders: [{ label: '不限', value: 'all' }, { label: '男', value: '男' }, { label: '女', value: '女' }],
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
-    top: [], ranked: [], more: false, loading: true, myKey: '',
+    top: [], ranked: [], more: false, loading: true, myKey: '', play: true, // play：入场动画（切换 tab 回来时重播）
     season: SE.ALL, seasons: [{ label: '生涯', value: SE.ALL }],
   },
 
@@ -22,7 +23,12 @@ Page({
     this.setSource(db.cachedMatches(), db.cachedPlayersFull(), (db.cachedProfile() || {})._openid || '');
     this.render();
   },
-  onShow() { this.load(); },
+  onShow() {
+    const replay = Anim.enter(this); // 切换 tab 回来：重播领奖台、榜单的入场动画
+    if (Object.keys(replay).length) this.setData(replay);
+    this.load();
+  },
+  onHide() { Anim.leave(this); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   onReachBottom() {

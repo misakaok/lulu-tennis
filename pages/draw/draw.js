@@ -108,9 +108,11 @@ Page({
     try {
       const [list, matches, myId, signups, member] = await Promise.all([
         db.fetchDraws(), db.fetchMatches().catch(() => db.cachedMatches()), db.myOpenid().catch(() => ''), db.fetchMySignups().catch(() => []),
-        require('../../utils/member').status(),
+        // 「创建活动」按钮只决定显示（创建页打开时实时校验身份，云函数也会校验）：用 60 秒缓存，不每次切 tab 都调云函数
+        require('../../utils/member').statusCached().catch(() => null),
       ]);
-      this.setData({ canPublish: member.status === 'active' && !!member.isAdmin });
+      const canPublish = !!member && member.status === 'active' && !!member.isAdmin;
+      if (canPublish !== this.data.canPublish) this.setData({ canPublish });
       // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染
       const sig = JSON.stringify([list, matches, myId, signups]);
       if (sig !== this.sig) {

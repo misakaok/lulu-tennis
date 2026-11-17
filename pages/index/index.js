@@ -65,7 +65,7 @@ function toView(m, deltas, gOf, tagsOf) {
 
 Page({
   data: {
-    loading: true,
+    loading: true, play: true, // play：入场动画（切换 tab 回来时重播，见 utils/anim.js）
     groups: [],
     stat: { total: 0, month: 0, players: 0 },
     me: null, // 我的战绩卡：没有账号或还没打过比赛时不显示，顶部改为显示全部比赛的统计
@@ -85,15 +85,22 @@ Page({
     this.limit += PAGE;
     this.render();
   },
-  onShow() { this.load(); },
+  onShow() {
+    const replay = Anim.enter(this); // 切换 tab 回来：重播入场动画和数字滚动
+    if (Object.keys(replay).length) this.setData(replay);
+    this.load();
+  },
+  onHide() { Anim.leave(this); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
   async load() {
-    this.setData({ canRecordDaily: false });
+    // 「记一场」按钮只决定显示（录分页打开时实时校验身份，云函数也会校验）：身份用 60 秒缓存，和读数据同时进行，
+    // 不在每次切到这页时都调一次云函数；查不到身份时收起按钮，不影响列表
+    const showAdd = require('../../utils/member').statusCached()
+      .then((r) => r.status === 'active' && !!r.isAdmin, () => false)
+      .then((v) => { if (v !== this.data.canRecordDaily) this.setData({ canRecordDaily: v }); });
     try {
-      const member = await require('../../utils/member').status();
-      this.setData({ canRecordDaily: member.status === 'active' && !!member.isAdmin });
       const [m, p, myId] = await Promise.all([db.fetchMatchesAll(), db.fetchPlayersFull(), db.myOpenid().catch(() => this.myId || '')]);
       // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
       if (this.setSource(m, p, myId)) this.render();
@@ -101,6 +108,7 @@ Page({
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
     }
+    await showAdd;
     if (this.data.loading) this.setData({ loading: false });
   },
 

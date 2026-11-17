@@ -79,6 +79,7 @@ page {
  *   .ani-grow-x  横向进度条从 0 拉开；.ani-grow-y 柱子从底部长出来
  *   hover-class="tap-on"      按钮、卡片按下时略微缩小
  *   hover-class="tap-row-on"  卡片里的行按下时变淡（行不缩放）
+ *   .ani-wait / .ani-wait-x   切走后的等待态（和动画起点一样），回到页面换回 .ani-in / .ani-grow-x 再播一次（见 utils/anim.js 的 leave / enter）
  * 数字滚动在 utils/anim.js。
  */
 @keyframes ani-in { from { opacity: 0; transform: translateY(16rpx); } to { opacity: 1; transform: translateY(0); } }
@@ -86,6 +87,8 @@ page {
 @keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .ani-in { animation: ani-in 0.36s ease-out backwards; }
 .ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.ani-wait { opacity: 0; transform: translateY(16rpx); }
+.ani-wait-x { transform-origin: left center; transform: scaleX(0); }
 .ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .tap-on { transform: scale(0.97); opacity: 0.86; transition: transform 0.12s ease-out, opacity 0.12s ease-out; }
 .tap-row-on { opacity: 0.5; transition: opacity 0.12s ease-out; }

@@ -1,5 +1,5 @@
-<view wx:if="{{!canRecordDaily}}" class="page muted">{{authError || '正在校验管理员身份…'}}</view>
-<block wx:else>
+<view wx:if="{{!canRecordDaily && authError}}" class="page muted">{{authError}}</view>
+<block wx:elif="{{canRecordDaily}}">
 <view class="page">
   <view class="event-tip" hover-class="tap-on" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在对阵表或场次里点对应场次录分 ›</view>
   <view class="confirm-tip">日常比赛提交后<text class="b">直接计入</text>正式战绩和排名，不需要对手确认；参加者可在比赛详情里修改；已锁定的比分由对方确认后生效。</view>

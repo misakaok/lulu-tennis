@@ -1,5 +1,5 @@
-<view wx:if="{{!canPublish}}" class="page muted">{{authError || '正在校验管理员身份…'}}</view>
-<block wx:else>
+<view wx:if="{{!canPublish && authError}}" class="page muted">{{authError}}</view>
+<block wx:elif="{{canPublish}}">
 <view class="page">
   <!-- 活动设置 -->
   <view class="card">

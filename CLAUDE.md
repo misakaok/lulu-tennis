@@ -57,5 +57,5 @@
 - 按钮只用三种：`.btn-primary`、`.btn-line`（次要）、`.btn-danger`（撤销等），不要再用带下划线的文字链接；小标签用 `.ui-tag`（`lime` / `solid` / `warn` / `bad`）。
 - 导航栏是淡紫底 `#A3A3CB` 白字；标签栏图标在 `images/tab/`，选中色 `#6E6EA3`。
 - 项目开启了新版组件样式（`style: v2`），按钮自带内边距和固定宽度。需要居中时用 `padding: 0` + flex 居中（参考 `button.share`）。
-- 动画只用 `transform` / `opacity`，统一用 `app.wxss` 末尾的全局类：`.ani-in`（列表行滑入，用 `animation-delay` 逐行错开，只给前 10 行左右加）、`.ani-grow-x` / `.ani-grow-y`（进度条、柱子生长）、`hover-class="tap-on"`（按钮、卡片）/ `"tap-row-on"`（卡片里的行）。数字滚动用 `utils/anim.js` 的 `Anim.roll`（每个页面只滚一次，起始帧并进渲染的那次 `setData`；传给 `setData` 的对象如果还被别处缓存，要传副本）。
+- 动画只用 `transform` / `opacity`，统一用 `app.wxss` 末尾的全局类：`.ani-in`（列表行滑入，用 `animation-delay` 逐行错开，只给前 10 行左右加）、`.ani-grow-x` / `.ani-grow-y`（进度条、柱子生长）、`hover-class="tap-on"`（按钮、卡片）/ `"tap-row-on"`（卡片里的行）。数字滚动用 `utils/anim.js` 的 `Anim.roll`（每个页面只滚一次，起始帧并进渲染的那次 `setData`；传给 `setData` 的对象如果还被别处缓存，要传副本）。tab 页（战绩、排行）切走再回来要重播：动画类写成 `{{play ? 'ani-in' : 'ani-wait'}}`（进度条 `ani-grow-x` / `ani-wait-x`），`onHide` 调 `Anim.leave(this)`，`onShow` 把 `Anim.enter(this)` 的返回值并进 `setData`；只是点进子页面再返回不重播。
 - 不要用与 `app.wxss` 全局类同名的修饰类（例如 `.empty`），否则会被全局样式覆盖。

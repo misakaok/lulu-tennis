@@ -45,4 +45,39 @@ test('roll：没有数据（0、暂无）时不滚，等有数据再滚；滚动
   assert.strictEqual(p.frames, frames);
 });
 
+test('leave / enter：切换 tab 回来时重播（动画类、数字从 0 再滚到原值）；只是被子页面盖住时不重播', async () => {
+  const p = page({ play: true, me: { played: 12, rate: 58 } });
+  Anim.roll(p, { 'me.played': 12, 'me.rate': 58 });
+  await wait(Anim.MS + 150);
+  global.getCurrentPages = () => [p, {}]; // 点进详情页
+  Anim.leave(p);
+  assert.strictEqual(p.data.play, true);
+  assert.deepStrictEqual(Anim.enter(p), {});
+  global.getCurrentPages = () => [{}]; // 切到别的 tab
+  Anim.leave(p);
+  assert.strictEqual(p.data.play, false);
+  assert.deepStrictEqual(p.data.me, { played: '0', rate: '0' });
+  // 切走期间数据变了：仍停在 0，回来时滚到新值
+  assert.deepStrictEqual(Anim.roll(p, { 'me.played': 13, 'me.rate': 60 }), { 'me.played': '0', 'me.rate': '0' });
+  p.data.me = { played: '0', rate: '0' };
+  const back = Anim.enter(p);
+  assert.deepStrictEqual(back, { play: true, 'me.played': '0', 'me.rate': '0' });
+  p.setData(back);
+  await wait(Anim.MS + 150);
+  assert.deepStrictEqual(p.data.me, { played: 13, rate: 60 });
+  assert.deepStrictEqual(Anim.enter(p), {}); // 只重播一次
+  delete global.getCurrentPages;
+});
+
+test('页面接入：战绩、排行的入场动画类都随 play 切换，并在 onHide / onShow 里调用 leave / enter', () => {
+  const fs = require('fs');
+  const path = require('path');
+  ['index', 'rank'].forEach((n) => {
+    const base = path.join(__dirname, '..', 'pages', n, n);
+    const wxml = fs.readFileSync(base + '.wxml', 'utf8'), js = fs.readFileSync(base + '.js', 'utf8');
+    assert.ok(!/'ani-(in|grow-x)'\s*:\s*''|class="[^"]*\bani-(in|grow-x)\b[^{"]*"/.test(wxml.replace(/play \? 'ani-(in|grow-x)'/g, '')), n + ' 有不随 play 切换的动画类');
+    assert.ok(/onHide\(\)\s*\{\s*Anim\.leave\(this\)/.test(js) && /Anim\.enter\(this\)/.test(js), n + ' 没有接入 leave / enter');
+  });
+});
+
 module.exports = T;

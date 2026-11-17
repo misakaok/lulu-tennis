@@ -32,11 +32,11 @@ Page({
   },
 
   async onShow() {
-    this.setData({ canRecordDaily: false });
+    // 校验期间保持当前显示（首次进入是空白），不显示「正在校验」之类的过渡文字
     try {
       const member = await require('../../utils/member').status();
       if (member.status !== 'active' || !member.isAdmin) {
-        this.setData({ authError: '只有管理员可以录入日常比赛' }); return;
+        this.setData({ canRecordDaily: false, authError: '只有管理员可以录入日常比赛' }); return;
       }
       this.setData({ canRecordDaily: true, authError: '' });
       await this.loadPlayers();
