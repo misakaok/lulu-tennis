@@ -1,6 +1,24 @@
 <view class="page">
   <view wx:if="{{tip}}" class="tip">{{tip}}</view>
 
+  <!-- 照片：1:1 裁剪，1080×1080 高清；检测通过后其他球友才看得到 -->
+  <view class="card center">
+    <view class="photo-wrap" bindtap="previewPhoto">
+      <image wx:if="{{photoShow}}" class="photo" src="{{photoShow}}" mode="aspectFill" />
+      <view wx:else class="photo init" style="background:{{color}}">{{initial}}</view>
+      <view wx:if="{{photoNew && isNew}}" class="photo-tag">新照片 · 点「完成」后上传</view>
+    </view>
+    <view class="photo-btns">
+      <view class="btn-line pb" hover-class="tap-on" bindtap="pickAlbum">从相册选</view>
+      <view class="btn-line pb" hover-class="tap-on" bindtap="pickCamera">拍照</view>
+    </view>
+    <view wx:if="{{photoNew && !saving}}" class="photo-ops"><view class="btn-line op" hover-class="tap-on" bindtap="undoPhoto">不换了</view></view>
+    <view wx:elif="{{hasPhoto}}" class="photo-ops"><view class="btn-danger op" hover-class="tap-on" bindtap="removePhoto">删除照片</view></view>
+    <view wx:if="{{stateText && !photoNew}}" class="photo-state">{{stateText}}</view>
+    <view class="hint">照片会裁成正方形（1080×1080），经过微信图片安全检测后展示给其他球友；没有照片时显示名字首字</view>
+  </view>
+  <canvas type="2d" id="photo-cv" class="photo-cv"></canvas>
+
   <!-- 基本资料 -->
   <view class="card">
     <view class="name-row">

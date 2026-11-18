@@ -3,7 +3,7 @@
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
   <view class="pc-top">
-    <view class="pc-photo-wrap"><view class="pc-photo init" style="background:{{view.profile ? view.profile.color : '#C9C9DE'}}">{{view.profile ? view.profile.initial : ''}}</view></view>
+    <view class="pc-photo-wrap"><pl-av wx:if="{{view.profile}}" class="pc-photo init" uid="{{view.profile.uid}}" name="{{view.profile.name}}" preview /><view wx:else class="pc-photo init" style="background:#C9C9DE"></view></view>
     <view class="pc-main">
       <block wx:if="{{view.profile}}">
         <view class="pc-name">{{view.profile.name}}</view>
@@ -111,7 +111,7 @@
     <view class="rl-row">
       <view wx:for="{{view.relations}}" wx:key="l" class="rl" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="openPlayer">
         <text class="rl-l">{{item.l}}</text>
-        <view class="rl-av {{item.none ? 'none' : ''}}" style="{{item.none ? '' : 'background:' + item.color}}">{{item.none ? '?' : item.initial}}</view>
+        <view wx:if="{{item.none}}" class="rl-av none">?</view><pl-av wx:else class="rl-av" uid="{{item.uid}}" name="{{item.name}}" />
         <text class="rl-n {{item.none ? 'none' : ''}}">{{item.none ? '暂无' : item.name}}</text>
         <text class="rl-r">{{item.none ? item.d : item.rec}}</text>
       </view>

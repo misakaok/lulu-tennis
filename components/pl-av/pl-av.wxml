@@ -1,0 +1,1 @@
+<view class="class" style="background:{{color}};position:relative;overflow:hidden" bindtap="onTap"><text wx:if="{{!url}}">{{initial}}</text><image wx:else class="pa-img" src="{{url}}" mode="aspectFill" lazy-load binderror="onErr" /></view>

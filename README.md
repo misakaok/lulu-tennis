@@ -1,5 +1,7 @@
 # 网球战绩小程序（微信云开发 · 淡紫主题 #A3A3CB）
 
+> **2026-11-16 球员照片**：成员可以在「我的资料」上传 1080×1080 的正方形照片，经微信异步图片检测（`mediaCheckAsync` + 消息推送 `wxa_media_check`）通过后展示给其他球友。云函数重新加回 `security.mediaCheckAsync` 权限（下面 11-15 那条里「已移除」的说法不再适用）。部署步骤见 `docs/项目进度.md` 最上面一条。
+
 > **2026-11-16 分享范围**：球员主页不能分享（删除分享回调、隐藏分享菜单、页面配置关闭分享），赛季总结、挑战书也不能分享。保留活动分享和「发给球友报名」按钮（审核通过的第一版就有），以及准入页、成员管理的邀请分享。
 
 > **2026-11-15 删除遗留实现**：评价、简介、关注、相册、头像链接、联系人共 16 个旧接口及专用实现、停用名单、图片审核回调均已删除；旧调用返回通用「未知操作」。已移除 `security.mediaCheckAsync` 权限，待办不再查询旧评价数据。数据库和存储中的历史数据未批量删除，既有活动删除／战绩清理逻辑保留。下文关于旧接口和图片推送的描述仅作历史记录，不再适用于部署。
@@ -122,11 +124,11 @@
 
 ### 云存储权限
 
-小程序端已经不上传任何文件。以前上传的头像和活动照片还在 `avatars/<用户 ID>/` 和 `event-photos/<活动 ID>/<上传者 ID>/` 里，安全规则保持只有本人能直接读写即可：
+小程序端只上传球员照片（`avatars/<用户 ID>/`，云函数 `setPhoto` 会再校验目录必须是本人的）。以前的活动照片还在 `event-photos/<活动 ID>/<上传者 ID>/` 里。客户端上传只进入 `avatars/`；服务端复制至 `player-photos/<用户 ID>/` 后检测，发布也使用这份快照，避免用户覆盖已检测文件。`player-photos/` 必须禁止客户端直接读写，链接只经云函数 `photoUrls` 发放。请使用以下自定义规则，不能仅选择「仅创建者可读写」：
 
 ```json
 {
-  "read": "resource.openid == auth.openid",
+  "read": "resource.openid == auth.openid && (/^avatars\\//.test(resource.path) || /^event-photos\\//.test(resource.path))",
   "write": "resource.openid == auth.openid && (/^avatars\\//.test(resource.path) || /^event-photos\\//.test(resource.path))"
 }
 ```

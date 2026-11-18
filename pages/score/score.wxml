@@ -17,7 +17,7 @@
         <view class="team {{done && winner === 'a' ? 'win' : ''}}">
           <view class="avs">
             <block wx:for="{{sideA}}" wx:key="name">
-              <view class="av init" style="background:{{item.color}}">{{item.initial}}</view>
+              <pl-av class="av init" name="{{item.name}}" />
             </block>
           </view>
           <view class="t-name">{{aLabel}}</view>
@@ -27,7 +27,7 @@
         <view class="team {{done && winner === 'b' ? 'win' : ''}}">
           <view class="avs">
             <block wx:for="{{sideB}}" wx:key="name">
-              <view class="av init" style="background:{{item.color}}">{{item.initial}}</view>
+              <pl-av class="av init" name="{{item.name}}" />
             </block>
           </view>
           <view class="t-name">{{bLabel}}</view>

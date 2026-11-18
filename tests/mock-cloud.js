@@ -6,7 +6,7 @@ const path = require('path');
 const FN_PATH = path.resolve(__dirname, '../cloudfunctions/tennis/index.js');
 
 module.exports = function createEnv() {
-  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [], textChecks: [] };
+  const env = { store: {}, openid: '', queries: 0, clock: 1000, deletedFiles: [], deleteFails: [], textChecks: [], mediaChecks: [] };
   const IN = Symbol('in'), NEQ = Symbol('neq'), GT = Symbol('gt'), REMOVE = Symbol('remove');
   const SD = { serverDate: true };
   const coll = (n) => (env.store[n] = env.store[n] || {});
@@ -49,7 +49,7 @@ module.exports = function createEnv() {
         return { _id: id };
       },
       doc: (id) => ({
-        get: async () => { env.queries++; if (!coll(n)[id]) throw new Error('document not exist'); return { data: clone(coll(n)[id]) }; },
+        get: async () => { env.queries++; if (env.beforeDocGet) await env.beforeDocGet(n, id); if (!coll(n)[id]) throw new Error('document not exist'); return { data: clone(coll(n)[id]) }; },
         set: async ({ data }) => { coll(n)[id] = applyData({ _id: id }, data); return {}; },
         update: async ({ data }) => { if (!coll(n)[id]) throw new Error('document not exist'); applyData(coll(n)[id], data); return { stats: { updated: 1 } }; },
         remove: async () => { if (!coll(n)[id]) throw new Error('document not exist'); delete coll(n)[id]; return { stats: { removed: 1 } }; },
@@ -60,20 +60,43 @@ module.exports = function createEnv() {
     in: (list) => ({ [IN]: true, list }), neq: (v) => ({ [NEQ]: true, v }), gt: (v) => ({ [GT]: true, v }),
     set: (v) => ({ __set: 1, v }), remove: () => ({ [REMOVE]: true }),
   };
+  let transactions = Promise.resolve();
+  const runTransaction = (fn) => {
+    const run = transactions.then(async () => {
+      const before = clone(env.store);
+      try { return await fn({ collection: (n) => query(n, {}) }); }
+      catch (e) { env.store = before; throw e; }
+    });
+    transactions = run.catch(() => {});
+    return run;
+  };
   const sdk = {
     DYNAMIC_CURRENT_ENV: 'dyn', init() {},
-    database: () => ({ collection: (n) => query(n, {}), serverDate: () => SD, command }),
-    getWXContext: () => ({ OPENID: env.openid, ENV: 'env1' }),
+    database: () => ({ collection: (n) => query(n, {}), serverDate: () => SD, command, runTransaction }),
+    getWXContext: () => ({ OPENID: env.openid, ENV: env.env === undefined ? 'env1' : env.env, SOURCE: env.source || '' }),
+    downloadFile: async ({ fileID }) => ({ fileContent: Buffer.from((env.fileContents || {})[fileID] || fileID) }),
+    uploadFile: async ({ cloudPath, fileContent }) => {
+      const fileID = 'cloud://env1.x/' + cloudPath;
+      (env.fileContents = env.fileContents || {})[fileID] = fileContent.toString();
+      return { fileID };
+    },
     getTempFileURL: async ({ fileList }) => ({ fileList: fileList.map((f) => ({ fileID: f.fileID, status: 0, tempFileURL: 'https://tmp/' + f.fileID })) }),
     // 删除文件：env.deleteFails 里的 fileID 返回失败，其余成功；删除记录在 env.deletedFiles
     deleteFile: async ({ fileList }) => ({ fileList: fileList.map((fileID) => {
       if ((env.deleteFails || []).indexOf(fileID) >= 0) return { fileID, status: -1, errMsg: 'mock fail' };
       env.deletedFiles.push(fileID); return { fileID, status: 0 };
     }) }),
-    openapi: { security: { msgSecCheck: async (params) => {
-      env.textChecks.push(params);
-      return env.checkText ? env.checkText(params) : { errCode: 0, result: { suggest: 'pass' } };
-    } } },
+    openapi: { security: {
+      msgSecCheck: async (params) => {
+        env.textChecks.push(params);
+        return env.checkText ? env.checkText(params) : { errCode: 0, result: { suggest: 'pass' } };
+      },
+      // 异步图片检测：返回 traceId，结果由测试用 env.push(...) 模拟消息推送
+      mediaCheckAsync: async (params) => {
+        env.mediaChecks.push(params);
+        return env.checkMedia ? env.checkMedia(params) : { errCode: 0, traceId: 'trace' + env.mediaChecks.length };
+      },
+    } },
   };
 
   env.coll = coll;
@@ -92,6 +115,8 @@ module.exports = function createEnv() {
     env.queries = 0;
     return env.fn.main(Object.assign({ action }, data || {}));
   };
+  // 模拟微信消息推送（没有 action、没有 userInfo）
+  env.push = async (msg) => { env.openid = ''; return env.fn.main(Object.assign({ Event: 'wxa_media_check', MsgType: 'event' }, msg)); };
   // 常用初始数据：几位正式成员（含本人资料），并标记旧记录已迁移
   env.members = (list) => {
     env.put('verified', { _id: '__legacy_migrated__' });

@@ -50,7 +50,7 @@
       <view class="side">
         <view wx:for="{{slotsA}}" wx:key="key" class="slot a {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
           data-key="{{item.key}}" bindtap="tapSlot">
-          <view wx:if="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <pl-av wx:if="{{item.name}}" class="avatar sm" name="{{item.name}}" />
           <text class="slot-name">{{item.name || item.placeholder}}</text>
         </view>
       </view>
@@ -58,7 +58,7 @@
       <view class="side">
         <view wx:for="{{slotsB}}" wx:key="key" class="slot b {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
           data-key="{{item.key}}" bindtap="tapSlot">
-          <view wx:if="{{item.name}}" class="avatar sm" style="background:{{item.color}}">{{item.initial}}</view>
+          <pl-av wx:if="{{item.name}}" class="avatar sm" name="{{item.name}}" />
           <text class="slot-name">{{item.name || item.placeholder}}</text>
         </view>
       </view>

@@ -13,7 +13,7 @@
       </view>
       <view class="hero-main">
         <view class="hs {{m.winner === 'a' ? 'w' : 'l'}}">
-          <view class="hs-avs"><view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view class="hs-avs"><pl-av wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
           <view class="hs-badge {{m.winner === 'a' ? 'win' : ''}}">{{m.winner === 'a' ? '胜' : m.loseText}}</view>
         </view>
@@ -22,7 +22,7 @@
           <view class="hero-sub">{{m.bigLbl}}</view>
         </view>
         <view class="hs {{m.winner === 'b' ? 'w' : 'l'}}">
-          <view class="hs-avs"><view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view class="hs-avs"><pl-av wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
           <view class="hs-badge {{m.winner === 'b' ? 'win' : ''}}">{{m.winner === 'b' ? '胜' : m.loseText}}</view>
         </view>

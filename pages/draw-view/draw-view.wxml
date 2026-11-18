@@ -44,7 +44,7 @@
         <view wx:for="{{signups}}" wx:key="_id" class="su-team">
           <view wx:for="{{item.members}}" wx:key="name" wx:for-item="p" class="su-row" hover-class="tap-row-on" data-uid="{{p.uid}}" bindtap="openPlayer">
             <text class="su-no">{{index === 0 ? item.no : ''}}</text>
-            <view class="su-av2 init" style="background:{{p.color}}">{{p.initial}}</view>
+            <pl-av class="su-av2 init" uid="{{p.uid}}" name="{{p.name}}" />
             <view class="su-main">
               <view class="su-top"><text class="su-nm">{{p.name}}</text><text class="su-g {{p.gender === '暂无' ? 'none' : ''}}">{{p.gender}}</text></view>
               <view class="su-stats">
@@ -99,7 +99,7 @@
           <view class="sch-row {{item.winner === 'a' ? 'w' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p">
-                <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
+                <pl-av class="sch-av init" uid="{{p.uid}}" name="{{p.name}}" />
               </block>
             </view>
             <text wx:if="{{item.aG}}" class="sch-name"><block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
@@ -109,7 +109,7 @@
           <view class="sch-row {{item.winner === 'b' ? 'w' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p">
-                <view class="sch-av init" style="background:{{p.color}}">{{p.initial}}</view>
+                <pl-av class="sch-av init" uid="{{p.uid}}" name="{{p.name}}" />
               </block>
             </view>
             <text wx:if="{{item.bG}}" class="sch-name"><block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>

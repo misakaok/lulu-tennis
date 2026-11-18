@@ -5,25 +5,34 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const T = [];
 
-T.push({ name: '所有注册页面和组件：没有相册、评价、简介、关注、联系人、头像上传入口', fn() {
+T.push({ name: '所有注册页面和组件：没有相册、评价、简介、关注、联系人入口；照片只能在资料页上传，只经头像组件显示', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const UPLOAD = { 'pages/profile/profile': 1 };                         // 唯一的照片上传入口（经 utils/photo.js → 云函数 setPhoto 检测）
+  const SHOW = { 'pages/profile/profile': 1, 'components/pl-av/pl-av': 1 }; // 动态图片只有资料页预览和头像组件
   const seen = new Set();
   const inspect = (base) => {
     if (seen.has(base)) return;
     seen.add(base);
+    const rel = path.relative(root, base);
     const code = fs.readFileSync(base + '.js', 'utf8');
     const xml = fs.readFileSync(base + '.wxml', 'utf8');
     const config = JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
     assert.ok(!/\b(?:call|cached|cloudCall)\s*\(\s*['"](?:submitReview|saveBio|setFollow|addEventPhotos|listEventPhotos|reviewSummary|getBios|getContact|saveContact|avatarUrls)['"]/.test(code), base);
-    assert.ok(!/wx\.(?:chooseImage|chooseMedia|uploadFile|chooseAvatar)\s*\(/.test(code), base);
+    assert.ok(!/wx\.(?:chooseImage|chooseMedia|uploadFile|chooseAvatar)\s*\(|wx\.cloud\.uploadFile/.test(code), base + ' 不能直接选图 / 上传');
     assert.ok(!/open-type\s*=\s*['"]chooseAvatar['"]/.test(xml), base);
-    assert.ok(!/<image\b[^>]*\bsrc\s*=\s*['"][^'"]*\{\{/.test(xml), base);
+    if (!UPLOAD[rel]) assert.ok(!/\bP\.(?:pick|upload)\s*\(|['"]setPhoto['"]/.test(code), base + ' 不能上传照片');
+    if (!SHOW[rel]) assert.ok(!/<image\b[^>]*\bsrc\s*=\s*['"][^'"]*\{\{/.test(xml), base + ' 动态图片只能用 <pl-av>');
     Object.values(config.usingComponents || {}).forEach((target) => {
       inspect(target.startsWith('/') ? path.join(root, target.slice(1)) : path.resolve(path.dirname(base), target));
     });
   };
+  inspect(path.join(root, 'components/pl-av/pl-av')); // app.json 里的全局组件
+  Object.values(app.usingComponents || {}).forEach((t) => inspect(path.join(root, t.slice(1))));
   app.pages.forEach((page) => inspect(path.join(root, page)));
   assert.ok(seen.size >= app.pages.length);
+  // 照片的选取、上传只在 utils/photo.js；上传到本人目录后一律交给云函数 setPhoto 检测
+  const photo = fs.readFileSync(path.join(root, 'utils/photo.js'), 'utf8');
+  assert.ok(/call\('setPhoto'/.test(photo) && /cloudPath: `avatars\/\$\{uid\}\//.test(photo));
 } });
 
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {

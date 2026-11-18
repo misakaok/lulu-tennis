@@ -55,6 +55,12 @@ Page({
       success: (r) => this.run('setMemberGender', { uid, gender: r.tapIndex === 0 ? 'm' : 'f' }, '已保存'),
     });
   },
+  // 照片已经过微信检测才公开；万一有不合适的，管理员可以移除（改回首字圆，留档），成员可以重新上传
+  async clearPhoto(e) {
+    const { uid, name } = e.currentTarget.dataset;
+    const go = await new Promise((done) => wx.showModal({ title: `移除${name || '该成员'}的照片`, content: '移除后显示名字首字，TA 可以重新上传。', confirmText: '移除', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false) }));
+    if (go) this.run('adminClearPhoto', { uid }, '已移除照片');
+  },
   restore(e) { this.run('reviewMember', { uid: e.currentTarget.dataset.uid, approve: true }, '已恢复为成员'); },
   pick(e) { const uid = e.currentTarget.dataset.uid; this.setData({ [`picked.${uid}`]: !this.data.picked[uid] }); },
   async importPicked() {

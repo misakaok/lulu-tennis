@@ -37,7 +37,7 @@ function scoreOf(m) {
 
 function toView(m, deltas, gOf, tagsOf) {
   const d = deltas[m._id] || {};
-  const side = (k) => (m[k] || []).map((n, i) => ({ name: n, initial: initialOf(n), color: colorOf(n), gender: gOf ? gOf(n, (m[k + 'Ids'] || [])[i]) : '' }));
+  const side = (k) => (m[k] || []).map((n, i) => ({ name: n, uid: (m[k + 'Ids'] || [])[i] || '', initial: initialOf(n), color: colorOf(n), gender: gOf ? gOf(n, (m[k + 'Ids'] || [])[i]) : '' }));
   const first = (k) => ((m[k + 'Keys'] || m[k] || [])[0]); // 同队两人涨跌相同，取第一位的统计身份
   const deltaText = (k) => {
     const v = (m[k] || []).length ? d[first(k)] : undefined;
@@ -167,7 +167,7 @@ Page({
     const recent = all.filter((m) => isNormal(m) && ((m.aKeys || []).indexOf(uid) >= 0 || (m.bKeys || []).indexOf(uid) >= 0))
       .slice(0, 6).map((m, i) => ({ i, w: m.winner === ((m.aKeys || []).indexOf(uid) >= 0 ? 'a' : 'b') }));
     return {
-      name, initial: initialOf(name), color: colorOf(name),
+      name, uid, initial: initialOf(name), color: colorOf(name),
       level: R.fmt(s.level), levelLbl: s.provisional ? '定级中' : '水平分',
       rankText: s.provisional ? '打满几场后参与排名' : `排名第 ${s.rank} 位`,
       played: s.played, win: s.win, lose: s.played - s.win, rate: s.rate, recent,

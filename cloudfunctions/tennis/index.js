@@ -1,7 +1,8 @@
 // 网球小程序云函数：成员准入、管理员发布活动、报名、对阵、录分、比分纠错和正式战绩。
 // 身份只来自 cloud.getWXContext().OPENID，所有权限在服务端校验。
 // 日常比赛新增仅管理员；参赛者可修改未锁定比分，已锁定比分经对方确认。
-// 内容功能接口及图片检测回调已删除；旧数据仅由既有删除／清理流程处理。
+// 评价、简介、关注、相册等内容功能接口已删除；旧数据仅由既有删除／清理流程处理。
+// 球员照片：本人上传，经微信异步图片检测（消息推送 wxa_media_check）明确通过后才公开。
 // 集合权限均为「仅管理端可读写」，客户端通过本云函数访问业务数据。
 const cloud = require('wx-server-sdk');
 const crypto = require('crypto');
@@ -522,9 +523,9 @@ async function saveProfile({ name, avatar, level, gender }, uid) {
   const docs = mineR.data.sort((a, b) => tsOf(a) - tsOf(b));
   const mine = docs[0] || null;
   if (!mine || mine.name !== nm) await requireSafeText(nm, uid, '昵称');
-  // 旧头像只保留原值，禁止通过旧版客户端新增或更换照片。
+  // 旧头像（没经过检测）只保留原值，不展示；旧版客户端不能借这里换照片。
   const av = mine && mine.avatar || '';
-  if (typeof avatar === 'string' && avatar && avatar !== av) deny('头像上传功能已停用');
+  if (typeof avatar === 'string' && avatar && avatar !== av) deny('请升级小程序后在资料页上传照片'); // 照片改走 setPhoto（要过图片检测）
   const lv = typeof level === 'number' && level >= 1 && level <= 7 && Math.round(level * 2) === level * 2 ? level : null;
   const data = { name: nm, avatar: av, level: lv, gender, updatedAt: db.serverDate() };
   if (mine) {
@@ -539,7 +540,199 @@ async function saveProfile({ name, avatar, level, gender }, uid) {
   } else {
     await col.add({ data: Object.assign({ _openid: uid, self: true, createdAt: db.serverDate() }, data) });
   }
-  return { profile: Object.assign({}, mine || {}, data, { updatedAt: Date.now() }) };
+  return { profile: publicPlayer(Object.assign({}, mine || {}, data, { updatedAt: Date.now() })) };
+}
+
+/* ---------- 球员照片 ---------- */
+// 本人上传 1080×1080 的正方形照片（小程序端裁剪、缩放），云存储路径 avatars/<用户 ID>/<文件名>.jpg。
+// 交给微信异步图片检测（mediaCheckAsync，结果经消息推送 wxa_media_check 回到本云函数），只有明确 pass 才公开：
+//   players.photo  服务端 player-photos/<用户 ID>/ 内已通过检测的不可变快照 fileID，其他球友只能看到这一张（经 photoUrls 换 30 分钟临时链接）
+//   avatar_checks（仅管理端可读写）：_id = 检测的 trace_id
+//     { uid, fileID, status: checking 检测中 / pass / reject 未通过 / error 检测出错 / replaced 被新照片取代, at, createdAt, checkedAt, label }
+// 换照片：新照片通过检测后才替换，旧照片文件随即删除；没通过的照片文件直接删除。检测中、没通过的状态只有本人能看到。
+// players.avatar 是以前上传、没经过检测的旧照片：保留原值，不再展示。
+const PHOTO_DIR = 'avatars';
+const PHOTO_URL_AGE = 30 * 60;      // 临时链接 30 分钟
+const PHOTO_DAY_MAX = 10;           // 每人 24 小时内最多提交 10 次检测
+const PHOTO_SCENE = 1;              // 检测场景：资料
+const PUSH_RETRY_MS = 1500;         // 检测结果比检测记录先到时，等一下再找
+const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function photoPathOk(fileID, uid, dir = PHOTO_DIR) {
+  if (typeof fileID !== 'string') return false;
+  const env = cloud.getWXContext().ENV || '';
+  const m = new RegExp(`^cloud://([^./]+)\\.[^/]+/${dir}/${escRe(uid)}/[\\w-]{1,64}\\.jpg$`).exec(fileID);
+  return !!m && !!env && m[1] === env;
+}
+async function removeFiles(list) {
+  const ids = list.filter(Boolean);
+  if (!ids.length) return;
+  try { await cloud.deleteFile({ fileList: ids }); } catch (e) { console.error('删除照片文件失败', ids, e && (e.errMsg || e.message)); }
+}
+async function tempUrls(ids) {
+  const out = {};
+  for (let i = 0; i < ids.length; i += 50) {
+    const r = await cloud.getTempFileURL({ fileList: ids.slice(i, i + 50).map((fileID) => ({ fileID, maxAge: PHOTO_URL_AGE })) });
+    (r.fileList || []).forEach((f) => { if (f.status === 0 && f.tempFileURL) out[f.fileID] = f.tempFileURL; });
+  }
+  return out;
+}
+// 所有照片状态转换在同一个球员文档上串行化；事务中只做数据库操作。
+async function photoTransaction(fn) {
+  let result;
+  await db.runTransaction(async (tx) => { result = await fn(tx); });
+  return result;
+}
+async function replacePending(tx, p) {
+  if (!p.photoTrace) return [];
+  const ref = tx.collection('avatar_checks').doc(p.photoTrace);
+  const c = (await ref.get()).data;
+  if (!c || c.status !== 'checking') return [];
+  await ref.update({ data: { status: 'replaced', checkedAt: db.serverDate() } });
+  return [c.fileID];
+}
+async function clearPhoto(p, actor) {
+  const result = await photoTransaction(async (tx) => {
+    const ref = tx.collection('players').doc(p._id);
+    const current = (await ref.get()).data;
+    const files = await replacePending(tx, current);
+    await ref.update({ data: { photo: '', photoRequest: crypto.randomBytes(16).toString('hex'), photoTrace: '', updatedAt: db.serverDate() } });
+    if (actor) {
+      await tx.collection('requests').doc('photo-' + crypto.randomBytes(16).toString('hex')).set({ data: {
+        type: 'adminPhoto', target: p._openid, by: actor, byAdmin: true, from: current.photo || '', status: 'done', createdAt: db.serverDate(), handledAt: db.serverDate(),
+      } });
+    }
+    return { files: files.concat(current.photo || []), removed: !!(current.photo || files.length) };
+  });
+  await removeFiles(result.files);
+  return { removed: result.removed };
+}
+async function submitMediaCheck(url, uid) {
+  let timer;
+  const timeout = new Promise((_r, reject) => { timer = setTimeout(() => reject(new Error('timeout')), SEC_TIMEOUT_MS); });
+  try {
+    const r = await Promise.race([cloud.openapi.security.mediaCheckAsync({ mediaUrl: url, mediaType: 2, version: 2, scene: PHOTO_SCENE, openid: uid }), timeout]);
+    const code = r && (r.errCode !== undefined ? r.errCode : r.errcode);
+    const trace = r && (r.traceId || r.trace_id);
+    return (code && code !== 0) || typeof trace !== 'string' || !trace ? '' : trace;
+  } catch (e) {
+    console.error('图片检测提交失败', e && (e.errMsg || e.message), e && (e.errCode !== undefined ? e.errCode : e.errcode));
+    return '';
+  } finally { clearTimeout(timer); }
+}
+
+// 本人提交新照片（fileID 由小程序端上传后带来），或 fileID 为空表示删除照片、改回首字圆
+async function setPhoto({ fileID }, uid) {
+  const me = await profileOf(uid);
+  if (!me) deny('请先设置昵称和性别，再上传照片');
+  if (fileID === '') { await clearPhoto(me); return { state: '' }; }
+  if (!photoPathOk(fileID, uid)) deny('照片位置不对，请重新选择');
+  const col = db.collection('avatar_checks');
+  if ((await col.where({ sourceID: fileID }).count()).total) deny('这张照片已经提交过了');
+  const request = crypto.randomBytes(16).toString('hex');
+  const oldFiles = await photoTransaction(async (tx) => {
+    const ref = tx.collection('players').doc(me._id);
+    const p = (await ref.get()).data;
+    const attempts = (p.photoAttempts || []).filter((x) => x.at > Date.now() - 24 * 3600 * 1000);
+    if (attempts.some((x) => x.fileID === fileID)) deny('这张照片已经提交过了');
+    if (attempts.length >= PHOTO_DAY_MAX) deny('今天换照片的次数太多了，明天再试');
+    const files = await replacePending(tx, p);
+    await ref.update({ data: { photoRequest: request, photoTrace: '', photoAttempts: attempts.concat({ fileID, at: Date.now() }) } });
+    return files;
+  }).catch(async (e) => {
+    if (e instanceof Deny && /次数太多/.test(e.message)) await removeFiles([fileID]);
+    throw e;
+  });
+  await removeFiles(oldFiles);
+  let snapshot = '', trace = '';
+  try {
+    // 客户端可覆盖自己的上传文件，故先复制到客户端不可读写的目录，检测和发布始终使用这个不可变快照。
+    const { fileContent } = await cloud.downloadFile({ fileID });
+    snapshot = (await cloud.uploadFile({ cloudPath: `player-photos/${uid}/${request}.jpg`, fileContent })).fileID;
+    if (!photoPathOk(snapshot, uid, 'player-photos')) throw new Error('invalid snapshot');
+    const url = (await tempUrls([snapshot]))[snapshot];
+    if (url) trace = await submitMediaCheck(url, uid);
+    if (!trace) throw new Error('media check unavailable');
+    const active = await photoTransaction(async (tx) => {
+      const ref = tx.collection('players').doc(me._id);
+      const p = (await ref.get()).data;
+      const current = p.photoRequest === request;
+      await tx.collection('avatar_checks').doc(trace).set({ data: {
+        uid, playerId: me._id, sourceID: fileID, fileID: snapshot, request,
+        status: current ? 'checking' : 'replaced', at: Date.now(), createdAt: db.serverDate(),
+      } });
+      if (current) await ref.update({ data: { photoTrace: trace } });
+      return current;
+    });
+    if (!active) await removeFiles([snapshot]);
+    return active ? { state: 'checking', pending: snapshot } : { state: '' }; // pending：通过后会成为 players.photo 的那份（只给本人，前端用来认出「这就是我刚传的」）
+  } catch (e) {
+    await removeFiles([snapshot]);
+    deny('照片暂时无法完成安全检测，请稍后再试');
+  } finally { await removeFiles([fileID]); }
+}
+
+// 微信图片检测结果：状态、请求版本和公开照片在同一事务内更新，重复或过期回调不能恢复已清除的照片。
+async function getPhotoCheck(trace) {
+  try { return (await db.collection('avatar_checks').doc(trace).get()).data || null; }
+  catch (e) {
+    if (/document.*(not exist|not found)|DATABASE_DOCUMENT_NOT_EXIST/i.test((e && (e.errMsg || e.message)) || '')) return null;
+    throw e;
+  }
+}
+async function onMediaCheck(ev) {
+  const trace = ev.trace_id || ev.traceId;
+  if (typeof trace !== 'string' || !trace) return 'success';
+  let rec = await getPhotoCheck(trace);
+  for (let i = 0; !rec && i < 2; i++) { await sleep(PUSH_RETRY_MS); rec = await getPhotoCheck(trace); }
+  if (!rec || rec.status !== 'checking' || !rec.playerId || !rec.request) return 'success';
+  const res = ev.result || {};
+  const code = ev.errcode !== undefined ? ev.errcode : ev.errCode;
+  const status = code && code !== 0 ? 'error' : res.suggest === 'pass' ? 'pass' : 'reject';
+  const files = await photoTransaction(async (tx) => {
+    const check = tx.collection('avatar_checks').doc(trace);
+    const c = (await check.get()).data;
+    if (!c || c.status !== 'checking') return [];
+    const ref = tx.collection('players').doc(c.playerId);
+    const p = (await ref.get()).data;
+    const current = p && p.self && p._openid === c.uid && p.photoRequest === c.request && p.photoTrace === trace;
+    const publish = current && status === 'pass' && photoPathOk(c.fileID, c.uid, 'player-photos');
+    await check.update({ data: { status: current ? status : 'replaced', label: Number(res.label) || 0, checkedAt: db.serverDate() } });
+    if (current) await ref.update({ data: Object.assign({ photoTrace: '', updatedAt: db.serverDate() }, publish ? { photo: c.fileID } : {}) });
+    return publish ? [p.photo].filter((f) => f && f !== c.fileID) : [c.fileID];
+  });
+  await removeFiles(files);
+  return 'success';
+}
+
+// 本人看自己的照片和最近一次提交的检测状态（检测中的照片只有本人能看到预览）
+async function myPhoto(_d, uid) {
+  const me = await profileOf(uid);
+  const photo = (me && me.photo) || '';
+  const last = (await db.collection('avatar_checks').where({ uid, request: (me && me.photoRequest) || '' }).orderBy('at', 'desc').orderBy('createdAt', 'desc').limit(1).get()).data[0] || null;
+  const state = last && (last.status === 'checking' || last.status === 'reject' || last.status === 'error') ? last.status : '';
+  const pending = state === 'checking' ? last.fileID : '';
+  const urls = await tempUrls([photo, pending].filter(Boolean));
+  return { photo, url: urls[photo] || '', state, pending, pendingUrl: urls[pending] || '' };
+}
+
+// 球员照片临时链接：只发放某位球员当前已通过检测的照片（players.photo），其他文件一律不给
+async function photoUrls({ fileIDs }) {
+  const list = Array.from(new Set((Array.isArray(fileIDs) ? fileIDs : []).filter((x) => typeof x === 'string' && /^cloud:\/\//.test(x)))).slice(0, 100);
+  if (!list.length) return { files: {} };
+  const owners = await byIds('players', list, 'photo');
+  const ok = Array.from(new Set(owners.filter((p) => p.self && p._openid && photoPathOk(p.photo, p._openid, 'player-photos')).map((p) => p.photo)));
+  return { files: await tempUrls(ok) };
+}
+
+// 管理员移除某位成员的照片（不合适的照片兜底处理）：改回首字圆，删文件，留档
+async function adminClearPhoto({ uid: target }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以操作');
+  if (typeof target !== 'string' || !target) deny('缺少成员');
+  const p = await profileOf(target);
+  if (!p) deny('这位成员还没有设置资料');
+  return clearPhoto(p, uid);
 }
 
 /* ---------- 活动：创建、生成签表、编辑信息、删除 ---------- */
@@ -1327,7 +1520,7 @@ const ping = async () => ({}); // 小程序启动时调用一次：触发旧记�
 // 球员资料只返回前端要用的字段（utils/db.js 的 buildPlayers）；比赛记录原样返回（很多页面直接用）。
 // 返回内容的指纹 hash：前端带上次的指纹（have），内容没变就只回 same，不再下发整份数据。
 const DATASET_MAX_BYTES = 900 * 1024;
-const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'avatar', 'gender', 'level', 'formerNames', 'self', 'createdAt'];
+const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'photo', 'gender', 'level', 'formerNames', 'self', 'createdAt'];
 async function dataset({ have }) {
   const [matches, players, verified] = await Promise.all([allDocs('matches'), allDocs('players'), allDocs('verified').catch(() => null)]);
   const vmap = {};
@@ -1384,7 +1577,7 @@ async function setMemberGender({ uid: target, gender }, uid) {
   return { ok: true };
 }
 
-const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetScores: 1, setMemberGender: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
+const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -1444,18 +1637,18 @@ async function listMembers() {
   const by = {};
   all.forEach((m) => { by[m._id] = m; });
   const profiles = (await db.collection('players').where({ self: true }).limit(1000).get()).data;
-  const nameOf = {}, genderOf = {};
+  const nameOf = {}, genderOf = {}, photoOf = {};
   // 和 profileOf 一样取每个账号最早的那条本人资料（有重复资料时，各页面显示的昵称才一致）
-  profiles.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !nameOf[p._openid]) { nameOf[p._openid] = p.name; genderOf[p._openid] = p.gender === 'm' || p.gender === 'f' ? p.gender : ''; } });
+  profiles.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !nameOf[p._openid]) { nameOf[p._openid] = p.name; genderOf[p._openid] = p.gender === 'm' || p.gender === 'f' ? p.gender : ''; photoOf[p._openid] = !!p.photo; } });
   // uidTail：ID 尾号，只给管理员看，用来核对环境变量里的 openid 是不是本人
-  const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', gender: genderOf[m._id] || '', note: '', status: m.status, reason: E.reasonOf(m.reason), source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
+  const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', gender: genderOf[m._id] || '', hasPhoto: !!photoOf[m._id], note: '', status: m.status, reason: E.reasonOf(m.reason), source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));
   // 管理员一律算正式成员（和 memberOf 一致）：即使以前申请过、被拒绝或移除过，也显示在「成员」里，不出现在待审核 / 已移除中
   const invites = (await db.collection('invites').limit(200).get()).data.filter((x) => !x.usedBy && !x.revoked && x.expiresAt > Date.now()).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
   return {
     pending: all.filter((m) => m.status === 'pending' && !isAdmin(m._id)).map(row),
     active: all.filter((m) => m.status === 'active' || isAdmin(m._id)).map((m) => Object.assign(row(m), { status: 'active' }))
-      .concat(ADMINS().filter((u) => !by[u]).map((u) => ({ uid: u, uidTail: u.slice(-6), name: '', nickname: nameOf[u] || '', gender: genderOf[u] || '', status: 'active', admin: true }))),
+      .concat(ADMINS().filter((u) => !by[u]).map((u) => ({ uid: u, uidTail: u.slice(-6), name: '', nickname: nameOf[u] || '', gender: genderOf[u] || '', hasPhoto: !!photoOf[u], status: 'active', admin: true }))),
     others: all.filter((m) => (m.status === 'rejected' || m.status === 'removed') && !isAdmin(m._id)).map(row),
     candidates, invites,
   };
@@ -1591,10 +1784,16 @@ function cleanData(data) {
   });
   return out;
 }
+function publicPlayer(d) {
+  const out = Object.assign({}, d);
+  ['photoRequest', 'photoTrace', 'photoAttempts'].forEach((k) => delete out[k]);
+  return out;
+}
 async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, uid) {
   if (!GW_READ[coll]) deny('没有权限查看这些内容');
   const col = db.collection(coll);
-  const visible = coll === 'draws' ? E.publicDraw : coll === 'matches' ? E.publicMatch : (d) => d;
+  const visible = coll === 'draws' ? E.publicDraw : coll === 'matches' ? E.publicMatch : coll === 'players' ? publicPlayer : (d) => d;
+  if (coll === 'players' && Object.keys(where || {}).concat((orders || []).map((o) => o[0])).some((k) => /^photo(Request|Trace|Attempts)(\.|$)/.test(k))) deny('查询条件不支持');
   if (op === 'get' || op === 'count') {
     const w = where || {};
     if (typeof w !== 'object' || Object.keys(w).some((k) => !isPlain(w[k]))) deny('查询条件不支持');
@@ -1644,9 +1843,14 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   deny('不支持的操作');
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch };
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto };
 
 exports.main = async (event) => {
+  // 微信消息推送（图片检测结果）：小程序端的调用都带 userInfo，不能冒充推送；trace_id 也从不下发给小程序端
+  if (event && event.Event === 'wxa_media_check') {
+    if (Object.prototype.hasOwnProperty.call(event, 'userInfo') || String(cloud.getWXContext().SOURCE || '').split(',').some((source) => /^wx_(client|devtools|localdebug)$/.test(source.trim()))) return { ok: false, error: '未知操作' };
+    return onMediaCheck(event); // 数据库故障交由平台重试，不吞掉尚未提交的结果
+  }
   const { OPENID } = cloud.getWXContext();
   const fn = ACTIONS[event && event.action];
   if (!fn) return { ok: false, error: '未知操作' };

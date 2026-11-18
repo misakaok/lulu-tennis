@@ -80,7 +80,7 @@ Page({
       const level = r ? r.level : R.DEFAULT_LEVEL;
       return Object.assign(p, {
         level, levelText: R.fmt(level), provisional: !r || r.provisional,
-        initial: initialOf(p.name), color: colorOf(p.name),
+        uid: String(p.key).indexOf('n:') === 0 ? '' : p.key, initial: initialOf(p.name), color: colorOf(p.name),
         gender: S.GENDER[String(p.key).indexOf('n:') === 0 ? gName[p.name] : gUid[p.key]] || '',
         diffText: (p.diff > 0 ? '+' : '') + p.diff,
       });

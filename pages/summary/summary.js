@@ -35,7 +35,7 @@ Page({
     const s = PV.seasonSummary(matches || [], this.uid, p.name, this.data.season, r ? r.history : []);
     wx.setNavigationBarTitle({ title: `${p.name} · ${s.label}` });
     const nums = s.has ? { 's.played': s.played, 's.win': s.win, 's.lose': s.lose, 's.rate': s.rate } : {}; // 第一次显示时数字从 0 滚到实际值
-    this.setData(Object.assign({ s, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), seasons: SE.seasonsIn(mine) }, Anim.roll(this, nums)));
+    this.setData(Object.assign({ s, uid: this.uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), seasons: SE.seasonsIn(mine) }, Anim.roll(this, nums)));
   },
   setSeason(e) {
     this.setData({ season: e.currentTarget.dataset.v });

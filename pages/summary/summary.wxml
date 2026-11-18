@@ -6,7 +6,7 @@
   <view wx:if="{{!s && !loading}}" class="empty"><view class="empty-ball"></view><view>这位球员还没有设置资料</view></view>
   <block wx:elif="{{s}}">
     <view class="hero ani-in">
-      <view class="h-av" style="background:{{color}}">{{initial}}</view>
+      <pl-av class="h-av" uid="{{uid}}" name="{{name}}" />
       <view class="h-name">{{name}}</view>
       <view class="h-sub">{{s.label}}总结</view>
       <view wx:if="{{s.has}}" class="h-row">

@@ -1,6 +1,17 @@
 .tip { background: #fff8e6; color: #9a6a00; font-size: 24rpx; padding: 18rpx 22rpx; border-radius: 16rpx; margin-bottom: 20rpx; }
 .center { display: flex; flex-direction: column; align-items: center; padding-top: 40rpx; }
 
+.photo-wrap { position: relative; }
+.photo { width: 300rpx; height: 300rpx; border-radius: 40rpx; display: block; background: #F1F1F8; box-shadow: 0 14rpx 32rpx rgba(110, 110, 163, 0.25); }
+.photo.init { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 120rpx; font-weight: 800; }
+.photo-tag { position: absolute; left: 50%; bottom: -16rpx; transform: translateX(-50%); white-space: nowrap; background: #6E6EA3; color: #fff; font-size: 20rpx; padding: 4rpx 16rpx; border-radius: 20rpx; }
+.photo-btns { display: flex; margin-top: 40rpx; align-self: stretch; }
+.pb { flex: 1; margin: 0 8rpx; }
+.photo-ops { margin-top: 18rpx; display: flex; justify-content: center; }
+.op { width: 240rpx; }
+.photo-state { margin-top: 18rpx; font-size: 24rpx; color: #6E6EA3; text-align: center; }
+.photo-cv { position: fixed; left: -2000px; top: 0; width: 1080px; height: 1080px; }
+
 .hint { font-size: 22rpx; color: #A5A5BA; margin-top: 16rpx; }
 .hint.left { align-self: stretch; }
 

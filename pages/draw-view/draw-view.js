@@ -289,7 +289,7 @@ Page({
     // 名字后面带性别（读个人资料，按账号找）；双打的队名和成员名对不上时只显示队名
     const gOf = S.genderFinder(db.cachedPlayersFull());
     const uidOf = this.uidOf || {};
-    const side = (members) => members.map((n) => ({ name: n, initial: initialOf(n), color: colorOf(n), gender: gOf(n, uidOf[n]) }));
+    const side = (members) => members.map((n) => ({ name: n, uid: uidOf[n] || '', initial: initialOf(n), color: colorOf(n), gender: gOf(n, uidOf[n]) }));
     const items = list.map((x) => Object.assign({}, x, {
       aP: side(x.aMembers), bP: side(x.bMembers),
       aG: !x.tbdA && x.aMembers.join(' / ') === x.a, bG: !x.tbdB && x.bMembers.join(' / ') === x.b,

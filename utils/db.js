@@ -120,7 +120,7 @@ function derived(name, load, compute, noCopy) {
   }, DEP_KEYS);
 }
 // 本机缓存被清空时（utils/member.js 的 clearProtected）调用：忘掉沿用的结果，下次重新整理并写回本机
-function forget() { generation++; kept = {}; lastDs = null; memo.invalidate(DS_COLLS); }
+function forget() { require('./photo').clear(); generation++; kept = {}; lastDs = null; memo.invalidate(DS_COLLS); }
 
 // 读全部比赛记录并标出状态：official 正式 / pending 日常比赛待对手确认 / invalid 不认可（见 utils/official.js）
 async function loadMatches() {
@@ -182,7 +182,7 @@ function buildPlayers(list) {
   const byUid = {};
   list.forEach((p) => {
     if (!p.self || !p._openid || !p.name || byUid[p._openid]) return;
-    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
+    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
   });
   cacheSet('cache_profiles', byUid);
   const map = {}, order = [];
@@ -191,7 +191,7 @@ function buildPlayers(list) {
     const cur = map[p.name];
     const item = {
       name: p.name, level: typeof p.level === 'number' ? p.level : null, gender: p.gender || '',
-      self: !!p.self, uid: p.self ? p._openid || '' : '', formerNames: p.self ? p.formerNames || [] : [],
+      self: !!p.self, uid: p.self ? p._openid || '' : '', formerNames: p.self ? p.formerNames || [] : [], photo: p.self ? p.photo || '' : '',
     };
     if (!cur) { map[p.name] = item; order.push(p.name); }
     else if (item.self && cur.self && item.uid !== cur.uid) { cur.uid = ''; cur.ambiguous = true; }
@@ -200,6 +200,7 @@ function buildPlayers(list) {
   const arr = order.map((n) => map[n]);
   cacheSet('cache_players_full', arr);
   cacheSet('cache_players', order);
+  require('./photo').setPlayers(arr, byUid); // 头像组件按用户 ID / 名字找照片
   return arr;
 }
 const cachedPlayersFull = () => cacheGet('cache_players_full', []);
@@ -229,7 +230,7 @@ async function getMyProfile() {
 const cachedProfile = () => cacheGet('my_profile', null) || null;
 
 // 保存个人资料：经云函数 saveProfile（服务端检查昵称不和别人重复）。
-// 小程序里不再上传和显示照片：以前传过的照片 fileID 原样带回去，只是为了不清掉数据库里的旧值
+// 照片另走 utils/photo.js → 云函数 setPhoto（要过图片检测）；以前传过的旧照片 avatar（没经过检测、不再显示）原样带回去，不清掉数据库里的旧值
 async function saveMyProfile({ name, avatar, level, gender }) {
   await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender });
   return getMyProfile();

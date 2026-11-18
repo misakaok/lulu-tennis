@@ -7,7 +7,7 @@
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
   <view wx:if="{{me}}" class="mine" hover-class="tap-on" bindtap="goMe">
     <view class="mine-h">
-      <view class="mine-av" style="background:{{me.color}}">{{me.initial}}</view>
+      <pl-av class="mine-av" uid="{{me.uid}}" name="{{me.name}}" />
       <view class="mine-who"><view class="mine-n">{{me.name}}</view><view class="mine-r">{{me.rankText}}</view></view>
       <view class="mine-lv"><view class="mine-lvn">{{me.level}}</view><view class="mine-lvl">{{me.levelLbl}}</view></view>
     </view>
@@ -55,7 +55,7 @@
       </view>
       <view class="mc-body">
         <view class="sd {{item.winner === 'a' ? 'w' : ''}}">
-          <view class="sd-avs"><view wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view class="sd-avs"><pl-av wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view class="sd-ns">
             <view wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
             <view wx:if="{{item.aDelta}}" class="dl {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</view>
@@ -66,7 +66,7 @@
           <view wx:if="{{item.setText}}" class="sc-sets">{{item.setText}}</view>
         </view>
         <view class="sd r {{item.winner === 'b' ? 'w' : ''}}">
-          <view class="sd-avs"><view wx:for="{{item.b}}" wx:key="name" wx:for-item="p" class="sd-av" style="background:{{p.color}}">{{p.initial}}</view></view>
+          <view class="sd-avs"><pl-av wx:for="{{item.b}}" wx:key="name" wx:for-item="p" class="sd-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view class="sd-ns">
             <view wx:for="{{item.b}}" wx:key="name" wx:for-item="p" class="sd-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
             <view wx:if="{{item.bDelta}}" class="dl {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</view>

@@ -63,6 +63,7 @@
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
   "usingComponents": {
+    "pl-av": "/components/pl-av/pl-av"
   },
   "requiredPrivateInfos": [
     "chooseLocation"
