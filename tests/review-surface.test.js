@@ -5,9 +5,10 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const T = [];
 
-T.push({ name: '所有注册页面和组件：没有相册、评价、简介、关注、联系人入口；照片只能在资料页上传，只经头像组件显示', fn() {
+T.push({ name: '所有注册页面和组件：没有相册、评价、简介、关注、联系人入口；照片只能在资料页（球员照片）上传，只经头像组件显示；球拍只有画的示意图', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  const UPLOAD = { 'pages/profile/profile': 1 };                         // 唯一的照片上传入口（经 utils/photo.js → 云函数 setPhoto 检测）
+  // 照片上传入口只有资料页（球员照片，经 utils/photo.js → 云函数 setPhoto 检测）；球拍用按配色画的示意图（组件 rk-art），没有照片
+  const UPLOAD = { 'pages/profile/profile': 1 };
   const SHOW = { 'pages/profile/profile': 1, 'components/pl-av/pl-av': 1 }; // 动态图片只有资料页预览和头像组件
   const seen = new Set();
   const inspect = (base) => {
@@ -20,7 +21,7 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
     assert.ok(!/\b(?:call|cached|cloudCall)\s*\(\s*['"](?:submitReview|saveBio|setFollow|addEventPhotos|listEventPhotos|reviewSummary|getBios|getContact|saveContact|avatarUrls)['"]/.test(code), base);
     assert.ok(!/wx\.(?:chooseImage|chooseMedia|uploadFile|chooseAvatar)\s*\(|wx\.cloud\.uploadFile/.test(code), base + ' 不能直接选图 / 上传');
     assert.ok(!/open-type\s*=\s*['"]chooseAvatar['"]/.test(xml), base);
-    if (!UPLOAD[rel]) assert.ok(!/\bP\.(?:pick|upload)\s*\(|['"]setPhoto['"]/.test(code), base + ' 不能上传照片');
+    if (!UPLOAD[rel]) assert.ok(!/\bP\.(?:pick|upload|put)\s*\(|['"]setPhoto['"]/.test(code), base + ' 不能上传照片');
     if (!SHOW[rel]) assert.ok(!/<image\b[^>]*\bsrc\s*=\s*['"][^'"]*\{\{/.test(xml), base + ' 动态图片只能用 <pl-av>');
     Object.values(config.usingComponents || {}).forEach((target) => {
       inspect(target.startsWith('/') ? path.join(root, target.slice(1)) : path.resolve(path.dirname(base), target));
@@ -33,6 +34,14 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   // 照片的选取、上传只在 utils/photo.js；上传到本人目录后一律交给云函数 setPhoto 检测
   const photo = fs.readFileSync(path.join(root, 'utils/photo.js'), 'utf8');
   assert.ok(/call\('setPhoto'/.test(photo) && /cloudPath: `avatars\/\$\{uid\}\//.test(photo));
+  // 球拍没有照片：不上传、不调用 racketPhoto，也没有拍照 / 相册 / 画布
+  const rk = fs.readFileSync(path.join(root, 'utils/rackets.js'), 'utf8');
+  assert.ok(!/racketPhoto|require\('\.\/photo'\)/.test(rk), '球拍不能上传照片');
+  for (const p of ['pages/racket/racket', 'pages/racket-view/racket-view', 'pages/racket-edit/racket-edit', 'pages/racket-log/racket-log']) {
+    const code = fs.readFileSync(path.join(root, p + '.js'), 'utf8') + fs.readFileSync(path.join(root, p + '.wxml'), 'utf8');
+    assert.ok(!/utils\/photo|chooseMedia|chooseImage|racketPhoto|setPhoto|<canvas\b|<image\b|rk-photo/.test(code), p + ' 不能有照片');
+  }
+  assert.ok(!fs.existsSync(path.join(root, 'components/rk-photo')), '球拍照片组件已删除');
 } });
 
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {
@@ -92,3 +101,34 @@ T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（�
 } });
 
 module.exports = T;
+
+T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.wxml') ? [path.join(d, e.name)] : []));
+  const files = ['pages', 'components'].flatMap((d) => walk(path.join(root, d)));
+  assert.ok(files.length > 10);
+  for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/\{\{[\s\S]*?\}\}/g, 'X');
+    const stack = [];
+    for (const m of src.matchAll(/<(\/?)([a-zA-Z][\w-]*)[^>]*?(\/?)>/g)) {
+      const [, close, tag, self] = m;
+      if (self) continue;
+      if (!close) { stack.push(tag); continue; }
+      assert.strictEqual(stack.pop(), tag, `${path.relative(root, f)} 的 </${tag}> 没有对应的开始标签`);
+    }
+    assert.deepStrictEqual(stack, [], `${path.relative(root, f)} 有没闭合的标签`);
+  }
+} });
+
+T.push({ name: '用到 player-home 的页面：页面样式的类名不和组件里的类名重名（组件共享页面样式，重名会把组件排版弄乱）', fn() {
+  const used = new Set();
+  const tpl = fs.readFileSync(path.join(root, 'components/player-home/player-home.wxml'), 'utf8').replace(/\{\{[\s\S]*?\}\}/g, ' ');
+  for (const m of tpl.matchAll(/class="([^"]*)"/g)) m[1].split(/\s+/).filter(Boolean).forEach((c) => used.add(c));
+  const pages = fs.readdirSync(path.join(root, 'pages')).filter((d) => { const j = path.join(root, 'pages', d, d + '.json'); return fs.existsSync(j) && /player-home/.test(fs.readFileSync(j, 'utf8')); });
+  assert.ok(pages.length >= 1);
+  for (const d of pages) {
+    const css = fs.readFileSync(path.join(root, 'pages', d, d + '.wxss'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const own = new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]));
+    const clash = [...own].filter((c) => used.has(c));
+    assert.deepStrictEqual(clash, [], `pages/${d} 的样式和 player-home 重名：${clash.join('、')}`);
+  }
+} });

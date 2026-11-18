@@ -1,0 +1,93 @@
+<view class="page">
+  <view class="priv">🔒 成长档案只有你自己能看到，不会出现在排行、球员主页或任何人的页面上</view>
+
+  <view wx:if="{{loading}}" class="state">正在读取…</view>
+
+  <view wx:elif="{{error}}" class="card state-card">
+    <view class="state-t">读取失败</view>
+    <view class="state-s">{{error}}</view>
+    <view class="btn-line retry" hover-class="tap-on" bindtap="retry">重试</view>
+  </view>
+
+  <block wx:else>
+    <!-- 私人记录总览（本页唯一的渐变块） -->
+    <view class="hero ani-in">
+      <view class="hero-k">私人比赛记录</view>
+      <view class="hero-main">
+        <view class="hero-big"><text class="hb-n">{{s.played}}</text><text class="hb-u">场</text></view>
+        <view class="hero-wl">
+          <view><text class="hw-n">{{s.win}}</text> 胜 <text class="hw-n">{{s.lose}}</text> 负</view>
+          <view class="hero-rate">胜率 <text class="hr-n">{{s.played ? s.rate + '%' : '—'}}</text></view>
+        </view>
+      </view>
+      <view class="hero-row">
+        <view class="hc"><view class="hc-n">{{s.single.played}}</view><view class="hc-l">单打 · {{s.single.played ? s.single.rate + '%' : '—'}}</view></view>
+        <view class="hc"><view class="hc-n">{{s.double.played}}</view><view class="hc-l">双打 · {{s.double.played ? s.double.rate + '%' : '—'}}</view></view>
+        <view class="hc"><view class="hc-n">{{s.thisMonth.played}}</view><view class="hc-l">本月场次</view></view>
+      </view>
+    </view>
+
+    <view wx:if="{{!has}}" class="card empty-card">
+      <view class="empty-ball"></view>
+      <view class="ec-t">还没有私人记录</view>
+      <view class="ec-s">约球、练习赛、外面打的比赛都可以记在这里，统计只给自己看</view>
+      <view class="btn-primary small" hover-class="tap-on" bindtap="add">＋ 记录一场</view>
+    </view>
+
+    <block wx:else>
+      <view class="btn-primary add" hover-class="tap-on" bindtap="add">＋ 记录一场</view>
+
+      <!-- 最近 6 个月 -->
+      <view class="card">
+        <view class="card-title">最近 6 个月<text class="sub">本月 {{s.thisMonth.played}} 场，{{monthDiff}}</text></view>
+        <view class="bars">
+          <view wx:for="{{s.trend}}" wx:key="ym" class="bar-col">
+            <text class="bar-n">{{item.played || ''}}</text>
+            <view class="bar-box"><view class="bar ani-grow-y {{index === 5 ? 'now' : ''}}" style="height:{{item.played ? (item.h < 6 ? 6 : item.h) : 0}}%;animation-delay:{{index * 50}}ms"></view></view>
+            <text class="bar-l">{{item.label}}</text>
+            <text class="bar-r">{{item.played ? item.rate + '%' : '—'}}</text>
+          </view>
+        </view>
+        <view class="bars-note">柱子是每月场次，下方是当月胜率</view>
+        <view class="mini">
+          <view class="mi"><text class="mi-l">练习赛</text><text class="mi-v">{{s.practice.played}} 场 · {{s.practice.played ? s.practice.rate + '%' : '—'}}</text></view>
+          <view class="mi"><text class="mi-l">正式比赛</text><text class="mi-v">{{s.formal.played}} 场 · {{s.formal.played ? s.formal.rate + '%' : '—'}}</text></view>
+          <view class="mi"><text class="mi-l">当前</text><text class="mi-v">{{s.streak.n}} 连{{s.streak.win ? '胜' : '败'}}</text></view>
+          <view class="mi"><text class="mi-l">最长连胜</text><text class="mi-v">{{s.bestStreak}} 场</text></view>
+        </view>
+        <view wx:if="{{s.recent.length}}" class="recent"><text class="rc-l">最近 {{s.recent.length}} 场</text><text wx:for="{{s.recent}}" wx:key="index" class="rc {{item === 'W' ? 'w' : 'l'}}">{{item === 'W' ? '胜' : '负'}}</text></view>
+      </view>
+
+      <!-- 记录列表（按月） -->
+      <view wx:for="{{groups}}" wx:key="ym" wx:for-item="g" wx:for-index="gi" class="card list">
+        <view class="g-head"><text class="g-t">{{g.label}}</text><text class="g-s">{{g.sum}}</text></view>
+        <view wx:for="{{g.rows}}" wx:key="id" class="gr {{gi === 0 && index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{gi === 0 && index < 10 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="open">
+          <text class="gr-date">{{item.md}}</text>
+          <view class="gr-m">
+            <view class="gr-top"><text class="ui-tag">{{item.type}}</text><text class="ui-tag {{item.formal ? 'solid' : ''}} gr-k">{{item.kind}}</text></view>
+            <view wx:if="{{item.tags.length}}" class="gr-tags"><text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="t" class="gr-tag">{{t}}</text></view>
+          </view>
+          <view class="gr-r"><text class="gr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text><text class="gr-sc">{{item.score}}</text></view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 正式战绩摘要：只读，和排行榜同一个口径，不和上面的私人记录相加 -->
+    <view wx:if="{{official}}" class="card off">
+      <view class="card-title">正式战绩<text class="sub">和排行榜同一套数据，单独统计</text></view>
+      <view class="off-row">
+        <view class="oc"><view class="stat-n">{{official.played}}</view><view class="stat-l">场次</view></view>
+        <view class="oc"><view class="stat-n">{{official.win}}<text class="oc-s">胜</text>{{official.lose}}<text class="oc-s">负</text></view><view class="stat-l">胜负</view></view>
+        <view class="oc"><view class="stat-n">{{official.rate}}</view><view class="stat-l">胜率</view></view>
+        <view class="oc"><view class="stat-n">{{official.month}}</view><view class="stat-l">本月</view></view>
+      </view>
+      <view class="off-sd"><text>单打 {{official.single}}</text><text>双打 {{official.double}}</text></view>
+      <view class="btn-line off-go" hover-class="tap-on" bindtap="goHistory">查看全部正式战绩</view>
+    </view>
+
+    <view class="danger-zone">
+      <view class="dz-t">私人记录只保存在小程序的云端，按你的账号隔离；可以逐条删除，也可以一次清除。</view>
+      <view wx:if="{{has}}" class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部私人记录'}}</view>
+    </view>
+  </block>
+</view>

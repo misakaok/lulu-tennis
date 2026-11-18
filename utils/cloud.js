@@ -27,7 +27,7 @@ async function call(action, data) {
 const READ_ONLY = {
   memberStatus: 1, ping: 1, matchState: 1, myTodos: 1,
   drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
-  myPhoto: 1, photoUrls: 1,
+  myPhoto: 1, photoUrls: 1, growthList: 1, racketList: 1,
 };
 const GW_WRITE_OPS = { add: 1, update: 1, remove: 1 };
 function invalidateAfter(action, data) {

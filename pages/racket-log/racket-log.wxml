@@ -1,0 +1,73 @@
+<view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
+<view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
+<view wx:else class="page">
+  <view class="priv">🔒 {{title}} · 只有你自己能看到</view>
+
+  <view class="card">
+    <view class="line">
+      <text class="label">日期</text>
+      <picker mode="date" value="{{date}}" start="2000-01-01" end="{{today}}" bindchange="onDate">
+        <view class="picker">{{date}} <text class="arrow">›</text></view>
+      </picker>
+    </view>
+    <view class="line">
+      <text class="label">费用</text>
+      <view class="cost-r"><input class="cost" type="digit" maxlength="7" placeholder="可不填" placeholder-class="cost-ph" value="{{cost}}" bindinput="onCost" /><text class="arrow">元</text></view>
+    </view>
+  </view>
+
+  <block wx:if="{{kind === 'string'}}">
+    <view class="card">
+      <view class="card-title">球线</view>
+      <view class="sub-t">{{hybrid ? '竖线' : '竖线和横线'}}</view>
+      <picker mode="selector" range="{{sbNames}}" value="{{main.bi < 0 ? 0 : main.bi}}" data-w="main" bindchange="onBrand">
+        <view class="line"><text class="label">品牌</text><view class="picker {{main.bi < 0 ? 'ph' : ''}}">{{main.bi < 0 ? '请选择' : sbNames[main.bi]}} <text class="arrow">›</text></view></view>
+      </picker>
+      <picker wx:if="{{main.bi >= 0}}" mode="selector" range="{{main.models}}" value="{{main.mi < 0 ? 0 : main.mi}}" data-w="main" bindchange="onModel">
+        <view class="line"><text class="label">型号</text><view class="picker {{main.mi < 0 ? 'ph' : ''}}">{{main.mi < 0 ? '请选择' : main.models[main.mi]}} <text class="arrow">›</text></view></view>
+      </picker>
+      <view class="hy {{hybrid ? 'on' : ''}}" hover-class="tap-on" bindtap="toggleHybrid">{{hybrid ? '✓ ' : ''}}横线用了不同的球线（混穿）</view>
+      <block wx:if="{{hybrid}}">
+        <view class="sub-t">横线</view>
+        <picker mode="selector" range="{{sbNames}}" value="{{cross.bi < 0 ? 0 : cross.bi}}" data-w="cross" bindchange="onBrand">
+          <view class="line"><text class="label">品牌</text><view class="picker {{cross.bi < 0 ? 'ph' : ''}}">{{cross.bi < 0 ? '请选择' : sbNames[cross.bi]}} <text class="arrow">›</text></view></view>
+        </picker>
+        <picker wx:if="{{cross.bi >= 0}}" mode="selector" range="{{cross.models}}" value="{{cross.mi < 0 ? 0 : cross.mi}}" data-w="cross" bindchange="onModel">
+          <view class="line"><text class="label">型号</text><view class="picker {{cross.mi < 0 ? 'ph' : ''}}">{{cross.mi < 0 ? '请选择' : cross.models[cross.mi]}} <text class="arrow">›</text></view></view>
+        </picker>
+      </block>
+    </view>
+
+    <view class="card">
+      <view class="card-title">磅数</view>
+      <picker mode="selector" range="{{tNames}}" value="{{ti}}" bindchange="onMains">
+        <view class="line"><text class="label">竖线</text><view class="picker">{{tNames[ti]}} <text class="arrow">›</text></view></view>
+      </picker>
+      <picker mode="selector" range="{{tNames}}" value="{{ci}}" bindchange="onCrosses">
+        <view class="line last"><text class="label">横线</text><view class="picker">{{tNames[ci]}} <text class="arrow">›</text></view></view>
+      </picker>
+    </view>
+
+    <view class="card">
+      <view class="card-title">手感<text class="sub">可选，再点一次取消</text></view>
+      <view class="stars">
+        <text wx:for="{{stars}}" wx:key="*this" class="star {{item <= feel ? 'on' : ''}}" data-v="{{item}}" bindtap="setFeel">★</text>
+        <text class="star-t">{{feel ? feel + ' 分' : '未评分'}}</text>
+      </view>
+      <view class="card-title tags-t">备注<text class="sub">可选，最多 {{maxTags}} 个</text></view>
+      <view class="tags">
+        <view wx:for="{{tagOpts}}" wx:key="t" class="tag {{item.on ? 'on' : ''}}" hover-class="tap-on" data-t="{{item.t}}" bindtap="toggleTag">{{item.t}}</view>
+      </view>
+    </view>
+  </block>
+
+  <view wx:else class="card">
+    <view class="card-title">维护项目</view>
+    <view class="tags">
+      <view wx:for="{{items}}" wx:key="k" wx:for-item="it" class="tag {{it.k === mitem ? 'on' : ''}}" hover-class="tap-on" data-k="{{it.k}}" bindtap="setItem">{{it.n}}</view>
+    </view>
+  </view>
+
+  <view class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : '保存'}}</view>
+  <view wx:if="{{id}}" class="btn-danger del" hover-class="tap-on" bindtap="remove">{{removing ? '正在删除…' : '删除这条记录'}}</view>
+</view>

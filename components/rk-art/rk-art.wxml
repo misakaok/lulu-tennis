@@ -1,0 +1,11 @@
+<view class="class rka" style="--f:{{c.f}};--a:{{c.a}};--g:{{c.g}}">
+  <view class="rka-r">
+    <view class="rka-arm l"></view>
+    <view class="rka-arm r"></view>
+    <view class="rka-head"><view class="rka-bed"></view></view>
+    <view class="rka-shaft"></view>
+    <view class="rka-collar"></view>
+    <view class="rka-grip"></view>
+    <view class="rka-cap"></view>
+  </view>
+</view>

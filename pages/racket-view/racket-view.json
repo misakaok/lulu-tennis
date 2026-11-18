@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "球拍",
+  "enablePullDownRefresh": true,
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false,
+  "usingComponents": {
+    "rk-art": "/components/rk-art/rk-art"
+  }
+}

@@ -68,7 +68,7 @@
       <view class="mr-r">
         <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
         <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '我胜' : '我负'}}</text>
-        <text class="mr-sc">{{item.score}}</text>
+        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text></view>
       </view>
     </view>
     <view wx:if="{{h2h.total > h2h.rows.length}}" class="h2h-more">只显示最近 {{h2h.rows.length}} 场，共 {{h2h.total}} 场</view>
@@ -86,8 +86,8 @@
     <view class="tr-x"><text>{{view.trend.from}}</text><text>每根柱子是一场比赛后的等级，绿涨红跌</text><text>{{view.trend.to}}</text></view>
   </view>
 
-  <!-- 近期比赛 -->
-  <view class="card">
+  <!-- 近期比赛（「我的」页不显示） -->
+  <view wx:if="{{!mine}}" class="card">
     <view class="card-title row-t"><text>近期比赛</text><text wx:if="{{total}}" class="more" bindtap="allHistory">全部 {{total}} 场 ›</text></view>
     <view wx:if="{{!recent.length}}" class="muted">还没有正式比赛记录</view>
     <view wx:for="{{recent}}" wx:key="id" class="mr ani-in" style="animation-delay:{{index * 40}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
@@ -99,8 +99,7 @@
       <view class="mr-r">
         <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
         <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
-        <text class="mr-sc">{{item.score}}</text>
-        <text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
+        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text></view>
       </view>
     </view>
   </view>
@@ -128,32 +127,37 @@
     <view class="h2h-more">{{view.partners.total > view.partners.list.length ? '只显示场数最多的 ' + view.partners.list.length + ' 位 · ' : ''}}最佳搭档从一起打满 {{view.partners.min}} 场的里面选</view>
   </view>
 
-  <!-- 赛季战绩：按比赛日期的自然年划分，和上面的生涯数据同一个口径 -->
-  <view wx:if="{{view.career.seasons.length}}" class="card">
-    <view class="card-title">赛季战绩<text class="sub">按自然年 · 点一个赛季看年度总结</text></view>
-    <view class="ss-row ss-head"><text class="ss-s">赛季</text><text class="ss-c">场数</text><text class="ss-c">胜-负</text><text class="ss-c">胜率</text><text class="ss-c">冠军</text></view>
-    <view wx:for="{{view.career.seasons}}" wx:key="season" class="ss-row {{item.now ? 'now' : ''}}" hover-class="tap-row-on" data-s="{{item.season}}" bindtap="openSummary">
-      <text class="ss-s">{{item.season}}<text wx:if="{{item.now}}" class="ss-now">本赛季</text></text>
-      <text class="ss-c">{{item.played}}</text><text class="ss-c b">{{item.wl}}</text><text class="ss-c">{{item.rate}}</text>
-      <text class="ss-c">{{item.titles ? '🏆 ' + item.titles : '-'}}</text><text class="ss-go">›</text>
-    </view>
-  </view>
-
   <!-- 生涯成就：由正式战绩自动计算 -->
-  <view wx:if="{{view.career.has}}" class="card">
-    <view class="card-title row-t"><text>生涯成就<text class="sub">已达成 {{view.career.got}} / {{view.career.total}}</text></text><text class="more" bindtap="toggleBadges">{{allBadges ? '收起' : '全部徽章'}} ›</text></view>
-    <view class="cr-grid">
-      <view wx:for="{{view.career.cells}}" wx:key="l" class="cr-cell"><text class="n {{item.n === '暂无' ? 'none' : ''}}">{{item.n}}</text><text class="l">{{item.l}}</text></view>
+  <view wx:if="{{view.career.has}}" class="card cr">
+    <view class="cr-head">
+      <text class="cr-title">生涯成就</text>
+      <text class="cr-cnt">徽章 <text class="b">{{view.career.got}}</text> / {{view.career.total}}</text>
     </view>
-    <view class="bd-wrap">
+    <view class="cr-prog"><view class="cr-prog-in ani-grow-x" style="width:{{view.career.pct}}%"></view></view>
+
+    <view class="cr-nums">
+      <view wx:for="{{view.career.cells}}" wx:key="l" class="cn {{item.cls}}"><text class="n {{item.n === '暂无' ? 'none' : ''}}">{{item.n}}</text><text class="l">{{item.l}}</text></view>
+    </view>
+
+    <view class="cr-sec"><text>徽章</text><text class="more" bindtap="toggleBadges">{{allBadges ? '只看已达成' : '全部 ' + view.career.total + ' 个'}} ›</text></view>
+    <view class="bd-grid">
       <block wx:for="{{view.career.badges}}" wx:key="id">
-        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? '' : 'off'}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
-          <text class="bd-ic">{{item.icon}}</text><text class="bd-n">{{item.name}}</text><text wx:if="{{!item.got}}" class="bd-p">{{item.progress}}</text>
+        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got' : 'off'}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
+          <view class="bd-in">
+            <view class="bd-ic"><text>{{item.icon}}</text></view>
+            <text class="bd-n">{{item.name}}</text>
+            <view wx:if="{{!item.got}}" class="bd-bar"><view class="bd-bar-in" style="width:{{item.pct}}%"></view></view>
+            <text wx:if="{{!item.got}}" class="bd-p">{{item.progress}}</text>
+          </view>
         </view>
       </block>
-      <view wx:if="{{!view.career.got && !allBadges}}" class="muted">还没有达成的徽章，点「全部徽章」看看怎么拿</view>
+      <view wx:if="{{!view.career.got && !allBadges}}" class="bd-none">还没有达成的徽章，点「全部」看看怎么拿</view>
     </view>
-    <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><text class="cr-k">🏆 冠军</text><text class="cr-v">{{item.title}}<text class="cr-d">{{item.date}}</text></text></view>
-    <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
+
+    <view wx:if="{{view.career.titles.length || view.career.lines.length || mine}}" class="cr-list">
+      <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><text class="cr-k">🏆 冠军</text><text class="cr-v">{{item.title}}</text><text class="cr-d">{{item.date}}</text></view>
+      <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
+      <view wx:if="{{mine && total}}" class="cr-line cr-all" hover-class="tap-row-on" bindtap="allHistory"><text class="cr-k">全部比赛</text><text class="cr-v">{{total}} 场正式比赛</text><text class="cr-go">›</text></view>
+    </view>
   </view>
 </block>

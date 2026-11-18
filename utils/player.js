@@ -141,11 +141,15 @@ function careerView(matches, uid, name, history, pre) {
   if (c.first) lines.push({ k: '首场比赛', v: c.first });
   return {
     has: c.played > 0 || c.finals > 0,
+    // 3 × 2 的数字格；cls 给格子画分隔线（bl 左边线、bt 上边线），拿过冠军的格子高亮（hot）
     cells: [
       { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '最后一轮' }, { n: String(c.events), l: '参加活动' },
       { n: String(c.bestStreak), l: '最长连胜' }, { n: String(c.streak), l: '当前连胜' }, { n: c.peak === null ? NONE : R.fmt(c.peak), l: '最高等级' },
-    ],
-    lines, badges: c.badges, got: c.got, total: c.badges.length, nemesis: c.nemesis, prey: c.prey,
+    ].map((x, i) => Object.assign(x, { cls: [i % 3 ? 'bl' : '', i >= 3 ? 'bt' : '', i === 0 && c.titles.length ? 'hot' : ''].join(' ').trim() })),
+    lines, got: c.got, total: c.badges.length, pct: c.badges.length ? Math.round((c.got / c.badges.length) * 100) : 0,
+    // 徽章进度条：progress 是「已有/需要」，达成的是 100
+    badges: c.badges.map((b) => { const [v, need] = String(b.progress).split('/').map(Number); return Object.assign({}, b, { pct: b.got ? 100 : need ? Math.min(100, Math.round((v / need) * 100)) : 0 }); }),
+    nemesis: c.nemesis, prey: c.prey,
     titles: c.titles.map((t) => ({ title: t.title, date: t.date })),
     seasons: c.seasons.map((s) => ({ season: s.season, now: s.season === cur, played: s.played, wl: `${s.win}-${s.lose}`, rate: s.played ? s.rate + '%' : NONE, titles: s.titles })),
   };

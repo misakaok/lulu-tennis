@@ -1,0 +1,64 @@
+<view wx:if="{{loading}}" class="page"><view class="state">正在读取…</view></view>
+<view wx:elif="{{error}}" class="page">
+  <view class="card state-card">
+    <view class="state-t">{{error}}</view>
+    <view class="btn-line retry" hover-class="tap-on" bindtap="retry">重试</view>
+  </view>
+</view>
+<view wx:else class="page">
+  <view class="hero ani-in">
+    <view class="hero-head">
+      <view class="hero-info">
+        <view class="hero-top"><text class="hero-no">{{r.title}}</text><text class="hero-st">{{r.status}}</text></view>
+        <view class="hero-name">{{r.name}}</view>
+        <view wx:if="{{r.bought || r.tags.length}}" class="hero-sub"><text wx:if="{{r.bought}}">{{r.bought}} 购入</text><text wx:for="{{r.tags}}" wx:key="*this" class="hero-tag">{{item}}</text></view>
+      </view>
+      <rk-art class="hero-ph" brand="{{r.brand}}" model="{{r.model}}" />
+    </view>
+    <view class="hero-row">
+      <view class="hc"><view class="hc-n">{{s.stringCount}}</view><view class="hc-l">累计穿线</view></view>
+      <view class="hc"><view class="hc-n">{{s.last ? s.last.ago : '—'}}</view><view class="hc-l">上次穿线</view></view>
+      <view class="hc"><view class="hc-n">{{s.maintCount}}</view><view class="hc-l">累计维护</view></view>
+    </view>
+  </view>
+
+  <view class="acts">
+    <view class="btn-primary act" hover-class="tap-on" bindtap="addString">＋ 记录穿线</view>
+    <view class="btn-line act" hover-class="tap-on" bindtap="addMaint">＋ 记录维护</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">提醒<text class="sub">只在小程序里提示</text></view>
+    <view wx:if="{{r.retired}}" class="none">已退役的球拍不提醒</view>
+    <view wx:elif="{{!s.reminders.length}}" class="none">还没有设置提醒，可以在「编辑球拍」里按自己的习惯设置间隔</view>
+    <view wx:for="{{s.reminders}}" wx:key="item" class="rm">
+      <text class="rm-l">{{item.label}}</text>
+      <text class="rm-e">{{item.everyText}}</text>
+      <text class="rm-d">{{item.due ? '下次 ' + item.due : ''}}</text>
+      <text class="ui-tag rm-s {{item.state === 'over' ? 'bad' : item.state === 'soon' ? 'warn' : item.state === 'ok' ? 'lime' : ''}}">{{item.text}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">时间线<text wx:if="{{s.cost}}" class="sub">记录的费用合计 {{s.cost}}</text></view>
+    <view class="seg tl-seg">
+      <view class="seg-item {{filter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setFilter">全部</view>
+      <view class="seg-item {{filter === 'string' ? 'on' : ''}}" data-v="string" bindtap="setFilter">穿线</view>
+      <view class="seg-item {{filter === 'maint' ? 'on' : ''}}" data-v="maint" bindtap="setFilter">维护</view>
+    </view>
+    <view wx:if="{{!shown.length}}" class="none">{{filter === 'maint' ? '还没有维护记录' : filter === 'string' ? '还没有穿线记录' : '还没有记录，点上面的按钮记一次'}}</view>
+    <view class="tl">
+      <view wx:for="{{shown}}" wx:key="id" class="tl-i {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openLog">
+        <view class="tl-dot {{item.kind}}"></view>
+        <view class="tl-b">
+          <view class="tl-top"><text class="tl-date">{{item.date}}</text><text class="tl-k">{{item.kind === 'string' ? '穿线' : '维护'}}</text><text wx:if="{{item.cost}}" class="tl-cost">{{item.cost}}</text></view>
+          <view class="tl-t">{{item.title}}</view>
+          <view wx:if="{{item.sub || item.feel}}" class="tl-s">{{item.sub}}<text wx:if="{{item.feel}}" class="tl-feel">{{item.feel}}</text></view>
+          <view wx:if="{{item.tags.length}}" class="tl-tags"><text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="t" class="tl-tag">{{t}}</text></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="btn-line" hover-class="tap-on" bindtap="edit">编辑球拍</view>
+</view>

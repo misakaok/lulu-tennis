@@ -1,0 +1,54 @@
+<view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
+<view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
+<view wx:else class="page">
+  <view class="priv">🔒 只有你自己能看到。{{id ? title + '的编号不会变' : '保存后按添加顺序自动编号'}}</view>
+
+  <view class="card ph-card">
+    <rk-art class="pic" brand="{{bi >= 0 ? brandKeys[bi] : ''}}" model="{{mi >= 0 ? models[mi] : ''}}" />
+    <view class="ph-r">
+      <view class="ph-t">{{pickName || '选好品牌和型号'}}</view>
+      <view class="ph-s">按系列配色的示意图，不是实物照片</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <picker mode="selector" range="{{brandNames}}" value="{{bi < 0 ? 0 : bi}}" bindchange="onBrand">
+      <view class="line"><text class="label">品牌</text><view class="picker {{bi < 0 ? 'ph' : ''}}">{{bi < 0 ? '请选择' : brandNames[bi]}} <text class="arrow">›</text></view></view>
+    </picker>
+    <picker wx:if="{{bi >= 0}}" mode="selector" range="{{models}}" value="{{mi < 0 ? 0 : mi}}" bindchange="onModel">
+      <view class="line"><text class="label">型号</text><view class="picker {{mi < 0 ? 'ph' : ''}}">{{mi < 0 ? '请选择' : models[mi]}} <text class="arrow">›</text></view></view>
+    </picker>
+    <view class="line">
+      <text class="label">购入日期</text>
+      <view class="bt">
+        <text wx:if="{{bought}}" class="ui-tag clr" bindtap="clearBought">清除</text>
+        <picker mode="date" value="{{bought || today}}" start="2000-01-01" end="{{today}}" bindchange="onBought">
+          <view class="picker {{bought ? '' : 'ph'}}">{{bought || '可不填'}} <text class="arrow">›</text></view>
+        </picker>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">状态</text>
+      <view class="seg">
+        <view wx:for="{{STATUS}}" wx:key="index" wx:for-index="k" class="seg-item {{status === k ? 'on' : ''}}" data-v="{{k}}" bindtap="setStatus">{{item}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">提醒间隔<text class="sub">从上次记录算起，到期在小程序里提示</text></view>
+    <picker wx:for="{{reminds}}" wx:key="k" mode="selector" range="{{dayNames}}" value="{{item.i}}" data-k="{{item.k}}" bindchange="onRemind">
+      <view class="line rm"><text class="label">{{item.label}}</text><view class="picker {{item.on ? '' : 'ph'}}">{{item.text}} <text class="arrow">›</text></view></view>
+    </picker>
+  </view>
+
+  <view class="card">
+    <view class="card-title">备注<text class="sub">可选，最多 {{maxTags}} 个</text></view>
+    <view class="tags">
+      <view wx:for="{{tagOpts}}" wx:key="t" class="tag {{item.on ? 'on' : ''}}" hover-class="tap-on" data-t="{{item.t}}" bindtap="toggleTag">{{item.t}}</view>
+    </view>
+  </view>
+
+  <view class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : '保存'}}</view>
+  <view wx:if="{{id}}" class="btn-danger del" hover-class="tap-on" bindtap="remove">{{removing ? '正在删除…' : '删除这支球拍'}}</view>
+</view>

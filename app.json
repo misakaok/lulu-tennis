@@ -14,11 +14,16 @@
     "pages/match/match",
     "pages/player/player",
     "pages/history/history",
-    "pages/summary/summary",
     "pages/todo/todo",
     "pages/correct/correct",
     "pages/gate/gate",
-    "pages/members/members"
+    "pages/members/members",
+    "pages/growth/growth",
+    "pages/growth-edit/growth-edit",
+    "pages/racket/racket",
+    "pages/racket-view/racket-view",
+    "pages/racket-edit/racket-edit",
+    "pages/racket-log/racket-log"
   ],
   "window": {
     "navigationBarBackgroundColor": "#A3A3CB",
@@ -50,6 +55,12 @@
         "text": "排行",
         "iconPath": "images/tab/rank.png",
         "selectedIconPath": "images/tab/rank-on.png"
+      },
+      {
+        "pagePath": "pages/racket/racket",
+        "text": "球拍",
+        "iconPath": "images/tab/racket.png",
+        "selectedIconPath": "images/tab/racket-on.png"
       },
       {
         "pagePath": "pages/me/me",

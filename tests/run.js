@@ -7,7 +7,7 @@ const path = require('path');
 (async () => {
   let pass = 0, fail = 0;
   const root = path.resolve(__dirname, '..');
-  for (const f of ['rules', 'draw', 'event', 'official']) {
+  for (const f of ['rules', 'draw', 'event', 'official', 'growth', 'racket']) {
     const a = fs.readFileSync(path.join(root, 'utils', f + '.js'), 'utf8');
     const b = fs.readFileSync(path.join(root, 'cloudfunctions/tennis/shared', f + '.js'), 'utf8');
     if (a === b) pass++; else { fail++; console.log(`✗ 共享文件不一致：utils/${f}.js，请运行 scripts/sync-shared.sh`); }
@@ -16,11 +16,12 @@ const path = require('path');
   for (const f of files) {
     console.log(`\n${f}`);
     for (const t of require(path.join(__dirname, f))) {
-      const err = console.error;
-      console.error = () => {}; // 云函数里的 console.error（预期内的失败日志）不打印
-      try { await t.fn(); pass++; console.log(`  ✓ ${t.name}`); }
-      catch (e) { fail++; console.log(`  ✗ ${t.name}\n    ${(e && e.stack) || e}`); }
-      finally { console.error = err; }
+      const { error: err, log, warn } = console;
+      console.error = console.warn = console.log = () => {}; // 云函数里的日志（预期内的失败、排查用的记录）不打印
+      let res = null;
+      try { await t.fn(); } catch (e) { res = e; }
+      finally { console.error = err; console.log = log; console.warn = warn; }
+      if (res) { fail++; console.log(`  ✗ ${t.name}\n    ${(res && res.stack) || res}`); } else { pass++; console.log(`  ✓ ${t.name}`); }
     }
   }
   console.log(`\n${pass} 通过，${fail} 失败`);

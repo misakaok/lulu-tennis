@@ -16,8 +16,7 @@
       <view class="mr-r">
         <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
         <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
-        <text class="mr-sc">{{item.score}}</text>
-        <text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
+        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text></view>
       </view>
     </view>
   </view>

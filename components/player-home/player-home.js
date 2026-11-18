@@ -11,6 +11,7 @@ Component({
   options: { addGlobalClass: true },
   properties: {
     uid: { type: String, value: '', observer: 'load' },
+    mine: { type: Boolean, value: false }, // 「我的」页：不显示近期比赛（生涯成就里留一个「全部比赛」入口）
   },
   data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, allBadges: false, h2h: null },
   lifetimes: { attached() { if (this.data.uid) this.load(); }, detached() { Anim.stop(this); } },
@@ -64,7 +65,6 @@ Component({
     },
     openPlayer(e) { const u = e.currentTarget.dataset.uid; if (u) wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(u) }); },
     openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
-    openSummary(e) { wx.navigateTo({ url: `/pages/summary/summary?uid=${encodeURIComponent(this.data.uid)}&season=${e.currentTarget.dataset.s}` }); },
     allHistory() { wx.navigateTo({ url: '/pages/history/history?uid=' + encodeURIComponent(this.data.uid) }); },
   },
 });

@@ -1,0 +1,49 @@
+<view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
+<view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
+<view wx:else class="page">
+  <view class="priv">🔒 只记在你自己的成长档案里，不计入正式战绩和排行，别人看不到</view>
+
+  <view class="card">
+    <view class="line">
+      <text class="label">日期</text>
+      <picker mode="date" value="{{date}}" start="2000-01-01" end="{{today}}" bindchange="onDate">
+        <view class="picker">{{date}} <text class="arrow">›</text></view>
+      </picker>
+    </view>
+    <view class="field">
+      <text class="label">单打 / 双打</text>
+      <view class="seg">
+        <view class="seg-item {{type === 'single' ? 'on' : ''}}" data-v="single" bindtap="setType">单打</view>
+        <view class="seg-item {{type === 'double' ? 'on' : ''}}" data-v="double" bindtap="setType">双打</view>
+      </view>
+    </view>
+    <view class="field">
+      <text class="label">比赛类型</text>
+      <view class="seg">
+        <view class="seg-item {{kind === 'practice' ? 'on' : ''}}" data-v="practice" bindtap="setKind">练习赛</view>
+        <view class="seg-item {{kind === 'formal' ? 'on' : ''}}" data-v="formal" bindtap="setKind">正式比赛</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">规则</view>
+    <rule-picker value="{{rule}}" bind:change="onRule" />
+  </view>
+
+  <view class="card">
+    <view class="card-title">比分<text class="sub">左边是我（双打就是我方）</text></view>
+    <score-sets id="sets" set-games="{{rule.setGames}}" no-ad="{{rule.noAd}}" best-of="{{rule.bestOf}}" a-label="我" b-label="对手" init="{{init}}" bind:change="onSets" />
+    <view class="result {{check.ok ? (check.win ? 'win' : 'lose') : ''}}">{{check.msg}}</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">备注<text class="sub">可选，最多 {{maxTags}} 个，只有自己能看到</text></view>
+    <view class="tags">
+      <view wx:for="{{tagOpts}}" wx:key="t" class="tag {{item.on ? 'on' : ''}}" hover-class="tap-on" data-t="{{item.t}}" bindtap="toggleTag">{{item.t}}</view>
+    </view>
+  </view>
+
+  <view class="btn-primary {{check.ok && !saving ? '' : 'disabled'}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : '保存'}}</view>
+  <view wx:if="{{id}}" class="btn-danger del" hover-class="tap-on" bindtap="remove">{{removing ? '正在删除…' : '删除这条记录'}}</view>
+</view>

@@ -1,0 +1,23 @@
+.priv { font-size: 22rpx; color: #8686A0; background: #EFEFF6; border-radius: 20rpx; padding: 14rpx 20rpx; margin-bottom: 22rpx; line-height: 1.5; }
+.st { text-align: center; padding: 60rpx 30rpx; }
+.st-t { font-size: 28rpx; color: #4F4F7D; font-weight: 700; }
+.st-load { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }
+.line { display: flex; justify-content: space-between; align-items: center; min-height: 88rpx; border-bottom: 1rpx solid #EFEFF6; }
+.picker { font-size: 28rpx; font-weight: 600; color: #4F4F7D; }
+.picker.ph { color: #A5A5BA; font-weight: 400; }
+.arrow { color: #A5A5BA; margin-left: 6rpx; }
+.bt { display: flex; align-items: center; }
+.clr { margin-right: 16rpx; } /* 「清除」放在日期左边：右侧的日期和箭头和其他行对齐 */
+picker { display: block; }
+.field { margin-top: 24rpx; }
+.field .label { display: block; margin-bottom: 14rpx; }
+.tags { display: flex; flex-wrap: wrap; }
+.tag { font-size: 25rpx; color: #5C5C76; background: #F4F4F9; border: 2rpx solid transparent; border-radius: 30rpx; padding: 10rpx 24rpx; margin: 0 14rpx 14rpx 0; }
+.tag.on { color: #6E6EA3; background: #EFEFF6; border-color: #A3A3CB; font-weight: 700; }
+.del { margin-top: 24rpx; }
+.ph-card { display: flex; align-items: center; }
+/* 示意图用 .pic，不要叫 .ph：.ph 是选项「未选」的修饰类（.picker.ph），同名会把「请选择」撑成方块 */
+.pic { width: 180rpx; height: 180rpx; border-radius: 28rpx; font-size: 30rpx; }
+.ph-r { flex: 1; min-width: 0; margin-left: 24rpx; }
+.ph-t { font-size: 32rpx; font-weight: 800; color: #2E2E48; }
+.ph-s { font-size: 22rpx; color: #8686A0; margin-top: 10rpx; }

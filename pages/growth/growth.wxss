@@ -1,0 +1,74 @@
+.priv { font-size: 22rpx; color: #8686A0; background: #EFEFF6; border-radius: 20rpx; padding: 14rpx 20rpx; margin-bottom: 22rpx; line-height: 1.5; }
+.state { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }
+.state-card { text-align: center; padding: 50rpx 30rpx; }
+.state-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
+.state-s { font-size: 24rpx; color: #8686A0; margin: 12rpx 0 28rpx; }
+.retry { width: 240rpx; margin: 0 auto; }
+
+/* 总览：重点淡紫渐变 */
+.hero { border-radius: 36rpx; padding: 32rpx 32rpx 26rpx; margin-bottom: 24rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
+.hero-k { font-size: 24rpx; opacity: 0.9; }
+.hero-main { display: flex; align-items: flex-end; margin-top: 6rpx; }
+.hero-big { display: flex; align-items: baseline; }
+.hb-n { font-size: 96rpx; font-weight: 800; line-height: 1; }
+.hb-u { font-size: 28rpx; margin-left: 8rpx; opacity: 0.9; }
+.hero-wl { margin-left: auto; text-align: right; font-size: 24rpx; }
+.hw-n { font-size: 36rpx; font-weight: 800; }
+.hero-rate { margin-top: 6rpx; }
+.hr-n { display: inline-block; font-size: 32rpx; font-weight: 800; color: #2E3600; background: #C9E33A; border-radius: 14rpx; padding: 0 12rpx; margin-left: 6rpx; }
+.hero-row { display: flex; margin-top: 26rpx; padding-top: 20rpx; border-top: 1rpx solid rgba(255, 255, 255, 0.3); }
+.hc { flex: 1; text-align: center; }
+.hc-n { font-size: 36rpx; font-weight: 800; }
+.hc-l { font-size: 21rpx; opacity: 0.88; margin-top: 2rpx; }
+
+.empty-card { text-align: center; padding: 50rpx 30rpx; }
+.ec-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
+.ec-s { font-size: 24rpx; color: #8686A0; margin-top: 10rpx; line-height: 1.6; }
+.add { margin-bottom: 24rpx; }
+
+/* 柱状图 */
+.bars { display: flex; align-items: flex-end; height: 300rpx; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.bar-n { font-size: 22rpx; font-weight: 800; color: #4F4F7D; height: 30rpx; }
+.bar-box { flex: 1; width: 44rpx; display: flex; align-items: flex-end; background: #F4F4F9; border-radius: 12rpx; overflow: hidden; }
+.bar { width: 100%; background: #B9B9DA; border-radius: 12rpx; }
+.bar.now { background: #8484B6; }
+.bar-l { font-size: 21rpx; color: #5C5C76; margin-top: 8rpx; }
+.bar-r { font-size: 20rpx; color: #A5A5BA; }
+.bars-note { font-size: 20rpx; color: #A5A5BA; text-align: center; margin-top: 10rpx; }
+.mini { display: flex; flex-wrap: wrap; margin-top: 20rpx; border-top: 1rpx solid #F2F2F8; padding-top: 12rpx; }
+.mi { width: 50%; display: flex; justify-content: space-between; padding: 8rpx 12rpx 8rpx 0; box-sizing: border-box; font-size: 24rpx; }
+.mi:nth-child(2n) { padding: 8rpx 0 8rpx 12rpx; }
+.mi-l { color: #8686A0; }
+.mi-v { color: #1E1E32; font-weight: 700; }
+.recent { display: flex; align-items: center; flex-wrap: wrap; margin-top: 14rpx; }
+.rc-l { font-size: 22rpx; color: #8686A0; margin-right: 10rpx; }
+.rc { width: 40rpx; height: 40rpx; line-height: 40rpx; text-align: center; border-radius: 10rpx; font-size: 20rpx; font-weight: 800; margin: 0 6rpx 6rpx 0; }
+.rc.w { background: #C9E33A; color: #2E3600; }
+.rc.l { background: #F1F1F8; color: #8686A0; }
+
+/* 记录列表 */
+.g-head { display: flex; align-items: baseline; margin-bottom: 6rpx; }
+.g-t { font-size: 28rpx; font-weight: 800; }
+.g-s { margin-left: auto; font-size: 22rpx; color: #8686A0; }
+.gr { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
+.gr-date { width: 92rpx; flex: none; font-size: 24rpx; color: #8686A0; font-weight: 600; }
+.gr-m { flex: 1; min-width: 0; }
+.gr-k { margin-left: 8rpx; }
+.gr-tags { display: flex; flex-wrap: wrap; margin-top: 6rpx; }
+.gr-tag { font-size: 20rpx; color: #8686A0; margin-right: 12rpx; }
+.gr-r { flex: none; display: flex; align-items: center; margin-left: 12rpx; }
+.gr-res { font-size: 20rpx; font-weight: 800; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 10rpx; }
+.gr-res.w { background: #C9E33A; color: #2E3600; }
+.gr-res.l { background: #F1F1F8; color: #8686A0; }
+.gr-sc { font-size: 25rpx; color: #4F4F7D; font-weight: 700; }
+
+/* 正式战绩摘要 */
+.off-row { display: flex; }
+.oc { flex: 1; text-align: center; }
+.oc-s { font-size: 22rpx; font-weight: 400; color: #8686A0; margin: 0 4rpx; }
+.off-sd { display: flex; justify-content: space-around; font-size: 23rpx; color: #5C5C76; margin-top: 18rpx; }
+.off-go { margin-top: 24rpx; }
+
+.danger-zone { margin-top: 30rpx; text-align: center; }
+.dz-t { font-size: 22rpx; color: #A5A5BA; line-height: 1.6; margin-bottom: 18rpx; }

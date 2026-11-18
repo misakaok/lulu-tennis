@@ -10,6 +10,8 @@ const crypto = require('crypto');
 const E = require('./shared/event');
 const RULES = require('./shared/rules');
 const OF = require('./shared/official');
+const G = require('./shared/growth');
+const K = require('./shared/racket');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
@@ -726,7 +728,7 @@ async function onMediaCheck(ev) {
     rec = await getPhotoCheck(trace);
     if (!rec) return 'success';
   }
-  if (rec.status !== 'checking' || !rec.playerId || !rec.request) return 'success';
+  if (rec.status !== 'checking' || !rec.playerId || !rec.request) return 'success'; // 以前版本的球拍照片检测（kind: 'racket'，没有 playerId）不再处理
   await settleCheck(trace, status, label);
   return 'success';
 }
@@ -1887,10 +1889,131 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   deny('不支持的操作');
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto };
+/* ---------- 成长档案：私人比赛记录（只有本人可见） ----------
+ * 集合 growth_matches（仅管理端可读写，不在网关白名单里）。owner = 记录主人的用户 ID，只由云端写入；
+ * 所有读写都按 cloud.getWXContext().OPENID 过滤，客户端传来的 owner / id 以外的身份字段一律忽略。
+ * 不进正式战绩、排行、等级分，也没有任何「看别人档案」的接口。 */
+const GROWTH = 'growth_matches';
+const growthView = (d) => ({
+  id: d._id, date: d.date, type: d.type, kind: d.kind, setGames: d.setGames, noAd: d.noAd, bestOf: d.bestOf,
+  sets: d.sets || [], result: d.result, tags: d.tags || [], createdAt: tsOf(d),
+});
+async function ownGrowth(id, uid) {
+  const d = typeof id === 'string' && id ? await getDoc(GROWTH, id) : null;
+  if (!d || d.owner !== uid) deny('记录不存在，可能已被删除'); // 别人的记录和不存在一样处理，不透露是否存在
+  return d;
+}
+async function growthList(_d, uid) {
+  return { list: (await allDocs(GROWTH, { owner: uid })).map(growthView) };
+}
+async function growthSave({ id, record }, uid) {
+  const c = G.clean(record, today());
+  if (!c.ok) deny(c.msg);
+  if (id) {
+    await ownGrowth(id, uid);
+    await db.collection(GROWTH).doc(id).update({ data: Object.assign({}, c.rec, { updatedAt: db.serverDate() }) });
+    return { id };
+  }
+  const n = (await db.collection(GROWTH).where({ owner: uid }).count()).total;
+  if (n >= G.MAX_RECORDS) deny(`最多保存 ${G.MAX_RECORDS} 条记录，请先删除一些旧记录`);
+  const r = await db.collection(GROWTH).add({ data: Object.assign({ owner: uid }, c.rec, { createdAt: db.serverDate() }) });
+  return { id: r._id };
+}
+async function growthRemove({ id }, uid) {
+  await ownGrowth(id, uid);
+  await db.collection(GROWTH).doc(id).remove();
+  return { removed: 1 };
+}
+// 清除本人的全部私人记录（不可恢复；正式战绩不受影响）
+async function growthClear({ confirm }, uid) {
+  if (confirm !== true) deny('请确认要清除全部记录');
+  const r = await db.collection(GROWTH).where({ owner: uid }).remove();
+  return { removed: (r && r.stats && r.stats.removed) || 0 };
+}
+
+/* ---------- 我的球拍：球拍档案 + 穿线 / 维护记录（只有本人可见） ----------
+ * 集合 rackets、racket_logs（都是仅管理端可读写，不在网关白名单里）。owner = 本人用户 ID，只由云端写入；
+ * 记录的 racketId 只能指向本人的球拍。别人的球拍 / 记录按「不存在」处理。 */
+const RACKETS = 'rackets', RLOGS = 'racket_logs';
+const racketView = (d) => ({
+  id: d._id, no: d.no || 0, brand: d.brand, model: d.model, bought: d.bought || '', status: d.status,
+  tags: d.tags || [], remind: d.remind || {}, createdAt: tsOf(d),
+}); // 以前版本留下的 photo / photoState / photoRequest / photoTrace 不下发（球拍改成按配色画的示意图，没有照片）
+const rlogView = (d) => ({
+  id: d._id, racketId: d.racketId, kind: d.kind, date: d.date, item: d.item || '', main: d.main || null, cross: d.cross || null,
+  mains: d.mains || 0, crosses: d.crosses || 0, cost: typeof d.cost === 'number' ? d.cost : null, feel: d.feel || 0, tags: d.tags || [], createdAt: tsOf(d),
+});
+async function ownDoc(col, id, uid, what) {
+  const d = typeof id === 'string' && id ? await getDoc(col, id) : null;
+  if (!d || d.owner !== uid) deny(`${what}不存在，可能已被删除`);
+  return d;
+}
+async function racketList(_d, uid) {
+  const [rackets, logs] = await Promise.all([allDocs(RACKETS, { owner: uid }), allDocs(RLOGS, { owner: uid })]);
+  return {
+    rackets: rackets.map(racketView).sort((a, b) => a.no - b.no),
+    logs: logs.map(rlogView),
+  };
+}
+async function racketSave({ id, racket }, uid) {
+  const c = K.cleanRacket(racket, today());
+  if (!c.ok) deny(c.msg);
+  if (id) {
+    await ownDoc(RACKETS, id, uid, '球拍');
+    await db.collection(RACKETS).doc(id).update({ data: Object.assign({}, c.rec, { remind: _.set(c.rec.remind), updatedAt: db.serverDate() }) });
+    return { id };
+  }
+  const mine = await allDocs(RACKETS, { owner: uid });
+  if (mine.length >= K.MAX_RACKETS) deny(`最多记录 ${K.MAX_RACKETS} 支球拍，请先删除不用的`);
+  const no = mine.reduce((m, r) => Math.max(m, r.no || 0), 0) + 1; // 自动编号：「N 号拍」
+  const r = await db.collection(RACKETS).add({ data: Object.assign({ owner: uid, no }, c.rec, { createdAt: db.serverDate() }) });
+  return { id: r._id, no };
+}
+// 删除球拍：连同它的穿线 / 维护记录一起删除
+async function racketRemove({ id }, uid) {
+  const doc = await ownDoc(RACKETS, id, uid, '球拍');
+  const r = await db.collection(RLOGS).where({ owner: uid, racketId: id }).remove();
+  await db.collection(RACKETS).doc(id).remove();
+  await removeFiles([doc.photo]); // 以前版本上传的球拍照片（现在没有照片了）一起删
+  return { removed: 1, logs: (r && r.stats && r.stats.removed) || 0 };
+}
+async function racketLogSave({ id, racketId, log }, uid) {
+  const c = K.cleanLog(log, today());
+  if (!c.ok) deny(c.msg);
+  if (id) {
+    const old = await ownDoc(RLOGS, id, uid, '记录');
+    if (old.kind !== c.rec.kind) deny('记录类型不能修改');
+    await ownDoc(RACKETS, old.racketId, uid, '球拍');
+    await db.collection(RLOGS).doc(id).update({ data: Object.assign({}, c.rec, { main: _.set(c.rec.main), cross: c.rec.cross ? _.set(c.rec.cross) : null, updatedAt: db.serverDate() }) });
+    return { id };
+  }
+  await ownDoc(RACKETS, racketId, uid, '球拍');
+  const n = (await db.collection(RLOGS).where({ owner: uid }).count()).total;
+  if (n >= K.MAX_LOGS) deny(`最多保存 ${K.MAX_LOGS} 条记录，请先删除一些旧记录`);
+  const r = await db.collection(RLOGS).add({ data: Object.assign({ owner: uid, racketId }, c.rec, { createdAt: db.serverDate() }) });
+  return { id: r._id };
+}
+async function racketLogRemove({ id }, uid) {
+  await ownDoc(RLOGS, id, uid, '记录');
+  await db.collection(RLOGS).doc(id).remove();
+  return { removed: 1 };
+}
+// 清除本人的全部球拍和记录（不可恢复）
+async function racketClear({ confirm }, uid) {
+  if (confirm !== true) deny('请确认要清除全部球拍数据');
+  const photos = (await allDocs(RACKETS, { owner: uid })).map((r) => r.photo).filter(Boolean); // 以前版本上传的球拍照片
+  const logs = await db.collection(RLOGS).where({ owner: uid }).remove();
+  const rackets = await db.collection(RACKETS).where({ owner: uid }).remove();
+  await removeFiles(photos);
+  return { rackets: (rackets && rackets.stats && rackets.stats.removed) || 0, logs: (logs && logs.stats && logs.stats.removed) || 0 };
+}
+
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
-  // 微信消息推送（图片检测结果）：小程序端的调用都带 userInfo，不能冒充推送；trace_id 也从不下发给小程序端
+  // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；
+  // 真推送也带 userInfo（2026-11-18 线上日志：{"source":"wx_callback","userInfo":true}），不能按 userInfo 判断。
+  // 小程序端 / 开发者工具调用的 SOURCE 是 wx_client / wx_devtools 等，一律拒绝；trace_id 也从不下发给小程序端
   if (event && event.Event === 'wxa_media_check') {
     const source = String(cloud.getWXContext().SOURCE || '');
     const tags = source.split(',').map((x) => x.trim());

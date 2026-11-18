@@ -1,4 +1,4 @@
-// 水平分（类似 NTRP，保留两位小数，如 2.55 / 2.95 / 3.14）
+// 水平分（类似 NTRP）：内部按两位小数精确计算（如 2.55 / 2.95 / 3.14），界面上按 0.5 一档显示（2.5 / 3.0 / 3.5，见 fmt）
 //
 // 算法（参考 UTR 的「按局数」思路）：
 //   1. 每人有一个起始水平：自评水平，没有自评的默认 2.50
@@ -142,8 +142,10 @@ function canChallenge(myLevel, targetLevel) {
   return targetLevel >= round2(myLevel - CHALLENGE_DOWN);
 }
 
-const fmt = (x) => x.toFixed(2);
-const fmtDelta = (d) => (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d).toFixed(2);
+// 显示：等级四舍五入到 0.5 一档（3.03 → 3.0、3.27 → 3.5，2026-11-18 用户要求）；排序、比较、计算一律用精确值。
+// 涨跌只显示方向箭头，不显示数字（一场通常只动零点零几，和 0.5 一档的等级对不上）；没变化显示空
+const fmt = (x) => (Math.round(x * 2) / 2).toFixed(1);
+const fmtDelta = (d) => (d > 0 ? '↑' : d < 0 ? '↓' : '');
 
 module.exports = {
   DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, CHALLENGE_DOWN, SELF_LEVELS,

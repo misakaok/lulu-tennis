@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "添加球拍",
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false,
+  "usingComponents": {
+    "rk-art": "/components/rk-art/rk-art"
+  }
+}

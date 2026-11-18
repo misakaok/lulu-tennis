@@ -145,20 +145,19 @@ test('名称为空时创建和编辑都不提交', async () => {
   assert.strictEqual(submitted, 0); assert.strictEqual(p.data.saving, false); assert.strictEqual(e.data.saving, false);
 });
 
-test('分享范围：球员主页、总结和挑战没有分享回调并关闭分享配置；活动分享保留活动名称', () => {
+test('分享范围：球员主页和挑战没有分享回调并关闭分享配置；活动分享保留活动名称；赛季总结页已删除', () => {
   const deps = { '../../utils/db': {}, '../../utils/cloud': {} };
   const wx = {};
   const pl = load('pages/player/player.js', wx, 'Page', deps);
   assert.strictEqual(pl.onShareAppMessage, undefined);
-  const su = load('pages/summary/summary.js', wx, 'Page', deps);
-  assert.strictEqual(su.onShareAppMessage, undefined);
   const ch = load('pages/challenge/challenge.js', wx, 'Page', deps);
   assert.strictEqual(ch.onShareAppMessage, undefined);
   const dv = load('pages/draw-view/draw-view.js', wx, 'Page', deps);
   dv.id = 'd1'; dv.data.draw = { title: '周末球友赛' }; dv.data.signing = true;
   assert.strictEqual(dv.onShareAppMessage().title, '周末球友赛 开始报名啦，点击报名');
   assert.ok(/open-type="share"/.test(fs.readFileSync(path.resolve(__dirname, '..', 'pages/draw-view/draw-view.wxml'), 'utf8')));
-  for (const p of ['player', 'summary', 'challenge']) {
+  assert.ok(!fs.existsSync(path.resolve(__dirname, '..', 'pages/summary')) && JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'app.json'), 'utf8')).pages.indexOf('pages/summary/summary') < 0);
+  for (const p of ['player', 'challenge']) {
     const j = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'pages', p, p + '.json'), 'utf8'));
     assert.strictEqual(j.enableShareAppMessage, false, p); assert.strictEqual(j.enableShareTimeline, false, p);
   }

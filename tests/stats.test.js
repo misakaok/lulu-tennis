@@ -12,6 +12,15 @@ const test = (name, fn) => T.push({ name, fn });
 const m = (id, a, b, aIds, bIds, winner, ga, gb, date) => ({ _id: id, a, b, aIds, bIds, winner, sets: [{ a: ga, b: gb }], date, createdAt: id.length });
 const profiles = (list) => { const o = {}; list.forEach((p) => { if (p.uid) o[p.uid] = p; }); return o; };
 
+test('等级显示：按 0.5 一档四舍五入（内部精确值不变）；涨跌只显示箭头', () => {
+  const cases = [[3.03, '3.0'], [2.93, '3.0'], [2.55, '2.5'], [2.74, '2.5'], [2.75, '3.0'], [3.24, '3.0'], [3.25, '3.5'], [2.5, '2.5'], [1.0, '1.0'], [7.0, '7.0']];
+  for (const [x, t] of cases) assert.strictEqual(R.fmt(x), t, String(x));
+  R.SELF_LEVELS.forEach((l) => assert.strictEqual(R.fmt(l.v), l.v.toFixed(1)));
+  assert.deepStrictEqual([R.fmtDelta(0.03), R.fmtDelta(-0.07), R.fmtDelta(0)], ['↑', '↓', '']);
+  const r = R.computeRatings([m('x1', ['A'], ['B'], [], [], 'a', 6, 4, '2026-11-01')], {});
+  assert.ok(r.players.A.level !== 2.5 && R.fmt(r.players.A.level) === '2.5', '内部仍是两位小数，显示按档');
+});
+
 test('两个账号同名：统计分开，各自主页只有自己的比赛', () => {
   // fetchPlayersFull 对同名账号会合并成一条 ambiguous（uid 为空）
   const players = [{ name: 'Sam', uid: '', ambiguous: true, self: true }, { name: 'Bob', uid: 'bob', self: true, level: 3 }];

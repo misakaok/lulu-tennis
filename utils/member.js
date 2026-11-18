@@ -44,11 +44,12 @@ async function fetchStatus() {
     if (r.status === 'active') wx.setStorageSync('member_ok_at', Date.now()); else clearProtected();
   } catch (e) {}
   applyBadge(r);
+  if (r.status === 'active') require('./rackets').refreshBadge(); // 球拍穿线 / 维护到期提醒（只在确认是正式成员后查）
   return r;
 }
 
 // 管理员：有新的加入申请待审核时，底部「我的」上显示红点（处理完自动消失）。当前不在 tab 页时设置会失败，忽略即可
-const ME_TAB = 3;
+const ME_TAB = 4; // 底部第 5 个（活动、战绩、排行、球拍、我的）
 function applyBadge(r) {
   try {
     const n = r && r.isAdmin && r.status === 'active' ? r.pendingApply || 0 : 0;

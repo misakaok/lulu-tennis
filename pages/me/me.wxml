@@ -1,20 +1,45 @@
 <view class="page">
-  <player-home id="home" uid="{{myId}}" />
+  <player-home id="home" uid="{{myId}}" mine />
 
-  <view wx:if="{{isAdmin}}" class="card admin" hover-class="tap-on" bindtap="openMembers"><text class="ad-t">成员管理</text><text wx:if="{{pendingApply}}" class="ad-n">{{pendingApply}} 个新申请待审核</text><text class="ad-s">{{pendingApply ? '' : '审核申请、邀请、移除成员（仅管理员可见）'}}</text><text class="td-go">›</text></view>
-
-  <view class="card todo" hover-class="tap-on" bindtap="openTodo">
-    <view class="td-head"><text class="td-t">我的待办</text><text wx:if="{{todo.count}}" class="td-n">{{todo.count}}</text><text class="td-go">›</text></view>
-    <view wx:if="{{todo && todo.next}}" class="td-next">下一场：{{todo.next.title}} · {{todo.next.stage}} vs {{todo.next.opp}}<text class="td-when">{{todo.next.when}} · {{todo.next.venue}}</text></view>
-    <view wx:if="{{todo && todo.lines.length}}" class="td-lines"><text wx:for="{{todo.lines}}" wx:key="*this" class="td-chip">{{item}}</text></view>
-    <view wx:elif="{{todo}}" class="td-none">没有待办</view>
+  <!-- 成长档案：只有自己看得到的私人记录，和正式战绩分开统计 -->
+  <view class="card gw" hover-class="tap-on" bindtap="openGrowth">
+    <view class="hd">
+      <view class="hd-ic">📈</view>
+      <view class="hd-m">
+        <view class="hd-t">我的成长档案</view>
+        <view class="hd-s">🔒 仅自己可见 · 和正式战绩分开统计</view>
+      </view>
+      <text class="me-go">›</text>
+    </view>
+    <block wx:if="{{gw.played}}">
+      <view class="gw-nums">
+        <view class="gn"><text class="gn-n">{{gw.played}}</text><text class="gn-l">记录场数</text></view>
+        <view class="gn"><text class="gn-n">{{gw.rate}}<text class="gn-u">%</text></text><text class="gn-l">胜率</text></view>
+        <view class="gn"><text class="gn-n">{{gw.month}}</text><text class="gn-l">本月</text></view>
+      </view>
+      <view class="gw-chart">
+        <view wx:for="{{gw.trend}}" wx:key="ym" class="gc">
+          <view class="gc-box"><view class="gc-bar {{index === 5 ? 'now' : ''}}" style="height:{{item.h}}%"></view></view>
+          <text class="gc-l {{index === 5 ? 'now' : ''}}">{{item.label}}</text>
+        </view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="gw-empty">记录约球、练习赛，看自己的胜率和每月走势</view>
+      <view class="btn-line gw-add" hover-class="tap-on" catchtap="addGrowth">记第一场</view>
+    </block>
   </view>
 
-  <view class="card">
-    <view class="card-title">比赛等级怎么算</view>
-    <view wx:for="{{rules}}" wx:key="*this" class="rule"><text class="rule-dot">{{index + 1}}</text><text class="rule-t">{{item}}</text></view>
-    <view class="link" bindtap="goRank">去排行榜看看 ›</view>
+  <!-- 成员管理：仅管理员，放在最下面 -->
+  <view wx:if="{{isAdmin}}" class="card adm" hover-class="tap-on" bindtap="openMembers">
+    <view class="hd">
+      <view class="hd-ic">👥</view>
+      <view class="hd-m">
+        <view class="hd-t">成员管理<text class="ui-tag adm-only">仅管理员</text></view>
+        <view class="hd-s {{pendingApply ? 'warn' : ''}}">{{pendingApply ? pendingApply + ' 个新申请等你审核' : '审核申请、邀请、移除成员'}}</view>
+      </view>
+      <text wx:if="{{pendingApply}}" class="adm-n">{{pendingApply}}</text>
+      <text class="me-go">›</text>
+    </view>
   </view>
-
-  <view wx:if="{{myId}}" class="diag" bindtap="copyMyId">我的用户 ID：尾号 {{myIdTail}} · 点击复制</view>
 </view>
