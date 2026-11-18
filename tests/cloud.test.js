@@ -1137,6 +1137,49 @@ test('照片：换新照片通过后删旧照片；检测中又换一张，旧�
   assert.strictEqual(env.coll('players').p_alice.photo, '');
   assert.ok(env.deletedFiles.includes(frozen(env, pf('alice', 'v3'))));
 });
+test('照片：检测结果比检测记录先到也不会丢——pass 照常公开，risky 照常不公开', async () => {
+  const env = setup();
+  // 推送先到：先存成 early-<trace_id>，setPhoto 写完记录后接着处理
+  assert.strictEqual(await env.push({ trace_id: 'trace1', result: { suggest: 'pass', label: 100 } }), 'success');
+  assert.strictEqual(env.coll('avatar_checks')['early-trace1'].result, 'pass');
+  const r = ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'e1') }));
+  assert.strictEqual(r.state, '');
+  assert.strictEqual(env.coll('players').p_alice.photo, frozen(env, pf('alice', 'e1')));
+  assert.strictEqual(env.coll('avatar_checks').trace1.status, 'pass');
+  assert.ok(!env.coll('avatar_checks')['early-trace1'], '暂存的结果处理完就删掉');
+  assert.strictEqual(ok(await env.call('bob', 'dataset', {})).players.find((p) => p._openid === 'alice').photo, frozen(env, pf('alice', 'e1')), '其他球友看得到');
+  assert.strictEqual(ok(await env.call('alice', 'myPhoto')).state, '');
+  // 不通过的结果先到：不公开，删掉检测副本，保留原来的照片
+  await env.push({ trace_id: 'trace2', result: { suggest: 'risky', label: 20002 } });
+  const r2 = ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'e2') }));
+  assert.strictEqual(r2.state, 'reject');
+  assert.strictEqual(env.coll('players').p_alice.photo, frozen(env, pf('alice', 'e1')));
+  assert.ok(env.deletedFiles.includes(frozen(env, pf('alice', 'e2'))));
+  assert.strictEqual(ok(await env.call('alice', 'myPhoto')).state, 'reject');
+  // 伪造的 early- 前缀不处理
+  assert.strictEqual(await env.push({ trace_id: 'early-trace9', result: { suggest: 'pass' } }), 'success');
+  assert.ok(!env.coll('avatar_checks')['early-early-trace9']);
+});
+test('照片：检测超过 1 小时没结果判为出错，删掉检测副本；晚到的 pass 不再公开，可以重新上传', async () => {
+  const env = setup();
+  ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'old') }));
+  await env.push({ trace_id: 'trace1', result: { suggest: 'pass' } });
+  ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'lost') }));
+  const snap = frozen(env, pf('alice', 'lost'));
+  assert.strictEqual(ok(await env.call('alice', 'myPhoto')).state, 'checking', '1 小时内仍是检测中');
+  env.coll('avatar_checks').trace2.at = Date.now() - 61 * 60 * 1000;
+  const m = ok(await env.call('alice', 'myPhoto'));
+  assert.strictEqual(m.state, 'error');
+  assert.strictEqual(m.pendingUrl, '', '不再给本人显示检测中的照片');
+  assert.ok(m.url, '原来通过的照片照常显示');
+  assert.ok(env.deletedFiles.includes(snap));
+  assert.strictEqual(env.coll('players').p_alice.photoTrace, '');
+  await env.push({ trace_id: 'trace2', result: { suggest: 'pass' } });
+  assert.strictEqual(env.coll('players').p_alice.photo, frozen(env, pf('alice', 'old')), '晚到的结果不生效');
+  ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'again') }));
+  await env.push({ trace_id: 'trace3', result: { suggest: 'pass' } });
+  assert.strictEqual(env.coll('players').p_alice.photo, frozen(env, pf('alice', 'again')));
+});
 test('照片：只认本人 avatars/ 目录、当前环境；检测提交失败不保存；没资料不能传；每天有次数上限', async () => {
   const env = setup();
   for (const f of [pf('bob', 'a'), 'cloud://env2.x/avatars/alice/a.jpg', 'cloud://env1.x/event-photos/alice/a.jpg', 'cloud://env1.x/avatars/alice/../bob/a.jpg', pf('alice', 'a').replace('.jpg', '.png'), 'https://x/a.jpg', 123]) {
@@ -1241,7 +1284,30 @@ test('照片：并发重复提交只检测一次；客户端来源或 userInfo �
   for (const userInfo of [null, false, {}]) no(await env.fn.main({ Event: 'wxa_media_check', trace_id: 'trace1', userInfo, result: { suggest: 'pass' } }));
   env.source = 'wx_client';
   no(await env.fn.main({ Event: 'wxa_media_check', trace_id: 'trace1', result: { suggest: 'pass' } }));
+  env.source = 'wx_client,wx_callback';
+  no(await env.fn.main({ Event: 'wxa_media_check', trace_id: 'trace1', result: { suggest: 'pass' } }));
+  env.source = '';
+  no(await env.fn.main({ Event: 'wxa_media_check', trace_id: 'trace1', result: { suggest: 'pass' } }));
   assert.ok(!env.coll('players').p_alice.photo);
+});
+test('照片：线上真实推送（SOURCE = wx_callback，带 userInfo）能发布照片', async () => {
+  const env = setup();
+  ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'real') }));
+  env.source = 'wx_callback';
+  env.openid = '';
+  assert.strictEqual(await env.fn.main({ Event: 'wxa_media_check', MsgType: 'event', trace_id: 'trace1', userInfo: { appId: 'wxapp', openId: '' }, result: { suggest: 'pass', label: 100 } }), 'success');
+  assert.ok(/player-photos\/alice\//.test(env.coll('players').p_alice.photo));
+  assert.strictEqual(env.coll('avatar_checks').trace1.status, 'pass');
+});
+test('照片：推送的上下文里没有环境 ID 时，通过的照片照样发布（不会当成路径不对删掉）', async () => {
+  const env = setup();
+  ok(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'noenv') }));
+  env.env = '';
+  await env.push({ trace_id: 'trace1', result: { suggest: 'pass', label: 100 } });
+  env.env = undefined;
+  assert.ok(/player-photos\/alice\//.test(env.coll('players').p_alice.photo));
+  assert.strictEqual(env.coll('avatar_checks').trace1.status, 'pass');
+  assert.ok(!env.removed || !env.removed.some((f) => f === env.coll('players').p_alice.photo));
 });
 
 test('照片：回调数据库故障向上传递以便重试；重试后仍能发布', async () => {

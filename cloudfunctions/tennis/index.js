@@ -555,15 +555,17 @@ const PHOTO_DIR = 'avatars';
 const PHOTO_URL_AGE = 30 * 60;      // 临时链接 30 分钟
 const PHOTO_DAY_MAX = 10;           // 每人 24 小时内最多提交 10 次检测
 const PHOTO_SCENE = 1;              // 检测场景：资料
-const PUSH_RETRY_MS = 1500;         // 检测结果比检测记录先到时，等一下再找
+const PHOTO_CHECK_MAX_MS = 60 * 60 * 1000; // 检测超过 1 小时还没结果（微信漏推、结果丢失）：判为出错，让本人重新上传
+const EARLY = 'early-';             // 检测结果比检测记录先到时，先存在 avatar_checks 的 early-<trace_id>，setPhoto 写完记录后接着处理
 const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function photoPathOk(fileID, uid, dir = PHOTO_DIR) {
+// anyEnv：检测推送里用。推送不是小程序端调用，上下文里可能没有环境 ID；检测记录里的 fileID 是服务端自己复制出来的，
+// 提交时已经核对过环境，这里只核对目录和用户 ID（否则会把通过的照片当成路径不对而删掉）
+function photoPathOk(fileID, uid, dir = PHOTO_DIR, anyEnv = false) {
   if (typeof fileID !== 'string') return false;
-  const env = cloud.getWXContext().ENV || '';
+  const env = cloud.getWXContext().ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || '';
   const m = new RegExp(`^cloud://([^./]+)\\.[^/]+/${dir}/${escRe(uid)}/[\\w-]{1,64}\\.jpg$`).exec(fileID);
-  return !!m && !!env && m[1] === env;
+  return !!m && (anyEnv || (!!env && m[1] === env));
 }
 async function removeFiles(list) {
   const ids = list.filter(Boolean);
@@ -653,6 +655,7 @@ async function setPhoto({ fileID }, uid) {
     if (!photoPathOk(snapshot, uid, 'player-photos')) throw new Error('invalid snapshot');
     const url = (await tempUrls([snapshot]))[snapshot];
     if (url) trace = await submitMediaCheck(url, uid);
+    console.log('[照片检测提交]', JSON.stringify({ trace }));
     if (!trace) throw new Error('media check unavailable');
     const active = await photoTransaction(async (tx) => {
       const ref = tx.collection('players').doc(me._id);
@@ -666,6 +669,15 @@ async function setPhoto({ fileID }, uid) {
       return current;
     });
     if (!active) await removeFiles([snapshot]);
+    // 检测结果已经先到了（推送比上面的记录先写入）：现在补处理，结果不会丢
+    const early = await getPhotoCheck(EARLY + trace);
+    if (early) {
+      if (active) await settleCheck(trace, early.result, early.label);
+      try { await db.collection('avatar_checks').doc(EARLY + trace).remove(); } catch (e) {}
+      const now = await getPhotoCheck(trace);
+      if (now && now.status === 'pass') return { state: '', pending: snapshot };
+      if (now && now.status !== 'checking') return { state: now.status === 'replaced' ? '' : now.status };
+    }
     return active ? { state: 'checking', pending: snapshot } : { state: '' }; // pending：通过后会成为 players.photo 的那份（只给本人，前端用来认出「这就是我刚传的」）
   } catch (e) {
     await removeFiles([snapshot]);
@@ -681,15 +693,8 @@ async function getPhotoCheck(trace) {
     throw e;
   }
 }
-async function onMediaCheck(ev) {
-  const trace = ev.trace_id || ev.traceId;
-  if (typeof trace !== 'string' || !trace) return 'success';
-  let rec = await getPhotoCheck(trace);
-  for (let i = 0; !rec && i < 2; i++) { await sleep(PUSH_RETRY_MS); rec = await getPhotoCheck(trace); }
-  if (!rec || rec.status !== 'checking' || !rec.playerId || !rec.request) return 'success';
-  const res = ev.result || {};
-  const code = ev.errcode !== undefined ? ev.errcode : ev.errCode;
-  const status = code && code !== 0 ? 'error' : res.suggest === 'pass' ? 'pass' : 'reject';
+// 处理一次检测结果（推送到达，或 setPhoto 发现结果已经先到）：只处理仍在 checking 的记录
+async function settleCheck(trace, status, label) {
   const files = await photoTransaction(async (tx) => {
     const check = tx.collection('avatar_checks').doc(trace);
     const c = (await check.get()).data;
@@ -697,20 +702,59 @@ async function onMediaCheck(ev) {
     const ref = tx.collection('players').doc(c.playerId);
     const p = (await ref.get()).data;
     const current = p && p.self && p._openid === c.uid && p.photoRequest === c.request && p.photoTrace === trace;
-    const publish = current && status === 'pass' && photoPathOk(c.fileID, c.uid, 'player-photos');
-    await check.update({ data: { status: current ? status : 'replaced', label: Number(res.label) || 0, checkedAt: db.serverDate() } });
+    const publish = current && status === 'pass' && photoPathOk(c.fileID, c.uid, 'player-photos', true);
+    console.log('[照片检测处理]', JSON.stringify({ trace, status, current: !!current, publish: !!publish }));
+    await check.update({ data: { status: current ? status : 'replaced', label: Number(label) || 0, checkedAt: db.serverDate() } });
     if (current) await ref.update({ data: Object.assign({ photoTrace: '', updatedAt: db.serverDate() }, publish ? { photo: c.fileID } : {}) });
     return publish ? [p.photo].filter((f) => f && f !== c.fileID) : [c.fileID];
   });
   await removeFiles(files);
+}
+async function onMediaCheck(ev) {
+  const trace = ev.trace_id || ev.traceId;
+  if (typeof trace !== 'string' || !trace || trace.indexOf(EARLY) === 0) return 'success';
+  const res = ev.result || {};
+  const code = ev.errcode !== undefined ? ev.errcode : ev.errCode;
+  const status = code && code !== 0 ? 'error' : res.suggest === 'pass' ? 'pass' : 'reject';
+  const label = Number(res.label) || 0;
+  let rec = await getPhotoCheck(trace);
+  console.log('[照片检测记录]', JSON.stringify({ trace, found: !!rec, state: rec ? rec.status : '' }));
+  if (!rec) {
+    // 记录还没写入（setPhoto 刚拿到 trace_id）：先把结果存下来，setPhoto 写完记录后会接着处理。
+    // 存完再查一次：期间 setPhoto 已经写好记录的，这里直接处理（两边重复处理时，第二次因为不再是 checking 而跳过）
+    await db.collection('avatar_checks').doc(EARLY + trace).set({ data: { status: 'early', result: status, label, at: Date.now(), createdAt: db.serverDate() } });
+    rec = await getPhotoCheck(trace);
+    if (!rec) return 'success';
+  }
+  if (rec.status !== 'checking' || !rec.playerId || !rec.request) return 'success';
+  await settleCheck(trace, status, label);
   return 'success';
+}
+
+// 检测中超过 PHOTO_CHECK_MAX_MS 还没结果：判为出错，删掉检测用的副本（晚到的结果因为不再是 checking 被忽略）
+async function expireCheck(c) {
+  const files = await photoTransaction(async (tx) => {
+    const check = tx.collection('avatar_checks').doc(c._id);
+    const cur = (await check.get()).data;
+    if (!cur || cur.status !== 'checking') return [];
+    await check.update({ data: { status: 'error', timedOut: true, checkedAt: db.serverDate() } });
+    const ref = tx.collection('players').doc(cur.playerId);
+    const p = (await ref.get()).data;
+    if (p && p.photoTrace === c._id) await ref.update({ data: { photoTrace: '', updatedAt: db.serverDate() } });
+    return [cur.fileID];
+  });
+  await removeFiles(files);
 }
 
 // 本人看自己的照片和最近一次提交的检测状态（检测中的照片只有本人能看到预览）
 async function myPhoto(_d, uid) {
   const me = await profileOf(uid);
   const photo = (me && me.photo) || '';
-  const last = (await db.collection('avatar_checks').where({ uid, request: (me && me.photoRequest) || '' }).orderBy('at', 'desc').orderBy('createdAt', 'desc').limit(1).get()).data[0] || null;
+  let last = (await db.collection('avatar_checks').where({ uid, request: (me && me.photoRequest) || '' }).orderBy('at', 'desc').orderBy('createdAt', 'desc').limit(1).get()).data[0] || null;
+  if (last && last.status === 'checking' && Date.now() - (last.at || 0) > PHOTO_CHECK_MAX_MS) {
+    await expireCheck(last);
+    last = await getPhotoCheck(last._id);
+  }
   const state = last && (last.status === 'checking' || last.status === 'reject' || last.status === 'error') ? last.status : '';
   const pending = state === 'checking' ? last.fileID : '';
   const urls = await tempUrls([photo, pending].filter(Boolean));
@@ -1848,8 +1892,16 @@ const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, cr
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：小程序端的调用都带 userInfo，不能冒充推送；trace_id 也从不下发给小程序端
   if (event && event.Event === 'wxa_media_check') {
-    if (Object.prototype.hasOwnProperty.call(event, 'userInfo') || String(cloud.getWXContext().SOURCE || '').split(',').some((source) => /^wx_(client|devtools|localdebug)$/.test(source.trim()))) return { ok: false, error: '未知操作' };
-    return onMediaCheck(event); // 数据库故障交由平台重试，不吞掉尚未提交的结果
+    const source = String(cloud.getWXContext().SOURCE || '');
+    const tags = source.split(',').map((x) => x.trim());
+    if (!tags.includes('wx_callback') || tags.some((x) => /^wx_(client|devtools|localdebug)$/.test(x))) {
+      console.warn('[照片检测推送] 已拒绝：不是微信推送', JSON.stringify({ source, userInfo: Object.prototype.hasOwnProperty.call(event, 'userInfo') }));
+      return { ok: false, error: '未知操作' };
+    }
+    // 排查用：只记 trace_id 和结果，不记用户 ID
+    console.log('[照片检测推送]', JSON.stringify({ trace: event.trace_id || event.traceId || '', suggest: (event.result || {}).suggest || '', label: (event.result || {}).label || 0, errcode: event.errcode !== undefined ? event.errcode : event.errCode, source }));
+    try { return await onMediaCheck(event); } // 数据库故障交由平台重试，不吞掉尚未提交的结果
+    catch (e) { console.error('[照片检测处理出错]', e && (e.errMsg || e.message), e && e.stack); throw e; }
   }
   const { OPENID } = cloud.getWXContext();
   const fn = ACTIONS[event && event.action];

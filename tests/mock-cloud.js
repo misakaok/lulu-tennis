@@ -115,8 +115,13 @@ module.exports = function createEnv() {
     env.queries = 0;
     return env.fn.main(Object.assign({ action }, data || {}));
   };
-  // 模拟微信消息推送（没有 action、没有 userInfo）
-  env.push = async (msg) => { env.openid = ''; return env.fn.main(Object.assign({ Event: 'wxa_media_check', MsgType: 'event' }, msg)); };
+  // 模拟微信消息推送：和线上一致，SOURCE = wx_callback，事件里也带 userInfo，没有 action
+  env.push = async (msg) => {
+    const before = env.source;
+    env.openid = ''; env.source = 'wx_callback';
+    try { return await env.fn.main(Object.assign({ Event: 'wxa_media_check', MsgType: 'event', userInfo: { appId: 'wxapp' } }, msg)); }
+    finally { env.source = before; }
+  };
   // 常用初始数据：几位正式成员（含本人资料），并标记旧记录已迁移
   env.members = (list) => {
     env.put('verified', { _id: '__legacy_migrated__' });
