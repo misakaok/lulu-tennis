@@ -12,14 +12,21 @@ function clearProtected() {
   } catch (e) {}
 }
 
+// 页面参数拼回查询串（onLoad 拿到的参数已经解码过，这里重新编码）
+function queryOf(options) {
+  const q = Object.keys(options || {}).map((k) => encodeURIComponent(k) + '=' + encodeURIComponent(options[k])).join('&');
+  return q ? '?' + q : '';
+}
+
 let kicking = false;
 function kickout(status) {
   clearProtected();
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
-  const cur = pages.length ? pages[pages.length - 1].route : '';
+  const page = pages.length ? pages[pages.length - 1] : null;
+  const cur = page ? page.route : '';
   if (cur === 'pages/gate/gate' || kicking) return;
   kicking = true;
-  if (cur && cur !== 'pages/gate/gate') { try { wx.setStorageSync('after_gate', '/' + cur); } catch (e) {} }
+  if (cur) { try { wx.setStorageSync('after_gate', '/' + cur + queryOf(page.options)); } catch (e) {} } // 带上参数：从分享的活动链接进来，加入后回到那个活动
   wx.reLaunch({ url: GATE + (status ? '?status=' + status : ''), complete: () => { kicking = false; } });
 }
 

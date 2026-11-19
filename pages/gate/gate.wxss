@@ -8,4 +8,4 @@
 .g-foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 30rpx; }
 .g-id { text-align: center; font-size: 21rpx; color: #6E6EA3; margin-top: 16rpx; }
 .g-code { margin-bottom: 16rpx; }
-.g-switch { text-align: center; font-size: 25rpx; color: #6E6EA3; margin-top: 26rpx; text-decoration: underline; }
+.g-switch { margin-top: 24rpx; }

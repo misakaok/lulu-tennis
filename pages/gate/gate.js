@@ -66,17 +66,18 @@ Page({
     if (this.preview) { wx.showToast({ title: '预览模式，不会提交', icon: 'none' }); return; }
     const code = this.data.invite || (this.data.code || '').replace(/\s+/g, '').toLowerCase(); // 邀请码是小写字母数字，容忍手动输入时的空格和大写
     if (!code) { wx.showToast({ title: '请填写邀请码', icon: 'none' }); return; }
+    if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的称呼', icon: 'none' }); return; }
     this.setData({ busy: true });
     try { await cloud.call('acceptInvite', { code, name: this.data.name }); await this.load(); if (this.data.status === 'active') this.enter(); } // 邀请码有效就直接成为正式成员并进入小程序，不需要管理员审核，也不用再点一次
     catch (e) { wx.showModal({ title: '无法加入', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },
+  // 回到被拦下时的页面（带参数，见 utils/member.js 的 kickout）；没有就去活动 tab。打不开时也退回活动 tab
   enter() {
     let to = '';
     try { to = wx.getStorageSync('after_gate') || ''; wx.removeStorageSync('after_gate'); } catch (e) {}
-    const tabs = ['/pages/draw/draw', '/pages/index/index', '/pages/rank/rank', '/pages/me/me'];
-    if (!to || tabs.indexOf(to) >= 0) wx.reLaunch({ url: to || '/pages/draw/draw' });
-    else wx.reLaunch({ url: to });
+    const home = '/pages/draw/draw';
+    wx.reLaunch({ url: to || home, fail: () => { if (to) wx.reLaunch({ url: home }); } });
   },
   onShareAppMessage() { return { title: 'LULU网球', path: '/pages/gate/gate' }; }, // 分享出去也只能看到准入页
 });

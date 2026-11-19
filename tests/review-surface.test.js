@@ -77,9 +77,9 @@ T.push({ name: '所有注册页面和组件：没有多行文字框和可输入�
   app.pages.forEach((page) => inspect(path.join(root, page)));
 } });
 
-T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、种子、抽签、赛程、决赛、晋级等）', fn() {
+T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、种子、抽签、赛程、决赛、晋级等）和社交圈子用语（球友圈、社区、交友等）', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  const banned = /小组赛|淘汰赛|签表|种子|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事/; // 「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
+  const banned = /小组赛|淘汰赛|签表|种子|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事|球友圈|圈子|社区|社群|交友/; // 「球友圈」2026-11-19 未过审核；「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
   const seen = new Set();
   const inspect = (base) => {
     if (seen.has(base)) return;

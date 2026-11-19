@@ -836,18 +836,22 @@ test('邀请码：过期 / 撤销的不会被占用', async () => {
   env.put('invites', { _id: 'old', usedBy: '', revoked: false, expiresAt: Date.now() - 1000 });
   env.put('invites', { _id: 'rev', usedBy: '', revoked: true, expiresAt: Date.now() + 1e6 });
   env.put('invites', { _id: 'good', usedBy: '', revoked: false, expiresAt: Date.now() + 1e6 });
-  no(await env.call('x1', 'acceptInvite', { code: 'old' }), /过期/);
+  no(await env.call('x1', 'acceptInvite', { code: 'old', name: '新人' }), /过期/);
   assert.strictEqual(env.coll('invites').old.usedBy, '');
-  no(await env.call('x1', 'acceptInvite', { code: 'rev' }), /过期/);
-  ok(await env.call('x1', 'acceptInvite', { code: 'good' }));
+  no(await env.call('x1', 'acceptInvite', { code: 'rev', name: '新人' }), /过期/);
+  no(await env.call('x1', 'acceptInvite', { code: 'good', name: '  ' }), /称呼/); // 称呼必填，没填不占用邀请码
+  assert.strictEqual(env.coll('invites').good.usedBy, '');
+  ok(await env.call('x1', 'acceptInvite', { code: 'good', name: '新人' }));
+  assert.strictEqual(env.coll('members').x1.name, '新人');
   assert.strictEqual(env.coll('members').x1.status, 'active');
-  no(await env.call('x2', 'acceptInvite', { code: 'good' }), /已被使用/);  // 已经提交过申请、还在等审核的人：用邀请码直接成为正式成员，不需要管理员再审核
+  no(await env.call('x2', 'acceptInvite', { code: 'good', name: '另一人' }), /已被使用/);  // 已经提交过申请、还在等审核的人：用邀请码直接成为正式成员，不需要管理员再审核
   env.put('invites', { _id: 'good2', usedBy: '', revoked: false, expiresAt: Date.now() + 1e6 });
   ok(await env.call('x3', 'applyMember', { name: '审核员' }));
   assert.strictEqual(env.coll('members').x3.status, 'pending');
   no(await env.call('x3', 'ping', {}), /./);
-  ok(await env.call('x3', 'acceptInvite', { code: 'good2' }));
+  ok(await env.call('x3', 'acceptInvite', { code: 'good2' })); // 申请时填过称呼，接受邀请时可以不再填
   assert.strictEqual(env.coll('members').x3.status, 'active');
+  assert.strictEqual(env.coll('members').x3.name, '审核员');
   ok(await env.call('x3', 'ping', {}));
 });
 test('日期：默认日期按北京时间（UTC 早上也不会变成前一天）', async () => {

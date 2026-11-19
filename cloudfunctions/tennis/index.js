@@ -1652,7 +1652,8 @@ async function acceptInvite({ code, name }, uid) {
   if (typeof code !== 'string' || !code) deny('邀请码无效');
   const m = await memberOf(uid);
   if (m.status === 'active') return { status: 'active' };
-  const nm = typeof name === 'string' ? name.trim().slice(0, 20) : '';
+  const nm = (typeof name === 'string' ? name.trim().slice(0, 20) : '') || m.name || ''; // 没填时沿用申请时填过的称呼
+  if (!nm) deny('请填写你的称呼，方便管理员确认');
   await requireSafeText(nm, uid, '称呼'); // 先检测再占用邀请码：检测不过时邀请码还能用
   // 过期、撤销的条件放进同一个原子更新里：失效的邀请码不会被占用
   const r = await db.collection('invites').where({ _id: code, usedBy: '', revoked: false, expiresAt: _.gt(Date.now()) }).update({ data: { usedBy: uid, usedAt: db.serverDate() } });
