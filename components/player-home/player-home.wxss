@@ -57,23 +57,22 @@
 .row-t { display: flex; justify-content: space-between; align-items: center; }
 .more { font-size: 24rpx; color: #6E6EA3; font-weight: 500; }
 .muted { color: #A5A5BA; font-size: 24rpx; }
-.mr { display: flex; align-items: center; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; }
+/* 每行三层：日期 + 名称 → 对手（左）和胜负、比分（右）同一行居中对齐 → 亮点标签 */
+.mr { padding: 20rpx 0; border-top: 1rpx solid #F2F2F8; }
 .mr:first-of-type { border-top: 0; }
-.mr-l { flex: 1; min-width: 0; }
-.mr-top { display: flex; align-items: center; font-size: 21rpx; color: #A5A5BA; }
+.mr-top { display: flex; align-items: center; font-size: 21rpx; line-height: 1.4; color: #A5A5BA; }
+.mr-main { display: flex; align-items: center; margin-top: 12rpx; }
 .mr-date { margin-right: 12rpx; }
 .mr-ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-ev.ev { color: #6E6EA3; font-weight: 600; }
-.mr-opp { margin-top: 4rpx; font-size: 27rpx; font-weight: 600; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-opp { flex: 1; min-width: 0; font-size: 27rpx; line-height: 40rpx; font-weight: 600; color: #1E1E32; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mr-pt { font-size: 21rpx; color: #A5A5BA; font-weight: 400; }
-/* 右侧一列：上面胜负标签，下面比分（+ 等级变化），整列右对齐，在整行里垂直居中 */
-.mr-r { flex: none; max-width: 300rpx; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; margin-left: 16rpx; }
+.mr-r { flex: none; display: flex; align-items: center; margin-left: 16rpx; }
 .mr-res { height: 36rpx; line-height: 36rpx; min-width: 52rpx; box-sizing: border-box; text-align: center; font-size: 20rpx; font-weight: 800; border-radius: 8rpx; padding: 0 10rpx; }
-.mr-sl { display: flex; align-items: center; margin-top: 8rpx; line-height: 1.3; }
 .mr-res.w { background: #e7f6ec; color: #2f8a52; }
 .mr-res.l { background: #f6eeee; color: #b34d4d; }
-.mr-sc { font-size: 24rpx; color: #4F4F7D; font-weight: 700; text-align: right; }
-.mr-d { margin-left: 10rpx; font-size: 22rpx; color: #8686A0; font-weight: 700; }
+.mr-sc { margin-left: 12rpx; font-size: 26rpx; line-height: 36rpx; color: #4F4F7D; font-weight: 700; }
+.mr-d { margin-left: 8rpx; font-size: 24rpx; line-height: 36rpx; color: #8686A0; font-weight: 700; }
 .mr-d.up { color: #2f8a52; }
 .mr-d.down { color: #b34d4d; }
 .pc-lv-lbl { display: flex; align-items: center; margin-bottom: 4rpx; }
@@ -138,7 +137,7 @@
 .tr-x { display: flex; justify-content: space-between; margin: 10rpx 0 0 64rpx; font-size: 20rpx; color: #A5A5BA; }
 
 .pt-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mr-tags { display: flex; flex-wrap: wrap; margin-top: 6rpx; }
+.mr-tags { display: flex; flex-wrap: wrap; margin-top: 10rpx; }
 .mr-tag { margin: 0 8rpx 4rpx 0; padding: 0 12rpx; font-size: 20rpx; }
 
 /* 苦主 / 福星 / 最佳拍档 */

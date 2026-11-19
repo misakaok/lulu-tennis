@@ -60,16 +60,16 @@
     <view class="card-title row-t"><text>我和 TA 的交手</text><text wx:if="{{h2h.played}}" class="h2h-sum">{{h2h.played}} 场 · 我 {{h2h.win}} 胜 {{h2h.lose}} 负</text></view>
     <view wx:if="{{!h2h.total}}" class="muted">还没有交手过</view>
     <view wx:for="{{h2h.rows}}" wx:key="id" class="mr" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
-      <view class="mr-l">
-        <view class="mr-top"><text class="mr-date">{{item.md}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-top"><text class="mr-date">{{item.md}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-main">
         <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
-        <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
+        <view class="mr-r">
+          <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
+          <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '我胜' : '我负'}}</text>
+          <text class="mr-sc">{{item.score}}</text>
+        </view>
       </view>
-      <view class="mr-r">
-        <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
-        <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '我胜' : '我负'}}</text>
-        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text></view>
-      </view>
+      <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
     <view wx:if="{{h2h.total > h2h.rows.length}}" class="h2h-more">只显示最近 {{h2h.rows.length}} 场，共 {{h2h.total}} 场</view>
   </view>
@@ -91,16 +91,16 @@
     <view class="card-title row-t"><text>近期比赛</text><text wx:if="{{total}}" class="more" bindtap="allHistory">全部 {{total}} 场 ›</text></view>
     <view wx:if="{{!recent.length}}" class="muted">还没有正式比赛记录</view>
     <view wx:for="{{recent}}" wx:key="id" class="mr ani-in" style="animation-delay:{{index * 40}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
-      <view class="mr-l">
-        <view class="mr-top"><text class="mr-date">{{item.md}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-top"><text class="mr-date">{{item.md}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-main">
         <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
-        <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
+        <view class="mr-r">
+          <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
+          <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
+          <text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
+        </view>
       </view>
-      <view class="mr-r">
-        <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
-        <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
-        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text></view>
-      </view>
+      <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
   </view>
 

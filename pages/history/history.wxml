@@ -8,16 +8,16 @@
   <view wx:if="{{!shown.length && !loading}}" class="muted">没有比赛记录</view>
   <view class="card list">
     <view wx:for="{{shown}}" wx:key="id" class="mr {{index < 12 ? 'ani-in' : ''}}" style="animation-delay:{{index < 12 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
-      <view class="mr-l">
-        <view class="mr-top"><text class="mr-date">{{item.date}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-top"><text class="mr-date">{{item.date}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
+      <view class="mr-main">
         <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
-        <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
+        <view class="mr-r">
+          <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
+          <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
+          <text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text>
+        </view>
       </view>
-      <view class="mr-r">
-        <text wx:if="{{item.outcomeTag}}" class="mr-res wo">{{item.outcomeTag}}</text>
-        <text wx:else class="mr-res {{item.win ? 'w' : 'l'}}">{{item.win ? '胜' : '负'}}</text>
-        <view class="mr-sl"><text class="mr-sc">{{item.score}}</text><text wx:if="{{item.delta}}" class="mr-d {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}">{{item.delta}}</text></view>
-      </view>
+      <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
   </view>
   <view class="foot">只列正式战绩；待对手确认的日常比赛在「战绩」页</view>
