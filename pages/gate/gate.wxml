@@ -9,21 +9,31 @@
   <block wx:if="{{!loading}}">
     <view wx:if="{{status === 'active'}}" class="btn-primary" hover-class="tap-on" bindtap="enter">进入小程序</view>
 
-    <block wx:elif="{{status !== 'pending' || invite || codeMode}}">
+    <!-- 有邀请码（默认）：填邀请码和称呼，提交后直接成为正式成员，不需要管理员审核 -->
+    <block wx:elif="{{mode === 'code'}}">
       <view class="card">
-        <view class="card-title">{{invite || codeMode ? '接受邀请' : (status === 'none' ? '申请加入' : '重新申请')}}</view>
-        <input wx:if="{{codeMode && !invite}}" class="g-in g-code" value="{{code}}" maxlength="32" placeholder="邀请码（管理员给的 12 位字母数字）" bindinput="onCode" />
+        <view class="card-title">{{invite ? '接受邀请' : '用邀请码加入'}}</view>
+        <input wx:if="{{!invite}}" class="g-in g-code" value="{{code}}" maxlength="32" placeholder="邀请码（管理员给的 12 位字母数字）" bindinput="onCode" />
         <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（球友认识你的名字）" bindinput="onName" />
       </view>
-      <view wx:if="{{invite || codeMode}}" class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="accept">{{busy ? '加入中…' : '接受邀请，加入球友圈'}}</view>
-      <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="apply">{{busy ? '提交中…' : '提交申请'}}</view>
-      <view wx:if="{{!invite}}" class="g-switch" bindtap="toggleCode">{{codeMode ? (status === 'pending' ? '没有邀请码，继续等待审核' : '没有邀请码，改为提交申请') : '我有邀请码'}}</view>
+      <view class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="accept">{{busy ? '加入中…' : '加入球友圈'}}</view>
+      <view wx:if="{{!invite}}" class="g-switch" data-mode="{{status === 'pending' ? 'wait' : 'apply'}}" bindtap="switchMode">{{status === 'pending' ? '没有邀请码，继续等待审核' : '没有邀请码？提交申请，等管理员审核'}}</view>
+    </block>
+
+    <!-- 没有邀请码：提交申请，管理员审核通过后才能使用 -->
+    <block wx:elif="{{mode === 'apply'}}">
+      <view class="card">
+        <view class="card-title">{{status === 'none' ? '申请加入' : '重新申请'}}</view>
+        <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（球友认识你的名字）" bindinput="onName" />
+      </view>
+      <view class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="apply">{{busy ? '提交中…' : '提交申请'}}</view>
+      <view class="g-switch" data-mode="code" bindtap="switchMode">我有邀请码，直接加入</view>
     </block>
 
     <!-- 已提交申请、还在等审核：有邀请码也可以直接加入，不用等管理员 -->
     <block wx:else>
       <view class="g-wait">⏳ 已提交，管理员审核后下拉刷新即可</view>
-      <view class="g-switch" bindtap="toggleCode">我有邀请码，直接加入</view>
+      <view class="g-switch" data-mode="code" bindtap="switchMode">我有邀请码，直接加入</view>
     </block>
   </block>
   <view class="g-foot">活动、报名、战绩和排名只对正式成员开放</view>

@@ -24,7 +24,7 @@
 
   <!-- 前三名领奖台 -->
   <view wx:if="{{top.length}}" class="podium {{top.length >= 3 ? '' : 'few'}}">
-    <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}} {{play ? 'ani-in' : 'ani-wait'}}" style="animation-delay:{{index * 60}}ms" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapPlayer">
+    <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}} {{play ? 'ani-in' : 'ani-wait'}}" style="animation-delay:{{index * 75}}ms" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapPlayer">
       <view class="medal">{{item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : '🥉'}}</view>
       <pl-av class="avatar big" uid="{{item.uid}}" name="{{item.name}}" />
       <view class="pod-name">{{item.name}}</view>
@@ -43,7 +43,7 @@
       <text class="c-rank">#</text><text class="c-name">球员</text>
       <text class="c-n">{{colLbl}}</text><text class="c-n">胜-负</text><text class="c-n">胜率</text>
     </view>
-    <view wx:for="{{ranked}}" wx:key="key" class="tr {{item.key === myKey ? 'me' : ''}} {{index < 12 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{index < 12 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-key="{{item.key}}" bindtap="tapPlayer">
+    <view wx:for="{{ranked}}" wx:key="key" class="tr {{item.key === myKey ? 'me' : ''}} {{index < 12 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{index < 12 ? index * 38 : 0}}ms" hover-class="tap-row-on" data-key="{{item.key}}" bindtap="tapPlayer">
       <text class="c-rank {{item.rank > 3 ? '' : 'gold'}}">{{item.rank}}</text>
       <view class="c-name">
         <pl-av class="avatar sm" uid="{{item.uid}}" name="{{item.name}}" />

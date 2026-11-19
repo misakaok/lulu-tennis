@@ -85,11 +85,11 @@ page {
 @keyframes ani-in { from { opacity: 0; transform: translateY(16rpx); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ani-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.ani-in { animation: ani-in 0.36s ease-out backwards; }
-.ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.ani-in { animation: ani-in 0.45s ease-out backwards; }
+.ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .ani-wait { opacity: 0; transform: translateY(16rpx); }
 .ani-wait-x { transform-origin: left center; transform: scaleX(0); }
-.ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
 .tap-on { transform: scale(0.97); opacity: 0.86; transition: transform 0.12s ease-out, opacity 0.12s ease-out; }
 .tap-row-on { opacity: 0.5; transition: opacity 0.12s ease-out; }
 .disabled.tap-on, .dis.tap-on { transform: none; opacity: 0.45; }

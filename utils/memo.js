@@ -43,4 +43,4 @@ function invalidate(colls) {
   });
 }
 
-module.exports = { get, raw, invalidate, TTL_MS, ANY };
+module.exports = { get, raw, invalidate, clone, TTL_MS, ANY };

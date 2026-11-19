@@ -40,7 +40,8 @@ Page({
   async load() {
     try {
       // 只需要自己的用户 ID（本机有缓存），不用每次读一遍个人资料
-      const [m, p, myId] = await Promise.all([db.fetchMatches(), db.fetchPlayersFull(), db.myOpenid().catch(() => this.myId)]);
+      // 共享数据（不复制，只读）：数据没变时是同一个数组
+      const [m, p, myId] = await Promise.all([db.matchesShared(), db.playersShared(), db.myOpenid().catch(() => this.myId)]);
       // 数据和上次一样（切换 tab、缓存命中）就不重算、不重新渲染
       if (this.setSource(m, p, myId)) this.render();
     } catch (e) {
@@ -50,11 +51,12 @@ Page({
     if (this.data.loading) this.setData({ loading: false });
   },
 
-  // 换数据源：水平分只在数据变化时算一次（切换筛选 / 排序、翻页都不重算）。返回是否有变化
+  // 换数据源：水平分只在数据变化时算一次（切换筛选 / 排序、翻页都不重算）。
+  // 比较的是数组引用（db.*Shared 数据没变时返回同一个数组）。返回是否有变化
   setSource(matches, players, myId) {
-    const sig = JSON.stringify([matches || [], players || [], myId || '']);
-    if (sig === this.sig) return false;
-    this.sig = sig;
+    const src = this.srcRef;
+    if (src && src.m === matches && src.p === players && src.id === (myId || '')) return false;
+    this.srcRef = { m: matches, p: players, id: myId || '' };
     this.all = matches || []; this.players = players || []; this.myId = myId || '';
     // 水平分始终用全部比赛（单打 + 双打）计算
     this.ratings = R.computeRatings(this.all, R.startLevelsFrom(this.players));

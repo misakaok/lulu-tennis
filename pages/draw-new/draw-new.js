@@ -59,6 +59,7 @@ Page({
   },
 
   setPlayers(full) {
+    this.fullPlayers = full || []; // levelOf 用：不在排序比较里反复读本机存储
     this.nameUid = Object.assign(this.nameUid || {}, ID.uidByName(full));
     const names = full.map((p) => p.name);
     this.players.forEach((n) => { if (names.indexOf(n) < 0) names.push(n); });
@@ -139,7 +140,7 @@ Page({
   },
   membersOf(ent) { return (this.teams && this.teams[ent]) || [ent]; },
 
-  levelOf(name) { return this.ratings ? R.levelOf(this.ratings, name, db.cachedPlayersFull()) : R.DEFAULT_LEVEL; },
+  levelOf(name) { return this.ratings ? R.levelOf(this.ratings, name, this.fullPlayers || []) : R.DEFAULT_LEVEL; },
   levelOfEnt(ent) {
     const ms = this.membersOf(ent);
     return ms.reduce((s, n) => s + this.levelOf(n), 0) / ms.length;

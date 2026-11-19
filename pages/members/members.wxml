@@ -66,7 +66,7 @@
   </block>
 
   <block wx:else>
-    <view class="btn-primary" hover-class="tap-on" bindtap="invite">＋ 生成邀请链接</view>
+    <view class="btn-primary m-new" hover-class="tap-on" bindtap="invite">＋ 生成邀请链接</view>
     <view class="card">
       <view class="card-title">有效的邀请<text class="sub">一次性，7 天有效</text></view>
       <view wx:if="{{!d.invites.length}}" class="muted">还没有有效的邀请</view>

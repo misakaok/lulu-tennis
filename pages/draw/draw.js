@@ -107,15 +107,15 @@ Page({
   async load() {
     try {
       const [list, matches, myId, signups, member] = await Promise.all([
-        db.fetchDraws(), db.fetchMatches().catch(() => db.cachedMatches()), db.myOpenid().catch(() => ''), db.fetchMySignups().catch(() => []),
+        db.drawsShared(), db.matchesShared().catch(() => db.cachedMatches()), db.myOpenid().catch(() => ''), db.fetchMySignups().catch(() => []), // 活动、比赛用共享数据（只读）
         // 「创建活动」按钮只决定显示（创建页打开时实时校验身份，云函数也会校验）：用 60 秒缓存，不每次切 tab 都调云函数
         require('../../utils/member').statusCached().catch(() => null),
       ]);
       const canPublish = !!member && member.status === 'active' && !!member.isAdmin;
       if (canPublish !== this.data.canPublish) this.setData({ canPublish });
-      // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染
-      const sig = JSON.stringify([list, matches, myId, signups]);
-      if (sig !== this.sig) {
+      // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染：活动、比赛比较引用，我的报名（很少）比较内容
+      const sig = JSON.stringify([myId, signups]);
+      if (list !== this.draws || matches !== this.matches || sig !== this.sig) {
         this.sig = sig;
         this.draws = list; this.matches = matches; this.myId = myId; this.signups = signups;
         this.render();
@@ -125,7 +125,7 @@ Page({
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
     }
-    this.setData({ loading: false });
+    if (this.data.loading) this.setData({ loading: false });
   },
   goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
   open(e) { wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + e.currentTarget.dataset.id }); },

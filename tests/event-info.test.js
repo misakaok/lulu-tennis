@@ -59,7 +59,7 @@ test('活动列表：管理员入口随服务端身份（60 秒缓存）变化�
   const deps = {
     // 列表页只用缓存版身份决定按钮显示，不每次切 tab 都实时调云函数
     '../../utils/member': { statusCached: async () => ({ status: 'active', isAdmin: admin }), status: async () => { throw new Error('列表页不应实时查身份'); } },
-    '../../utils/db': { fetchDraws: async () => [], fetchMatches: async () => [], myOpenid: async () => 'alice', fetchMySignups: async () => [] },
+    '../../utils/db': { drawsShared: async () => [], matchesShared: async () => [], myOpenid: async () => 'alice', fetchMySignups: async () => [] },
   };
   const p = load('pages/draw/draw.js', { navigateTo() { navigations++; }, showToast() {} }, 'Page', deps);
   await p.load(); p.goNew();
@@ -79,7 +79,7 @@ test('战绩页：「记一场」用缓存版身份显示，和读数据同时�
     },
     '../../utils/db': {
       cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null,
-      fetchMatchesAll: async () => [], fetchPlayersFull: async () => [], myOpenid: async () => 'alice',
+      matchesAllShared: async () => [], playersShared: async () => [], myOpenid: async () => 'alice',
     },
   };
   const p = load('pages/index/index.js', { showToast() {}, getStorageSync: () => '' }, 'Page', deps);

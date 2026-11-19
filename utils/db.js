@@ -23,6 +23,20 @@ const cacheSet = (k, v) => {
     try { wx.removeStorageSync(k); } catch (e2) {}
   }
 };
+// 大块缓存（比赛、球员、活动列表）：异步写，不卡界面；只在内容变了、重新整理时才写。
+// 写完时缓存已经被清空过（成员资格被取消，见 forget），就把刚写进去的删掉
+function cacheSetLater(k, v) {
+  if (typeof wx.setStorage !== 'function') { cacheSet(k, v); return; }
+  const started = generation;
+  const drop = () => { try { wx.removeStorageSync(k); } catch (e) {} };
+  try {
+    wx.setStorage({
+      key: k, data: v,
+      success: () => { if (started !== generation) drop(); },
+      fail: (e) => { console.warn('[缓存] 写入本机缓存失败，已清除这一项：', k, (e && (e.errMsg || e.message)) || e); drop(); },
+    });
+  } catch (e) { drop(); }
+}
 
 // 循环分页取全部。每页 100 条（数据网关单次上限），每页都是一次云函数调用，页越大调用次数越少
 // 不先查总数：读到不满一页就是最后一页（不到 100 条的集合只要 1 次调用）
@@ -120,7 +134,7 @@ function derived(name, load, compute, noCopy) {
   }, DEP_KEYS);
 }
 // 本机缓存被清空时（utils/member.js 的 clearProtected）调用：忘掉沿用的结果，下次重新整理并写回本机
-function forget() { require('./photo').clear(); generation++; kept = {}; lastDs = null; memo.invalidate(DS_COLLS); }
+function forget() { require('./photo').clear(); generation++; kept = {}; drawsKept = null; lastDs = null; memo.invalidate(DS_COLLS.concat('draws')); }
 
 // 读全部比赛记录并标出状态：official 正式 / pending 日常比赛待对手确认 / invalid 不认可（见 utils/official.js）
 async function loadMatches() {
@@ -136,28 +150,27 @@ async function loadMatches() {
   return { hash: '', tagged, players };
 }
 
-// 正式战绩：战绩统计、排名、水平分、签表晋级、互评都只用这些
-function fetchMatches() {
-  return derived('matches', loadMatches, ({ tagged, players }) => {
-    const list = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')).map(publicMatch), players);
-    cacheSet('cache_matches', list);
-    return list;
-  });
-}
-const cachedMatches = () => cacheGet('cache_matches', []).map(publicMatch);
-
-// 战绩列表用：正式战绩 + 待对手确认的日常比赛（标 pending，不计入任何统计）
-function fetchMatchesAll() {
-  return derived('matchesAll', loadMatches, ({ tagged, players }) => {
-    const official = dedupe(tagged.filter((m) => m.status === 'official'));
-    const pending = tagged.filter((m) => m.status === 'pending');
-    const list = ID.normalizeMatches(official.concat(pending).map(publicMatch), players)
-      .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || (tsOf(y) - tsOf(x)));
-    cacheSet('cache_matches_all', list);
-    return list;
-  });
-}
+// 比赛记录整理一次，同时得到两份列表（同一批对象）：
+//   official 正式战绩：战绩统计、排名、水平分、签表晋级都只用这些
+//   all      战绩列表用：正式战绩 + 待对手确认的日常比赛（标 pending，不计入任何统计），按日期从新到旧
+// 本机只缓存 all 一份（cachedMatches 从里面去掉待确认的），内容变了才异步写
+const matchLists = () => derived('matches', loadMatches, ({ tagged, players }) => {
+  const official = ID.normalizeMatches(dedupe(tagged.filter((m) => m.status === 'official')).map(publicMatch), players);
+  const pending = ID.normalizeMatches(tagged.filter((m) => m.status === 'pending').map(publicMatch), players);
+  const all = official.concat(pending).sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || (tsOf(y) - tsOf(x)));
+  cacheSetLater('cache_matches_all', all);
+  try { wx.removeStorageSync('cache_matches'); } catch (e) {} // 以前单独存的正式战绩（和 all 重复）
+  return { official, all };
+}, true);
+// 复制一份给调用方（可以随便改）
+const fetchMatches = () => matchLists().then((r) => memo.clone(r.official));
+const fetchMatchesAll = () => matchLists().then((r) => memo.clone(r.all));
+// 共享的原始结果（不复制）：只读的页面用，不能修改。数据没变时返回的是同一个数组，
+// 页面可以直接比较引用（===）判断要不要重算，不用把全部数据序列化一遍
+const matchesShared = () => matchLists().then((r) => r.official);
+const matchesAllShared = () => matchLists().then((r) => r.all);
 const cachedMatchesAll = () => cacheGet('cache_matches_all', []).map(publicMatch);
+const cachedMatches = () => cacheGet('cache_matches_all', []).filter((m) => m.status !== 'pending').map(publicMatch);
 
 function addMatch(data) {
   return db().collection('matches').add({ data: Object.assign({}, data, { createdAt: db().serverDate() }) });
@@ -176,7 +189,11 @@ async function playerDocs() {
   return { hash: ds ? ds.hash : '', docs: ds ? ds.players : await fetchAll('players', ORD_PLAYERS) };
 }
 const fetchPlayersFull = () => derived('players', playerDocs, (src) => buildPlayers(src.docs));
-const playersBuilt = () => derived('players', playerDocs, (src) => buildPlayers(src.docs), true); // 本文件内部用：不复制，不能修改
+const playersBuilt = () => derived('players', playerDocs, (src) => buildPlayers(src.docs), true); // 不复制，不能修改
+const playersShared = playersBuilt; // 只读的页面用：数据没变时是同一个数组（同 matchesShared）
+// 按用户 ID 的本人资料（和 cachedProfiles 同样内容）：跟着 buildPlayers 的结果走，不用再读本机存储
+const profilesByList = new WeakMap();
+const profilesOf = (players) => profilesByList.get(players) || cachedProfiles();
 function buildPlayers(list) {
   // 按用户 ID 的本人资料（每个账号取最早那条）：球员主页按 ID 找人，不受同名影响
   const byUid = {};
@@ -184,7 +201,7 @@ function buildPlayers(list) {
     if (!p.self || !p._openid || !p.name || byUid[p._openid]) return;
     byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
   });
-  cacheSet('cache_profiles', byUid);
+  cacheSetLater('cache_profiles', byUid);
   const map = {}, order = [];
   list.forEach((p) => {
     if (!p.name) return;
@@ -198,8 +215,9 @@ function buildPlayers(list) {
     else if (item.self && !cur.self) map[p.name] = item;
   });
   const arr = order.map((n) => map[n]);
-  cacheSet('cache_players_full', arr);
-  cacheSet('cache_players', order);
+  cacheSetLater('cache_players_full', arr);
+  cacheSetLater('cache_players', order);
+  profilesByList.set(arr, byUid);
   require('./photo').setPlayers(arr, byUid); // 头像组件按用户 ID / 名字找照片
   return arr;
 }
@@ -237,11 +255,21 @@ async function saveMyProfile({ name, avatar, level, gender }) {
 }
 
 /* ---------- 抽签 ---------- */
-async function fetchDraws() {
-  const list = (await fetchAll('draws', [['createdAt', 'desc']])).map(publicDraw);
-  cacheSet('cache_draws', list);
-  return list;
-}
+// 活动列表：原始记录 60 秒内存缓存（fetchAll）；过期重新读到的内容没变，就沿用上一次整理好的同一个数组，也不重写本机缓存
+const ORD_DRAWS = [['createdAt', 'desc']];
+let drawsKept = null; // { sig, value }
+const drawsShared = () => memo.raw('d:draws', 'draws', async () => {
+  const started = generation;
+  const raw = await memo.raw(keyOf('draws', ORD_DRAWS), 'draws', () => fetchAllRaw('draws', ORD_DRAWS));
+  if (started !== generation) throw cleared();
+  const sig = JSON.stringify(raw);
+  if (drawsKept && drawsKept.sig === sig) return drawsKept.value;
+  const value = raw.map(publicDraw);
+  drawsKept = { sig, value };
+  cacheSetLater('cache_draws', value);
+  return value;
+}, [keyOf('draws', ORD_DRAWS)]);
+const fetchDraws = () => drawsShared().then(memo.clone);
 const cachedDraws = () => cacheGet('cache_draws', []).map(publicDraw);
 
 async function getMatch(id) {
@@ -305,7 +333,7 @@ async function cancelSignup(drawId) {
 
 module.exports = {
   myOpenid,
-  fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
+  fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile,
   fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, setFixtureSlot,

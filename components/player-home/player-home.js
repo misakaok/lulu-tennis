@@ -22,26 +22,27 @@ Component({
       const uid = this.data.uid;
       if (!uid) return;
       this.loadedOnce = true;
-      // 先用缓存画出来，再拉最新数据
-      this.render(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches(), uid);
+      // 第一次打开（还没画过）先用本机缓存画出来；之后切回来不再读本机存储，直接用内存里的数据
+      if (this.viewUid !== uid) this.render(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches(), uid);
       try {
+        // 共享数据（不复制，只读）：数据没变时是同一个数组，render 里比较引用就跳过
         const [players, matches, myId] = await Promise.all([
-          db.fetchPlayersFull(), db.fetchMatches(), db.myOpenid().catch(() => ''),
+          db.playersShared(), db.matchesShared(), db.myOpenid().catch(() => ''),
         ]);
         this.myId = myId;
-        this.render(db.cachedProfiles(), players, matches, uid);
+        this.render(db.profilesOf(players), players, matches, uid);
       } catch (e) { console.error(e); }
       this.setData({ loaded: true });
     },
 
     render(profiles, players, matches, uid) {
-      // 数据和上次一样（先画缓存再画新数据、切换 tab、从子页面返回）就不重算、不重新渲染
-      const sig = JSON.stringify([profiles || {}, players || [], matches || [], uid, this.myId || '']);
-      if (sig === this.sig) return;
-      this.sig = sig;
+      // 数据和上次一样（切换 tab、从子页面返回）就不重算、不重新渲染：比较引用，不把全部数据序列化一遍
+      const src = this.srcRef, myId = this.myId || '';
+      if (src && src.pf === profiles && src.p === players && src.m === matches && src.uid === uid && src.me === myId) return;
+      this.srcRef = { pf: profiles, p: players, m: matches, uid, me: myId };
       const v = PV.playerView(profiles, players, matches, uid);
       const tagsOf = v.tagsOf; delete v.tagsOf; // 全部比赛的亮点标签：只用来算交手记录，不放进 setData
-      this.view = v;
+      this.view = v; this.viewUid = uid;
       // 看别人的主页时：我和 TA 的交手记录（按用户 ID）
       const me = this.myId && this.myId !== uid && profiles ? profiles[this.myId] : null;
       // 比赛等级、场数、胜负、胜率第一次显示时从 0 滚到实际值（排名不滚）

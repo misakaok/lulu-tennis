@@ -4,7 +4,7 @@
 // 每个页面 / 组件实例只滚一次；滚动中又有新的渲染时（再次调用 roll）直接停下，显示新数据。
 // tab 页切走再回来（页面实例不会重建）想再播一次：onHide 调 leave，onShow 把 enter 的返回值并进 setData；
 // 页面上的入场动画类写成 {{play ? 'ani-in' : 'ani-wait'}}（进度条 ani-grow-x / ani-wait-x），data 里 play 默认 true。
-const MS = 600;   // 总时长
+const MS = 750;   // 总时长
 const STEP = 32;  // 每帧间隔（逻辑层没有 requestAnimationFrame）
 
 const ease = (t) => 1 - Math.pow(1 - t, 3); // 先快后慢

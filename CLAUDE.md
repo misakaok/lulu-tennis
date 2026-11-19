@@ -41,7 +41,7 @@
 - **单场安排**：某一场的日期、时间、场地存在 `draws.slots[场次 key]`，只由 `setFixtureSlot` 写入（发起人）；`E.scheduleOf` 会把它带在每一场的 `slot` / `slotText` 上，没排的场次沿用活动的日期、时间和场地。重新生成签表会清空。
 - **赛季和生涯成就**：赛季 = 比赛日期的自然年（`utils/season.js`），只是在同一套正式战绩上按日期筛选；等级分不分赛季。生涯成就（`utils/career.js`）全部由正式战绩实时计算，不存数据库。冠军按「活动决赛的比赛记录」认定。两者都不是第二套统计，场数、胜负必须和 `computeRank` 一致（`tests/career.test.js`）。
 - **活动比分**：只能经 `recordEventMatch` / `resolveFixture` 写入，每场一条记录。会推翻后续已录分场次的改动，必须由发起人确认影响并填写原因。
-- **前端缓存**：`utils/db.js` 的列表读取经 `utils/memo.js` 在内存里缓存 60 秒，写操作成功后由 `utils/cloud.js` 自动作废。整理后的结果（正式战绩、战绩列表、球员列表）也在这层缓存里，本机存储只在重新整理时写；`memo.raw` 不复制，只给 `utils/db.js` 内部用。新增**只读**的云函数操作时，要加进 `utils/cloud.js` 的 `READ_ONLY`（否则每次调用都会清空缓存）；写操作不用加。只读操作要缓存结果时用 `cloud.cached(action, data)`（自己的任何写操作和下拉刷新都会作废，别人的操作最长晚 60 秒看到），不要用在需要实时的地方。
+- **前端缓存**：`utils/db.js` 的列表读取经 `utils/memo.js` 在内存里缓存 60 秒，写操作成功后由 `utils/cloud.js` 自动作废。整理后的结果（正式战绩、战绩列表、球员列表）也在这层缓存里，本机存储只在重新整理时写；`memo.raw` 不复制，只给 `utils/db.js` 内部用。只读的 tab 页（战绩、排行、活动、球员主页）用共享版 `matchesShared` / `matchesAllShared` / `playersShared` / `drawsShared` / `profilesOf(players)`：不复制，数据没变时返回同一个数组，页面比较引用（`===`）判断要不要重算，不要再对全部数据 `JSON.stringify`；共享数据**不能修改**（`tests/client.test.js` 检查各统计函数不改动它），要改的页面用 `fetchMatches` 等复制版。比赛本机只存一份 `cache_matches_all`（`cachedMatches` 从里面去掉待确认的），比赛、球员、活动列表的本机缓存经 `cacheSetLater` 异步写，只在内容变了时写。新增**只读**的云函数操作时，要加进 `utils/cloud.js` 的 `READ_ONLY`（否则每次调用都会清空缓存）；写操作不用加。只读操作要缓存结果时用 `cloud.cached(action, data)`（自己的任何写操作和下拉刷新都会作废，别人的操作最长晚 60 秒看到），不要用在需要实时的地方。
 - **列表类接口**：要逐场计算比赛状态时，先调用 `prefetch()` 一次查齐数据，再调用 `matchState(..., cache)`。不要在循环里单独查数据库。写入流程不要传预取过的 cache，避免读到旧数据。
 - **申请处理**：改分、退赛等申请用 `claim()`（原子领取）防重复和防并发，并保留申请人、处理人、原因和时间。
 - **文件**：数据库只存 fileID，永远不保存临时链接。图片链接由云函数校验资格后发放，有效期要短（目前 30 分钟）。

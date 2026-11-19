@@ -18,3 +18,6 @@ button.m-share::after { border: none; }
 .m-alias { font-size: 22rpx; color: #8C8CA3; font-weight: normal; margin-left: 6rpx; }
 
 .m-g { margin-left: 10rpx; font-size: 19rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 2rpx 10rpx; font-weight: 400; }
+
+/* 「生成邀请链接」按钮和下面的卡片拉开：按钮带阴影，比卡片之间的 24rpx 再多留一点 */
+.m-new { margin-bottom: 32rpx; }

@@ -101,7 +101,8 @@ Page({
       .then((r) => r.status === 'active' && !!r.isAdmin, () => false)
       .then((v) => { if (v !== this.data.canRecordDaily) this.setData({ canRecordDaily: v }); });
     try {
-      const [m, p, myId] = await Promise.all([db.fetchMatchesAll(), db.fetchPlayersFull(), db.myOpenid().catch(() => this.myId || '')]);
+      // 共享数据（不复制，只读）：数据没变时是同一个数组，比较引用就知道要不要重算
+      const [m, p, myId] = await Promise.all([db.matchesAllShared(), db.playersShared(), db.myOpenid().catch(() => this.myId || '')]);
       // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
       if (this.setSource(m, p, myId)) this.render();
     } catch (e) {
@@ -113,11 +114,11 @@ Page({
   },
 
   // 换数据源：水平分涨跌、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
-  // 返回是否有变化
+  // 比较的是数组引用（db.*Shared 数据没变时返回同一个数组），不把全部数据序列化一遍。返回是否有变化
   setSource(matches, players, myId) {
-    const sig = JSON.stringify([matches || [], players || [], myId || '']);
-    if (sig === this.sig) return false;
-    this.sig = sig;
+    const src = this.srcRef;
+    if (src && src.m === matches && src.p === players && src.id === (myId || '')) return false;
+    this.srcRef = { m: matches, p: players, id: myId || '' };
     const shown = matches || [];
     const all = shown.filter((m) => m.status !== 'pending'); // 统计和水平分涨跌只算正式战绩
     const month = ymd(new Date()).slice(0, 7);

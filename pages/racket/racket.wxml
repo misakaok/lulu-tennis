@@ -30,7 +30,7 @@
     </view>
 
     <block wx:else>
-      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{index < 10 ? index * 40 : 0}}ms" hover-class="tap-on" data-id="{{item.id}}" bindtap="open">
+      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{index < 10 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item.id}}" bindtap="open">
         <view class="rk-main">
           <rk-art class="rk-ph" brand="{{item.brand}}" model="{{item.model}}" />
           <view class="rk-body">

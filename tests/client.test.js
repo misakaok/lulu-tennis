@@ -14,6 +14,9 @@ function client(env, uid, opts) {
   let calls = 0;
   global.wx = {
     getStorageSync: (k) => storage[k], setStorageSync: (k, v) => { storage[k] = JSON.parse(JSON.stringify(v)); },
+    // 异步写：和真机一样晚一点才落盘（下一轮事件循环），落盘时走 setStorageSync（方便统计写入次数）
+    // 写进发起这次写入的那个客户端（不是之后测试换上的 global.wx）
+    setStorage({ key, data, success }) { const w = this; setTimeout(() => { w.setStorageSync(key, data); if (success) success(); }, 0); },
     removeStorageSync: (k) => { delete storage[k]; }, getStorageInfoSync: () => ({ keys: Object.keys(storage) }),
     cloud: {
       callFunction: async ({ data }) => {
@@ -30,6 +33,8 @@ function client(env, uid, opts) {
   const db = require(path.join(ROOT, 'utils/db.js'));
   return { db, calls: () => calls, storage };
 }
+
+const tick = () => new Promise((r) => setTimeout(r, 0)); // 等异步写落盘
 
 function seed(env) {
   env.members([['alice', 'Alice'], ['bob', 'Bob'], ['carl', 'Carl']]);
@@ -88,10 +93,12 @@ test('整理后的结果也缓存：缓存期内不重写本机存储；过期�
   const set = global.wx.setStorageSync;
   global.wx.setStorageSync = (k, v) => { writes++; set(k, v); };
   const first = [await c.db.fetchMatches(), await c.db.fetchMatchesAll(), await c.db.fetchPlayersFull()];
+  await tick();
   const w1 = writes, n1 = c.calls();
   assert.ok(w1 > 0);
   first[0][0].a = ['改了也不影响缓存'];
   const again = [await c.db.fetchMatches(), await c.db.fetchMatchesAll(), await c.db.fetchPlayersFull()];
+  await tick();
   assert.strictEqual(writes, w1); assert.strictEqual(c.calls(), n1);
   assert.notDeepStrictEqual(again[0][0].a, ['改了也不影响缓存']);
   // 过了缓存期：重新问云函数（1 次），内容没变 → 不重新整理、不写存储
@@ -100,12 +107,14 @@ test('整理后的结果也缓存：缓存期内不重写本机存储；过期�
   try {
     Date.now = () => t0 + memo.TTL_MS + 1000;
     const third = [await c.db.fetchMatches(), await c.db.fetchMatchesAll(), await c.db.fetchPlayersFull()];
+    await tick();
     assert.strictEqual(c.calls(), n1 + 1); assert.strictEqual(writes, w1);
     assert.deepStrictEqual(third, again);
     // 别人改了数据：指纹变了 → 拿到新数据
     env.coll('players').p_bob.name = 'Bobby';
     Date.now = () => t0 + 2 * memo.TTL_MS + 2000;
     const ps = await c.db.fetchPlayersFull();
+    await tick();
     assert.ok(ps.some((p) => p.name === 'Bobby')); assert.ok(writes > w1);
     assert.ok((await c.db.fetchMatches()).some((m) => m.a.concat(m.b).indexOf('Bobby') >= 0), '战绩里的名字跟着账号走');
     // 本机缓存被清空后：即使内容没变也重新整理并写回
@@ -113,8 +122,84 @@ test('整理后的结果也缓存：缓存期内不重写本机存储；过期�
     require(path.join(ROOT, 'utils/member.js')).clearProtected();
     c.storage.member_ok_at = Date.now();
     await c.db.fetchMatches();
+    await tick();
     assert.ok(writes > w2); assert.ok(c.db.cachedMatches().length > 0);
   } finally { Date.now = realNow; }
+});
+test('共享数据：数据没变时返回同一个数组（页面比较引用）；复制版和共享版内容一致、互不影响；内容变了才换新数组', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  const c = client(env, 'alice');
+  const [m1, a1, p1, d1] = [await c.db.matchesShared(), await c.db.matchesAllShared(), await c.db.playersShared(), await c.db.drawsShared()];
+  assert.strictEqual(await c.db.matchesShared(), m1); assert.strictEqual(await c.db.matchesAllShared(), a1);
+  assert.strictEqual(await c.db.playersShared(), p1); assert.strictEqual(await c.db.drawsShared(), d1);
+  assert.deepStrictEqual(await c.db.fetchMatches(), m1); assert.deepStrictEqual(await c.db.fetchMatchesAll(), a1);
+  assert.deepStrictEqual(await c.db.fetchPlayersFull(), p1); assert.deepStrictEqual(await c.db.fetchDraws(), d1);
+  // 正式战绩和战绩列表里的正式记录是同一批对象
+  const inAll = new Set(a1);
+  assert.ok(m1.every((m) => inAll.has(m)));
+  const copy = await c.db.fetchMatches();
+  copy[0].a = ['改了'];
+  assert.notDeepStrictEqual(m1[0].a, ['改了'], '改复制版不影响共享数据');
+  // 本人资料：跟着球员列表走，不读本机存储
+  const pf = c.db.profilesOf(p1);
+  assert.strictEqual(pf.alice.name, 'Alice'); assert.strictEqual(c.db.profilesOf(p1), pf);
+  // 过了缓存期，内容没变：仍是同一个数组，也不重写本机缓存
+  await tick();
+  let writes = 0;
+  const set = global.wx.setStorageSync;
+  global.wx.setStorageSync = (k, v) => { writes++; set(k, v); };
+  const memo = require(path.join(ROOT, 'utils/memo.js'));
+  const realNow = Date.now; const t0 = realNow();
+  try {
+    Date.now = () => t0 + memo.TTL_MS + 1000;
+    assert.strictEqual(await c.db.matchesShared(), m1); assert.strictEqual(await c.db.playersShared(), p1);
+    assert.strictEqual(await c.db.drawsShared(), d1);
+    for (let i = 0; i < 5; i++) await c.db.fetchDraws();
+    await tick();
+    assert.strictEqual(writes, 0, '内容没变不写本机缓存（活动列表以前每次读取都重写）');
+    // 内容变了：新数组
+    env.coll('players').p_bob.name = 'Bobby';
+    env.coll('draws').d1.title = '新名称';
+    Date.now = () => t0 + 2 * memo.TTL_MS + 2000;
+    assert.notStrictEqual(await c.db.matchesShared(), m1); assert.notStrictEqual(await c.db.playersShared(), p1);
+    const d2 = await c.db.drawsShared();
+    assert.notStrictEqual(d2, d1); assert.strictEqual(d2[0].title, '新名称');
+  } finally { Date.now = realNow; global.wx.setStorageSync = set; }
+});
+test('本机缓存：比赛只存一份（cache_matches_all），异步写；cachedMatches 从里面去掉待确认的；清空后晚到的写入被删掉', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  const c = client(env, 'alice');
+  c.storage.cache_matches = [{ _id: 'old' }]; // 以前版本留下的
+  const official = await c.db.fetchMatches();
+  assert.strictEqual(c.storage.cache_matches_all, undefined, '异步写：还没落盘');
+  await tick();
+  assert.strictEqual(c.storage.cache_matches, undefined, '旧的重复缓存删掉');
+  assert.deepStrictEqual(c.db.cachedMatches().map((m) => m._id).sort(), official.map((m) => m._id).sort());
+  assert.strictEqual(c.db.cachedMatchesAll().length, (await c.db.fetchMatchesAll()).length);
+  // 写入还没落盘时缓存被清空（成员资格被取消）：落盘后删掉
+  const c2 = client(env, 'alice');
+  await c2.db.fetchMatches();
+  require(path.join(ROOT, 'utils/member.js')).clearProtected();
+  await tick();
+  assert.strictEqual(c2.storage.cache_matches_all, undefined);
+  assert.strictEqual(c2.storage.cache_players_full, undefined);
+});
+test('共享数据只读：各页面用到的统计、等级、亮点、生涯、活动进度计算都不会改动它', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  const c = client(env, 'alice');
+  const [m, all, p, d] = [await c.db.matchesShared(), await c.db.matchesAllShared(), await c.db.playersShared(), await c.db.drawsShared()];
+  const before = JSON.stringify([m, all, p, d, c.db.profilesOf(p)]);
+  const R = require(path.join(ROOT, 'utils/rating.js')), S = require(path.join(ROOT, 'utils/stats.js'));
+  const H = require(path.join(ROOT, 'utils/highlight.js')), PV = require(path.join(ROOT, 'utils/player.js'));
+  const E = require(path.join(ROOT, 'utils/event.js')), SE = require(path.join(ROOT, 'utils/season.js'));
+  const { computeRank } = require(path.join(ROOT, 'utils/rules.js'));
+  const st = S.playerStats(m, p);
+  H.matchTags(m, st.ratings); S.boards(m, st.ratings, 'all', '2026-10'); S.genderFinder(p);
+  computeRank(SE.inSeason(m, '2026'), 'all'); R.computeRatings(m, R.startLevelsFrom(p));
+  const v = PV.playerView(c.db.profilesOf(p), p, m, 'alice');
+  PV.h2hView(m, 'alice', 'Alice', 'bob', 'Bob', v.tagsOf);
+  d.forEach((x) => { E.progressOf(x, m); E.scheduleOf(x, m); });
+  assert.strictEqual(JSON.stringify([m, all, p, d, c.db.profilesOf(p)]), before);
 });
 test('活动详情一次取齐（drawDetail）：1 次调用', async () => {
   const env = createEnv(); env.load(); seed(env);
@@ -143,7 +228,6 @@ test('旧云函数和本机缓存：保留手动活动名称、历史名称快�
       return r;
     };
     c.storage.cache_draws = [env.coll('draws').d1];
-    c.storage.cache_matches = [env.coll('matches').ev1];
     c.storage.cache_matches_all = [env.coll('matches').ev1];
     const before = JSON.stringify(c.storage.cache_draws);
     for (const d of [c.db.cachedDraws()[0], (await c.db.fetchDraws())[0], await c.db.getDraw('d1'), (await c.db.fetchDrawDetail('d1')).draw]) {
@@ -253,11 +337,13 @@ test('forget：未完成的数据集请求不能恢复已清空的整理结果�
   await ready;
   c.db.forget(); release();
   await assert.rejects(pending, /缓存已清除/);
-  assert.strictEqual(c.storage.cache_matches, undefined);
+  await tick(); // 等异步写落盘
+  assert.strictEqual(c.storage.cache_matches_all, undefined);
   assert.strictEqual(c.storage.cache_players_full, undefined);
   wx.cloud.callFunction = original;
   assert.ok((await c.db.fetchMatches()).length);
-  assert.ok(c.storage.cache_matches.length);
+  await tick();
+  assert.ok(c.storage.cache_matches_all.length);
 });
 test('draw-view：报名中和已出签表的 bundle / 旧路径渲染一致（包括被搭档带上）', async () => {
   for (const status of ['signup', 'drawn']) {
