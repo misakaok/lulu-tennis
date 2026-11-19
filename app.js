@@ -11,7 +11,7 @@ App({
     }
     wx.cloud.init(ENV_ID ? { env: ENV_ID, traceUser: true } : { traceUser: true });
   },
-  // 启动和每次回到前台都重新校验成员资格；不是正式成员就清缓存、去「仅限内部球友使用」页
+  // 启动和每次回到前台都重新校验成员资格；不是正式成员就清缓存、去准入页（「私人网球活动管理」）
   onShow() {
     require('./utils/member').check();
   },

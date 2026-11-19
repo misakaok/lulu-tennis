@@ -224,7 +224,7 @@ test('管理员更正比分：拒绝冒充身份、弃权退赛和无效活动�
     const id = ok(await daily(env, 'alice', 'bob'))._id;
     const fix = { matchId: id, sets: [{ a: 1, b: 4 }] };
     no(await env.call('eve', 'adminFixScore', Object.assign({}, fix, { uid: 'admin', openid: 'admin', userInfo: { openId: 'admin' } })), /管理员/);
-    no(await env.call('outsider', 'adminFixScore', fix), /内部球友/);
+    no(await env.call('outsider', 'adminFixScore', fix), /请先验证/);
     for (const outcome of ['walkover', 'retired', 'cancelled']) {
       env.coll('matches')[id].outcome = outcome;
       no(await env.call('admin', 'adminFixScore', fix), /弃权|退赛|取消/);
@@ -1212,7 +1212,7 @@ test('照片：小程序端不能冒充检测推送，网关不能写照片字�
   no(await env.call('alice', 'data', { op: 'add', coll: 'players', data: { name: 'X', photo: pf('alice', 'a'), self: true } }));
   assert.ok(!env.coll('players').p_alice.photo);
   await env.push({ trace_id: 'trace1', result: { suggest: 'pass' } });
-  no(await env.call('stranger', 'photoUrls', { fileIDs: [pf('alice', 'a')] }), /内部球友/);
+  no(await env.call('stranger', 'photoUrls', { fileIDs: [pf('alice', 'a')] }), /请先验证/);
 });
 test('照片：管理员可以移除成员的照片（留档），普通成员不能', async () => {
   const env = setup();

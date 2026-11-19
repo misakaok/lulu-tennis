@@ -25,7 +25,7 @@ Page({
     const p = db.cachedProfile();
     if (p) this.fill(p);
     if (this.fromSignup) this.setData({ tip: '报名前请先设置昵称，大家在报名名单里会看到' });
-    db.getMyProfile().then((x) => { if (x) this.fill(x); }).catch((e) => console.error(e));
+    db.getMyProfile().then((x) => { if (x) this.fill(x); else this.prefill(); }).catch((e) => console.error(e));
     this.loadPhoto();
   },
 
@@ -33,6 +33,15 @@ Page({
     this.avatar = p.avatar || ''; // 以前传过的旧照片（没经过检测）：不显示，保存时原样带回
     const name = p.name || '';
     this.setData({ name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL, isNew: false, initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE' });
+  },
+
+  // 第一次设置资料：昵称预填准入页填的称呼（准入页写着「活动报名显示名称」），可以改；保存时照常过内容检测和重名检查
+  prefill() {
+    require('../../utils/member').statusCached().then((r) => {
+      const name = String((r && r.name) || '').trim();
+      if (!name || !this.data.isNew || this.data.name) return; // 已经有资料或自己已经开始填了，不覆盖
+      this.setData({ name, initial: RU.initialOf(name), color: RU.colorOf(name) });
+    }).catch(() => {});
   },
 
   // 当前照片和最近一次检测的状态（检测中的照片只有自己能看到预览）

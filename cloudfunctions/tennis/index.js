@@ -2035,7 +2035,7 @@ exports.main = async (event) => {
     // 成员资格：每次调用都从数据库重新查（不缓存），移除后下一次操作立即被拦
     if (!PUBLIC[event.action]) {
       const m = await memberOf(OPENID);
-      if (m.status !== 'active') return { ok: false, code: 'NOT_MEMBER', status: m.status, error: '仅限内部球友使用' };
+      if (m.status !== 'active') return { ok: false, code: 'NOT_MEMBER', status: m.status, error: '请先验证后使用' };
       if (ADMIN_ONLY[event.action] && !isAdmin(OPENID)) return { ok: false, error: '只有管理员可以操作' };
     }
     if (event.action !== 'memberStatus') { try { await ensureMigrated(); } catch (e) { console.error('旧记录迁移失败（请确认已建 verified 集合）', e); } }

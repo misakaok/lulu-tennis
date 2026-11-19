@@ -16,7 +16,7 @@ async function call(action, data) {
     throw new Error('网络异常，请稍后再试');
   }
   const res = (r && r.result) || {};
-  if (res.code === 'NOT_MEMBER') { require('./member').kickout(res.status); throw new Error(res.error || '仅限内部球友使用'); }
+  if (res.code === 'NOT_MEMBER') { require('./member').kickout(res.status); throw new Error(res.error || '请先验证后使用'); }
   if (!res.ok) throw new Error(res.error || '操作失败');
   invalidateAfter(action, data);
   return res;

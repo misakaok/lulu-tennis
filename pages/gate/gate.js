@@ -6,7 +6,7 @@
 const cloud = require('../../utils/cloud');
 const member = require('../../utils/member');
 
-const TITLE = { none: '仅限内部球友使用', pending: '申请已提交，等待审核', rejected: '申请未通过', removed: '成员资格已取消', active: '你已是正式成员' };
+const TITLE = { none: '私人网球活动管理', pending: '申请已提交，等待审核', rejected: '申请未通过', removed: '成员资格已取消', active: '你已是正式成员' };
 // 开发版预览：模拟器里管理员总是正式成员，看不到准入页。开发者工具「编译模式」用参数 preview=none / pending / rejected / removed
 // 打开对应状态（可再加 invite=任意值 看邀请链接进来的样子）。只在开发版生效，按钮不会提交；体验版、正式版忽略这个参数
 const PREVIEW = { none: 1, pending: 1, rejected: 1, removed: 1 };

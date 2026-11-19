@@ -90,8 +90,8 @@ test('云函数：记录只属于本人；别人不能读、改、删，客户�
 
 test('云函数：不是正式成员不能使用成长档案；私人记录不进正式战绩', async () => {
   const env = setup();
-  no(await env.call('stranger', 'growthSave', { record: rec() }), /内部球友/);
-  no(await env.call('stranger', 'growthList'), /内部球友/);
+  no(await env.call('stranger', 'growthSave', { record: rec() }), /请先验证/);
+  no(await env.call('stranger', 'growthList'), /请先验证/);
   ok(await env.call('alice', 'growthSave', { record: rec() }));
   const ds = ok(await env.call('alice', 'dataset'));
   assert.strictEqual((ds.matches || []).length, 0);

@@ -135,8 +135,8 @@ test('云函数：删除球拍连同记录一起删；清除全部只清本人�
   assert.strictEqual(ok(await env.call('alice', 'racketList')).rackets.length, 0);
   const bl = ok(await env.call('bob', 'racketList'));
   assert.deepStrictEqual([bl.rackets.length, bl.logs.length], [1, 1], '别人的不受影响');
-  no(await env.call('stranger', 'racketList'), /内部球友/);
-  no(await env.call('stranger', 'racketSave', { racket: racket() }), /内部球友/);
+  no(await env.call('stranger', 'racketList'), /请先验证/);
+  no(await env.call('stranger', 'racketSave', { racket: racket() }), /请先验证/);
 });
 
 test('页面：我的球拍各页不能分享，没有文字输入框（费用只能填数字），只经 utils/rackets.js 读写', () => {
