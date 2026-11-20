@@ -1,1 +1,3 @@
-<view class="class" style="background:{{color}};position:relative;overflow:hidden" bindtap="onTap"><text wx:if="{{!url}}">{{initial}}</text><image wx:else class="pa-img" src="{{url}}" mode="aspectFill" lazy-load binderror="onErr" /></view>
+<!-- 能看大图（preview 且有照片）时用 catchtap：不让点击传到外面的卡片（比如「我的」资料卡点了会进编辑资料） -->
+<view wx:if="{{preview && url}}" class="class" style="background:{{color}};position:relative;overflow:hidden" catchtap="onTap"><image class="pa-img" src="{{url}}" mode="aspectFill" lazy-load binderror="onErr" /></view>
+<view wx:else class="class" style="background:{{color}};position:relative;overflow:hidden"><text wx:if="{{!url}}">{{initial}}</text><image wx:else class="pa-img" src="{{url}}" mode="aspectFill" lazy-load binderror="onErr" /></view>

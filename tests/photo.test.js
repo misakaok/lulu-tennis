@@ -267,4 +267,21 @@ test('点开看大图：取原图链接（full），缓存一会儿；退出后�
   } finally { restore(); }
 });
 
+test('点开看大图：显示时先取好的和点开时的原图请求合并成一次', async () => {
+  const calls = [];
+  const { P, restore } = client(async (a, d) => { calls.push(d); await tick(); return { files: { [d.fileIDs[0]]: 'https://full/x' } }; });
+  try {
+    const [x, y] = await Promise.all([P.full('f1'), P.full('f1')]);
+    assert.strictEqual(x, 'https://full/x'); assert.strictEqual(y, x);
+    assert.strictEqual(calls.length, 1);
+  } finally { restore(); }
+});
+test('头像组件：能看大图且有照片时用 catchtap（不触发外面卡片的跳转，比如「我的」资料卡进编辑资料），没照片时点击照常传给外面', () => {
+  const wxml = require('fs').readFileSync(path.join(__dirname, '../components/pl-av/pl-av.wxml'), 'utf8');
+  const views = wxml.split('\n').filter((l) => /^<view/.test(l));
+  assert.strictEqual(views.length, 2);
+  assert.ok(/wx:if="\{\{preview && url\}\}"/.test(views[0]) && /catchtap="onTap"/.test(views[0]));
+  assert.ok(/wx:else/.test(views[1]) && !/bindtap|catchtap/.test(views[1]));
+});
+
 module.exports = T;

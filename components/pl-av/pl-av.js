@@ -30,6 +30,7 @@ Component({
       this.fileID = fileID;
       if (d.url !== this.data.url || d.initial !== this.data.initial || d.color !== this.data.color) this.setData(d);
       if (fileID && !d.url) P.resolve(fileID).then((url) => { if (this.fileID === fileID && url && url !== this.data.url) this.setData({ url }); });
+      if (fileID && this.data.preview) P.full(fileID); // 能点开看大图的（球员主页 / 「我的」顶部）：先把原图链接取好，点开不用等
     },
     onErr() {
       if (this.own) { // 本人检测中照片的链接过期了：重新查一次（本机文件出错就改回已通过的照片）
@@ -47,8 +48,9 @@ Component({
       P.resolve(fileID).then((url) => { if (this.fileID === fileID && url) this.setData({ url }); });
     },
     // 点开看大图：列表里显示的是缩略图，这里取原图（本人检测中的照片直接用它；取不到原图就用现在这张）
+    // 只在「preview 且有照片」时绑定（catchtap，见 wxml），点击不会再触发外面卡片的跳转
     async onTap() {
-      if (!this.data.preview || !this.data.url) return;
+      if (!this.data.url) return;
       const show = (u) => wx.previewImage({ urls: [u], current: u, showmenu: false });
       if (this.own || !this.fileID) return show(this.data.url);
       if (this.opening) return;

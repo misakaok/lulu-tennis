@@ -179,16 +179,23 @@ function invalidate(fileID) {
 
 // 点开看大图：取原图链接（不存本机）；取不到返回 ''
 const fullUrls = {};
-async function full(fileID) {
-  if (!fileID) return '';
+const fullFlight = new Map();
+function full(fileID) {
+  if (!fileID) return Promise.resolve('');
   const c = fullUrls[fileID];
-  if (c && c.exp > Date.now()) return c.url;
+  if (c && c.exp > Date.now()) return Promise.resolve(c.url);
+  if (fullFlight.has(fileID)) return fullFlight.get(fileID); // 先取好的（组件显示时）和点开时的合并成一次
   const epoch = generation;
-  try {
-    const url = ((await require('./cloud').call('photoUrls', { fileIDs: [fileID], full: true })).files || {})[fileID] || '';
-    if (url && epoch === generation) fullUrls[fileID] = { url, exp: Date.now() + SAFE_MS };
-    return epoch === generation ? url : '';
-  } catch (e) { console.warn('[照片] 获取原图失败', e && e.message); return ''; }
+  const task = (async () => {
+    try {
+      const url = ((await require('./cloud').call('photoUrls', { fileIDs: [fileID], full: true })).files || {})[fileID] || '';
+      if (url && epoch === generation) fullUrls[fileID] = { url, exp: Date.now() + SAFE_MS };
+      return epoch === generation ? url : '';
+    } catch (e) { console.warn('[照片] 获取原图失败', e && e.message); return ''; }
+    finally { fullFlight.delete(fileID); }
+  })();
+  fullFlight.set(fileID, task);
+  return task;
 }
 
 function clear() {
@@ -196,6 +203,7 @@ function clear() {
   L.clearAll();
   ready = false; settleReady(false);
   Object.keys(fullUrls).forEach((k) => delete fullUrls[k]);
+  fullFlight.clear();
   mine = null; synced = false; store(null);
   polls.forEach(clearTimeout); polls = [];
   byUid = {}; byName = {};
