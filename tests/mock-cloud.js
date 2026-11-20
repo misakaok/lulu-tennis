@@ -77,7 +77,7 @@ module.exports = function createEnv() {
     downloadFile: async ({ fileID }) => ({ fileContent: Buffer.from((env.fileContents || {})[fileID] || fileID) }),
     uploadFile: async ({ cloudPath, fileContent }) => {
       const fileID = 'cloud://env1.x/' + cloudPath;
-      (env.fileContents = env.fileContents || {})[fileID] = fileContent.toString();
+      (env.fileContents = env.fileContents || {})[fileID] = Buffer.from(fileContent); // 原样存二进制（照片缩略图要能解码）
       return { fileID };
     },
     getTempFileURL: async ({ fileList }) => ({ fileList: fileList.map((f) => ({ fileID: f.fileID, status: 0, tempFileURL: 'https://tmp/' + f.fileID })) }),

@@ -570,12 +570,19 @@ async function setShown({ on }, uid) {
 //     { uid, fileID, status: checking 检测中 / pass / reject 未通过 / error 检测出错 / replaced 被新照片取代, at, createdAt, checkedAt, label }
 // 换照片：新照片通过检测后才替换，旧照片文件随即删除；没通过的照片文件直接删除。检测中、没通过的状态只有本人能看到。
 // players.avatar 是以前上传、没经过检测的旧照片：保留原值，不再展示。
+// 缩略图（2026-11-20）：服务端从检测用的那份快照缩出 320×320 的 JPG（player-photos/<用户 ID>/<快照名>-s.jpg，avatar_checks.thumb），
+//   它是同一张图缩小出来的，跟着快照的检测结果一起公开 / 删除，不单独检测。通过后写 players.photoThumb（内部字段，不下发）。
+//   photoUrls 默认发缩略图的链接（键仍是 players.photo），full 为 true 时发原图（点开看大图）；以前没有缩略图的照片在 photoUrls 里补做。
 const PHOTO_DIR = 'avatars';
 const PHOTO_URL_AGE = 30 * 60;      // 临时链接 30 分钟
 const PHOTO_DAY_MAX = 10;           // 每人 24 小时内最多提交 10 次检测
 const PHOTO_SCENE = 1;              // 检测场景：资料
 const PHOTO_CHECK_MAX_MS = 60 * 60 * 1000; // 检测超过 1 小时还没结果（微信漏推、结果丢失）：判为出错，让本人重新上传
 const EARLY = 'early-';             // 检测结果比检测记录先到时，先存在 avatar_checks 的 early-<trace_id>，setPhoto 写完记录后接着处理
+const THUMB = 320;                  // 缩略图边长：头像最大显示 168rpx，最清晰的手机上约 290 像素
+const THUMB_QUALITY = 85;
+const THUMB_FILL_MAX = 3;           // 每次 photoUrls 最多给 3 张旧照片补做缩略图（其余先发原图，下次再补）
+const thumbFailed = new Set();      // 解码失败的旧照片：本实例内不再重试
 const escRe = (x) => String(x).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
 // anyEnv：检测推送里用。推送不是小程序端调用，上下文里可能没有环境 ID；检测记录里的 fileID 是服务端自己复制出来的，
@@ -599,6 +606,58 @@ async function tempUrls(ids) {
   }
   return out;
 }
+// 把 JPG 居中取正方形，按块平均缩成 THUMB×THUMB，再编码成 JPG（纯 JS，见 vendor/jpeg-js；解码失败抛错）
+function makeThumb(buf) {
+  const J = require('./vendor/jpeg-js');
+  const img = J.decode(buf, { useTArray: true, formatAsRGBA: true, maxResolutionInMP: 12, maxMemoryUsageInMB: 128 });
+  const { width: w, height: h, data } = img;
+  if (!w || !h) throw new Error('empty image');
+  const s = Math.min(w, h), x0 = Math.floor((w - s) / 2), y0 = Math.floor((h - s) / 2);
+  const span = (i) => { const a = Math.floor(i * s / THUMB); return [a, Math.max(a + 1, Math.floor((i + 1) * s / THUMB))]; };
+  const cols = Array.from({ length: THUMB }, (_x, i) => span(i));
+  const out = Buffer.alloc(THUMB * THUMB * 4);
+  for (let oy = 0; oy < THUMB; oy++) {
+    const [ya, yb] = span(oy);
+    for (let ox = 0; ox < THUMB; ox++) {
+      const [xa, xb] = cols[ox];
+      let r = 0, g = 0, b = 0;
+      for (let y = ya; y < yb; y++) {
+        let k = ((y0 + y) * w + x0 + xa) * 4;
+        for (let x = xa; x < xb; x++, k += 4) { r += data[k]; g += data[k + 1]; b += data[k + 2]; }
+      }
+      const n = (yb - ya) * (xb - xa), o = (oy * THUMB + ox) * 4;
+      out[o] = Math.round(r / n); out[o + 1] = Math.round(g / n); out[o + 2] = Math.round(b / n); out[o + 3] = 255;
+    }
+  }
+  return J.encode({ data: out, width: THUMB, height: THUMB }, THUMB_QUALITY).data;
+}
+// 缩略图存到快照旁边（客户端不可读写的 player-photos/）；做不出来返回 ''，照常用原图
+async function saveThumb(fileContent, uid, base) {
+  let id = '';
+  try {
+    id = (await cloud.uploadFile({ cloudPath: `player-photos/${uid}/${base}-s.jpg`, fileContent: makeThumb(fileContent) })).fileID;
+    if (photoPathOk(id, uid, 'player-photos')) return id;
+    await removeFiles([id]);
+  } catch (e) { console.warn('[照片] 缩略图生成失败', e && (e.errMsg || e.message)); }
+  return '';
+}
+// 以前没有缩略图的已公开照片：补做一张，照片在这期间没换才记上（换了就删掉刚做的）
+async function fillThumb(p) {
+  const m = /\/([\w-]{1,62})\.jpg$/.exec(p.photo);
+  if (!m || thumbFailed.has(p.photo)) return '';
+  let id = '';
+  try { id = await saveThumb((await cloud.downloadFile({ fileID: p.photo })).fileContent, p._openid, m[1]); } catch (e) {}
+  if (!id) { thumbFailed.add(p.photo); return ''; }
+  const kept = await photoTransaction(async (tx) => {
+    const ref = tx.collection('players').doc(p._id);
+    const cur = (await ref.get()).data;
+    if (!cur || cur.photo !== p.photo) return false;
+    if (cur.photoThumb !== id) await ref.update({ data: { photoThumb: id } });
+    return true;
+  }).catch(() => false);
+  if (!kept) { await removeFiles([id]); return ''; }
+  return id;
+}
 // 所有照片状态转换在同一个球员文档上串行化；事务中只做数据库操作。
 async function photoTransaction(fn) {
   let result;
@@ -611,20 +670,20 @@ async function replacePending(tx, p) {
   const c = (await ref.get()).data;
   if (!c || c.status !== 'checking') return [];
   await ref.update({ data: { status: 'replaced', checkedAt: db.serverDate() } });
-  return [c.fileID];
+  return [c.fileID, c.thumb];
 }
 async function clearPhoto(p, actor) {
   const result = await photoTransaction(async (tx) => {
     const ref = tx.collection('players').doc(p._id);
     const current = (await ref.get()).data;
     const files = await replacePending(tx, current);
-    await ref.update({ data: { photo: '', photoRequest: crypto.randomBytes(16).toString('hex'), photoTrace: '', updatedAt: db.serverDate() } });
+    await ref.update({ data: { photo: '', photoThumb: '', photoRequest: crypto.randomBytes(16).toString('hex'), photoTrace: '', updatedAt: db.serverDate() } });
     if (actor) {
       await tx.collection('requests').doc('photo-' + crypto.randomBytes(16).toString('hex')).set({ data: {
         type: 'adminPhoto', target: p._openid, by: actor, byAdmin: true, from: current.photo || '', status: 'done', createdAt: db.serverDate(), handledAt: db.serverDate(),
       } });
     }
-    return { files: files.concat(current.photo || []), removed: !!(current.photo || files.length) };
+    return { files: files.concat(current.photo || [], current.photoThumb || []), removed: !!(current.photo || files.some(Boolean)) };
   });
   await removeFiles(result.files);
   return { removed: result.removed };
@@ -667,12 +726,13 @@ async function setPhoto({ fileID }, uid) {
     throw e;
   });
   await removeFiles(oldFiles);
-  let snapshot = '', trace = '';
+  let snapshot = '', thumb = '', trace = '';
   try {
     // 客户端可覆盖自己的上传文件，故先复制到客户端不可读写的目录，检测和发布始终使用这个不可变快照。
     const { fileContent } = await cloud.downloadFile({ fileID });
     snapshot = (await cloud.uploadFile({ cloudPath: `player-photos/${uid}/${request}.jpg`, fileContent })).fileID;
     if (!photoPathOk(snapshot, uid, 'player-photos')) throw new Error('invalid snapshot');
+    thumb = await saveThumb(fileContent, uid, request); // 从同一份内容缩出来，跟着这次检测结果走
     const url = (await tempUrls([snapshot]))[snapshot];
     if (url) trace = await submitMediaCheck(url, uid);
     console.log('[照片检测提交]', JSON.stringify({ trace }));
@@ -682,13 +742,13 @@ async function setPhoto({ fileID }, uid) {
       const p = (await ref.get()).data;
       const current = p.photoRequest === request;
       await tx.collection('avatar_checks').doc(trace).set({ data: {
-        uid, playerId: me._id, sourceID: fileID, fileID: snapshot, request,
+        uid, playerId: me._id, sourceID: fileID, fileID: snapshot, thumb, request,
         status: current ? 'checking' : 'replaced', at: Date.now(), createdAt: db.serverDate(),
       } });
       if (current) await ref.update({ data: { photoTrace: trace } });
       return current;
     });
-    if (!active) await removeFiles([snapshot]);
+    if (!active) await removeFiles([snapshot, thumb]);
     // 检测结果已经先到了（推送比上面的记录先写入）：现在补处理，结果不会丢
     const early = await getPhotoCheck(EARLY + trace);
     if (early) {
@@ -700,7 +760,7 @@ async function setPhoto({ fileID }, uid) {
     }
     return active ? { state: 'checking', pending: snapshot } : { state: '' }; // pending：通过后会成为 players.photo 的那份（只给本人，前端用来认出「这就是我刚传的」）
   } catch (e) {
-    await removeFiles([snapshot]);
+    await removeFiles([snapshot, thumb]);
     deny('照片暂时无法完成安全检测，请稍后再试');
   } finally { await removeFiles([fileID]); }
 }
@@ -725,8 +785,8 @@ async function settleCheck(trace, status, label) {
     const publish = current && status === 'pass' && photoPathOk(c.fileID, c.uid, 'player-photos', true);
     console.log('[照片检测处理]', JSON.stringify({ trace, status, current: !!current, publish: !!publish }));
     await check.update({ data: { status: current ? status : 'replaced', label: Number(label) || 0, checkedAt: db.serverDate() } });
-    if (current) await ref.update({ data: Object.assign({ photoTrace: '', updatedAt: db.serverDate() }, publish ? { photo: c.fileID } : {}) });
-    return publish ? [p.photo].filter((f) => f && f !== c.fileID) : [c.fileID];
+    if (current) await ref.update({ data: Object.assign({ photoTrace: '', updatedAt: db.serverDate() }, publish ? { photo: c.fileID, photoThumb: c.thumb || '' } : {}) });
+    return publish ? [p.photo, p.photoThumb].filter((f) => f && f !== c.fileID && f !== c.thumb) : [c.fileID, c.thumb];
   });
   await removeFiles(files);
 }
@@ -761,7 +821,7 @@ async function expireCheck(c) {
     const ref = tx.collection('players').doc(cur.playerId);
     const p = (await ref.get()).data;
     if (p && p.photoTrace === c._id) await ref.update({ data: { photoTrace: '', updatedAt: db.serverDate() } });
-    return [cur.fileID];
+    return [cur.fileID, cur.thumb];
   });
   await removeFiles(files);
 }
@@ -781,13 +841,28 @@ async function myPhoto(_d, uid) {
   return { photo, url: urls[photo] || '', state, pending, pendingUrl: urls[pending] || '' };
 }
 
-// 球员照片临时链接：只发放同意公开展示的球员当前已通过检测的照片（players.photo），其他文件一律不给
-async function photoUrls({ fileIDs }) {
+// 球员照片临时链接：只发放同意公开展示的球员当前已通过检测的照片（players.photo），其他文件一律不给。
+//   默认发 320 缩略图（thumbs[照片] = 1 表示这条是缩略图，小程序端只把缩略图存到本机）；没有缩略图的先补做，做不出来发原图。
+//   full 为 true：发原图（点开看大图）。键一律是 players.photo，缩略图的 fileID 不下发。
+async function photoUrls({ fileIDs, full }) {
   const list = Array.from(new Set((Array.isArray(fileIDs) ? fileIDs : []).filter((x) => typeof x === 'string' && /^cloud:\/\//.test(x)))).slice(0, 100);
-  if (!list.length) return { files: {} };
+  if (!list.length) return { files: {}, thumbs: {} };
   const owners = await byIds('players', list, 'photo');
-  const ok = Array.from(new Set(owners.filter((p) => p.self && p._openid && isShown(p) && photoPathOk(p.photo, p._openid, 'player-photos')).map((p) => p.photo)));
-  return { files: await tempUrls(ok) };
+  const src = {}, isThumb = {}, legacy = [];
+  owners.forEach((p) => {
+    if (src[p.photo] || !(p.self && p._openid && isShown(p) && photoPathOk(p.photo, p._openid, 'player-photos'))) return;
+    if (!full && photoPathOk(p.photoThumb, p._openid, 'player-photos')) { src[p.photo] = p.photoThumb; isThumb[p.photo] = 1; return; }
+    src[p.photo] = p.photo;
+    if (!full) legacy.push(p);
+  });
+  for (const p of legacy.slice(0, THUMB_FILL_MAX)) {
+    const t = await fillThumb(p);
+    if (t) { src[p.photo] = t; isThumb[p.photo] = 1; }
+  }
+  const urls = await tempUrls(Array.from(new Set(Object.values(src))));
+  const files = {}, thumbs = {};
+  Object.keys(src).forEach((k) => { if (urls[src[k]]) { files[k] = urls[src[k]]; if (isThumb[k]) thumbs[k] = 1; } });
+  return { files, thumbs };
 }
 
 // 管理员移除某位成员的照片（不合适的照片兜底处理）：改回首字圆，删文件，留档
@@ -1861,7 +1936,7 @@ function cleanData(data) {
 }
 function publicPlayer(d) {
   const out = Object.assign({}, d);
-  ['photoRequest', 'photoTrace', 'photoAttempts'].forEach((k) => delete out[k]);
+  ['photoRequest', 'photoTrace', 'photoAttempts', 'photoThumb'].forEach((k) => delete out[k]);
   if (!isShown(d)) delete out.photo; // 没同意公开展示：照片不下发（和 dataset 一致）
   return out;
 }
@@ -1869,7 +1944,7 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   if (!GW_READ[coll]) deny('没有权限查看这些内容');
   const col = db.collection(coll);
   const visible = coll === 'draws' ? E.publicDraw : coll === 'matches' ? E.publicMatch : coll === 'players' ? publicPlayer : (d) => d;
-  if (coll === 'players' && Object.keys(where || {}).concat((orders || []).map((o) => o[0])).some((k) => /^photo(Request|Trace|Attempts)(\.|$)/.test(k))) deny('查询条件不支持');
+  if (coll === 'players' && Object.keys(where || {}).concat((orders || []).map((o) => o[0])).some((k) => /^photo(Request|Trace|Attempts|Thumb)(\.|$)/.test(k))) deny('查询条件不支持');
   if (op === 'get' || op === 'count') {
     const w = where || {};
     if (typeof w !== 'object' || Object.keys(w).some((k) => !isPlain(w[k]))) deny('查询条件不支持');

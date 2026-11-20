@@ -6,11 +6,13 @@ const tick = () => new Promise((r) => setTimeout(r, 5));
 function client(call) {
   const cloudPath = require.resolve('../utils/cloud');
   const photoPath = require.resolve('../utils/photo');
+  const cachePath = require.resolve('../utils/photo-cache');
   const old = require.cache[cloudPath];
   require.cache[cloudPath] = { id: cloudPath, filename: cloudPath, loaded: true, exports: { call } };
   delete require.cache[photoPath];
+  delete require.cache[cachePath];
   const P = require(photoPath);
-  return { P, restore() { P.clear(); delete require.cache[photoPath]; if (old) require.cache[cloudPath] = old; else delete require.cache[cloudPath]; } };
+  return { P, L: require(cachePath), restore() { P.clear(); delete require.cache[photoPath]; delete require.cache[cachePath]; if (old) require.cache[cloudPath] = old; else delete require.cache[cloudPath]; } };
 }
 test('照片列表：大量重复组件按 50 张合并；在途请求和链接缓存均去重', async () => {
   const calls = [];
@@ -128,4 +130,141 @@ test('本人马上看到：认的是服务端复制的那份；启动后第一�
     assert.strictEqual(P.ownSrc('alice'), '', '正式照片就是这份：不再单独显示');
   } finally { restore(); delete global.wx; }
 });
+/* ---------- 缩略图本机缓存 ---------- */
+// 模拟小程序的本机存储、下载和文件系统；restart() 模拟重新打开小程序（本机存储和文件还在，内存里的都没了）
+function fakeWx() {
+  const mem = {}, files = {}, downloads = [];
+  const fw = {
+    mem, files, downloads, failDownload: '',
+    env: { USER_DATA_PATH: 'wxfile://usr' },
+    getStorageSync: (k) => mem[k], setStorageSync: (k, v) => { mem[k] = JSON.parse(JSON.stringify(v)); }, removeStorageSync: (k) => { delete mem[k]; },
+    downloadFile({ url, success, fail }) {
+      downloads.push(url);
+      setTimeout(() => (fw.failDownload ? fail({ errMsg: fw.failDownload }) : success({ statusCode: 200, tempFilePath: 'tmp://' + url })), 0);
+    },
+    getFileSystemManager: () => ({
+      mkdirSync() {}, rmdirSync(d) { Object.keys(files).filter((f) => f.indexOf(d + '/') === 0).forEach((f) => delete files[f]); },
+      saveFile({ tempFilePath, filePath, success }) { files[filePath] = tempFilePath; setTimeout(success, 0); },
+      unlinkSync(f) { if (!(f in files)) throw new Error('no such file'); delete files[f]; },
+      statSync: (f) => ({ size: 30000 }),
+      readdirSync: (d) => Object.keys(files).filter((f) => f.indexOf(d + '/') === 0).map((f) => f.slice(d.length + 1)),
+    }),
+  };
+  return fw;
+}
+const snap = (uid, n) => `cloud://env1.x/player-photos/${uid}/${n}.jpg`;
+const thumbsCall = (calls, isThumb = true) => async (action, d) => {
+  calls.push(d);
+  return { files: Object.fromEntries(d.fileIDs.map((f) => [f, (d.full ? 'https://full/' : 'https://thumb/') + f])), thumbs: isThumb && !d.full ? Object.fromEntries(d.fileIDs.map((f) => [f, 1])) : {} };
+};
+const wait = (ms = 20) => new Promise((r) => setTimeout(r, ms));
+
+test('缩略图缓存：拿到缩略图链接后存到本机；重新打开后等最新资料到了直接用本机文件，不再取链接', async () => {
+  const fw = fakeWx(); global.wx = fw;
+  const calls = [];
+  let { P, L, restore } = client(thumbsCall(calls));
+  const a = snap('alice', 'r1');
+  try {
+    P.setPlayers([], { alice: { photo: a } });
+    assert.strictEqual(await P.resolve(a), 'https://thumb/' + a);
+    await wait();
+    assert.deepStrictEqual(fw.downloads, ['https://thumb/' + a]);
+    assert.strictEqual(P.peek(a), 'wxfile://usr/pl/alice_r1.jpg', '存好后就用本机文件');
+    L._restart();
+    // 重新打开：模块重新加载
+    const P2 = (() => { delete require.cache[require.resolve('../utils/photo')]; return require('../utils/photo'); })();
+    assert.strictEqual(P2.peek(a), '', '还没拿到最新资料：先不用本机文件');
+    const pending = P2.resolve(a);
+    await wait(5);
+    P2.setPlayers([], { alice: { photo: a } });
+    assert.strictEqual(await pending, 'wxfile://usr/pl/alice_r1.jpg');
+    assert.strictEqual(calls.length, 1, '没有再调 photoUrls');
+    assert.strictEqual(fw.downloads.length, 1, '没有重新下载');
+    P = P2;
+  } finally { P.clear(); restore(); delete global.wx; }
+});
+test('缩略图缓存：关掉公开展示、换照片、管理员移除（最新资料里没有了）就删本机文件；退出成员身份全部删掉', async () => {
+  const fw = fakeWx(); global.wx = fw;
+  const { P, L, restore } = client(thumbsCall([]));
+  const a = snap('alice', 'r1'), b = snap('bob', 'r2'), b2 = snap('bob', 'r3');
+  try {
+    P.setPlayers([], { alice: { photo: a }, bob: { photo: b } });
+    await Promise.all([P.resolve(a), P.resolve(b)]);
+    await wait();
+    assert.deepStrictEqual(Object.keys(fw.files).sort(), ['wxfile://usr/pl/alice_r1.jpg', 'wxfile://usr/pl/bob_r2.jpg']);
+    P.setPlayers([], { alice: {}, bob: { photo: b2 } }); // alice 关了公开展示（照片不下发），bob 换了照片
+    assert.deepStrictEqual(Object.keys(fw.files), [], '本机文件删掉');
+    assert.ok(!L.has(a) && !L.has(b));
+    await P.resolve(b2); await wait();
+    assert.deepStrictEqual(Object.keys(fw.files), ['wxfile://usr/pl/bob_r3.jpg']);
+    P.clear();
+    assert.deepStrictEqual(Object.keys(fw.files), []);
+    assert.ok(!fw.mem.photo_files);
+  } finally { restore(); delete global.wx; }
+});
+test('缩略图缓存：下载期间照片不再公开就不留；目录里索引外的文件在启动后清掉；超过上限删最久没用的', async () => {
+  const fw = fakeWx(); global.wx = fw;
+  const { P, L, restore } = client(thumbsCall([]));
+  try {
+    fw.files['wxfile://usr/pl/old_left.jpg'] = 'x'; // 以前留下、索引里没有的
+    const a = snap('alice', 'r1');
+    P.setPlayers([], { alice: { photo: a } });
+    assert.ok(!fw.files['wxfile://usr/pl/old_left.jpg'], '索引外的文件删掉');
+    const got = P.resolve(a);
+    await got;
+    P.setPlayers([], { alice: {} }); // 下载还没完成就不公开了
+    await wait();
+    assert.deepStrictEqual(Object.keys(fw.files), []);
+    L.LIMIT.count = 3;
+    const ids = [1, 2, 3, 4].map((i) => snap('u' + i, 'r'));
+    P.setPlayers([], Object.fromEntries(ids.map((f, i) => ['u' + (i + 1), { photo: f }])));
+    for (const f of ids) { await P.resolve(f); await wait(5); }
+    await wait();
+    assert.deepStrictEqual(Object.keys(fw.files).sort(), ['wxfile://usr/pl/u2_r.jpg', 'wxfile://usr/pl/u3_r.jpg', 'wxfile://usr/pl/u4_r.jpg']);
+  } finally { restore(); delete global.wx; }
+});
+test('缩略图缓存：旧版云函数发的原图不存；下载域名没配就不再试，照常用链接；本机文件坏了改用链接', async () => {
+  const fw = fakeWx(); global.wx = fw;
+  const calls = [];
+  const { P, L, restore } = client(thumbsCall(calls, false));
+  try {
+    const a = snap('alice', 'r1');
+    P.setPlayers([], { alice: { photo: a } });
+    assert.strictEqual(await P.resolve(a), 'https://thumb/' + a);
+    await wait();
+    assert.deepStrictEqual(fw.downloads, [], '不是缩略图：不下载');
+  } finally { restore(); }
+  const c2 = client(thumbsCall(calls));
+  try {
+    const b = snap('bob', 'r2'), c = snap('carl', 'r3'), d = snap('dan', 'r4');
+    c2.P.setPlayers([], { bob: { photo: b }, carl: { photo: c }, dan: { photo: d } });
+    fw.failDownload = 'downloadFile:fail url not in domain list';
+    await c2.P.resolve(b); await wait();
+    await c2.P.resolve(c); await wait();
+    assert.strictEqual(fw.downloads.length, 1, '域名不行：这次启动不再下载');
+    assert.strictEqual(c2.P.peek(c), 'https://thumb/' + c, '照常用链接显示');
+    // 本机文件坏了：删掉，改用链接
+    c2.L._restart(); fw.failDownload = '';
+    await c2.P.resolve(d); await wait();
+    assert.ok(c2.L.has(d));
+    c2.P.invalidate(d);
+    assert.ok(!c2.L.has(d));
+    assert.strictEqual(await c2.P.resolve(d), 'https://thumb/' + d);
+  } finally { c2.restore(); delete global.wx; }
+});
+test('点开看大图：取原图链接（full），缓存一会儿；退出后不再用', async () => {
+  const calls = [];
+  const { P, restore } = client(thumbsCall(calls));
+  try {
+    const a = snap('alice', 'r1');
+    assert.strictEqual(await P.full(a), 'https://full/' + a);
+    assert.strictEqual(await P.full(a), 'https://full/' + a);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].full, true);
+    P.clear();
+    await P.full(a);
+    assert.strictEqual(calls.length, 2);
+  } finally { restore(); }
+});
+
 module.exports = T;

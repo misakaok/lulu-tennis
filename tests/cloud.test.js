@@ -1303,7 +1303,7 @@ test('照片：审核对象是不可变快照；内部字段不能经本人资�
   ok(await env.call('alice', 'setPhoto', { fileID: source }));
   const f = frozen(env, source);
   env.fileContents[source] = 'unmoderated overwrite';
-  assert.strictEqual(env.fileContents[f], 'checked bytes');
+  assert.strictEqual(String(env.fileContents[f]), 'checked bytes');
   assert.ok(env.mediaChecks[0].mediaUrl.endsWith(f));
   for (const response of [
     ok(await env.call('bob', 'data', { op: 'doc', coll: 'players', id: 'p_alice' })),
@@ -1401,6 +1401,107 @@ test('照片：不同文件并发提交仍受十次上限约束；没有当前�
   assert.ok(env.deletedFiles.includes(pf('alice', 'parallel14')));
   env.env = '';
   no(await env.call('bob', 'setPhoto', { fileID: pf('bob', 'envless') }), /位置不对/);
+});
+
+/* ---------- 球员照片缩略图（320×320，跟着检测结果走） ---------- */
+const J = require('../cloudfunctions/tennis/vendor/jpeg-js');
+// 生成测试用 JPG：左半边红、右半边蓝
+function jpg(w, h) {
+  const data = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) data.set(x < w / 2 ? [220, 30, 30, 255] : [30, 30, 220, 255], (y * w + x) * 4);
+  return J.encode({ data, width: w, height: h }, 90).data;
+}
+const urlsOf = (r) => ({ files: r.files, thumbs: r.thumbs });
+const thumbOf = (env, source) => Object.values(env.coll('avatar_checks')).find((c) => c.sourceID === source).thumb;
+test('照片缩略图：从检测快照缩成 320×320，跟着检测结果公开；photoUrls 默认发缩略图、full 发原图；缩略图编号不下发', async () => {
+  const env = setup();
+  const source = pf('alice', 't1');
+  env.fileContents = { [source]: jpg(1080, 1080) };
+  ok(await env.call('alice', 'setPhoto', { fileID: source }));
+  const f = frozen(env, source), t = thumbOf(env, source);
+  assert.strictEqual(t, f.replace(/\.jpg$/, '-s.jpg'), '放在快照旁边（客户端不可读写的目录）');
+  assert.ok(env.mediaChecks[0].mediaUrl.endsWith(f), '检测的仍是原图快照');
+  const img = J.decode(env.fileContents[t], { useTArray: true });
+  assert.deepStrictEqual([img.width, img.height], [320, 320]);
+  const px = (x, y) => Array.from(img.data.slice((y * 320 + x) * 4, (y * 320 + x) * 4 + 3));
+  assert.ok(px(40, 160)[0] > 180 && px(40, 160)[2] < 80, '左半边红');
+  assert.ok(px(280, 160)[2] > 180 && px(280, 160)[0] < 80, '右半边蓝');
+  assert.ok(env.fileContents[t].length < env.fileContents[f].length / 4, '体积小得多');
+  assert.deepStrictEqual(ok(await env.call('bob', 'photoUrls', { fileIDs: [f] })).files, {}, '检测中不发');
+  assert.ok(!env.coll('players').p_alice.photoThumb);
+  await env.push({ trace_id: 'trace1', result: { suggest: 'pass' } });
+  assert.strictEqual(env.coll('players').p_alice.photo, f);
+  assert.strictEqual(env.coll('players').p_alice.photoThumb, t);
+  assert.deepStrictEqual(urlsOf(ok(await env.call('bob', 'photoUrls', { fileIDs: [f] }))), { files: { [f]: 'https://tmp/' + t }, thumbs: { [f]: 1 } });
+  assert.deepStrictEqual(urlsOf(ok(await env.call('bob', 'photoUrls', { fileIDs: [f], full: true }))), { files: { [f]: 'https://tmp/' + f }, thumbs: {} });
+  assert.deepStrictEqual(ok(await env.call('bob', 'photoUrls', { fileIDs: [t] })).files, {}, '直接拿缩略图编号换不到链接');
+  for (const response of [
+    ok(await env.call('bob', 'data', { op: 'doc', coll: 'players', id: 'p_alice' })),
+    ok(await env.call('bob', 'data', { op: 'get', coll: 'players' })),
+    ok(await env.call('alice', 'saveProfile', { name: 'Alice', gender: 'f' })),
+    ok(await env.call('bob', 'dataset')),
+  ]) assert.ok(!/photoThumb|-s\.jpg/.test(JSON.stringify(response)));
+  no(await env.call('bob', 'data', { op: 'count', coll: 'players', where: { photoThumb: t } }));
+  // 关闭公开展示：缩略图也拿不到
+  ok(await env.call('alice', 'setShown', { on: false }));
+  assert.deepStrictEqual(ok(await env.call('bob', 'photoUrls', { fileIDs: [f] })).files, {});
+});
+test('照片缩略图：不是正方形的居中取方；换新照片删旧缩略图；没通过、被取代、清除都连同缩略图删掉', async () => {
+  const env = setup();
+  env.fileContents = {};
+  const src = (n, w = 400, h = 400) => { const s = pf('alice', n); env.fileContents[s] = jpg(w, h); return s; };
+  const a = src('a', 1200, 600);
+  ok(await env.call('alice', 'setPhoto', { fileID: a }));
+  const ta = thumbOf(env, a);
+  const img = J.decode(env.fileContents[ta], { useTArray: true });
+  assert.deepStrictEqual([img.width, img.height], [320, 320]);
+  await env.push({ trace_id: 'trace1', result: { suggest: 'pass' } });
+  const b = src('b');
+  ok(await env.call('alice', 'setPhoto', { fileID: b }));
+  await env.push({ trace_id: 'trace2', result: { suggest: 'risky' } });
+  assert.ok(env.deletedFiles.includes(frozen(env, b)) && env.deletedFiles.includes(thumbOf(env, b)), '没通过：快照和缩略图都删');
+  assert.strictEqual(env.coll('players').p_alice.photoThumb, ta, '原来的照片不受影响');
+  const c = src('c'), d = src('d');
+  ok(await env.call('alice', 'setPhoto', { fileID: c }));
+  ok(await env.call('alice', 'setPhoto', { fileID: d }));
+  assert.ok(env.deletedFiles.includes(thumbOf(env, c)), '检测中被取代：缩略图删');
+  await env.push({ trace_id: 'trace4', result: { suggest: 'pass' } });
+  assert.strictEqual(env.coll('players').p_alice.photoThumb, thumbOf(env, d));
+  assert.ok(env.deletedFiles.includes(frozen(env, a)) && env.deletedFiles.includes(ta), '换新照片：旧照片和旧缩略图都删');
+  assert.ok(!env.deletedFiles.includes(thumbOf(env, d)));
+  ok(await adminCall(env, 'boss', 'adminClearPhoto', { uid: 'alice' }));
+  assert.ok(env.deletedFiles.includes(thumbOf(env, d)), '管理员移除：缩略图一起删');
+  assert.strictEqual(env.coll('players').p_alice.photoThumb, '');
+});
+test('照片缩略图：以前没有缩略图的照片在 photoUrls 里补做一次；做不出来照常发原图；补做期间换了照片就删掉', async () => {
+  const env = setup();
+  const photo = 'cloud://env1.x/player-photos/alice/old1.jpg', t = 'cloud://env1.x/player-photos/alice/old1-s.jpg';
+  env.fileContents = { [photo]: jpg(1080, 1080) };
+  Object.assign(env.coll('players').p_alice, { photo });
+  assert.deepStrictEqual(urlsOf(ok(await env.call('bob', 'photoUrls', { fileIDs: [photo] }))), { files: { [photo]: 'https://tmp/' + t }, thumbs: { [photo]: 1 } });
+  assert.strictEqual(env.coll('players').p_alice.photoThumb, t);
+  delete env.fileContents[t];
+  ok(await env.call('bob', 'photoUrls', { fileIDs: [photo] }));
+  assert.ok(!env.fileContents[t], '已经有缩略图：不再重做');
+  // 解码不了：发原图，不标缩略图
+  const bad = 'cloud://env1.x/player-photos/bob/old2.jpg';
+  Object.assign(env.coll('players').p_bob, { photo: bad });
+  assert.deepStrictEqual(urlsOf(ok(await env.call('alice', 'photoUrls', { fileIDs: [bad] }))), { files: { [bad]: 'https://tmp/' + bad }, thumbs: {} });
+  assert.ok(!env.coll('players').p_bob.photoThumb);
+  // 没同意公开展示：不补、不发
+  const hidden = 'cloud://env1.x/player-photos/eve/old3.jpg';
+  env.fileContents[hidden] = jpg(400, 400);
+  Object.assign(env.coll('players').p_eve, { photo: hidden, shown: false });
+  assert.deepStrictEqual(urlsOf(ok(await env.call('alice', 'photoUrls', { fileIDs: [hidden] }))), { files: {}, thumbs: {} });
+  assert.ok(!env.fileContents['cloud://env1.x/player-photos/eve/old3-s.jpg']);
+  // 补做期间照片被清除：刚做的缩略图删掉，不记上
+  const race = 'cloud://env1.x/player-photos/carl/old4.jpg', raceT = 'cloud://env1.x/player-photos/carl/old4-s.jpg';
+  const bytes = jpg(400, 400);
+  Object.defineProperty(env.fileContents, race, { enumerable: true, get() { env.coll('players').p_carl.photo = ''; return bytes; } });
+  Object.assign(env.coll('players').p_carl, { photo: race });
+  ok(await env.call('alice', 'photoUrls', { fileIDs: [race] }));
+  assert.ok(env.deletedFiles.includes(raceT));
+  assert.ok(!env.coll('players').p_carl.photoThumb);
 });
 
 module.exports = T;

@@ -2,6 +2,7 @@
 //   用法：<pl-av class="avatar sm" uid="{{p.uid}}" name="{{p.name}}" />（class 直接用页面里原来首字圆的样式）
 //   有用户 ID 按 ID 找照片，只有名字时按名字找（同名的不算）；preview 为 true 时点击查看大图
 //   本人有照片在检测时，本人看到的是这张新照片（utils/photo.js 的 ownSrc），别人看到的仍是已通过的
+//   平时显示 320 缩略图（本机有就用本机文件，见 utils/photo-cache.js），点开大图才取原图
 const P = require('../../utils/photo');
 const R = require('../../utils/rules');
 
@@ -45,8 +46,14 @@ Component({
       P.invalidate(fileID);
       P.resolve(fileID).then((url) => { if (this.fileID === fileID && url) this.setData({ url }); });
     },
-    onTap() {
-      if (this.data.preview && this.data.url) wx.previewImage({ urls: [this.data.url], current: this.data.url, showmenu: false });
+    // 点开看大图：列表里显示的是缩略图，这里取原图（本人检测中的照片直接用它；取不到原图就用现在这张）
+    async onTap() {
+      if (!this.data.preview || !this.data.url) return;
+      const show = (u) => wx.previewImage({ urls: [u], current: u, showmenu: false });
+      if (this.own || !this.fileID) return show(this.data.url);
+      if (this.opening) return;
+      this.opening = true;
+      try { show((await P.full(this.fileID)) || this.data.url); } finally { this.opening = false; }
     },
   },
 });
