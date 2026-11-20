@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page me-page">
   <player-home id="home" uid="{{myId}}" mine />
 
   <!-- 成长档案：只有自己看得到的私人记录，和正式战绩分开统计 -->
@@ -7,7 +7,6 @@
       <view class="hd-ic">📈</view>
       <view class="hd-m">
         <view class="hd-t">我的成长档案</view>
-        <view class="hd-s">🔒 仅自己可见 · 和正式战绩分开统计</view>
       </view>
       <text class="me-go">›</text>
     </view>

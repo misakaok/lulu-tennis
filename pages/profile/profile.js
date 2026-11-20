@@ -20,6 +20,7 @@ Page({
     name: '', gender: '', level: R.DEFAULT_LEVEL, levels: R.SELF_LEVELS, isNew: true, saving: false, tip: '',
     photoShow: '', photoNew: false, hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
     shown: false, // 公开展示授权（utils/consent.js）：不默认勾选
+    photoState: '', // 最近一次检测：checking / reject / error（状态小标签的颜色）
   },
 
   onLoad(options) {
@@ -52,13 +53,19 @@ Page({
       const r = await cloud.call('myPhoto');
       this.photo = r;
       P.applyMine(await db.myOpenid(), this.data.name || (db.cachedProfile() || {}).name || '', r); // 顺便更新「本人马上看到」：通过 / 没通过就不再单独显示
-      if (!this.photoTemp) this.setData({ photoShow: r.pendingUrl || r.url || '', hasPhoto: !!(r.url || r.pendingUrl), stateText: STATE_TEXT[r.state] || '' });
+      if (!this.photoTemp) this.setData({ photoShow: r.pendingUrl || r.url || '', hasPhoto: !!(r.url || r.pendingUrl), stateText: STATE_TEXT[r.state] || '', photoState: r.state || '' });
     } catch (e) { console.warn('[照片] 读取失败', e && e.message); }
   },
 
   /* ---------- 照片 ---------- */
-  pickAlbum() { this.pick('album'); },
-  pickCamera() { this.pick('camera'); },
+  // 点照片 / 相机角标：从相册选、拍照，有照片时还能查看大图、删除
+  photoMenu() {
+    if (this.data.saving) return;
+    const items = [{ t: '从相册选', fn: () => this.pick('album') }, { t: '拍照', fn: () => this.pick('camera') }];
+    if (this.data.photoShow) items.push({ t: '查看大图', fn: () => this.previewPhoto() });
+    if (this.data.hasPhoto && !this.data.photoNew) items.push({ t: '删除照片', fn: () => this.removePhoto() });
+    wx.showActionSheet({ itemList: items.map((x) => x.t), success: (r) => items[r.tapIndex] && items[r.tapIndex].fn(), fail() {} });
+  },
   // 选好、裁好就直接上传（已经有资料的）：不用再点「保存」，返回其他页面马上看到；第一次设置资料的，保存资料时一起上传
   async pick(source) {
     if (!this.data.shown && !(await this.agree('上传照片需要同意公开展示'))) return; // 照片就是给其他成员看的：先授权
@@ -105,7 +112,7 @@ Page({
       this.photoTemp = '';
       this.photo = { url: '', pendingUrl: '', state: '' };
       P.setMine(null);
-      this.setData({ photoShow: '', photoNew: false, hasPhoto: false, stateText: '' });
+      this.setData({ photoShow: '', photoNew: false, hasPhoto: false, stateText: '', photoState: '' });
       db.fetchPlayersFull().catch(() => {}); // 刷新照片名单（写操作已作废缓存）
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
@@ -130,7 +137,7 @@ Page({
     P.setMine({ uid, name: (this.data.name || '').trim(), fileID: r.fileID, src: square }); // 本人马上在所有页面看到新照片
     this.photoTemp = '';
     this.photo = Object.assign({}, this.photo, { pendingUrl: square, state: 'checking' });
-    this.setData({ photoShow: square, photoNew: false, hasPhoto: true, stateText: STATE_TEXT.checking });
+    this.setData({ photoShow: square, photoNew: false, hasPhoto: true, stateText: STATE_TEXT.checking, photoState: 'checking' });
   },
 
   /* ---------- 公开展示授权 ---------- */

@@ -1,4 +1,5 @@
-.page { padding-bottom: 180rpx; }
+/* 底部留白：有「记一场」按钮时刚好让开按钮（距底 40rpx + 高 100rpx + 间隔 10rpx），没有按钮时用普通页面的 60rpx */
+.page.with-fab { padding-bottom: 150rpx; }
 .top { padding: 8rpx 4rpx 22rpx; }
 .top-t { font-size: 44rpx; font-weight: 800; }
 .top-s { margin-top: 4rpx; font-size: 24rpx; color: #8686A0; }
@@ -29,7 +30,9 @@
 .chips { display: flex; flex: none; }
 .fc { margin-right: 12rpx; padding: 12rpx 26rpx; border-radius: 30rpx; font-size: 25rpx; color: #5C5C76; background: #EFEFF6; }
 .fc.on { color: #fff; background: #6E6EA3; font-weight: 600; }
-.search { flex: 1; min-width: 0; height: 64rpx; margin-left: 4rpx; padding: 0 24rpx; border-radius: 32rpx; background: #fff; font-size: 25rpx; }
+/* 搜索框：和左边的筛选按钮同高、同底色，文字居中，不再是一大块白色 */
+.search { flex: 1; min-width: 0; height: 54rpx; margin-left: 4rpx; padding: 0 20rpx; border-radius: 27rpx; background: #EFEFF6; font-size: 25rpx; color: #3a3a52; text-align: center; }
+.search-ph { color: #A5A5BA; }
 
 .date { margin: 34rpx 8rpx 14rpx; font-size: 24rpx; font-weight: 700; color: #8686A0; }
 

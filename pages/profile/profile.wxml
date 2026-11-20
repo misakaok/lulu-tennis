@@ -1,21 +1,22 @@
 <view class="page">
   <view wx:if="{{tip}}" class="tip">{{tip}}</view>
 
-  <!-- 照片：1:1 裁剪，1080×1080 高清；检测通过后其他球友才看得到 -->
-  <view class="card center">
-    <view class="photo-wrap" bindtap="previewPhoto">
-      <image wx:if="{{photoShow}}" class="photo" src="{{photoShow}}" mode="aspectFill" />
-      <view wx:else class="photo init" style="background:{{color}}">{{initial}}</view>
-      <view wx:if="{{photoNew && isNew}}" class="photo-tag">新照片 · 点「完成」后上传</view>
+  <!-- 照片：1:1 裁剪，1080×1080 高清；同意公开展示、检测通过后其他成员才看得到
+       点照片或右下角相机角标弹出菜单（从相册选 / 拍照 / 查看大图 / 删除照片），下面只留一行状态和一行说明 -->
+  <view class="card ph-card">
+    <view class="ph-wrap" hover-class="tap-on" bindtap="photoMenu">
+      <view class="ph-ring">
+        <image wx:if="{{photoShow}}" class="photo" src="{{photoShow}}" mode="aspectFill" />
+        <view wx:else class="photo init" style="background:{{color}}">{{initial}}</view>
+      </view>
+      <view class="ph-cam"><view class="cam-body"><view class="cam-lens"></view></view></view>
     </view>
-    <view class="photo-btns">
-      <view class="btn-line pb" hover-class="tap-on" bindtap="pickAlbum">从相册选</view>
-      <view class="btn-line pb" hover-class="tap-on" bindtap="pickCamera">拍照</view>
-    </view>
-    <view wx:if="{{photoNew && !saving}}" class="photo-ops"><view class="btn-line op" hover-class="tap-on" bindtap="undoPhoto">不换了</view></view>
-    <view wx:elif="{{hasPhoto}}" class="photo-ops"><view class="btn-danger op" hover-class="tap-on" bindtap="removePhoto">删除照片</view></view>
-    <view wx:if="{{stateText && !photoNew}}" class="photo-state">{{stateText}}</view>
-    <view class="hint">照片会裁成正方形（1080×1080），你同意公开展示、并且通过微信图片安全检测后才展示给其他成员；没有照片时显示名字首字</view>
+    <view class="ph-t">{{photoShow ? '更换照片' : '添加照片'}}</view>
+    <view wx:if="{{photoNew && isNew}}" class="ph-pill">新照片 · 点「完成」后上传</view>
+    <view wx:elif="{{stateText && !photoNew}}" class="ph-pill {{photoState === 'checking' ? '' : 'bad'}}">{{stateText}}</view>
+    <view wx:elif="{{hasPhoto && !shown}}" class="ph-pill bad">没有开启公开展示，照片只有你自己能看到</view>
+    <view wx:if="{{photoNew && !saving}}" class="ph-ops"><view class="btn-line ph-op" hover-class="tap-on" bindtap="undoPhoto">不换了</view></view>
+    <view class="ph-hint">1:1 裁剪 · 同意公开展示并通过图片安全检测后，其他成员才能看到；没有照片时显示名字首字</view>
   </view>
   <canvas type="2d" id="photo-cv" class="photo-cv"></canvas>
 

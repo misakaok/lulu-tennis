@@ -1,15 +1,23 @@
 .tip { background: #fff8e6; color: #9a6a00; font-size: 24rpx; padding: 18rpx 22rpx; border-radius: 16rpx; margin-bottom: 20rpx; }
-.center { display: flex; flex-direction: column; align-items: center; padding-top: 40rpx; }
 
-.photo-wrap { position: relative; }
-.photo { width: 300rpx; height: 300rpx; border-radius: 40rpx; display: block; background: #F1F1F8; box-shadow: 0 14rpx 32rpx rgba(110, 110, 163, 0.25); }
-.photo.init { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 120rpx; font-weight: 800; }
-.photo-tag { position: absolute; left: 50%; bottom: -16rpx; transform: translateX(-50%); white-space: nowrap; background: #6E6EA3; color: #fff; font-size: 20rpx; padding: 4rpx 16rpx; border-radius: 20rpx; }
-.photo-btns { display: flex; margin-top: 40rpx; align-self: stretch; }
-.pb { flex: 1; margin: 0 8rpx; }
-.photo-ops { margin-top: 18rpx; display: flex; justify-content: center; }
-.op { width: 240rpx; }
-.photo-state { margin-top: 18rpx; font-size: 24rpx; color: #6E6EA3; text-align: center; }
+/* 本页的重点块：淡紫渐变底（同球拍页、比赛详情的 hero），白字 */
+.ph-card { display: flex; flex-direction: column; align-items: center; padding: 44rpx 36rpx 32rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
+/* 照片：半透明白圈 + 白色间隔，右下角白色相机角标（纯 CSS 画的相机） */
+.ph-wrap { position: relative; border-radius: 50%; }
+.ph-ring { padding: 6rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.45); box-shadow: 0 12rpx 28rpx rgba(80, 80, 140, 0.25); }
+.photo { width: 220rpx; height: 220rpx; border-radius: 50%; display: block; background: #F1F1F8; border: 6rpx solid #fff; box-sizing: border-box; }
+.photo.init { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 92rpx; font-weight: 800; }
+.ph-cam { position: absolute; right: 4rpx; bottom: 4rpx; width: 64rpx; height: 64rpx; border-radius: 50%; background: #fff; box-sizing: border-box; display: flex; align-items: center; justify-content: center; box-shadow: 0 4rpx 12rpx rgba(80, 80, 140, 0.3); }
+.cam-body { position: relative; width: 28rpx; height: 20rpx; border: 3rpx solid #6E6EA3; border-radius: 6rpx; display: flex; align-items: center; justify-content: center; }
+.cam-body::before { content: ''; position: absolute; top: -8rpx; left: 7rpx; width: 10rpx; height: 5rpx; background: #6E6EA3; border-radius: 3rpx 3rpx 0 0; }
+.cam-lens { width: 8rpx; height: 8rpx; border: 3rpx solid #6E6EA3; border-radius: 50%; }
+.ph-t { margin-top: 20rpx; font-size: 27rpx; font-weight: 700; color: #fff; }
+.ph-pill { margin-top: 16rpx; max-width: 100%; box-sizing: border-box; padding: 8rpx 22rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.22); color: #fff; font-size: 22rpx; line-height: 1.5; text-align: center; }
+.ph-pill.bad { background: #fff; color: #b34d4d; }
+.ph-ops { margin-top: 16rpx; display: flex; justify-content: center; }
+.ph-op { width: 200rpx; }
+.ph-hint { margin-top: 22rpx; padding-top: 20rpx; border-top: 1rpx solid rgba(255, 255, 255, 0.28); align-self: stretch; font-size: 21rpx; line-height: 1.6; color: rgba(255, 255, 255, 0.85); text-align: center; }
+.ph-op { border-color: #fff; }
 .photo-cv { position: fixed; left: -2000px; top: 0; width: 1080px; height: 1080px; }
 
 .hint { font-size: 22rpx; color: #A5A5BA; margin-top: 16rpx; }

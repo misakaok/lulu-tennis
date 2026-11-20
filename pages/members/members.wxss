@@ -1,7 +1,9 @@
 .seg { margin-bottom: 20rpx; }
 .muted { text-align: center; color: #A5A5BA; font-size: 25rpx; padding: 30rpx 0; }
+.card .muted { padding: 10rpx 0; } /* 卡片里的空状态 / 提示：卡片本身有内边距，不再上下各加 30rpx */
 .mrow { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
 .mrow:first-of-type { border-top: 0; }
+.mrow:first-child { padding-top: 0; } /* 没有标题的卡片（成员、待审核）：第一行上边距不叠在卡片内边距上 */
 .mrow:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不再叠在卡片内边距上，底部留白和顶部一致 */
 .m-main { flex: 1; min-width: 0; }
 .m-n { font-size: 28rpx; font-weight: 700; color: #1E1E32; }

@@ -29,3 +29,6 @@
 .adm-only { margin-left: 12rpx; font-size: 20rpx; }
 .adm-n { flex: none; min-width: 40rpx; height: 40rpx; line-height: 40rpx; box-sizing: border-box; padding: 0 12rpx; border-radius: 20rpx; text-align: center; font-size: 22rpx; font-weight: 800; color: #fff; background: #e5484d; }
 
+
+/* 页面底部：最后一张卡片自带 24rpx 下边距，再加 4rpx，和左右边距（28rpx）一致 */
+.page.me-page { padding-bottom: 4rpx; }
