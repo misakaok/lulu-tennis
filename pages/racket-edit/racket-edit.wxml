@@ -1,8 +1,6 @@
 <view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
 <view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
 <view wx:else class="page">
-  <view class="priv">🔒 只有你自己能看到。{{id ? title + '的编号不会变' : '保存后按添加顺序自动编号'}}</view>
-
   <view class="card ph-card">
     <rk-art class="pic" brand="{{bi >= 0 ? brandKeys[bi] : ''}}" model="{{mi >= 0 ? models[mi] : ''}}" />
     <view class="ph-r">
