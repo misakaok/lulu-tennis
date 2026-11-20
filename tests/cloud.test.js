@@ -480,9 +480,63 @@ test('资料：新用户第一次保存会创建本人资料', async () => {
   env.put('members', { _id: 'new', status: 'active' });
   no(await env.call('new', 'saveProfile', { name: 'Newbie', level: 2.5 }), /性别/); // 性别必填
   no(await env.call('new', 'saveProfile', { name: 'Newbie', level: 2.5, gender: '' }), /性别/);
-  ok(await env.call('new', 'saveProfile', { gender: 'm', name: 'Newbie', level: 2.5 }));
+  ok(await env.call('new', 'saveProfile', { gender: 'm', name: 'Newbie', level: 2.5, shown: true }));
   const p = Object.values(env.coll('players')).find((x) => x._openid === 'new');
-  assert.ok(p.self && p.name === 'Newbie' && p.level === 2.5);
+  assert.ok(p.self && p.name === 'Newbie' && p.level === 2.5 && p.shown === true && p.shownAt);
+});
+
+test('公开展示授权不强制：不同意也能设置资料、报名；旧版没带授权的算「还没选」', async () => {
+  const env = setup();
+  env.put('members', { _id: 'n1', status: 'active' });
+  env.put('members', { _id: 'n2', status: 'active' });
+  ok(await env.call('n1', 'saveProfile', { gender: 'f', name: 'NoShow', shown: false }));
+  const p1 = Object.values(env.coll('players')).find((x) => x._openid === 'n1');
+  assert.strictEqual(p1.shown, false);
+  assert.strictEqual(ok(await env.call('n1', 'memberStatus')).shown, false, '选过不同意：启动时不再问');
+  ok(await env.call('n1', 'signUp', { drawId: 'd1' }));
+  no(await env.call('n1', 'setPhoto', { fileID: pf('n1', 'a') }), /同意公开展示/);
+  ok(await env.call('n2', 'saveProfile', { gender: 'm', name: 'OldClient' })); // 旧版小程序没有勾选项
+  assert.strictEqual(Object.values(env.coll('players')).find((x) => x._openid === 'n2').shown, undefined);
+  assert.strictEqual(ok(await env.call('n2', 'memberStatus')).shown, null, '还没选：启动时弹窗问');
+});
+
+test('公开展示授权：没同意的不能传照片、照片不下发；可以随时开关；只能改本人的', async () => {
+  const env = setup();
+  // 已经通过检测的照片，之后关闭了公开展示
+  const photo = 'cloud://env1.x/player-photos/alice/r1.jpg';
+  Object.assign(env.coll('players').p_alice, { photo });
+  assert.strictEqual(ok(await env.call('alice', 'memberStatus')).shown, true);
+  assert.strictEqual(ok(await env.call('alice', 'setShown', { on: false })).shown, false);
+  assert.strictEqual(env.coll('players').p_alice.shown, false);
+  assert.strictEqual(env.coll('players').p_alice.photo, photo, '关闭后照片保留，只是不下发');
+  const ds = ok(await env.call('bob', 'dataset', {}));
+  const a = ds.players.find((x) => x._openid === 'alice');
+  assert.strictEqual(a.shown, false);
+  assert.strictEqual(a.photo, undefined, 'dataset 不下发没同意的人的照片');
+  const gw = ok(await env.call('bob', 'data', { op: 'get', coll: 'players', where: { _openid: 'alice' } }));
+  assert.ok(gw.data.length && gw.data.every((x) => x.photo === undefined), '网关也不下发');
+  assert.deepStrictEqual(ok(await env.call('bob', 'photoUrls', { fileIDs: [photo] })).files, {}, '拿不到链接');
+  no(await env.call('alice', 'setPhoto', { fileID: pf('alice', 'n1') }), /同意公开展示/);
+  assert.strictEqual(env.mediaChecks.length, 0);
+  ok(await env.call('alice', 'setPhoto', { fileID: '' })); // 删除照片不需要授权
+  // 保存资料时可以一起改；不传就不动
+  ok(await env.call('bob', 'saveProfile', { name: 'Bob', gender: 'm' }));
+  assert.strictEqual(env.coll('players').p_bob.shown, true);
+  ok(await env.call('bob', 'saveProfile', { name: 'Bob', gender: 'm', shown: false }));
+  assert.strictEqual(env.coll('players').p_bob.shown, false);
+  // 老成员还没选：memberStatus 返回 null，启动时弹窗询问
+  delete env.coll('players').p_eve.shown;
+  const st = ok(await env.call('eve', 'memberStatus'));
+  assert.strictEqual(st.hasProfile, true);
+  assert.strictEqual(st.shown, null);
+  ok(await env.call('eve', 'setShown', { on: true }));
+  assert.strictEqual(env.coll('players').p_eve.shown, true);
+  no(await env.call('eve', 'setShown', { on: 'yes' }));
+  no(await env.call('eve', 'data', { op: 'update', coll: 'players', id: 'p_alice', data: { shown: true } })); // 不能经网关改别人的
+  assert.strictEqual(env.coll('players').p_alice.shown, false);
+  env.put('members', { _id: 'new', status: 'active' });
+  no(await env.call('new', 'setShown', { on: true }), /先设置/);
+  assert.strictEqual(ok(await env.call('new', 'memberStatus')).hasProfile, false);
 });
 
 /* ---------- 活动 ---------- */

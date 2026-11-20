@@ -98,6 +98,11 @@ Page({
       list.forEach((p) => { p.val = val[p.key] || 0; });
       list = list.filter((p) => p.val > 0).sort((x, y) => y.val - x.val || y.level - x.level);
     }
+    // 只显示同意公开展示的球员（players.shown，本人授权；没有账号的旧名字没法授权，也不显示）：名次在过滤后重新排
+    const prof = db.profilesOf(this.players || []);
+    const shown = (uid) => !!uid && !!prof[uid] && prof[uid].shown === true;
+    list = list.filter((p) => shown(p.uid));
+    const meHidden = !!this.myId && !!prof[this.myId] && !shown(this.myId);
     // 按性别筛选（个人资料里填的）：名次在筛选后的榜单里重新排
     if (this.data.gender !== 'all') list = list.filter((p) => p.gender === this.data.gender);
     list.forEach((p, i) => {
@@ -116,10 +121,15 @@ Page({
     const limit = this.limit || PAGE;
     const emptyText = sort === 'active' ? '这个月还没有比赛' : sort === 'streak' ? '现在没有人在连胜' : sort === 'gain' ? '这个月还没有人涨分' : this.data.season === 'all' ? '还没有比赛数据' : '这个赛季还没有比赛';
     this.setData({
-      top, ranked: list.slice(0, limit), more: list.length > limit, myKey: this.myId || '', none: !list.length, board,
+      top, ranked: list.slice(0, limit), more: list.length > limit, myKey: this.myId || '', none: !list.length, board, meHidden,
       colLbl: sort === 'active' ? '本月' : sort === 'streak' ? '连胜' : sort === 'gain' ? '涨幅' : '水平',
       emptyText: this.data.gender !== 'all' && !list.length ? '没有符合条件的球员' : emptyText,
     });
+  },
+
+  // 本人没开启公开展示：点提示条弹出授权说明，同意后马上出现在榜单里
+  async openShown() {
+    if (await require('../../utils/consent').ask({ cancelText: '暂不', keepOnCancel: true })) this.load();
   },
 
   // 点球员 → 球员主页（只展示比赛统计）

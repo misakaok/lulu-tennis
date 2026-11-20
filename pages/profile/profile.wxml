@@ -15,7 +15,7 @@
     <view wx:if="{{photoNew && !saving}}" class="photo-ops"><view class="btn-line op" hover-class="tap-on" bindtap="undoPhoto">不换了</view></view>
     <view wx:elif="{{hasPhoto}}" class="photo-ops"><view class="btn-danger op" hover-class="tap-on" bindtap="removePhoto">删除照片</view></view>
     <view wx:if="{{stateText && !photoNew}}" class="photo-state">{{stateText}}</view>
-    <view class="hint">照片会裁成正方形（1080×1080），经过微信图片安全检测后展示给其他球友；没有照片时显示名字首字</view>
+    <view class="hint">照片会裁成正方形（1080×1080），你同意公开展示、并且通过微信图片安全检测后才展示给其他成员；没有照片时显示名字首字</view>
   </view>
   <canvas type="2d" id="photo-cv" class="photo-cv"></canvas>
 
@@ -36,6 +36,17 @@
       </view>
     </view>
 
+  </view>
+
+  <!-- 公开展示授权（审核要求：展示昵称和照片前本人知情并同意）：不强制，不同意也能保存资料；之后随时可以开关 -->
+  <view class="card consent">
+    <view class="cs-row" hover-class="tap-row-on" bindtap="toggleShown">
+      <view class="cbox {{shown ? 'on' : ''}}"><text wx:if="{{shown}}" class="ck">✓</text></view>
+      <text class="cs-t">同意向其他成员公开展示我的昵称和照片</text>
+    </view>
+    <view class="cs-d">展示位置：排行榜、战绩、活动报名名单、球员主页（仅本小程序的成员可见）。</view>
+    <view class="cs-d">不同意：照片只有你自己能看到，排行榜里不显示你；参加活动、录入比分时，其他成员仍会在报名名单、对阵表、比赛记录和比赛统计里看到你的昵称。</view>
+    <view class="cs-d">{{isNew ? '可以不同意，不影响报名和录入比分；之后可以随时在这里更改。' : '点上面的选项可以随时开启或关闭，立即生效。'}}</view>
   </view>
 
   <!-- 网球等级 -->

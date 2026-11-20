@@ -199,7 +199,7 @@ function buildPlayers(list) {
   const byUid = {};
   list.forEach((p) => {
     if (!p.self || !p._openid || !p.name || byUid[p._openid]) return;
-    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [] };
+    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [], shown: p.shown === true };
   });
   cacheSetLater('cache_profiles', byUid);
   const map = {}, order = [];
@@ -209,6 +209,7 @@ function buildPlayers(list) {
     const item = {
       name: p.name, level: typeof p.level === 'number' ? p.level : null, gender: p.gender || '',
       self: !!p.self, uid: p.self ? p._openid || '' : '', formerNames: p.self ? p.formerNames || [] : [], photo: p.self ? p.photo || '' : '',
+      shown: !!p.self && p.shown === true, // 本人同意公开展示（排行榜只显示这些人）
     };
     if (!cur) { map[p.name] = item; order.push(p.name); }
     else if (item.self && cur.self && item.uid !== cur.uid) { cur.uid = ''; cur.ambiguous = true; }
@@ -249,9 +250,17 @@ const cachedProfile = () => cacheGet('my_profile', null) || null;
 
 // 保存个人资料：经云函数 saveProfile（服务端检查昵称不和别人重复）。
 // 照片另走 utils/photo.js → 云函数 setPhoto（要过图片检测）；以前传过的旧照片 avatar（没经过检测、不再显示）原样带回去，不清掉数据库里的旧值
-async function saveMyProfile({ name, avatar, level, gender }) {
-  await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender });
+// shown：公开展示授权（第一次设置资料必须为 true；不传就不改）
+async function saveMyProfile({ name, avatar, level, gender, shown }) {
+  await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender, shown });
   return getMyProfile();
+}
+// 公开展示授权：开启 / 关闭（启动时的授权弹窗、资料页上传照片前）
+async function setShown(on) {
+  const r = await require('./cloud').call('setShown', { on: !!on });
+  const p = cachedProfile();
+  if (p) cacheSet('my_profile', Object.assign({}, p, { shown: r.shown }));
+  return r.shown;
 }
 
 /* ---------- 抽签 ---------- */
@@ -335,7 +344,7 @@ module.exports = {
   myOpenid,
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
-  getMyProfile, cachedProfile, saveMyProfile,
+  getMyProfile, cachedProfile, saveMyProfile, setShown,
   fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

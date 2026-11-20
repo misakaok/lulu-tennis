@@ -507,8 +507,13 @@ async function cancelSignup({ drawId }, uid) {
 // 昵称会参与「参赛名 → 用户 ID」的对应，所以重名检查不能放在前端。
 const NAME_MAX = 10;
 const isOtherUser = (uid) => (p) => !!p._openid && p._openid !== uid;
+// 公开展示授权（players.shown，2026-11-20 审核要求「获得用户知情及授权」后才向其他成员展示昵称和照片）：
+//   true 本人同意在排行、战绩、活动名单、球员主页向其他成员展示昵称和照片；false / 没有 = 没同意。
+//   没同意：照片不下发给任何人（dataset / 网关 / photoUrls 都去掉）、不能上传照片，排行榜里不显示（小程序端过滤）。
+//   只能由本人经 saveProfile / setShown 写入，shownAt 记最近一次改动的时间。不强制：不同意也能设置资料、报名、录分，之后可以随时开关。
+const isShown = (p) => !!p && p.shown === true;
 
-async function saveProfile({ name, avatar, level, gender }, uid) {
+async function saveProfile({ name, avatar, level, gender, shown }, uid) {
   const nm = typeof name === 'string' ? name.trim() : '';
   if (!nm) deny('请填写昵称');
   if (nm.length > NAME_MAX) deny(`昵称最多 ${NAME_MAX} 个字`);
@@ -530,6 +535,7 @@ async function saveProfile({ name, avatar, level, gender }, uid) {
   if (typeof avatar === 'string' && avatar && avatar !== av) deny('请升级小程序后在资料页上传照片'); // 照片改走 setPhoto（要过图片检测）
   const lv = typeof level === 'number' && level >= 1 && level <= 7 && Math.round(level * 2) === level * 2 ? level : null;
   const data = { name: nm, avatar: av, level: lv, gender, updatedAt: db.serverDate() };
+  if (typeof shown === 'boolean' && (!mine || mine.shown !== shown)) Object.assign(data, { shown, shownAt: db.serverDate() });
   if (mine) {
     // 改名：旧昵称记进 formerNames，留给本人（历史记录按用户 ID 跟着走，昵称只是展示）
     if (mine.name && mine.name !== nm) {
@@ -543,6 +549,15 @@ async function saveProfile({ name, avatar, level, gender }, uid) {
     await col.add({ data: Object.assign({ _openid: uid, self: true, createdAt: db.serverDate() }, data) });
   }
   return { profile: publicPlayer(Object.assign({}, mine || {}, data, { updatedAt: Date.now() })) };
+}
+
+// 公开展示授权：开启 / 关闭（启动时的授权弹窗、资料页的勾选）。关闭后照片保留但不再下发，重新开启后恢复显示
+async function setShown({ on }, uid) {
+  if (typeof on !== 'boolean') deny('参数不对');
+  const me = await profileOf(uid);
+  if (!me) deny('请先设置昵称和性别');
+  if (me.shown !== on) await db.collection('players').doc(me._id).update({ data: { shown: on, shownAt: db.serverDate(), updatedAt: db.serverDate() } });
+  return { shown: on };
 }
 
 /* ---------- 球员照片 ---------- */
@@ -631,6 +646,7 @@ async function setPhoto({ fileID }, uid) {
   const me = await profileOf(uid);
   if (!me) deny('请先设置昵称和性别，再上传照片');
   if (fileID === '') { await clearPhoto(me); return { state: '' }; }
+  if (!isShown(me)) deny('照片会展示给其他成员，请先同意公开展示后再上传');
   if (!photoPathOk(fileID, uid)) deny('照片位置不对，请重新选择');
   const col = db.collection('avatar_checks');
   if ((await col.where({ sourceID: fileID }).count()).total) deny('这张照片已经提交过了');
@@ -763,12 +779,12 @@ async function myPhoto(_d, uid) {
   return { photo, url: urls[photo] || '', state, pending, pendingUrl: urls[pending] || '' };
 }
 
-// 球员照片临时链接：只发放某位球员当前已通过检测的照片（players.photo），其他文件一律不给
+// 球员照片临时链接：只发放同意公开展示的球员当前已通过检测的照片（players.photo），其他文件一律不给
 async function photoUrls({ fileIDs }) {
   const list = Array.from(new Set((Array.isArray(fileIDs) ? fileIDs : []).filter((x) => typeof x === 'string' && /^cloud:\/\//.test(x)))).slice(0, 100);
   if (!list.length) return { files: {} };
   const owners = await byIds('players', list, 'photo');
-  const ok = Array.from(new Set(owners.filter((p) => p.self && p._openid && photoPathOk(p.photo, p._openid, 'player-photos')).map((p) => p.photo)));
+  const ok = Array.from(new Set(owners.filter((p) => p.self && p._openid && isShown(p) && photoPathOk(p.photo, p._openid, 'player-photos')).map((p) => p.photo)));
   return { files: await tempUrls(ok) };
 }
 
@@ -1547,7 +1563,7 @@ async function drawDetail({ drawId }, uid) {
   ]);
   return {
     draw: E.publicDraw(draw), signups,
-    profile: profs.sort((a, b) => tsOf(a) - tsOf(b))[0] || null, // 和前端一样：取最早的那条本人资料
+    profile: (profs.sort((a, b) => tsOf(a) - tsOf(b)).map(publicPlayer))[0] || null, // 和前端一样：取最早的那条本人资料
     requests: (requests && requests.v) || null,
   };
 }
@@ -1566,7 +1582,7 @@ const ping = async () => ({}); // 小程序启动时调用一次：触发旧记�
 // 球员资料只返回前端要用的字段（utils/db.js 的 buildPlayers）；比赛记录原样返回（很多页面直接用）。
 // 返回内容的指纹 hash：前端带上次的指纹（have），内容没变就只回 same，不再下发整份数据。
 const DATASET_MAX_BYTES = 900 * 1024;
-const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'photo', 'gender', 'level', 'formerNames', 'self', 'createdAt'];
+const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'photo', 'gender', 'level', 'formerNames', 'self', 'createdAt', 'shown'];
 async function dataset({ have }) {
   const [matches, players, verified] = await Promise.all([allDocs('matches'), allDocs('players'), allDocs('verified').catch(() => null)]);
   const vmap = {};
@@ -1582,6 +1598,7 @@ async function dataset({ have }) {
   const slim = players.map((p) => {
     const o = {};
     DATASET_PLAYER_FIELDS.forEach((k) => { if (p[k] !== undefined) o[k] = p[k]; });
+    if (!isShown(p)) delete o.photo; // 没同意公开展示：照片不下发（本人也一样，本人看自己的照片走 myPhoto）
     return o;
   });
   const out = { matches: tagged.map(E.publicMatch), players: slim };
@@ -1628,6 +1645,12 @@ const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetSco
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
   const out = { uid, status: m.status, isAdmin: isAdmin(uid), reason: E.reasonOf(m.reason), name: m.name || '', appliedAt: tsOf({ createdAt: m.appliedAt }) };
+  // 正式成员：带上公开展示授权状态（hasProfile 已设置资料；shown true 同意 / false 不同意 / null 还没选，小程序启动时弹窗询问）
+  if (m.status === 'active') {
+    const me = await profileOf(uid);
+    out.hasProfile = !!me;
+    out.shown = me && typeof me.shown === 'boolean' ? me.shown : null;
+  }
   // 管理员：顺带返回待审核的申请数，小程序里用来提示（「我的」红点 + 成员管理入口）。不发微信消息
   if (out.isAdmin) {
     const p = await db.collection('members').where({ status: 'pending' }).limit(1000).get();
@@ -1834,6 +1857,7 @@ function cleanData(data) {
 function publicPlayer(d) {
   const out = Object.assign({}, d);
   ['photoRequest', 'photoTrace', 'photoAttempts'].forEach((k) => delete out[k]);
+  if (!isShown(d)) delete out.photo; // 没同意公开展示：照片不下发（和 dataset 一致）
   return out;
 }
 async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, uid) {
@@ -2009,7 +2033,7 @@ async function racketClear({ confirm }, uid) {
   return { rackets: (rackets && rackets.stats && rackets.stats.removed) || 0, logs: (logs && logs.stats && logs.stats.removed) || 0 };
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

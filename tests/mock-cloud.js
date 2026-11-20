@@ -127,7 +127,7 @@ module.exports = function createEnv() {
     env.put('verified', { _id: '__legacy_migrated__' });
     list.forEach(([uid, name], i) => {
       env.put('members', { _id: uid, status: 'active' });
-      if (name) env.put('players', { _id: 'p_' + uid, _openid: uid, self: true, name, createdAt: i + 1 });
+      if (name) env.put('players', { _id: 'p_' + uid, _openid: uid, self: true, name, shown: true, createdAt: i + 1 }); // 测试成员默认已同意公开展示
     });
   };
   return env;

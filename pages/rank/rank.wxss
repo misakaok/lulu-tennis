@@ -59,3 +59,8 @@
 .sort-scroll { flex: 1; width: 0; white-space: nowrap; }
 .pod-rate.sm { font-size: 32rpx; }
 .sort-scroll .sort { display: inline-block; }
+
+/* 本人没开启公开展示的提示条 */
+.hide-note { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: #fff; border: 1rpx solid #A3A3CB; font-size: 24rpx; color: #6E6EA3; }
+.hn-t { flex: 1; margin-right: 16rpx; }
+.hn-b { flex: none; padding: 6rpx 22rpx; border-radius: 999rpx; background: #A3A3CB; color: #fff; font-weight: 600; }

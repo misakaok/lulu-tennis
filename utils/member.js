@@ -70,6 +70,7 @@ async function check() {
   try {
     const r = await status();
     if (r.status !== 'active') kickout(r.status);
+    else require('./consent').checkOnLaunch(r); // 老成员还没选公开展示授权：弹窗问一次
     return r;
   } catch (e) { return null; } // 网络问题：不处理（云函数仍会拦截所有数据请求）
 }

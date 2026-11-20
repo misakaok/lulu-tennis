@@ -7,6 +7,7 @@ const cloud = require('../../utils/cloud');
 const R = require('../../utils/rating');
 const RU = require('../../utils/rules');
 const P = require('../../utils/photo');
+const C = require('../../utils/consent');
 
 const STATE_TEXT = {
   checking: '你已经能看到新照片了；检测通过后其他球友也能看到（一般几分钟内）',
@@ -18,6 +19,7 @@ Page({
   data: {
     name: '', gender: '', level: R.DEFAULT_LEVEL, levels: R.SELF_LEVELS, isNew: true, saving: false, tip: '',
     photoShow: '', photoNew: false, hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
+    shown: false, // 公开展示授权（utils/consent.js）：不默认勾选
   },
 
   onLoad(options) {
@@ -32,7 +34,7 @@ Page({
   fill(p) {
     this.avatar = p.avatar || ''; // 以前传过的旧照片（没经过检测）：不显示，保存时原样带回
     const name = p.name || '';
-    this.setData({ name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL, isNew: false, initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE' });
+    this.setData({ name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL, isNew: false, initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE', shown: p.shown === true });
   },
 
   // 第一次设置资料：昵称预填准入页填的称呼（准入页写着「活动报名显示名称」），可以改；保存时照常过内容检测和重名检查
@@ -59,6 +61,7 @@ Page({
   pickCamera() { this.pick('camera'); },
   // 选好、裁好就直接上传（已经有资料的）：不用再点「保存」，返回其他页面马上看到；第一次设置资料的，保存资料时一起上传
   async pick(source) {
+    if (!this.data.shown && !(await this.agree('上传照片需要同意公开展示'))) return; // 照片就是给其他成员看的：先授权
     let path;
     try { path = await P.pick(source); } catch (e) {
       wx.showModal({ title: '没有选好照片', content: e.message || '请重试', showCancel: false });
@@ -130,6 +133,36 @@ Page({
     this.setData({ photoShow: square, photoNew: false, hasPhoto: true, stateText: STATE_TEXT.checking });
   },
 
+  /* ---------- 公开展示授权 ---------- */
+  // 弹出授权说明，同意后勾上；已经有资料的马上保存到云端（第一次设置资料的，点「完成」时一起保存）
+  async agree(title) {
+    const yes = await new Promise((done) => wx.showModal({ title: title || C.TITLE, content: C.TEXT, confirmText: '同意', cancelText: '取消', success: (x) => done(x.confirm), fail: () => done(false) }));
+    if (!yes) return false;
+    if (!this.data.isNew && !(await this.applyShown(true))) return false;
+    this.setData({ shown: true });
+    return true;
+  },
+  async applyShown(on) {
+    wx.showLoading({ title: '保存中', mask: true });
+    try {
+      await db.setShown(on);
+      db.fetchPlayersFull().catch(() => {}); // 刷新照片名单和排行
+      wx.hideLoading();
+      return true;
+    } catch (e) {
+      wx.hideLoading();
+      wx.showModal({ title: '没有保存成功', content: (e && e.message) || '请稍后再试', showCancel: false });
+      return false;
+    }
+  },
+  async toggleShown() {
+    if (this.data.saving) return;
+    if (!this.data.shown) { await this.agree(); return; }
+    if (this.data.isNew) { this.setData({ shown: false }); return; }
+    const off = await new Promise((done) => wx.showModal({ title: '关闭公开展示', content: '关闭后，其他成员看不到你的照片，排行榜里也不显示你；你的照片会保留，重新开启后恢复显示。', confirmText: '关闭', cancelText: '取消', success: (x) => done(x.confirm), fail: () => done(false) }));
+    if (off && (await this.applyShown(false))) { this.setData({ shown: false }); wx.showToast({ title: '已关闭', icon: 'success' }); }
+  },
+
   /* ---------- 文字 ---------- */
   // type="nickname" 的输入框：键盘上方会出现「用微信昵称」
   onName(e) { this.setData({ name: e.detail.value }); },
@@ -147,7 +180,7 @@ Page({
     let step = '资料';
     try {
       // 先保存资料（第一次设置时要先有资料才能传照片），再上传照片提交检测
-      await db.saveMyProfile({ name, avatar: this.avatar, level: this.data.level, gender: this.data.gender });
+      await db.saveMyProfile({ name, avatar: this.avatar, level: this.data.level, gender: this.data.gender, shown: this.data.isNew ? !!this.data.shown : undefined }); // 第一次设置资料：带上勾选结果（不勾就是不同意，不强制）；已有资料的授权在勾选时已经单独保存，这里不带，免得旧缓存覆盖
       const withPhoto = !!this.photoTemp;
       if (withPhoto) { step = '照片'; wx.showLoading({ title: '上传照片', mask: true }); await this.uploadPhoto(); }
       wx.hideLoading();

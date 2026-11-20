@@ -17,6 +17,10 @@
     <text wx:for="{{genders}}" wx:key="value" class="sort {{gender === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setGender">{{item.label}}</text>
   </view>
 
+  <view wx:if="{{meHidden}}" class="hide-note" hover-class="tap-on" bindtap="openShown">
+    <text class="hn-t">你没有开启公开展示，排行榜里不显示你</text><text class="hn-b">开启</text>
+  </view>
+
   <view wx:if="{{none && !loading}}" class="empty">
     <view class="empty-ball"></view>
     <view>{{emptyText}}</view>
@@ -57,5 +61,5 @@
     </view>
   </view>
 
-  <view wx:if="{{ranked.length}}" class="foot">{{board ? '榜单只算正常完赛的比赛，胜负和胜率是生涯数据 · ' : season === 'all' ? '' : '胜负和胜率只算这个赛季，水平分不分赛季 · '}}点击球员查看比赛统计</view>
+  <view wx:if="{{ranked.length}}" class="foot">{{board ? '榜单只算正常完赛的比赛，胜负和胜率是生涯数据 · ' : season === 'all' ? '' : '胜负和胜率只算这个赛季，水平分不分赛季 · '}}只显示同意公开展示的球员 · 点击球员查看比赛统计</view>
 </view>
