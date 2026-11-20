@@ -548,6 +548,8 @@ async function saveProfile({ name, avatar, level, gender, shown }, uid) {
   } else {
     await col.add({ data: Object.assign({ _openid: uid, self: true, createdAt: db.serverDate() }, data) });
   }
+  // 成员名单里的昵称（准入时填的）跟着资料昵称走，两边保持一致；只更新已有的成员记录，不新建
+  await db.collection('members').where({ _id: uid, name: _.neq(nm) }).update({ data: { name: nm } }).catch(() => {});
   return { profile: publicPlayer(Object.assign({}, mine || {}, data, { updatedAt: Date.now() })) };
 }
 
@@ -1663,9 +1665,10 @@ async function applyMember({ name }, uid) {
   const m = await memberOf(uid);
   if (m.status === 'active') return { status: 'active' };
   if (m.status === 'pending') deny('已经提交过申请，请等管理员审核');
-  const nm = typeof name === 'string' ? name.trim().slice(0, 20) : '';
-  if (nm.length < 1) deny('请填写你的称呼，方便管理员确认');
-  await requireSafeText(nm, uid, '称呼'); // 管理员会看到；申请说明（note）不再接收
+  const nm = typeof name === 'string' ? name.trim() : '';
+  if (nm.length < 1) deny('请填写你的昵称，方便管理员确认');
+  if (nm.length > NAME_MAX) deny(`昵称最多 ${NAME_MAX} 个字`);
+  await requireSafeText(nm, uid, '昵称'); // 管理员会看到；申请说明（note）不再接收
   const data = { status: 'pending', name: nm, note: '', appliedAt: db.serverDate(), source: 'apply', reason: '' };
   await db.collection('members').doc(uid).set({ data: Object.assign({}, m.status === 'none' ? {} : { history: (m.history || []).concat([{ status: m.status, reason: m.reason || '', at: Date.now() }]).slice(-10) }, data) });
   return { status: 'pending' };
@@ -1675,9 +1678,11 @@ async function acceptInvite({ code, name }, uid) {
   if (typeof code !== 'string' || !code) deny('邀请码无效');
   const m = await memberOf(uid);
   if (m.status === 'active') return { status: 'active' };
-  const nm = (typeof name === 'string' ? name.trim().slice(0, 20) : '') || m.name || ''; // 没填时沿用申请时填过的称呼
-  if (!nm) deny('请填写你的称呼，方便管理员确认');
-  await requireSafeText(nm, uid, '称呼'); // 先检测再占用邀请码：检测不过时邀请码还能用
+  const typed = typeof name === 'string' ? name.trim() : '';
+  if (typed.length > NAME_MAX) deny(`昵称最多 ${NAME_MAX} 个字`);
+  const nm = typed || m.name || ''; // 没填时沿用申请时填过的昵称
+  if (!nm) deny('请填写你的昵称，方便管理员确认');
+  await requireSafeText(nm, uid, '昵称'); // 先检测再占用邀请码：检测不过时邀请码还能用
   // 过期、撤销的条件放进同一个原子更新里：失效的邀请码不会被占用
   const r = await db.collection('invites').where({ _id: code, usedBy: '', revoked: false, expiresAt: _.gt(Date.now()) }).update({ data: { usedBy: uid, usedAt: db.serverDate() } });
   if (!(r && r.stats && r.stats.updated)) {

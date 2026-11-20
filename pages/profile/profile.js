@@ -38,7 +38,7 @@ Page({
     this.setData({ name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL, isNew: false, initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE', shown: p.shown === true });
   },
 
-  // 第一次设置资料：昵称预填准入页填的称呼（准入页写着「活动报名显示名称」），可以改；保存时照常过内容检测和重名检查
+  // 第一次设置资料：昵称预填准入页填的昵称，可以改；保存时照常过内容检测和重名检查，保存后云端同步到成员名单（members.name）
   prefill() {
     require('../../utils/member').statusCached().then((r) => {
       const name = String((r && r.name) || '').trim();

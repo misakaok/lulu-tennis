@@ -20,7 +20,7 @@
   <block wx:elif="{{tab === 'active'}}">
     <view class="card">
       <view wx:for="{{d.active}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text><text wx:if="{{item.gender}}" class="m-g" data-uid="{{item.uid}}" data-name="{{item.nickname}}" catchtap="setGender">{{item.gender === 'm' ? '男' : '女'}}</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '系统指定' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（加入时昵称：{{item.name}}）</text><text wx:if="{{item.gender}}" class="m-g" data-uid="{{item.uid}}" data-name="{{item.nickname}}" catchtap="setGender">{{item.gender === 'm' ? '男' : '女'}}</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '系统指定' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
         <text wx:if="{{item.nickname && !item.gender}}" class="m-a main" data-uid="{{item.uid}}" data-name="{{item.nickname}}" bindtap="setGender">选性别</text>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text wx:if="{{item.hasPhoto}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname}}" bindtap="clearPhoto">移除照片</text>
@@ -30,7 +30,7 @@
     <view wx:if="{{d.others.length}}" class="card">
       <view class="card-title">已拒绝 / 已移除</view>
       <view wx:for="{{d.others}}" wx:key="uid" class="mrow">
-        <view class="m-main"><view class="m-n">{{item.nickname || item.name}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（申请时称呼：{{item.name}}）</text></view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}{{item.reason ? '：' + item.reason : ''}}</view></view>
+        <view class="m-main"><view class="m-n">{{item.nickname || item.name}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（加入时昵称：{{item.name}}）</text></view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}{{item.reason ? '：' + item.reason : ''}}</view></view>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
         <text class="m-a" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
       </view>

@@ -703,11 +703,11 @@ test('准入：称呼先过内容检测，不接收申请说明和邀请备注�
   try {
     env.put('members', { _id: 'admin', status: 'active' });
     env.checkText = () => ({ result: { suggest: 'risky' } });
-    no(await env.call('n1', 'applyMember', { name: '不合适的称呼', note: '手写说明' }), /称呼.*内容/);
+    no(await env.call('n1', 'applyMember', { name: '不合适的称呼', note: '手写说明' }), /昵称.*内容/);
     assert.ok(!env.coll('members').n1);
     const code = ok(await env.call('admin', 'createInvite', { note: '手写备注', days: 7 })).code;
     assert.strictEqual(env.coll('invites')[code].note, '');
-    no(await env.call('n1', 'acceptInvite', { code, name: '不合适的称呼' }), /称呼.*内容/);
+    no(await env.call('n1', 'acceptInvite', { code, name: '不合适的称呼' }), /昵称.*内容/);
     assert.strictEqual(env.coll('invites')[code].usedBy, '', '检测不过时不占用邀请码');
     env.checkText = null;
     ok(await env.call('n1', 'applyMember', { name: '新人', note: '手写说明' }));
@@ -893,7 +893,7 @@ test('邀请码：过期 / 撤销的不会被占用', async () => {
   no(await env.call('x1', 'acceptInvite', { code: 'old', name: '新人' }), /过期/);
   assert.strictEqual(env.coll('invites').old.usedBy, '');
   no(await env.call('x1', 'acceptInvite', { code: 'rev', name: '新人' }), /过期/);
-  no(await env.call('x1', 'acceptInvite', { code: 'good', name: '  ' }), /称呼/); // 称呼必填，没填不占用邀请码
+  no(await env.call('x1', 'acceptInvite', { code: 'good', name: '  ' }), /昵称/); // 昵称必填，没填不占用邀请码
   assert.strictEqual(env.coll('invites').good.usedBy, '');
   ok(await env.call('x1', 'acceptInvite', { code: 'good', name: '新人' }));
   assert.strictEqual(env.coll('members').x1.name, '新人');
@@ -907,6 +907,20 @@ test('邀请码：过期 / 撤销的不会被占用', async () => {
   assert.strictEqual(env.coll('members').x3.status, 'active');
   assert.strictEqual(env.coll('members').x3.name, '审核员');
   ok(await env.call('x3', 'ping', {}));
+});
+test('准入昵称：最多 10 个字；保存资料昵称后成员名单里的昵称跟着改', async () => {
+  const env = setup();
+  env.put('invites', { _id: 'c1', usedBy: '', revoked: false, expiresAt: Date.now() + 1e6 });
+  no(await env.call('y1', 'acceptInvite', { code: 'c1', name: '一二三四五六七八九十一' }), /最多 10 个字/);
+  assert.strictEqual(env.coll('invites').c1.usedBy, '', '超长不占用邀请码');
+  no(await env.call('y1', 'applyMember', { name: '一二三四五六七八九十一' }), /最多 10 个字/);
+  ok(await env.call('y1', 'acceptInvite', { code: 'c1', name: '小网' }));
+  assert.strictEqual(env.coll('members').y1.name, '小网');
+  ok(await env.call('y1', 'saveProfile', { name: '网球小王', gender: 'm' }));
+  assert.strictEqual(env.coll('members').y1.name, '网球小王');
+  assert.strictEqual(env.coll('members').y1.status, 'active', '只改昵称，不动成员状态');
+  ok(await env.call('y1', 'saveProfile', { name: '网球大王', gender: 'm' }));
+  assert.strictEqual(env.coll('members').y1.name, '网球大王');
 });
 test('日期：默认日期按北京时间（UTC 早上也不会变成前一天）', async () => {
   const env = setup();

@@ -1,5 +1,5 @@
 // 准入页：不是正式成员时所有页面都会跳到这里（云函数也会拦截一切数据请求）
-//   默认「用邀请码加入」：填邀请码和称呼，提交后直接成为正式成员（或用管理员给的邀请链接，邀请码已带上）
+//   默认「用邀请码加入」：填邀请码和昵称，提交后直接成为正式成员（或用管理员给的邀请链接，邀请码已带上）
 //   没有邀请码时可以改为「提交申请」，等管理员审核
 //   status：none 未申请 / pending 待审核 / rejected 申请未通过 / removed 成员资格已取消 / active 已是成员
 //   mode：code 用邀请码加入 / apply 提交申请 / wait 已申请、等审核
@@ -18,7 +18,7 @@ function descOf(status, mode, invite) {
   if (mode === 'wait') return '管理员审核通过后就能使用，可以下拉刷新查看最新状态。有邀请码可以直接加入，不用等审核。';
   if (mode === 'apply') return status === 'none' ? '没有邀请码也可以提交加入申请，管理员审核通过后就能使用。' : '可以重新提交申请，管理员审核通过后就能使用。';
   const head = status === 'removed' ? '你已不能查看和使用内部数据。' : (status === 'rejected' ? '如有疑问可以联系管理员。' : '');
-  return head + (invite ? '你收到了球友邀请，填写称呼就能直接加入。' : '填写管理员给的邀请码和你的称呼，就能直接加入。');
+  return head + (invite ? '你收到了球友邀请，填写昵称就能直接加入。' : '填写管理员给的邀请码和你的昵称，就能直接加入。');
 }
 
 Page({
@@ -55,7 +55,7 @@ Page({
   async apply() {
     if (this.data.busy) return;
     if (this.preview) { wx.showToast({ title: '预览模式，不会提交', icon: 'none' }); return; }
-    if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的称呼', icon: 'none' }); return; }
+    if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的昵称', icon: 'none' }); return; }
     this.setData({ busy: true });
     try { await cloud.call('applyMember', { name: this.data.name }); wx.showToast({ title: '已提交申请', icon: 'success' }); await this.load(); }
     catch (e) { wx.showModal({ title: '提交失败', content: e.message, showCancel: false }); }
@@ -66,7 +66,7 @@ Page({
     if (this.preview) { wx.showToast({ title: '预览模式，不会提交', icon: 'none' }); return; }
     const code = this.data.invite || (this.data.code || '').replace(/\s+/g, '').toLowerCase(); // 邀请码是小写字母数字，容忍手动输入时的空格和大写
     if (!code) { wx.showToast({ title: '请填写邀请码', icon: 'none' }); return; }
-    if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的称呼', icon: 'none' }); return; }
+    if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的昵称', icon: 'none' }); return; }
     this.setData({ busy: true });
     try { await cloud.call('acceptInvite', { code, name: this.data.name }); await this.load(); if (this.data.status === 'active') this.enter(); } // 邀请码有效就直接成为正式成员并进入小程序，不需要管理员审核，也不用再点一次
     catch (e) { wx.showModal({ title: '无法加入', content: e.message, showCancel: false }); }

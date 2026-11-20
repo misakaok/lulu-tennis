@@ -9,12 +9,12 @@
   <block wx:if="{{!loading}}">
     <view wx:if="{{status === 'active'}}" class="btn-primary" hover-class="tap-on" bindtap="enter">进入小程序</view>
 
-    <!-- 有邀请码（默认）：填邀请码和称呼，提交后直接成为正式成员，不需要管理员审核 -->
+    <!-- 有邀请码（默认）：填邀请码和昵称，提交后直接成为正式成员，不需要管理员审核 -->
     <block wx:elif="{{mode === 'code'}}">
       <view class="card">
         <view class="card-title">{{invite ? '接受邀请' : '用邀请码加入'}}</view>
         <input wx:if="{{!invite}}" class="g-in g-code" value="{{code}}" maxlength="32" placeholder="邀请码（管理员给的 12 位字母数字）" bindinput="onCode" />
-        <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（活动报名显示名称）" bindinput="onName" />
+        <input class="g-in" value="{{name}}" maxlength="10" placeholder="你的昵称" bindinput="onName" />
       </view>
       <view class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="accept">{{busy ? '验证中…' : '验证并进入'}}</view>
       <view wx:if="{{!invite}}" class="btn-line g-switch" hover-class="tap-on" data-mode="{{status === 'pending' ? 'wait' : 'apply'}}" bindtap="switchMode">{{status === 'pending' ? '没有邀请码，继续等待审核' : '没有邀请码？提交申请，等管理员审核'}}</view>
@@ -24,7 +24,7 @@
     <block wx:elif="{{mode === 'apply'}}">
       <view class="card">
         <view class="card-title">{{status === 'none' ? '申请加入' : '重新申请'}}</view>
-        <input class="g-in" value="{{name}}" maxlength="20" placeholder="你的称呼（活动报名显示名称）" bindinput="onName" />
+        <input class="g-in" value="{{name}}" maxlength="10" placeholder="你的昵称" bindinput="onName" />
       </view>
       <view class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="apply">{{busy ? '提交中…' : '提交申请'}}</view>
       <view class="btn-line g-switch" hover-class="tap-on" data-mode="code" bindtap="switchMode">我有邀请码，直接加入</view>
