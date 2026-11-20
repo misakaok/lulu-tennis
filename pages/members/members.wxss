@@ -2,6 +2,7 @@
 .muted { text-align: center; color: #A5A5BA; font-size: 25rpx; padding: 30rpx 0; }
 .mrow { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
 .mrow:first-of-type { border-top: 0; }
+.mrow:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不再叠在卡片内边距上，底部留白和顶部一致 */
 .m-main { flex: 1; min-width: 0; }
 .m-n { font-size: 28rpx; font-weight: 700; color: #1E1E32; }
 .m-s { margin-top: 4rpx; font-size: 22rpx; color: #8686A0; }
