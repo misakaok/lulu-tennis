@@ -6,12 +6,16 @@
   <view class="card ph-card">
     <view class="ph-wrap" hover-class="tap-on" bindtap="photoMenu">
       <view class="ph-ring">
-        <image wx:if="{{photoShow}}" class="photo" src="{{photoShow}}" mode="aspectFill" />
+        <!-- 先显示本机缩略图（photoBase），原图 / 新照片（photoShow）加载完再淡入盖上：进页面不闪 -->
+        <view wx:if="{{photoShow || photoBase}}" class="photo ph-stack">
+          <image wx:if="{{photoBase}}" class="ph-img on" src="{{photoBase}}" mode="aspectFill" binderror="baseErr" />
+          <image wx:if="{{photoShow}}" class="ph-img {{photoReady || !photoBase ? 'on' : ''}}" src="{{photoShow}}" mode="aspectFill" bindload="photoLoaded" />
+        </view>
         <view wx:else class="photo init" style="background:{{color}}">{{initial}}</view>
       </view>
       <view class="ph-cam"><view class="cam-body"><view class="cam-lens"></view></view></view>
     </view>
-    <view class="ph-t">{{photoShow ? '更换照片' : '添加照片'}}</view>
+    <view class="ph-t">{{photoShow || photoBase ? '更换照片' : '添加照片'}}</view>
     <view wx:if="{{photoNew && isNew}}" class="ph-pill">新照片 · 点「完成」后上传</view>
     <view wx:elif="{{stateText && !photoNew}}" class="ph-pill {{photoState === 'checking' ? '' : 'bad'}}">{{stateText}}</view>
     <view wx:elif="{{hasPhoto && !shown}}" class="ph-pill bad">没有开启公开展示，照片只有你自己能看到</view>

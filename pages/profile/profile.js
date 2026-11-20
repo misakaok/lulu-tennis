@@ -18,7 +18,8 @@ const STATE_TEXT = {
 Page({
   data: {
     name: '', gender: '', level: R.DEFAULT_LEVEL, levels: R.SELF_LEVELS, isNew: true, saving: false, tip: '',
-    photoShow: '', photoNew: false, hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
+    photoShow: '', photoNew: false,
+    photoBase: '', photoReady: false, // 进页面先显示的本人头像（本机缩略图），原图（photoShow）加载完再淡入盖上，不闪 hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
     shown: false, // 公开展示授权（utils/consent.js）：不默认勾选
     photoState: '', // 最近一次检测：checking / reject / error（状态小标签的颜色）
   },
@@ -29,8 +30,26 @@ Page({
     if (p) this.fill(p);
     if (this.fromSignup) this.setData({ tip: '报名前请先设置昵称，大家在报名名单里会看到' });
     db.getMyProfile().then((x) => { if (x) this.fill(x); else this.prefill(); }).catch((e) => console.error(e));
+    this.quickPhoto();
     this.loadPhoto();
   },
+
+  // 先用手里现成的本人头像（检测中的新照片 / 本机缩略图 / 已取过的链接）垫底，不等联网
+  async quickPhoto() {
+    try {
+      const uid = await db.myOpenid();
+      const base = P.ownSrc(uid, '') || P.peek(P.fileOf(uid, ''));
+      if (base && !this.data.photoBase && !this.photoTemp) this.setData({ photoBase: base });
+    } catch (e) {}
+  },
+  // 换显示的照片：换了地址就先藏起来，等加载完（photoLoaded）再淡入
+  show(url, extra) {
+    const d = Object.assign({ photoShow: url }, extra || {});
+    if (url !== this.data.photoShow) d.photoReady = false;
+    this.setData(d);
+  },
+  photoLoaded() { if (!this.data.photoReady) this.setData({ photoReady: true }); },
+  baseErr() { this.setData({ photoBase: '' }); },
 
   fill(p) {
     this.avatar = p.avatar || ''; // 以前传过的旧照片（没经过检测）：不显示，保存时原样带回
@@ -53,7 +72,8 @@ Page({
       const r = await cloud.call('myPhoto');
       this.photo = r;
       P.applyMine(await db.myOpenid(), this.data.name || (db.cachedProfile() || {}).name || '', r); // 顺便更新「本人马上看到」：通过 / 没通过就不再单独显示
-      if (!this.photoTemp) this.setData({ photoShow: r.pendingUrl || r.url || '', hasPhoto: !!(r.url || r.pendingUrl), stateText: STATE_TEXT[r.state] || '', photoState: r.state || '' });
+      const url = r.pendingUrl || r.url || '';
+      if (!this.photoTemp) this.show(url, Object.assign({ hasPhoto: !!url, stateText: STATE_TEXT[r.state] || '', photoState: r.state || '' }, url ? {} : { photoBase: '' }));
     } catch (e) { console.warn('[照片] 读取失败', e && e.message); }
   },
 
@@ -62,7 +82,7 @@ Page({
   photoMenu() {
     if (this.data.saving) return;
     const items = [{ t: '从相册选', fn: () => this.pick('album') }, { t: '拍照', fn: () => this.pick('camera') }];
-    if (this.data.photoShow) items.push({ t: '查看大图', fn: () => this.previewPhoto() });
+    if (this.data.photoShow || this.data.photoBase) items.push({ t: '查看大图', fn: () => this.previewPhoto() });
     if (this.data.hasPhoto && !this.data.photoNew) items.push({ t: '删除照片', fn: () => this.removePhoto() });
     wx.showActionSheet({ itemList: items.map((x) => x.t), success: (r) => items[r.tapIndex] && items[r.tapIndex].fn(), fail() {} });
   },
@@ -76,7 +96,7 @@ Page({
     }
     if (!path) return;
     this.photoTemp = path;
-    this.setData({ photoShow: path, photoNew: true });
+    this.show(path, { photoNew: true });
     if (!this.data.isNew) this.uploadNow();
   },
   async uploadNow() {
@@ -98,10 +118,11 @@ Page({
   undoPhoto() {
     this.photoTemp = '';
     const r = this.photo || {};
-    this.setData({ photoShow: r.pendingUrl || r.url || '', photoNew: false });
+    this.show(r.pendingUrl || r.url || '', { photoNew: false });
   },
   previewPhoto() {
-    if (this.data.photoShow) wx.previewImage({ urls: [this.data.photoShow], showmenu: false });
+    const u = this.data.photoShow || this.data.photoBase;
+    if (u) wx.previewImage({ urls: [u], showmenu: false });
   },
   async removePhoto() {
     const go = await new Promise((done) => wx.showModal({ title: '删除照片', content: '删除后显示名字首字，可以随时重新上传。', confirmText: '删除', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false) }));
@@ -112,7 +133,7 @@ Page({
       this.photoTemp = '';
       this.photo = { url: '', pendingUrl: '', state: '' };
       P.setMine(null);
-      this.setData({ photoShow: '', photoNew: false, hasPhoto: false, stateText: '', photoState: '' });
+      this.setData({ photoShow: '', photoBase: '', photoNew: false, hasPhoto: false, stateText: '', photoState: '' });
       db.fetchPlayersFull().catch(() => {}); // 刷新照片名单（写操作已作废缓存）
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
@@ -137,7 +158,7 @@ Page({
     P.setMine({ uid, name: (this.data.name || '').trim(), fileID: r.fileID, src: square }); // 本人马上在所有页面看到新照片
     this.photoTemp = '';
     this.photo = Object.assign({}, this.photo, { pendingUrl: square, state: 'checking' });
-    this.setData({ photoShow: square, photoNew: false, hasPhoto: true, stateText: STATE_TEXT.checking, photoState: 'checking' });
+    this.show(square, { photoNew: false, hasPhoto: true, stateText: STATE_TEXT.checking, photoState: 'checking' });
   },
 
   /* ---------- 公开展示授权 ---------- */
