@@ -1,8 +1,6 @@
 <view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
 <view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
 <view wx:else class="page">
-  <view class="priv">🔒 只记在你自己的成长档案里，不计入正式战绩和排行，别人看不到</view>
-
   <view class="card">
     <view class="line">
       <text class="label">日期</text>

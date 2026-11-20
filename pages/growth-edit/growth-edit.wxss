@@ -1,4 +1,3 @@
-.priv { font-size: 22rpx; color: #8686A0; background: #EFEFF6; border-radius: 20rpx; padding: 14rpx 20rpx; margin-bottom: 22rpx; line-height: 1.5; }
 .st { text-align: center; padding: 60rpx 30rpx; }
 .st-t { font-size: 28rpx; color: #4F4F7D; font-weight: 700; }
 .st-load { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }

@@ -1,4 +1,3 @@
-.priv { font-size: 22rpx; color: #8686A0; background: #EFEFF6; border-radius: 20rpx; padding: 14rpx 20rpx; margin-bottom: 22rpx; line-height: 1.5; }
 .state { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }
 .state-card { text-align: center; padding: 50rpx 30rpx; }
 .state-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
@@ -71,4 +70,3 @@
 .off-go { margin-top: 24rpx; }
 
 .danger-zone { margin-top: 30rpx; text-align: center; }
-.dz-t { font-size: 22rpx; color: #A5A5BA; line-height: 1.6; margin-bottom: 18rpx; }

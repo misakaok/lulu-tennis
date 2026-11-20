@@ -56,7 +56,7 @@
       <view class="mc-body">
         <view class="sd {{item.winner === 'a' ? 'w' : ''}}">
           <view class="sd-avs"><pl-av wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
-          <view class="sd-ns">
+          <view class="sd-ns {{item.a.length > 1 ? 'two' : ''}}">
             <view wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
             <view wx:if="{{item.aDelta}}" class="dl {{item.aUp ? 'up' : 'down'}}">{{item.aDelta}}</view>
           </view>
@@ -67,7 +67,7 @@
         </view>
         <view class="sd r {{item.winner === 'b' ? 'w' : ''}}">
           <view class="sd-avs"><pl-av wx:for="{{item.b}}" wx:key="name" wx:for-item="p" class="sd-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
-          <view class="sd-ns">
+          <view class="sd-ns {{item.b.length > 1 ? 'two' : ''}}">
             <view wx:for="{{item.b}}" wx:key="name" wx:for-item="p" class="sd-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
             <view wx:if="{{item.bDelta}}" class="dl {{item.bUp ? 'up' : 'down'}}">{{item.bDelta}}</view>
           </view>

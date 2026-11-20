@@ -1,6 +1,4 @@
 <view class="page">
-  <view class="priv">🔒 成长档案只有你自己能看到，不会出现在排行、球员主页或任何人的页面上</view>
-
   <view wx:if="{{loading}}" class="state">正在读取…</view>
 
   <view wx:elif="{{error}}" class="card state-card">
@@ -85,9 +83,8 @@
       <view class="btn-line off-go" hover-class="tap-on" bindtap="goHistory">查看全部正式战绩</view>
     </view>
 
-    <view class="danger-zone">
-      <view class="dz-t">私人记录只保存在小程序的云端，按你的账号隔离；可以逐条删除，也可以一次清除。</view>
-      <view wx:if="{{has}}" class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部私人记录'}}</view>
+    <view wx:if="{{has}}" class="danger-zone">
+      <view class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部私人记录'}}</view>
     </view>
   </block>
 </view>

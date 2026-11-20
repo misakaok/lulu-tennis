@@ -44,16 +44,17 @@
 .mc-ev.daily { color: #A5A5BA; font-weight: 400; }
 .mc-pend { flex: none; margin-left: 10rpx; }
 .mc-tag { flex: none; margin-left: 8rpx; padding: 0 12rpx; font-size: 20rpx; }
-.mc-body { display: flex; align-items: center; margin-top: 18rpx; }
-.sd { flex: 1; min-width: 0; display: flex; align-items: center; color: #8686A0; }
-.sd.r { flex-direction: row-reverse; text-align: right; }
+.mc-body { display: flex; align-items: flex-start; margin-top: 18rpx; }
+/* 每一方：头像在上、名字在下（居中），名字能用满这一侧的宽度；单打最多两行，双打每人一行 */
+.sd { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; color: #8686A0; }
 .sd-avs { flex: none; display: flex; }
 .sd-av { width: 68rpx; height: 68rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; color: #22223A; }
 .sd-av + .sd-av { margin-left: -22rpx; border: 4rpx solid #fff; box-sizing: border-box; }
 .sd.r .sd-avs { flex-direction: row-reverse; }
 .sd.r .sd-av + .sd-av { margin-left: 0; margin-right: -22rpx; }
-.sd-ns { flex: 1; min-width: 0; margin: 0 14rpx; }
-.sd-n { font-size: 27rpx; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sd-ns { align-self: stretch; min-width: 0; margin-top: 12rpx; }
+.sd-n { font-size: 26rpx; line-height: 1.35; word-break: break-all; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.sd-ns.two .sd-n { -webkit-line-clamp: 1; }
 .sd.w { color: #1E1E32; }
 .sd.w .sd-n { font-weight: 700; }
 .sd.w .sd-n:first-child::after { content: ''; display: inline-block; width: 14rpx; height: 14rpx; margin-left: 8rpx; border-radius: 50%; background: #B4CF22; vertical-align: 4rpx; }
@@ -62,7 +63,7 @@
 .dl { display: inline-block; margin-top: 4rpx; padding: 0 10rpx; border-radius: 8rpx; font-size: 20rpx; font-weight: 700; }
 .dl.up { color: #2f8a52; background: #e9f6ee; }
 .dl.down { color: #b34d4d; background: #F7E9E9; }
-.sc { flex: none; min-width: 120rpx; text-align: center; }
+.sc { flex: none; min-width: 120rpx; padding: 0 8rpx; margin-top: 8rpx; text-align: center; }
 .sc-big { font-size: 50rpx; font-weight: 800; line-height: 1.1; color: #1E1E32; }
 .sc-big .dim { color: #A5A5BA; }
 .sc-c { margin: 0 8rpx; color: #B9B9CE; }
