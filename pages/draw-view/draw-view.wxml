@@ -38,7 +38,7 @@
 
     <!-- 报名中 -->
     <block wx:if="{{signing}}">
-      <view class="card">
+      <view class="card su-card">
         <view class="card-title row">
           <text>报名名单</text>
           <text class="count">{{signCount}}</text>
