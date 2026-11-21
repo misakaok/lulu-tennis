@@ -369,11 +369,7 @@ Page({
       confirmColor: '#e5484d',
       success: async (r) => {
         if (!r.confirm) return;
-        try {
-          await db.removeDraw(this.id);
-          wx.showToast({ title: '已删除' });
-          setTimeout(() => wx.navigateBack(), 600);
-        } catch (e) { wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false }); }
+        this.removeNow('');
       },
     });
   },
@@ -384,11 +380,22 @@ Page({
     if (!go) return;
     const reason = await pick.reason('drop', '删除原因');
     if (!reason) return;
+    this.removeNow(reason);
+  },
+  // 删除时显示「正在删除」，删完直接返回（提示会带到上一页）
+  async removeNow(reason) {
+    if (this.removing) return;
+    this.removing = true;
+    wx.showLoading({ title: '正在删除', mask: true });
     try {
       await db.removeDraw(this.id, reason);
+      wx.hideLoading();
       wx.showToast({ title: '已删除' });
-      setTimeout(() => wx.navigateBack(), 600);
-    } catch (e) { wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false }); }
+      wx.navigateBack();
+    } catch (e) {
+      wx.hideLoading();
+      wx.showModal({ title: '删除失败', content: e.message || '请稍后再试', showCancel: false });
+    } finally { this.removing = false; }
   },
 
   goHome() { wx.switchTab({ url: '/pages/draw/draw' }); },

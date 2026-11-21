@@ -1057,9 +1057,12 @@ async function removeDraw({ drawId, reason }, uid) {
   const { d, asAdmin } = await manageDraw(drawId, uid);
   const why = cleanReason(reason, asAdmin);
   await db.collection('draws').doc(drawId).update({ data: { deleted: true, deletedBy: uid, deletedAt: db.serverDate(), deleteReason: why, deletedByAdmin: asAdmin } });
-  await db.collection('event_contacts').doc(drawId).remove().catch(() => {});
-  await db.collection('requests').where({ drawId, status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已删除', handledAt: db.serverDate() } });
-  const photos = await removeEventPhotos(drawId);
+  // 活动已经标记删除，下面几步互不依赖，同时做
+  const [, , photos] = await Promise.all([
+    db.collection('event_contacts').doc(drawId).remove().catch(() => {}),
+    db.collection('requests').where({ drawId, status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已删除', handledAt: db.serverDate() } }),
+    removeEventPhotos(drawId),
+  ]);
   await logAction({ type: 'deleteDraw', drawId, by: uid, byAdmin: asAdmin, reason: why, photos });
   return { photos: { removed: photos.removed, failed: photos.failed } };
 }
