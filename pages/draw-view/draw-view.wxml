@@ -174,4 +174,6 @@
       <view wx:if="{{canManage}}" class="del" hover-class="del-hover" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view>
     </view>
   </block>
+  <!-- 分享封面用的画布（不显示） -->
+  <canvas type="2d" id="share-cv" class="share-cv"></canvas>
 </view>

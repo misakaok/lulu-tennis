@@ -5,7 +5,7 @@ const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
-const SHARE_IMAGE = '/images/share.png'; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
+const Card = require('../../utils/share-card'); // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 const S = require('../../utils/stats');
 const { colorOf, initialOf } = require('../../utils/rules');
 
@@ -71,6 +71,8 @@ Page({
       this.setData({ info: this.infoOf(d) });
       if (signing) await this.loadSignups(d, all, bundle ? signups : null);
       else {
+        this.shareCounts = { entrants: n, unit };
+        this.makeCover();
         this.renderSchedule();
         if (!bundle) this.loadRequests();
         else if (bundle.requests) this.applyRequests(bundle.requests);
@@ -218,6 +220,8 @@ Page({
       myWaiting: !!mine && !!wait[mine._id] || signups.some((x) => x.waiting && x.members.some((p) => p.uid && p.uid === myId)),
       signCount: (capP ? `${people - waitPeople} / ${capP} 人` : `${people} 人`) + (waitPeople ? ` · 候补 ${waitPeople} 人` : ''),
     });
+    this.shareCounts = { people, cap: capP, wait: waitPeople };
+    this.makeCover();
   },
 
   // 双打：先在弹出的列表里选搭档
@@ -389,13 +393,41 @@ Page({
 
   goHome() { wx.switchTab({ url: '/pages/draw/draw' }); },
 
+  /* ---------- 分享封面 ---------- */
+  // 内容（日期、人数）变了才重画；画好之前分享用固定封面，或等它画完（微信最多等 3 秒）
+  makeCover() {
+    const info = Card.cardInfo(this.d, this.shareCounts);
+    const key = JSON.stringify(info);
+    if (key === this.coverKey) return;
+    this.coverKey = key;
+    this.cover = '';
+    this.coverJob = (this.coverJob || Promise.resolve()).then(async () => {
+      if (key !== this.coverKey) return; // 又变了，交给后面那次画
+      const path = await Card.render(await this.shareCanvas(), info);
+      if (key === this.coverKey) this.cover = path;
+    }).catch((e) => console.warn('[分享封面] 生成失败，用固定封面', e));
+  },
+  shareCanvas() {
+    if (this.cv) return Promise.resolve(this.cv);
+    return new Promise((ok, bad) => {
+      wx.createSelectorQuery().in(this).select('#share-cv').fields({ node: true }).exec((r) => {
+        const node = r && r[0] && r[0].node;
+        if (!node) return bad(new Error('取不到画布'));
+        this.cv = node;
+        ok(node);
+      });
+    });
+  },
+
   onShareAppMessage() {
     const d = this.data.draw;
     const t = d ? d.title : '网球';
-    return {
+    const base = {
       title: this.data.signing ? `${t} 开始报名啦，点击报名` : `${t} · 对阵和场次`,
       path: `/pages/draw-view/draw-view?id=${this.id}`,
-      imageUrl: SHARE_IMAGE,
+      imageUrl: this.cover || Card.FALLBACK,
     };
+    if (this.cover || !this.coverJob) return base;
+    return Object.assign({}, base, { promise: this.coverJob.then(() => Object.assign({}, base, { imageUrl: this.cover || Card.FALLBACK })) });
   },
 });

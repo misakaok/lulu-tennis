@@ -5,7 +5,7 @@
 //   mode：code 用邀请码加入 / apply 提交申请 / wait 已申请、等审核
 const cloud = require('../../utils/cloud');
 const member = require('../../utils/member');
-const SHARE_IMAGE = '/images/share.png'; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
+const SHARE_IMAGE = require('../../utils/share-card').FALLBACK; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 
 const TITLE = { none: '私人网球活动管理', pending: '申请已提交，等待审核', rejected: '申请未通过', removed: '成员资格已取消', active: '你已是正式成员' };
 // 开发版预览：模拟器里管理员总是正式成员，看不到准入页。开发者工具「编译模式」用参数 preview=none / pending / rejected / removed

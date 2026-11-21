@@ -190,4 +190,27 @@ test('场地表单：旧文字和地图文字不回填，只保留坐标并从�
   assert.strictEqual(value.location, null); assert.strictEqual(value.venue, '3 号场');
 });
 
+test('分享封面：只画日期、时间和人数（不画活动名称、昵称），报名人数和页面一致，没有赛事用语', () => {
+  const Card = require('../utils/share-card');
+  const d = { status: 'signup', date: '2026-11-21', startTime: '14:00', title: '用户填的名称', entrants: ['张三'] };
+  const a = Card.cardInfo(d, { people: 10, cap: 8, wait: 2 });
+  assert.deepStrictEqual(plain(a), { date: '11月21日', sub: '周六 14:00', tag: '报名中', label: '已报名', num: '8', unit: '/ 8 人', extra: '候补 2 人' });
+  assert.deepStrictEqual(plain(Card.cardInfo({ status: 'signup' }, { people: 3 })), { date: '时间待定', sub: '', tag: '报名中', label: '已报名', num: '3', unit: '人', extra: '' });
+  assert.deepStrictEqual(plain(Card.cardInfo({ status: 'playing', date: '2026-1-5' }, { entrants: 4, unit: '队' })), { date: '1月5日', sub: '周一', tag: '', label: '参加', num: '4', unit: '队', extra: '' });
+  // 画的时候只出现这些固定格式的文字
+  const texts = [];
+  const noop = () => {};
+  const ctx = new Proxy({}, { get: (o, k) => k === 'fillText' ? (t) => texts.push(t)
+    : k === 'measureText' ? (t) => ({ width: String(t).length * 40 })
+    : k === 'createLinearGradient' ? () => ({ addColorStop: noop }) : (k in o ? o[k] : noop), set: (o, k, v) => { o[k] = v; return true; } });
+  Card.paint(ctx, a);
+  assert.deepStrictEqual(texts, ['LULU网球', '报名中', '11月21日', '周六 14:00', '已报名', '8', '/ 8 人', '候补 2 人']);
+  assert.ok(!texts.some((t) => /用户填的名称|张三|小组赛|淘汰赛|赛事|参赛|圈/.test(t)));
+  // 活动详情页：报名人数变了才重画，分享时没画好就等它（微信最多等 3 秒），否则用固定封面
+  const view = fs.readFileSync(path.join(__dirname, '../pages/draw-view/draw-view.js'), 'utf8');
+  assert.ok(/imageUrl: this\.cover \|\| Card\.FALLBACK/.test(view) && /promise: this\.coverJob/.test(view));
+  for (const p of ['pages/gate/gate.js', 'pages/members/members.js']) assert.ok(/imageUrl: SHARE_IMAGE/.test(fs.readFileSync(path.join(__dirname, '..', p), 'utf8')), p);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', Card.FALLBACK)));
+});
+
 module.exports = T;
