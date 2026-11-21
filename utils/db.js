@@ -307,7 +307,17 @@ async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId
 // 编辑活动信息：手动名称、日期、开始时间、场地编号、定位；公开文字先经云端检测
 async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
 // 删除活动（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的活动要带原因
-async function removeDraw(id, reason) { await cloudCall('removeDraw', { drawId: id, reason: reason || '' }); }
+// 删除成功后记下来：返回活动列表时先把它从手上的列表里去掉，不用等重新读取（云端也不会再返回它）
+const removedDraws = {};
+async function removeDraw(id, reason) {
+  await cloudCall('removeDraw', { drawId: id, reason: reason || '' });
+  removedDraws[id] = 1;
+  cacheSetLater('cache_draws', cachedDraws().filter((d) => d._id !== id));
+}
+// 去掉本次刚删除的活动；没有要去掉的就原样返回同一个数组（页面按引用判断要不要重算）
+function withoutRemoved(list) {
+  return (list || []).some((d) => removedDraws[d._id]) ? list.filter((d) => !removedDraws[d._id]) : list;
+}
 // 单场安排（发起人）：这一场的日期、时间、场地；三项都空 = 清除。返回 { slot }
 function setFixtureSlot(id, key, slot) { return cloudCall('setFixtureSlot', { drawId: id, key, slot }); }
 
@@ -345,6 +355,6 @@ module.exports = {
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, setFixtureSlot,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

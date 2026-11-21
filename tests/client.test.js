@@ -371,6 +371,26 @@ test('draw-view：报名中和已出签表的 bundle / 旧路径渲染一致（�
     if (status === 'signup') assert.strictEqual(bundle.joined, true);
   }
 });
+test('删除活动：返回列表先去掉刚删的活动；只重新读活动和报名，战绩、球员沿用缓存', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  const c = client(env, 'alice');
+  const draws = await c.db.drawsShared();
+  await c.db.matchesShared(); await c.db.playersShared();
+  await tick();
+  assert.ok(draws.some((d) => d._id === 'd1') && c.storage.cache_draws.some((d) => d._id === 'd1'));
+  const other = draws.filter((d) => d._id !== 'd1');
+  assert.strictEqual(c.db.withoutRemoved(other), other, '没有要去掉的，原样返回同一个数组');
+  await c.db.removeDraw('d1');
+  const kept = c.db.withoutRemoved(draws);
+  assert.ok(kept !== draws && !kept.some((d) => d._id === 'd1'));
+  await tick();
+  assert.ok(!c.storage.cache_draws.some((d) => d._id === 'd1'), '本机缓存也去掉');
+  const n = c.calls();
+  await c.db.matchesShared(); await c.db.playersShared();
+  assert.strictEqual(c.calls(), n, '战绩、球员不用重新拉');
+  assert.ok(!(await c.db.drawsShared()).some((d) => d._id === 'd1'), '活动列表重新读取');
+  assert.ok(c.calls() > n);
+});
 test('新增只读接口不清缓存；cached 拒绝写操作，避免把写入结果缓存', async () => {
   const env = createEnv(); env.load(); seed(env);
   const c = client(env, 'alice');

@@ -30,9 +30,14 @@ const READ_ONLY = {
   myPhoto: 1, photoUrls: 1, growthList: 1, racketList: 1,
 };
 const GW_WRITE_OPS = { add: 1, update: 1, remove: 1 };
+// 明确只改动这些集合的写操作：只作废相关缓存（ANY 的只读结果照样作废），战绩、球员不用重新拉
+const WRITES = {
+  removeDraw: ['draws', 'signups', 'requests'], // 软删除活动、作废申请；比分照常保留在战绩里
+};
 function invalidateAfter(action, data) {
   const memo = require('./memo');
   if (action === 'data') { if (data && GW_WRITE_OPS[data.op]) memo.invalidate([data.coll]); return; }
+  if (WRITES[action]) { memo.invalidate(WRITES[action]); return; }
   if (!READ_ONLY[action]) memo.invalidate();
 }
 

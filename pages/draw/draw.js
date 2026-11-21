@@ -45,7 +45,12 @@ function toView(d, matches, myId, signed) {
 Page({
   data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, cal: null, canPublish: false },
   onLoad() { this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render(); },
-  onShow() { this.load(); },
+  onShow() {
+    // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取
+    const kept = db.withoutRemoved(this.draws);
+    if (kept !== this.draws) { this.draws = kept; this.render(); }
+    this.load();
+  },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   render() {
