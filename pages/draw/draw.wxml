@@ -34,20 +34,24 @@
   </view>
 
   <view wx:for="{{shown}}" wx:key="_id" class="card draw {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
-    <view class="d-top">
-      <text class="d-title">{{item.title}}</text>
-      <text class="d-arrow">›</text>
+    <!-- 左：日期块；右：名称 + 状态 / 形式一行 / 我的关系和进度 -->
+    <view class="d-date {{item.day.m ? '' : 'tbd'}}">
+      <text class="d-day">{{item.day.d}}</text>
+      <text wx:if="{{item.day.m}}" class="d-mw">{{item.day.m}} {{item.day.w}}</text>
     </view>
-    <view class="d-tags">
-      <text wx:for="{{item.roleTags}}" wx:key="*this" wx:for-item="t" class="tag role">{{t}}</text>
-      <text wx:if="{{item.signing}}" class="tag hot">报名中</text>
-      <text class="tag main">{{item.modeText}}</text>
-      <text class="tag">{{item.typeText}}</text>
-      <text wx:if="{{!item.signing}}" class="tag">{{item.count}} {{item.unit}}</text>
-      <text wx:if="{{item.seeds}}" class="tag">分开排位 {{item.seeds}} 个</text>
-      <text class="tag">{{item.date}}</text>
+    <view class="d-body">
+      <view class="d-top">
+        <text class="d-title">{{item.title}}</text>
+        <text class="ui-tag {{item.status.cls}} d-status">{{item.status.text}}</text>
+      </view>
+      <view class="d-meta">{{item.meta}}</view>
+      <view wx:if="{{item.roleTags.length || item.champion || item.progress}}" class="d-foot">
+        <view class="d-roles">
+          <text wx:for="{{item.roleTags}}" wx:key="*this" wx:for-item="t" class="d-role">{{t}}</text>
+        </view>
+        <text wx:if="{{item.champion}}" class="d-champ">🏆 冠军 {{item.champion}}</text>
+        <text wx:elif="{{item.progress}}" class="d-prog">{{item.progress}}</text>
+      </view>
     </view>
-    <view wx:if="{{item.champion}}" class="d-champ">🏆 冠军：{{item.champion}}</view>
-    <view wx:elif="{{item.progress}}" class="d-prog">{{item.progress}}</view>
   </view>
 </view>

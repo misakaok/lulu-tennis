@@ -8,18 +8,27 @@
   margin-top: 32rpx; height: 88rpx; line-height: 88rpx; text-align: center; border-radius: 44rpx;
   background: #fff; color: #6E6EA3; font-weight: 700; font-size: 30rpx; box-shadow: 0 10rpx 24rpx rgba(60, 60, 100, 0.25);
 }
-.draw { padding: 26rpx 28rpx; }
-.d-top { display: flex; justify-content: space-between; align-items: center; }
-.d-title { font-size: 32rpx; font-weight: 700; }
-.d-arrow { color: #C5C5DA; font-size: 40rpx; }
-.d-tags { display: flex; flex-wrap: wrap; margin-top: 14rpx; }
-.tag { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 10rpx; background: #F2F2F8; color: #6C6C86; margin: 0 12rpx 8rpx 0; }
-.tag.main { background: #ECECF6; color: #6E6EA3; font-weight: 600; }
-.d-champ { margin-top: 10rpx; font-size: 26rpx; font-weight: 700; color: #b45309; }
-.d-prog { margin-top: 10rpx; font-size: 24rpx; color: #8686A0; }
-.tag.hot { background: #fff1d6; color: #9a6a00; font-weight: 700; }
 .seg.tabs { margin-bottom: 20rpx; }
-.tag.role { background: #6E6EA3; color: #fff; }
+
+/* 活动卡片：左边日期块（记分牌式大数字），右边名称、形式、我的关系和进度 */
+.draw { display: flex; align-items: stretch; padding: 24rpx; }
+.d-date {
+  flex: none; width: 112rpx; border-radius: 20rpx; background: #EFEFF6;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14rpx 0;
+}
+.d-day { font-size: 52rpx; font-weight: 800; line-height: 1.05; color: #6E6EA3; font-variant-numeric: tabular-nums; }
+.d-mw { margin-top: 6rpx; font-size: 20rpx; color: #8686A0; white-space: nowrap; }
+.d-date.tbd .d-day { font-size: 28rpx; font-weight: 700; }
+.d-body { flex: 1; min-width: 0; margin-left: 24rpx; display: flex; flex-direction: column; justify-content: center; }
+.d-top { display: flex; align-items: flex-start; }
+.d-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #1E1E32; word-break: break-all; }
+.d-status { flex: none; margin: 4rpx 0 0 16rpx; }
+.d-meta { margin-top: 10rpx; font-size: 24rpx; line-height: 1.4; color: #8686A0; word-break: keep-all; } /* 配合不换行空格：只在「 · 」之间换行 */
+.d-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; }
+.d-roles { display: flex; flex-wrap: wrap; }
+.d-role { font-size: 21rpx; line-height: 1.6; padding: 0 12rpx; border-radius: 8rpx; margin-right: 10rpx; color: #6E6EA3; border: 1rpx solid #C9C9E0; }
+.d-champ { flex: none; margin-left: 16rpx; font-size: 24rpx; font-weight: 700; color: #2E3600; background: #C9E33A; border-radius: 16rpx; padding: 0 14rpx; line-height: 1.6; }
+.d-prog { flex: none; margin-left: 16rpx; font-size: 22rpx; color: #8686A0; }
 
 /* 日历 */
 .cal { padding-bottom: 20rpx; }

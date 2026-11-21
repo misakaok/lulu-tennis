@@ -22,24 +22,36 @@ function toView(d, matches, myId, signed) {
     if (!champion) progress = p.total && p.done === p.total ? `全部 ${p.total} 场已完赛` : `已完成 ${p.done}/${p.total} 场`;
   }
   const role = roleOf(d, myId, signed);
+  // 我和活动的关系（状态另外显示在右上角，这里不再重复「已结束」）
   const roleTags = [];
   if (role) {
     if (role.owner) roleTags.push('我发起');
     if (signing && role.signed) roleTags.push('已报名');
-    if (!signing && role.entrant) roleTags.push(finished ? '已结束' : '参加中');
-    else if (!signing && finished && role.owner) roleTags.push('已结束');
+    if (!signing && role.entrant) roleTags.push(finished ? '参加过' : '参加中');
   }
+  const modeText = d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`;
+  const typeText = (E.categoryText(d) && E.categoryOf(d) !== 'mixed' ? E.categoryText(d) : '') + (E.categoryOf(d) === 'mixed' ? '混双' : cfg.type === 'double' ? '双打' : '单打');
+  const meta = [modeText, typeText];
+  if (!signing) meta.push(`${(d.entrants || []).length} ${cfg.type === 'double' ? '队' : '人'}`);
+  if ((d.seeds || []).length) meta.push(`分开排位 ${d.seeds.length} 个`);
   return {
     _id: d._id, signing, mine: !!role, roleTags,
     title: d.title,
-    modeText: d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`,
-    typeText: (E.categoryText(d) && E.categoryOf(d) !== 'mixed' ? E.categoryText(d) : '') + (E.categoryOf(d) === 'mixed' ? '混双' : cfg.type === 'double' ? '双打' : '单打'),
-    count: (d.entrants || []).length,
-    unit: cfg.type === 'double' ? '队' : '人',
-    seeds: (d.seeds || []).length,
+    meta: meta.map((x) => x.replace(/ /g, '\u00a0')).join(' · '), // 每一项内部用不换行空格：只在项与项之间换行，「2 个」不会拆开
     date: d.date || '',
+    day: dayOf(d.date),
+    status: signing ? { text: '报名中', cls: 'lime' } : finished ? { text: '已结束', cls: '' } : { text: '进行中', cls: 'solid' },
     champion, progress, isG,
   };
+}
+
+// 左边日期块：大字日，小字月和星期；没有日期显示「待定」
+const WEEK = '日一二三四五六';
+function dayOf(date) {
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(date || '');
+  if (!m) return { d: '待定', m: '', w: '' };
+  const y = +m[1], mo = +m[2], dd = +m[3];
+  return { d: String(dd), m: `${mo}月`, w: '周' + WEEK[new Date(y, mo - 1, dd).getDay()] };
 }
 
 Page({
