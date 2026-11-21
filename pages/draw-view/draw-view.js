@@ -256,7 +256,6 @@ Page({
       }
       const res = await db.signUp(this.id, partner);
       wx.showToast(res && res.waiting ? { title: '名额已满，已排进候补', icon: 'none' } : { title: '报名成功', icon: 'success' });
-      this.loadContact();
       await this.loadSignups(this.d, this.allMatches);
     } catch (e) {
       console.error(e);

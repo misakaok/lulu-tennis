@@ -31,4 +31,31 @@ test('所有页面和组件脚本都能加载，并各注册一次 Page / Compon
   } finally { Object.assign(global, saved); }
 });
 
+// 页面 / 组件里调用的 this.xxx() 都要有定义：删功能时漏删的调用（如 2026-11-21 报名成功后调用已删除的 loadContact，
+// 报名其实成功了却弹「报名失败」）在这里就能发现
+const BUILTIN = new Set(['setData', 'triggerEvent', 'selectComponent', 'selectAllComponents', 'selectOwnerComponent', 'createSelectorQuery',
+  'createIntersectionObserver', 'getOpenerEventChannel', 'getTabBar', 'getPageId', 'animate', 'clearAnimation', 'hasBehavior', 'getRelationNodes', 'groupSetData']);
+test('页面和组件里调用的 this 方法都有定义（没有删功能时漏删的调用）', () => {
+  const saved = { Page: global.Page, Component: global.Component, wx: global.wx, getApp: global.getApp };
+  let def = null;
+  global.Page = (o) => { def = o; };
+  global.Component = (o) => { def = Object.assign({}, o, o.methods, o.lifetimes, o.pageLifetimes); };
+  global.getApp = () => ({ globalData: {} });
+  if (!global.wx) global.wx = new Proxy({}, { get: () => () => ({}) });
+  const bad = [];
+  try {
+    scripts().forEach((f) => {
+      const full = path.join(root, f);
+      delete require.cache[require.resolve(full)];
+      require(full);
+      const src = fs.readFileSync(full, 'utf8');
+      const set = new Set([...src.matchAll(/\bthis\.([A-Za-z_$][\w$]*)\s*=[^=]/g)].map((m) => m[1])); // 运行时挂上去的
+      new Set([...src.matchAll(/\bthis\.([A-Za-z_$][\w$]*)\s*\(/g)].map((m) => m[1])).forEach((n) => {
+        if (typeof def[n] !== 'function' && !BUILTIN.has(n) && !set.has(n)) bad.push(`${f}: this.${n}()`);
+      });
+    });
+  } finally { Object.assign(global, saved); }
+  assert.deepStrictEqual(bad, [], '调用了没有定义的方法');
+});
+
 module.exports = T;
