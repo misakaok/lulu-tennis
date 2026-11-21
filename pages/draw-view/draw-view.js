@@ -5,6 +5,7 @@ const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
+const SHARE_IMAGE = '/images/share.png'; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 const S = require('../../utils/stats');
 const { colorOf, initialOf } = require('../../utils/rules');
 
@@ -394,6 +395,7 @@ Page({
     return {
       title: this.data.signing ? `${t} 开始报名啦，点击报名` : `${t} · 对阵和场次`,
       path: `/pages/draw-view/draw-view?id=${this.id}`,
+      imageUrl: SHARE_IMAGE,
     };
   },
 });

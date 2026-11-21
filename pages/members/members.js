@@ -3,6 +3,7 @@
 //   历史球友：升级前设置过资料的账号，管理员确认后再导入，不自动成为成员   邀请：生成一次性邀请链接
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
+const SHARE_IMAGE = '/images/share.png'; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 
 Page({
   data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '', audit: null, auditing: false },
@@ -77,6 +78,6 @@ Page({
   revoke(e) { this.run('revokeInvite', { code: e.currentTarget.dataset.code }, '已作废'); },
   onShareAppMessage(e) {
     const code = (e && e.target && e.target.dataset && e.target.dataset.code) || this.data.lastInvite;
-    return { title: '邀请你加入 LULU网球', path: '/pages/gate/gate?invite=' + code };
+    return { title: '邀请你加入 LULU网球', path: '/pages/gate/gate?invite=' + code, imageUrl: SHARE_IMAGE };
   },
 });
