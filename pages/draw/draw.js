@@ -41,6 +41,7 @@ function toView(d, matches, myId, signed) {
     date: d.date || '',
     day: dayOf(d.date),
     status: signing ? { text: '报名中', cls: 'lime' } : finished ? { text: '已结束', cls: '' } : { text: '进行中', cls: 'solid' },
+    st: signing ? 'sign' : finished ? 'done' : 'play', // 日期块色带：报名中黄绿 / 进行中淡紫 / 已结束灰
     champion, progress, isG,
   };
 }
