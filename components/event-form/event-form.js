@@ -39,7 +39,9 @@ Component({
       wx.chooseLocation({
         success: (r) => {
           const loc = E.locationOf(r);
-          this.setData({ 'v.location': loc, locText: this.locText(loc) });
+          // 选完点让编辑的人看到选的是哪里：名称只放在这个表单的显示文字里，不进 v，不保存、不给别人看
+          const name = String((r && (r.name || r.address)) || '').trim().slice(0, 30);
+          this.setData({ 'v.location': loc, locText: loc ? name || this.locText(loc) : '' });
           this.emit();
         },
         fail: (e) => {

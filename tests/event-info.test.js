@@ -184,6 +184,8 @@ test('场地表单：旧文字和地图文字不回填，只保留坐标并从�
   c.pickLocation();
   assert.strictEqual(value.venue, '');
   assert.deepStrictEqual(value.location, { latitude: 32, longitude: 122 });
+  assert.strictEqual(c.data.locText, '用户编辑的地图名'); // 选完点只在表单上显示名称，不进提交的数据
+  assert.ok(!/用户编辑/.test(JSON.stringify(value)));
   c.onCourt({ detail: { value: '3' } });
   assert.strictEqual(value.venue, '3 号场');
   c.clearLocation();
