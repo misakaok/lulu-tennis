@@ -114,7 +114,7 @@ async function render(canvas, info) {
   ctx.clearRect(0, 0, W, H);
   paint(ctx, info);
   const r = await new Promise((ok, bad) => wx.canvasToTempFilePath({
-    canvas, x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H, fileType: 'png', success: ok, fail: bad,
+    canvas, x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H, fileType: 'jpg', quality: 0.9, success: ok, fail: bad, // JPG 比 PNG 导出快、文件小一半
   }));
   return r.tempFilePath;
 }

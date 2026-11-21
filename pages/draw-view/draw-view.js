@@ -6,6 +6,7 @@ const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
 const Card = require('../../utils/share-card'); // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
+const COVER_DELAY_MS = 800; // 进页面后等一会儿再画封面；这期间分享会等它画完（微信最多等 3 秒）
 const S = require('../../utils/stats');
 const { colorOf, initialOf } = require('../../utils/rules');
 
@@ -28,6 +29,7 @@ Page({
 
   onLoad(options) { this.id = options.id; },
   onShow() { this.load(); }, // 从录分页 / 资料页 / 抽签页回来时刷新
+  onUnload() { this.gone = true; }, // 关闭后不再画分享封面
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
@@ -408,7 +410,8 @@ Page({
     this.coverKey = key;
     this.cover = '';
     this.coverJob = (this.coverJob || Promise.resolve()).then(async () => {
-      if (key !== this.coverKey) return; // 又变了，交给后面那次画
+      await new Promise((r) => setTimeout(r, COVER_DELAY_MS)); // 等页面先渲染完，不和首屏抢时间
+      if (key !== this.coverKey || this.gone) return; // 又变了交给后面那次画；页面已关闭就不画
       const path = await Card.render(await this.shareCanvas(), info);
       if (key === this.coverKey) this.cover = path;
     }).catch((e) => console.warn('[分享封面] 生成失败，用固定封面', e));
