@@ -602,6 +602,41 @@ test('活动名称和场地：名称保留手动输入且先检测，场地只�
   ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: d.title, date: d.date, venue: '31 号场', location: { latitude: 31, longitude: Infinity } } }));
   assert.strictEqual(d.venue, ''); assert.strictEqual(d.location, null);
 });
+test('地图地点名称：内容检测明确通过才保存并下发；没通过只存坐标；没改不重复检测；旧的 location 文字不下发', async () => {
+  const env = setup();
+  const loc = { latitude: 31.2, longitude: 121.5 };
+  const place = { name: '某某网球中心', address: '某区某路 1 号' };
+  const r = ok(await adminCall(env, 'owner', 'createDraw', { draw: { mode: 'bracket', size: 8, date: '2026-11-21', title: '内部赛', location: loc, place } }));
+  assert.strictEqual(r.placeDropped, false);
+  assert.ok(env.textChecks.some((x) => x.content === '某某网球中心 某区某路 1 号' && x.openid === 'owner'));
+  const d = env.coll('draws')[r.id];
+  assert.deepStrictEqual(d.place, place); assert.deepStrictEqual(d.location, loc);
+  const seen = [
+    ok(await env.call('alice', 'drawDetail', { drawId: r.id })).draw,
+    ok(await env.call('alice', 'data', { op: 'doc', coll: 'draws', id: r.id })).data,
+  ].map((x) => require('../utils/event').publicDraw(x));
+  seen.forEach((x) => assert.deepStrictEqual(x.place, place));
+  // 没改地点：不再检测
+  const n = env.textChecks.length;
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: r.id, info: { title: '内部赛', date: '2026-11-21', location: loc, place } }));
+  assert.strictEqual(env.textChecks.filter((x) => /网球中心/.test(x.content)).length, 1);
+  assert.ok(env.textChecks.length >= n);
+  // 换了地点但没通过检测（违规 / 异常）：活动照常保存，只存坐标
+  for (const bad of [{ errCode: 0, result: { suggest: 'risky' } }, { errCode: -1 }]) {
+    env.checkText = (p) => (/新地点/.test(p.content) ? bad : { errCode: 0, result: { suggest: 'pass' } });
+    const u = ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: r.id, info: { title: '内部赛', date: '2026-11-21', location: { latitude: 30, longitude: 120 }, place: { name: '新地点' } } }));
+    assert.strictEqual(u.placeDropped, true);
+    assert.strictEqual(d.place, null); assert.deepStrictEqual(d.location, { latitude: 30, longitude: 120 });
+  }
+  env.checkText = null;
+  // 清除地图位置：地点名称一起清掉；没有坐标时给了名称也不保存
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: r.id, info: { title: '内部赛', date: '2026-11-21', location: null, place } }));
+  assert.strictEqual(d.location, null); assert.strictEqual(d.place, null);
+  // 以前版本存在 location 里的名称和地址（没检测过）：不下发
+  Object.assign(d, { location: { latitude: 31, longitude: 121, name: '旧地图名', address: '旧地图地址' }, place: undefined });
+  const old = require('../utils/event').publicDraw(ok(await env.call('alice', 'drawDetail', { drawId: r.id })).draw);
+  assert.deepStrictEqual(old.location, { latitude: 31, longitude: 121 }); assert.strictEqual(old.place, null);
+});
 test('比赛名称：必填、限长；违规、人工复核、异常结果和接口报错都不写入', async () => {
   const env = setup();
   for (const title of ['', '   ', '名'.repeat(21), '赛\n事']) {

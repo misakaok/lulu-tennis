@@ -172,7 +172,7 @@ test('挑战书旧链接：不加载球员、不记录比分、不提供分享',
   assert.deepStrictEqual(plain(p.data), {});
 });
 
-test('场地表单：旧文字和地图文字不回填，只保留坐标并从固定编号中选择', () => {
+test('场地表单：旧的场地文字和 location 里的旧地图文字不回填；新选的地点名称和地址随表单提交（云端检测后才保存）', () => {
   const wx = { chooseLocation({ success }) { success({ latitude: 32, longitude: 122, name: '用户编辑的地图名', address: '用户编辑的地图地址' }); } };
   const c = load('components/event-form/event-form.js', wx, 'Component');
   let value;
@@ -180,16 +180,21 @@ test('场地表单：旧文字和地图文字不回填，只保留坐标并从�
   c.init({ date: '2026-11-14', venue: '旧自定义球场', location: { latitude: 31, longitude: 121, name: '旧地图文字' } });
   assert.strictEqual(value.venue, '');
   assert.deepStrictEqual(value.location, { latitude: 31, longitude: 121 });
+  assert.strictEqual(value.place, null);
   assert.strictEqual(c.data.locText, '已选择地图位置');
   c.pickLocation();
   assert.strictEqual(value.venue, '');
   assert.deepStrictEqual(value.location, { latitude: 32, longitude: 122 });
-  assert.strictEqual(c.data.locText, '用户编辑的地图名'); // 选完点只在表单上显示名称，不进提交的数据
-  assert.ok(!/用户编辑/.test(JSON.stringify(value)));
+  assert.deepStrictEqual(value.place, { name: '用户编辑的地图名', address: '用户编辑的地图地址' });
+  assert.strictEqual(c.data.locText, '用户编辑的地图名');
   c.onCourt({ detail: { value: '3' } });
   assert.strictEqual(value.venue, '3 号场');
   c.clearLocation();
-  assert.strictEqual(value.location, null); assert.strictEqual(value.venue, '3 号场');
+  assert.strictEqual(value.location, null); assert.strictEqual(value.place, null); assert.strictEqual(value.venue, '3 号场');
+  // 编辑已有活动：显示云端保存过的地点名称
+  c.init({ date: '2026-11-14', location: { latitude: 31, longitude: 121 }, place: { name: '已保存的地点', address: '某路 1 号' } });
+  assert.strictEqual(c.data.locText, '已保存的地点');
+  assert.deepStrictEqual(value.place, { name: '已保存的地点', address: '某路 1 号' });
 });
 
 test('分享封面：只画日期、时间和人数（不画活动名称、昵称），报名人数和页面一致，没有赛事用语', () => {

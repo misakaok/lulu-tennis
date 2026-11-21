@@ -301,11 +301,12 @@ async function fetchDrawDetail(id) {
 // 活动的写入都经云函数（服务端逐个字段校验；只有发起人能改）
 const cloudCall = (action, data) => require('./cloud').call(action, data);
 // 创建球友活动：只有设置 → 开放报名；带 entrants / lines / groups → 直接生成签表。返回活动 ID
-async function addDraw(data) { return (await cloudCall('createDraw', { draw: data })).id; }
+// 返回 { id, placeDropped }：placeDropped = 地点名称没通过内容检测，只保存了地图位置
+async function addDraw(data) { const r = await cloudCall('createDraw', { draw: data }); return { id: r.id, placeDropped: !!r.placeDropped }; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
 // 编辑活动信息：手动名称、日期、开始时间、场地编号、定位；公开文字先经云端检测
-async function updateDrawInfo(id, info) { await cloudCall('updateDrawInfo', { drawId: id, info }); }
+async function updateDrawInfo(id, info) { const r = await cloudCall('updateDrawInfo', { drawId: id, info }); return { placeDropped: !!(r && r.placeDropped) }; }
 // 删除活动（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的活动要带原因
 // 删除成功后记下来：返回活动列表时先把它从手上的列表里去掉，不用等重新读取（云端也不会再返回它）
 const removedDraws = {};

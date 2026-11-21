@@ -144,3 +144,5 @@ button.share { display: flex !important; align-items: center; justify-content: c
 
 /* 分享封面画布：放在屏幕外，不显示 */
 .share-cv { position: fixed; left: -2000px; top: 0; width: 1000px; height: 800px; }
+.in-place { font-weight: 600; }
+.in-addr { margin-top: 4rpx; font-size: 24rpx; line-height: 1.45; color: #8686A0; }

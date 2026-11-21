@@ -17,7 +17,7 @@ Page({
       this.info = null;
       this.setData({
         loading: false, title: d.title || '',
-        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null },
+        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, place: d.place || null },
       });
     } catch (e) {
       console.error(e);
@@ -38,10 +38,10 @@ Page({
     }
     this.setData({ saving: true });
     try {
-      await db.updateDrawInfo(this.id, {
-        title, date: i.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location),
+      const r = await db.updateDrawInfo(this.id, {
+        title, date: i.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location), place: E.placeOf(i.place),
       });
-      wx.showToast({ title: '已保存', icon: 'success' });
+      wx.showToast(r && r.placeDropped ? { title: '已保存。地点名称没通过安全检测，只保存了地图位置', icon: 'none', duration: 2500 } : { title: '已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);
     } catch (e) {
       console.error(e);

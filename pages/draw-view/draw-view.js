@@ -91,9 +91,11 @@ Page({
     let when = d.date || '';
     if (d.date) { const [y, m, dd] = d.date.split('-').map(Number); when = `${m}月${dd}日 周${WEEK[new Date(y, m - 1, dd).getDay()]}`; }
     if (d.startTime) when += ' ' + d.startTime;
-    const loc = d.location && typeof d.location.latitude === 'number' ? d.location : null;
+    const loc = E.locationOf(d.location);
     if (!d.venue && !loc && !d.startTime) return { when, empty: true };
-    return { when, venue: d.venue || (loc ? '已设置地图位置' : ''), canNav: !!loc };
+    // 地点：云端检测过的名称和地址（publicDraw 已处理）；以前的活动只有坐标，显示「已设置地图位置」
+    const place = loc ? d.place || { name: '已设置地图位置', address: '' } : null;
+    return { when, venue: d.venue || '', place, canNav: !!loc };
   },
 
   /* ---------- 退赛（签表生成后）：球员申请，发起人处理；发起人也可以直接登记 ---------- */
@@ -163,7 +165,8 @@ Page({
   openMap() {
     const d = this.d, loc = d.location;
     if (loc && typeof loc.latitude === 'number') {
-      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: d.venue || '比赛场地', scale: 16 });
+      const p = d.place || {};
+      wx.openLocation({ latitude: loc.latitude, longitude: loc.longitude, name: p.name || d.venue || '活动场地', address: p.address || '', scale: 16 });
     }
   },
   // 点报名名单里的球员 → 球员主页（按用户 ID 打开，和「我的」同一套页面）

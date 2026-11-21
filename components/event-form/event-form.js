@@ -3,7 +3,7 @@ const E = require('../../utils/event');
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
-const EMPTY = { date: '', startTime: '', venue: '', location: null };
+const EMPTY = { date: '', startTime: '', venue: '', location: null, place: null };
 
 Component({
   options: { addGlobalClass: true },
@@ -18,11 +18,12 @@ Component({
       const v = Object.assign({}, EMPTY, val || {});
       v.venue = E.courtOf(v.venue);
       v.location = E.locationOf(v.location);
+      v.place = v.location ? E.placeOf(v.place) : null; // 只认云端检测过的 draws.place，不认旧的 location.name
       if (!v.date) v.date = today();
-      this.setData({ v, today: today(), locText: this.locText(v.location), courtIndex: E.COURTS.indexOf(v.venue) });
+      this.setData({ v, today: today(), locText: this.locText(v.location, v.place), courtIndex: E.COURTS.indexOf(v.venue) });
       this.emit();
     },
-    locText(l) { return l ? '已选择地图位置' : ''; },
+    locText(l, p) { return l ? (p && (p.name || p.address)) || '已选择地图位置' : ''; },
     emit() { this.triggerEvent('change', JSON.parse(JSON.stringify(this.data.v))); },
     set(path, value) { this.setData({ ['v.' + path]: value }); this.emit(); },
 
@@ -39,9 +40,9 @@ Component({
       wx.chooseLocation({
         success: (r) => {
           const loc = E.locationOf(r);
-          // 选完点让编辑的人看到选的是哪里：名称只放在这个表单的显示文字里，不进 v，不保存、不给别人看
-          const name = String((r && (r.name || r.address)) || '').trim().slice(0, 30);
-          this.setData({ 'v.location': loc, locText: loc ? name || this.locText(loc) : '' });
+          // 地点名称和地址一起提交；保存时云端先做内容检测，通过才保存、给成员看
+          const place = loc ? E.placeOf(r) : null;
+          this.setData({ 'v.location': loc, 'v.place': place, locText: this.locText(loc, place) });
           this.emit();
         },
         fail: (e) => {
@@ -50,6 +51,6 @@ Component({
         },
       });
     },
-    clearLocation() { this.setData({ 'v.location': null, locText: '' }); this.emit(); },
+    clearLocation() { this.setData({ 'v.location': null, 'v.place': null, locText: '' }); this.emit(); },
   },
 });

@@ -11,6 +11,9 @@ const GROUPS = [1, 2, 3, 4, 6, 8]; // 1 组 = 所有人一个小组大循环
 const CFG_KEY = 'last_event_rules';
 const DEF_RULE = { setGames: 4, noAd: true, bestOf: 1 };
 
+// 地点名称没通过内容检测：活动照常创建，只保存了地图位置（提示会带到下一页）
+const PLACE_DROPPED = { title: '已创建。地点名称没通过安全检测，只保存了地图位置', icon: 'none', duration: 2500 };
+
 Page({
   data: {
     canPublish: false, authError: '', title: '', mode: 'bracket', size: 8, groupCount: 4, entry: 'signup',
@@ -250,7 +253,7 @@ Page({
   // 时间地点
   infoFields() {
     const i = this.info || {};
-    return { date: i.date || this.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location) };
+    return { date: i.date || this.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location), place: E.placeOf(i.place) };
   },
   setEntry(e) { this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh(); },
   setMode(e) { this.changed({ mode: e.currentTarget.dataset.v }); },
@@ -368,10 +371,11 @@ Page({
     if (!title) return;
     this.setData({ saving: true });
     try {
-      const id = await db.addDraw(Object.assign(this.settings(), this.infoFields(), {
+      const r = await db.addDraw(Object.assign(this.settings(), this.infoFields(), {
         title, status: 'signup', results: {},
       }));
-      wx.showToast({ title: '已创建', icon: 'success' });
+      const id = r.id;
+      wx.showToast(r.placeDropped ? PLACE_DROPPED : { title: '已创建', icon: 'success' });
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
@@ -389,13 +393,14 @@ Page({
     if (!title) return;
     this.setData({ saving: true });
     try {
-      let id = this.drawId;
+      let id = this.drawId, dropped = false;
       if (id) {
         await db.generateDraw(id, p);
       } else {
-        id = await db.addDraw(Object.assign({}, p, this.infoFields(), { title, status: 'drawn' }));
+        const r = await db.addDraw(Object.assign({}, p, this.infoFields(), { title, status: 'drawn' }));
+        id = r.id; dropped = r.placeDropped;
       }
-      wx.showToast({ title: '已生成', icon: 'success' });
+      wx.showToast(dropped ? PLACE_DROPPED : { title: '已生成', icon: 'success' });
       setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);

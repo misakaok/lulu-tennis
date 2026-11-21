@@ -338,6 +338,16 @@ async function requireSafeText(text, uid, label) {
   if (res !== 'pass') deny(`${label}暂时无法完成安全检测，请稍后再试`);
 }
 
+// 地图地点名称和地址：有坐标才要；先过内容检测，只有明确 pass 才保存，否则只存坐标（placeDropped 让前端提示一句）。
+// 和已经保存过的一样（检测过）就不再检测
+async function checkedPlace(value, loc, uid, saved) {
+  const p = loc ? E.placeOf(value) : null;
+  if (!p) return { place: null };
+  if (saved && saved.name === p.name && saved.address === p.address) return { place: p };
+  const res = await checkText([p.name, p.address].filter(Boolean).join(' '), uid);
+  return res === 'pass' ? { place: p } : { place: null, placeDropped: true };
+}
+
 async function checkedTitle(value, uid) {
   const title = typeof value === 'string' ? value.trim() : '';
   if (!title) deny('请填写比赛名称');
@@ -1000,11 +1010,13 @@ async function createDraw({ draw }, uid) {
   const p = plainObj(draw) ? draw : {};
   const settings = cleanSettings(p);
   const doc = Object.assign({}, settings, cleanInfo(p), { results: {} });
-  doc.title = await checkedTitle(p.title, uid);
+  const [title, pl] = await Promise.all([checkedTitle(p.title, uid), checkedPlace(p.place, doc.location, uid)]);
+  doc.title = title;
+  doc.place = pl.place;
   if (Array.isArray(p.entrants)) Object.assign(doc, await cleanStructure('', settings, p, uid), { status: 'drawn' });
   else doc.status = 'signup';
   const r = await db.collection('draws').add({ data: Object.assign(doc, { _openid: uid, createdAt: db.serverDate() }) });
-  return { id: r._id };
+  return { id: r._id, placeDropped: !!pl.placeDropped };
 }
 
 // 报名截止后生成签表；已经开始录分、登记过退赛的活动不能重新生成（会让已有比分对不上）
@@ -1026,13 +1038,15 @@ async function updateDrawInfo({ drawId, info }, uid) {
   const { d, asAdmin } = await manageDraw(drawId, uid);
   const i = plainObj(info) ? info : {};
   const c = cleanInfo(i);
-  const title = await checkedTitle(i.title, uid);
-  await db.collection('draws').doc(drawId).update({ data: Object.assign({ title }, c, { location: c.location ? _.set(c.location) : null, updatedAt: db.serverDate(), updatedBy: uid }) });
+  const [title, pl] = await Promise.all([checkedTitle(i.title, uid), checkedPlace(i.place, c.location, uid, E.placeOf(d.place))]);
+  await db.collection('draws').doc(drawId).update({ data: Object.assign({ title }, c, {
+    location: c.location ? _.set(c.location) : null, place: pl.place ? _.set(pl.place) : null, updatedAt: db.serverDate(), updatedBy: uid,
+  }) });
   if (asAdmin) {
-    const pick = (x) => ({ title: x.title || '', date: x.date || '', startTime: x.startTime || '', venue: x.venue || '' });
-    await logAction({ type: 'adminEditDraw', drawId, by: uid, before: pick(d), after: pick(Object.assign({ title }, c)) });
+    const pick = (x) => ({ title: x.title || '', date: x.date || '', startTime: x.startTime || '', venue: x.venue || '', place: (E.placeOf(x.place) || {}).name || '' });
+    await logAction({ type: 'adminEditDraw', drawId, by: uid, before: pick(d), after: pick(Object.assign({ title, place: pl.place }, c)) });
   }
-  return {};
+  return { placeDropped: !!pl.placeDropped };
 }
 
 // 单场安排：这一场具体哪天、几点、哪片场地（draws.slots，按场次位置存）。只有发起人能排；

@@ -59,6 +59,14 @@ function locationOf(l) {
     && Number.isFinite(l.longitude) && Math.abs(l.longitude) <= 180
     ? { latitude: l.latitude, longitude: l.longitude } : null;
 }
+// 地图选点返回的地点名称和地址（2026-11-21 用户要求展示给成员看，方便认路）：
+// 只由云端在内容检测明确 pass 后写进 draws.place；以前版本存在 location.name / address 里的文字没检测过，不展示
+const PLACE_NAME_MAX = 40, PLACE_ADDR_MAX = 80;
+function placeOf(p) {
+  const t = (v, n) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, n) : '');
+  const name = t(p && p.name, PLACE_NAME_MAX), address = t(p && p.address, PLACE_ADDR_MAX);
+  return name || address ? { name, address } : null;
+}
 // 原因只能从固定选项里选（改分、退赛、弃权、裁定、撤销、删除活动、成员审核），不接受手写文字。
 // 每组最多 6 项（选择菜单的上限）。reasonOf：是固定选项就原样返回，否则返回空（旧记录里手写的原因不再展示）
 const REASONS = {
@@ -78,7 +86,8 @@ function titleOf(d) {
 }
 function publicDraw(d) {
   if (!d) return d;
-  const out = Object.assign({}, d, { title: titleOf(d), venue: courtOf(d.venue), location: locationOf(d.location) });
+  const location = locationOf(d.location);
+  const out = Object.assign({}, d, { title: titleOf(d), venue: courtOf(d.venue), location, place: location ? placeOf(d.place) : null });
   delete out.address;
   if (Array.isArray(d.withdrawals)) out.withdrawals = d.withdrawals.map((w) => {
     const row = Object.assign({}, w); delete row.reason; return row;
@@ -513,7 +522,7 @@ function progressOf(d, matches) {
 }
 
 module.exports = {
-  TITLE_MAX, REASONS, reasonOf, COURTS, courtOf, locationOf, titleOf, publicDraw, publicMatch,
+  TITLE_MAX, REASONS, reasonOf, COURTS, courtOf, locationOf, placeOf, titleOf, publicDraw, publicMatch,
   CATEGORIES, categoryOf, categoryText, capacityOf, waitingOf,
   TEAM_SEP, cfgOf, formatText, teamLabel, membersOf, tsOf, dedupe, indexFor, flipSets, scoreText, resultFor,
   bracketFor, roundRobin, standings, groupsFor, scheduleOf, findFixture, progressOf,
