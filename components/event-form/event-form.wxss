@@ -3,5 +3,9 @@
 .ef-pick { font-size: 28rpx; font-weight: 600; color: #4F4F7D; }
 .ef-pick.ph { color: #B7B7CC; font-weight: 400; }
 .ef-arrow { color: #B7B7CC; margin-left: 6rpx; }
-.ef-loc { flex: 1; font-size: 28rpx; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ef-clear { height: 56rpx; line-height: 50rpx; margin: 0 0 0 16rpx; padding: 0 16rpx; font-size: 24rpx; }
+/* 地点名称：最多两行，再长省略；箭头和「清除」固定在右边不被挤压（min-width: 0 才能让长文字在 flex 里收缩） */
+.ef-loc { flex: 1; min-width: 0; display: flex; align-items: center; padding: 16rpx 0; }
+.ef-loc-t { flex: 0 1 auto; min-width: 0; font-size: 28rpx; line-height: 1.4; color: #4F4F7D; word-break: break-all; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ef-loc-t.ph { color: #B7B7CC; }
+.ef-loc .ef-arrow { flex: none; }
+.ef-clear { flex: none; height: 56rpx; line-height: 50rpx; margin: 0 0 0 16rpx; padding: 0 16rpx; font-size: 24rpx; }
