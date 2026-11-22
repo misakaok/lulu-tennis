@@ -58,3 +58,15 @@
 .nx-foot { margin-top: 20rpx; text-align: right; }
 .nx-stale { margin-bottom: 16rpx; padding: 14rpx 20rpx; border-radius: 16rpx; font-size: 23rpx; color: #6B5200; background: #FBF0C8; } /* 和 .ui-tag.warn 同色 */
 .nx-stale-s { margin-top: 8rpx; font-size: 23rpx; color: #A5A5BA; }
+
+/* 朋友圈单页模式的介绍卡（和准入页同一张背景、同一只小狗和影子） */
+.tl-card { margin-top: 20rpx; padding: 60rpx 40rpx 48rpx; border-radius: 32rpx; color: #fff; text-align: center; background: #9493C0; box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
+.tl-dog { position: relative; width: 161rpx; height: 200rpx; margin: 0 auto; }
+.tl-dog-img { display: block; width: 161rpx; height: 200rpx; }
+.tl-dog::before {
+  content: ''; position: absolute; left: 50%; top: 166rpx; width: 196rpx; height: 60rpx; margin-left: -98rpx; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(55, 55, 105, 0.32), rgba(55, 55, 105, 0.22) 50%, rgba(55, 55, 105, 0.07) 80%, rgba(55, 55, 105, 0));
+}
+.tl-title { margin-top: 20rpx; font-size: 44rpx; font-weight: 900; }
+.tl-sub { margin-top: 6rpx; font-size: 26rpx; opacity: 0.95; }
+.tl-desc { margin-top: 24rpx; font-size: 25rpx; line-height: 1.7; opacity: 0.95; }

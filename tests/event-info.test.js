@@ -182,14 +182,44 @@ test('分享范围：球员主页和挑战没有分享回调并关闭分享配�
   }
 });
 
-test('活动首页转发：只转发首页，标题和封面固定，不带任何活动或成员内容；不开朋友圈', () => {
-  const deps = { '../../utils/db': {}, '../../utils/event': {}, '../../utils/next-match': {} };
+test('活动首页转发和朋友圈：只分享首页，标题和封面固定，不带任何活动或成员内容', () => {
+  const deps = { '../../utils/db': {}, '../../utils/event': {}, '../../utils/next-match': {}, '../../utils/timeline': { isTimeline: () => false } };
   const d = load('pages/draw/draw.js', {}, 'Page', deps);
   d.data.list = [{ title: '周末球友赛' }]; d.data.next = { title: '周末球友赛', opp: 'Bob' };
   assert.deepStrictEqual(plain(d.onShareAppMessage()), { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' });
-  assert.strictEqual(d.onShareTimeline, undefined);
-  const img = path.resolve(__dirname, '..', 'images/share-home.jpg');
-  assert.ok(fs.existsSync(img) && fs.statSync(img).size <= 80 * 1024, '封面在包里、不超过 80KB');
+  // 朋友圈：没有 query（不带任何参数），封面是 1:1 方图
+  assert.deepStrictEqual(plain(d.onShareTimeline()), { title: 'LULU网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' });
+  for (const f of ['images/share-home.jpg', 'images/share-timeline.jpg']) {
+    const img = path.resolve(__dirname, '..', f);
+    assert.ok(fs.existsSync(img) && fs.statSync(img).size <= 80 * 1024, f + ' 在包里、不超过 80KB');
+  }
+  // 其他页面不开朋友圈
+  const app = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'app.json'), 'utf8'));
+  app.pages.filter((p) => p !== 'pages/draw/draw').forEach((p) => {
+    assert.ok(!/onShareTimeline/.test(fs.readFileSync(path.resolve(__dirname, '..', p + '.js'), 'utf8')), p + ' 不开朋友圈');
+  });
+});
+
+test('朋友圈单页模式（场景 1154）：活动首页只显示固定介绍，不读缓存、不调云函数；app 不校验成员（单页模式不能跳准入页）', () => {
+  const boom = () => { throw new Error('单页模式不应读取数据'); };
+  const deps = {
+    '../../utils/db': new Proxy({}, { get: () => boom }),
+    '../../utils/event': {}, '../../utils/next-match': new Proxy({}, { get: () => boom }),
+    '../../utils/timeline': { isTimeline: () => true },
+  };
+  let stopped = 0;
+  const d = load('pages/draw/draw.js', { stopPullDownRefresh() { stopped++; } }, 'Page', deps);
+  d.onLoad(); d.onShow(); d.onPullDownRefresh();
+  assert.strictEqual(d.data.timeline, true); assert.strictEqual(d.data.loading, false); assert.strictEqual(stopped, 1);
+  const xml = fs.readFileSync(path.resolve(__dirname, '..', 'pages/draw/draw.wxml'), 'utf8');
+  assert.ok(/<view wx:if="\{\{timeline\}\}" class="page">/.test(xml) && /<block wx:else>/.test(xml), '单页模式和正常页面分开');
+  // utils/timeline.js：只认启动场景 1154
+  const tl = (scene) => { const ctx = { module: { exports: {} }, wx: { getLaunchOptionsSync: () => ({ scene }) } };
+    vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '..', 'utils/timeline.js'), 'utf8'), ctx); return ctx.module.exports.isTimeline(); };
+  assert.strictEqual(tl(1154), true); assert.strictEqual(tl(1007), false); assert.strictEqual(tl(1001), false);
+  // app.onShow：单页模式直接返回，不调 member.check
+  const appSrc = fs.readFileSync(path.resolve(__dirname, '..', 'app.js'), 'utf8');
+  assert.ok(/onShow\(\) \{\s*if \(require\('\.\/utils\/timeline'\)\.isTimeline\(\)\) return;[^\n]*\n\s*require\('\.\/utils\/member'\)\.check\(\);/.test(appSrc));
 });
 
 test('挑战书旧链接：不加载球员、不记录比分、不提供分享', () => {

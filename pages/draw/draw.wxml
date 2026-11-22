@@ -1,3 +1,15 @@
+<!-- 朋友圈单页模式（utils/timeline.js）：只有固定介绍，不读任何数据；底部「前往小程序」是微信自带的 -->
+<view wx:if="{{timeline}}" class="page">
+  <view class="tl-card bg-host">
+    <image class="bg-img" src="/images/bg-gate.jpg" mode="aspectFill" />
+    <view class="tl-dog"><image class="tl-dog-img" src="/images/dog-smile.png" mode="aspectFit" /></view>
+    <view class="tl-title">LULU网球</view>
+    <view class="tl-sub">私人网球活动管理</view>
+    <view class="tl-desc">成员在这里报名活动、记录比赛。点下方「前往小程序」，用管理员给的邀请码加入。</view>
+  </view>
+</view>
+
+<block wx:else>
 <!-- 顶部：球场图只作背景（images/hero-court.jpg，固定图片），标题和按钮是页面组件，叠在左边一块纯色场地上 -->
 <view class="hero bg-host">
   <image class="bg-img" src="/images/hero-court.jpg" mode="aspectFill" />
@@ -78,3 +90,4 @@
     </view>
   </view>
 </view>
+</block>

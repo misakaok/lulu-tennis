@@ -13,6 +13,7 @@ App({
   },
   // 启动和每次回到前台都重新校验成员资格；不是正式成员就清缓存、去准入页（「私人网球活动管理」）
   onShow() {
+    if (require('./utils/timeline').isTimeline()) return; // 朋友圈单页模式：不校验、不跳转（见 utils/timeline.js）
     require('./utils/member').check();
   },
 });

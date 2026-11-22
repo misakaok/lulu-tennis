@@ -1,6 +1,7 @@
 const db = require('../../utils/db');
 const E = require('../../utils/event');
 const NX = require('../../utils/next-match');
+const TL = require('../../utils/timeline');
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
 function roleOf(d, myId, signed) {
@@ -59,14 +60,20 @@ function dayOf(date) {
 
 Page({
   data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false },
-  onLoad() { this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render(); },
+  onLoad() {
+    // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
+    if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
+    this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render();
+  },
   onShow() {
+    if (this.timeline) return;
     // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取
     const kept = db.withoutRemoved(this.draws);
     if (kept !== this.draws) { this.draws = kept; this.render(); }
     this.load();
   },
-  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+  onPullDownRefresh() { if (this.timeline) { wx.stopPullDownRefresh(); return; }
+    require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   render() {
     const signed = {};
@@ -125,8 +132,13 @@ Page({
     if (n) wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
   },
   // 右上角「转发给朋友」：只转发小程序首页，标题和封面固定（不带活动名称、人名等任何内容）；
-  // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据。不开朋友圈分享。
+  // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据
   onShareAppMessage() {
     return { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' };
+  },
+  // 「分享到朋友圈」：同样只分享首页、固定标题和封面（朋友圈缩略图是 1:1 方图）；
+  // 朋友圈点开是单页模式，只显示上面的固定介绍，不读任何数据
+  onShareTimeline() {
+    return { title: 'LULU网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' };
   },
 });
