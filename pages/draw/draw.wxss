@@ -4,12 +4,6 @@
   background: #9796C4; /* 图片还没显示出来时的底色，和左边场地颜色接近 */
   color: #fff; padding: 40rpx 36rpx 44rpx; border-radius: 0 0 40rpx 40rpx;
 }
-/* 顶部 60rpx 从导航栏的颜色（#A3A3CB）淡出到球场图，免得两种相近的紫直接拼出一道硬边；
-   z-index: -1 且排在图片后面，所以盖在图上、压在文字下 */
-.hero::after {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 60rpx; z-index: -1; pointer-events: none;
-  background: linear-gradient(180deg, #A3A3CB 0%, rgba(163, 163, 203, 0.56) 25%, rgba(163, 163, 203, 0.25) 50%, rgba(163, 163, 203, 0.06) 75%, rgba(163, 163, 203, 0) 100%);
-}
 .hero-in { width: 56%; }
 .hero-title { font-size: 44rpx; font-weight: 800; text-shadow: 0 2rpx 8rpx rgba(40, 40, 80, 0.25); }
 .hero-sub { font-size: 24rpx; line-height: 1.6; opacity: 0.95; margin-top: 10rpx; }
