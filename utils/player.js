@@ -204,6 +204,7 @@ function playerView(profiles, players, matches, uid) {
       rank: !played ? NONE : st.boardRank ? '#' + st.boardRank : S.HIDDEN, // 和排行榜一致（S.playerStats 的 boardRank）
       matches: played ? String(played) : NONE,
       wl: played ? `${wins}胜 ${played - wins}负` : NONE,
+      win: String(wins), lose: String(played - wins), // 全部比赛页的数字卡用（没比赛就是 0）
       rate: played ? st.rate + '%' : NONE,
     },
     rows,
@@ -215,4 +216,4 @@ function playerView(profiles, players, matches, uid) {
   };
 }
 
-module.exports = { playerView, matchRow, sideOf, careerView, trendView, h2hView, partnersView, relationsView, seasonSummary };
+module.exports = { playerView, matchRow, sideOf, careerView, trendView, h2hView, partnersView, relationsView, seasonSummary, NONE };

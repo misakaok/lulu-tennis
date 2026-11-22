@@ -1,4 +1,9 @@
-.sum { text-align: center; font-size: 26rpx; color: #4F4F7D; font-weight: 700; margin: 6rpx 0 18rpx; }
+.hs { display: flex; margin-bottom: 22rpx; padding: 28rpx 0 24rpx; border-radius: 32rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
+.hs-c { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.hs-c + .hs-c { border-left: 1rpx solid rgba(255, 255, 255, 0.3); }
+.hs-n { font-size: 44rpx; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hs-n.win { color: #E3F28A; } /* 胜：网球黄绿的浅色，深底上看得清 */
+.hs-l { margin-top: 8rpx; font-size: 22rpx; opacity: 0.85; }
 .seg { margin-bottom: 18rpx; }
 .muted { text-align: center; color: #A5A5BA; font-size: 24rpx; padding: 40rpx 0; }
 .card.list:empty { display: none; }

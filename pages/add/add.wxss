@@ -35,9 +35,15 @@
 .result:empty { display: none; }
 .result.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 700; }
 
-.event-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #F1F1F8; color: #6E6EA3; font-size: 24rpx; }
-.confirm-tip { margin-bottom: 20rpx; padding: 16rpx 24rpx; border-radius: 18rpx; background: #fff8e6; color: #9a6a00; font-size: 23rpx; line-height: 1.6; }
-.confirm-tip .b { font-weight: 800; }
+.event-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #F1F1F8; color: #6E6EA3; font-size: 23rpx; line-height: 1.6; }
+.hero { display: flex; align-items: center; margin-bottom: 20rpx; padding: 28rpx 0 28rpx 32rpx; border-radius: 36rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); overflow: hidden; }
+.hero-main { flex: 1; min-width: 0; }
+.hero-k { font-size: 22rpx; opacity: 0.85; }
+.hero-vs { margin-top: 8rpx; font-size: 36rpx; font-weight: 800; line-height: 1.35; word-break: break-all; }
+.hero-x { margin: 0 14rpx; font-size: 24rpx; font-weight: 600; opacity: 0.8; }
+.hero-dim { opacity: 0.7; }
+.hero-s { margin-top: 8rpx; font-size: 24rpx; opacity: 0.92; }
+.hero-art { flex: none; width: 150rpx; height: 150rpx; margin: -12rpx 18rpx -12rpx 12rpx; }
 .card.np { color: #6E6EA3; font-weight: 700; font-size: 27rpx; text-align: center; }
 .chip { display: flex; align-items: center; }
 .chip-av { width: 36rpx; height: 36rpx; border-radius: 50%; margin: 0 8rpx 0 -12rpx; background: #fff; }

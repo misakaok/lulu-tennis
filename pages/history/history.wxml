@@ -1,5 +1,11 @@
 <view class="page">
-  <view class="sum">{{summary}}</view>
+  <!-- 汇总数字卡：整页唯一的重点色块 -->
+  <view wx:if="{{sum}}" class="hs">
+    <view class="hs-c"><text class="hs-n">{{sum.matches}}</text><text class="hs-l">场数</text></view>
+    <view class="hs-c"><text class="hs-n win">{{sum.win}}</text><text class="hs-l">胜</text></view>
+    <view class="hs-c"><text class="hs-n">{{sum.lose}}</text><text class="hs-l">负</text></view>
+    <view class="hs-c"><text class="hs-n">{{sum.rate}}</text><text class="hs-l">胜率</text></view>
+  </view>
   <view class="seg">
     <view class="seg-item {{filter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setFilter">全部</view>
     <view class="seg-item {{filter === 'event' ? 'on' : ''}}" data-v="event" bindtap="setFilter">活动</view>

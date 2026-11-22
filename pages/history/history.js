@@ -3,7 +3,7 @@ const db = require('../../utils/db');
 const PV = require('../../utils/player');
 
 Page({
-  data: { uid: '', name: '', rows: [], summary: '', filter: 'all', shown: [], loading: true },
+  data: { uid: '', name: '', rows: [], sum: null, filter: 'all', shown: [], loading: true },
   onLoad(o) {
     this.setData({ uid: decodeURIComponent(o.uid || '') });
     this.render(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches());
@@ -24,7 +24,8 @@ Page({
     this.rows = v.rows;
     this.setData({
       name: v.profile ? v.profile.name : '',
-      summary: v.profile ? `${v.stats.matches === '暂无' ? 0 : v.stats.matches} 场 · ${v.stats.wl} · 胜率 ${v.stats.rate}` : '',
+      // 顶部数字卡：场数、胜、负、胜率（和球员卡同一份统计）
+      sum: v.profile ? { matches: v.stats.matches === PV.NONE ? '0' : v.stats.matches, win: v.stats.win, lose: v.stats.lose, rate: v.stats.rate === PV.NONE ? '—' : v.stats.rate } : null,
     });
     this.apply();
   },

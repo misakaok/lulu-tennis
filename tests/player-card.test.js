@@ -46,6 +46,17 @@ test('球员卡：比赛等级和自评等级分开标注，没有比赛 / 没�
   const c = require('../utils/career').career(ms, 'ann', 'Ann', [], {});
   assert.strictEqual(ann.stats.matches, String(c.played));
   assert.strictEqual(ann.stats.rate, c.rate + '%');
+  // 全部比赛页顶部数字卡：胜、负和生涯战绩一致；没比赛是 0
+  assert.deepStrictEqual([ann.stats.win, ann.stats.lose], [String(c.win), String(c.lose)]);
+  assert.deepStrictEqual([eve.stats.win, eve.stats.lose], ['0', '0']);
+});
+
+test('不那么素：全部比赛顶部数字卡、录日常比赛顶部概要卡（日期、双方、规则）；这些页面不用 emoji', () => {
+  const hist = read('pages/history/history.wxml');
+  assert.ok(/class="hs"/.test(hist) && ['场数', '胜', '负', '胜率'].every((l) => hist.indexOf(`<text class="hs-l">${l}</text>`) >= 0));
+  const add = read('pages/add/add.wxml');
+  assert.ok(/<image class="hero-art" src="\/images\/art-ball\.png" mode="aspectFit" \/>/.test(add) && /待选对手/.test(add));
+  for (const f of ['pages/add/add.wxml', 'pages/racket-log/racket-log.wxml', 'pages/history/history.wxml']) assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(read(f)), f + ' 里不要 emoji');
 });
 
 test('名次口径：球员卡、报名名单、战绩页卡片都和排行榜（生涯 · 全部 · 按水平）一致，只在同意公开展示的账号里排；没同意的显示「未公开」', async () => {

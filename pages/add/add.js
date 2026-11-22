@@ -9,13 +9,14 @@ const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfi
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const CFG_KEY = 'last_rules';
+const dayOf = (d) => { const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(d || ''); return m ? `${Number(m[1])}月${Number(m[2])}日` : ''; };
 
 Page({
   data: {
     canRecordDaily: false, authError: '', date: '', today: '', type: 'single', bestOf: 3, setGames: 4, noAd: true,
     slotsA: [], slotsB: [], chips: [], me: '', noProfile: false,
     aLabel: 'A 方', bLabel: 'B 方',
-    check: { ok: false, msg: '' }, submitting: false, rulesText: '',
+    check: { ok: false, msg: '' }, submitting: false, rulesText: '', dayText: '',
   },
 
   onLoad() {
@@ -27,7 +28,7 @@ Page({
     this.slots = { a: ['', ''], b: ['', ''] };
     this.active = 'a0';
     this.res = { ok: false, msg: '请至少填写一盘' };
-    this.setData({ date: t, today: t, setGames: cfg.setGames, noAd: cfg.noAd, bestOf: last.bestOf === 1 ? 1 : 3 });
+    this.setData({ date: t, dayText: dayOf(t), today: t, setGames: cfg.setGames, noAd: cfg.noAd, bestOf: last.bestOf === 1 ? 1 : 3 });
     this.refresh();
   },
 
@@ -132,7 +133,7 @@ Page({
   goEvents() { wx.switchTab({ url: '/pages/draw/draw' }); },
 
   /* ---------- 基本信息 ---------- */
-  onDate(e) { this.setData({ date: e.detail.value }); },
+  onDate(e) { this.setData({ date: e.detail.value, dayText: dayOf(e.detail.value) }); },
 
   setType(e) {
     const type = e.currentTarget.dataset.v;

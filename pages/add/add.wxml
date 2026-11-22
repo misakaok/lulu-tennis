@@ -1,8 +1,16 @@
 <view wx:if="{{!canRecordDaily && authError}}" class="page muted">{{authError}}</view>
 <block wx:elif="{{canRecordDaily}}">
 <view class="page">
-  <view class="event-tip" hover-class="tap-on" bindtap="goEvents">🏆 活动里的比赛请到「活动」，在对阵表或场次里点对应场次录分 ›</view>
-  <view class="confirm-tip">日常比赛提交后<text class="b">直接计入</text>正式战绩和排名，不需要对手确认；参加者可在比赛详情里修改；已锁定的比分由对方确认后生效。</view>
+  <!-- 顶部概要：选好双方、规则就跟着变；整页唯一的重点色块 -->
+  <view class="hero">
+    <view class="hero-main">
+      <view class="hero-k">日常比赛{{dayText ? ' · ' + dayText : ''}}</view>
+      <view class="hero-vs"><text>{{aLabel === 'A 方' ? '我' : aLabel}}</text><text class="hero-x">vs</text><text class="{{bLabel === 'B 方' ? 'hero-dim' : ''}}">{{bLabel === 'B 方' ? '待选对手' : bLabel}}</text></view>
+      <view class="hero-s">{{type === 'double' ? '双打' : '单打'}} · {{setGames}} 局制 · {{bestOf === 3 ? '三盘两胜' : '一盘'}}</view>
+    </view>
+    <image class="hero-art" src="/images/art-ball.png" mode="aspectFit" />
+  </view>
+  <view class="event-tip" hover-class="tap-on" bindtap="goEvents">提交后直接计入战绩，参加者可在比赛详情里修改。活动里的比赛请到「活动」按场次录分 ›</view>
   <view wx:if="{{noProfile}}" class="card np" hover-class="tap-on" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->
   <view class="card">
