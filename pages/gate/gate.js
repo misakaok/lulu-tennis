@@ -35,6 +35,7 @@ Page({
   async load() {
     try {
       const r = this.preview ? { status: this.preview, reason: '', name: '', uid: '' } : await member.status();
+      this.hasProfile = !!r.hasProfile;
       const status = TITLE[r.status] ? r.status : 'none';
       // 第一次加载（或状态变了）时选默认方式：有邀请链接或没申请过 → 邀请码；已申请 → 等审核。用户自己切换过的保留
       const mode = this.data.mode && this.data.status === status ? this.data.mode : (status === 'pending' && !this.data.invite ? 'wait' : 'code');
@@ -69,12 +70,17 @@ Page({
     if (!code) { wx.showToast({ title: '请填写邀请码', icon: 'none' }); return; }
     if (!this.data.name.trim()) { wx.showToast({ title: '请填写你的昵称', icon: 'none' }); return; }
     this.setData({ busy: true });
-    try { await cloud.call('acceptInvite', { code, name: this.data.name }); await this.load(); if (this.data.status === 'active') this.enter(); } // 邀请码有效就直接成为正式成员并进入小程序，不需要管理员审核，也不用再点一次
+    try { await cloud.call('acceptInvite', { code, name: this.data.name }); this.joined = true; await this.load(); if (this.data.status === 'active') this.enter(); } // 邀请码有效就直接成为正式成员并进入小程序，不需要管理员审核，也不用再点一次
     catch (e) { wx.showModal({ title: '无法加入', content: e.message, showCancel: false }); }
     finally { this.setData({ busy: false }); }
   },
   // 回到被拦下时的页面（带参数，见 utils/member.js 的 kickout）；没有就去活动 tab。打不开时也退回活动 tab
+  // 用邀请码刚加入、还没设置资料：先去资料页设置昵称、性别和等级（可以「稍后再设置」），完成后资料页再回到原来要去的页面
   enter() {
+    if (this.joined && !this.hasProfile) { wx.reLaunch({ url: '/pages/profile/profile?from=gate', fail: () => this.goOn() }); return; }
+    this.goOn();
+  },
+  goOn() {
     let to = '';
     try { to = wx.getStorageSync('after_gate') || ''; wx.removeStorageSync('after_gate'); } catch (e) {}
     const home = '/pages/draw/draw';

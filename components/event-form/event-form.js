@@ -44,8 +44,10 @@ Component({
     },
 
     // 地图选点：需要在 app.json 声明 requiredPrivateInfos: ["chooseLocation"]
+    // 已经选了位置时，地图打开就停在这个位置：只有坐标、没有名称的（以前的活动）点一下球场就能补上名称
     pickLocation() {
-      wx.chooseLocation({
+      const cur = this.data.v.location;
+      wx.chooseLocation(Object.assign(cur ? { latitude: cur.latitude, longitude: cur.longitude } : {}, {
         success: (r) => {
           const loc = E.locationOf(r);
           // 地点名称和地址一起提交；保存时云端先做内容检测，通过才保存、给成员看
@@ -56,7 +58,7 @@ Component({
           if (/cancel/.test(e.errMsg || '')) return;
           wx.showModal({ title: '无法打开地图', content: '请在小程序设置里允许使用位置信息。', showCancel: false });
         },
-      });
+      }));
     },
     clearLocation() { this.setLocation(null, null); },
     setLocation(loc, place) {

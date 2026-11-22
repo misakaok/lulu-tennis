@@ -49,3 +49,4 @@
 .cs-t { font-size: 28rpx; font-weight: 600; color: #3a3a52; }
 .cs-d { font-size: 22rpx; color: #8686A0; line-height: 1.6; margin-top: 6rpx; }
 .lock-note { text-align: center; font-size: 22rpx; color: #A5A5BA; margin: 10rpx 0 20rpx; }
+.later { margin-top: 20rpx; } /* 刚加入时的「稍后再设置」 */

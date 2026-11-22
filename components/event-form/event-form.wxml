@@ -24,6 +24,7 @@
   </view>
   <view wx:if="{{locText}}" class="btn-line ef-clear" hover-class="tap-on" bindtap="clearLocation">清除</view>
 </view>
+<view wx:if="{{v.location && !v.place}}" class="ef-hint ef-loc-hint">这个位置以前只存了坐标，没有名称：点上面一行，地图会停在这里，点一下球场就能补上名称</view>
 <view wx:if="{{recent.length}}" class="ef-recent">
   <view class="ef-recent-h">最近使用的地点</view>
   <view wx:for="{{recent}}" wx:key="key" class="ef-rc {{item.key === locKey ? 'on' : ''}}" hover-class="tap-row-on" data-i="{{index}}" bindtap="pickRecent">

@@ -23,3 +23,4 @@
 .ef-lv { flex: 1; min-width: 0; display: flex; align-items: center; }
 .ef-dash { margin: 0 20rpx; color: #B7B7CC; }
 .ef-hint { padding: 12rpx 0 4rpx 150rpx; font-size: 22rpx; color: #9A9AB0; }
+.ef-loc-hint { padding-bottom: 12rpx; line-height: 1.5; color: #6E6EA3; }

@@ -17,7 +17,7 @@ const STATE_TEXT = {
 
 Page({
   data: {
-    name: '', gender: '', level: R.DEFAULT_LEVEL, levels: R.SELF_LEVELS, isNew: true, saving: false, tip: '',
+    name: '', gender: '', level: R.DEFAULT_LEVEL, levels: R.SELF_LEVELS, isNew: true, saving: false, tip: '', fromGate: false,
     photoShow: '', photoNew: false,
     photoBase: '', photoReady: false, // 进页面先显示的本人头像（本机缩略图），原图（photoShow）加载完再淡入盖上，不闪 hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
     shown: false, // 公开展示授权（utils/consent.js）：不默认勾选
@@ -26,9 +26,11 @@ Page({
 
   onLoad(options) {
     this.fromSignup = options && options.from === 'signup';
+    this.fromGate = options && options.from === 'gate'; // 用邀请码刚加入：先设置资料，完成或「稍后再设置」后进小程序
     const p = db.cachedProfile();
     if (p) this.fill(p);
     if (this.fromSignup) this.setData({ tip: '报名前请先设置昵称，大家在报名名单里会看到' });
+    if (this.fromGate) this.setData({ fromGate: true, tip: '欢迎加入！先设置你的昵称、性别和网球等级，报名活动时会用到' });
     db.getMyProfile().then((x) => { if (x) this.fill(x); else this.prefill(); }).catch((e) => console.error(e));
     this.quickPhoto();
     this.loadPhoto();
@@ -197,6 +199,15 @@ Page({
   pickGender(e) { this.setData({ gender: e.currentTarget.dataset.v }); },
   pickLevel(e) { this.setData({ level: Number(e.currentTarget.dataset.v) }); },
 
+  // 刚加入时：设置完（或稍后再设置）回到加入前要去的页面（例如分享的活动），没有就去活动 tab；和准入页 enter 一样
+  goOn() {
+    let to = '';
+    try { to = wx.getStorageSync('after_gate') || ''; wx.removeStorageSync('after_gate'); } catch (e) {}
+    const home = '/pages/draw/draw';
+    wx.reLaunch({ url: to || home, fail: () => { if (to) wx.reLaunch({ url: home }); } });
+  },
+  later() { if (!this.data.saving) this.goOn(); },
+
   async save() {
     const name = (this.data.name || '').trim();
     if (!name) { wx.showToast({ title: '请填写昵称', icon: 'none' }); return; }
@@ -216,7 +227,8 @@ Page({
         await new Promise((done) => wx.showModal({ title: '已保存', content: '你现在就能看到新照片；照片检测通过后，其他球友也能看到（一般几分钟内）。', showCancel: false, complete: done }));
       } else wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => {
-        if (getCurrentPages().length > 1) wx.navigateBack();
+        if (this.fromGate) this.goOn();
+        else if (getCurrentPages().length > 1) wx.navigateBack();
         else wx.switchTab({ url: '/pages/me/me' });
       }, withPhoto ? 0 : 600);
     } catch (e) {

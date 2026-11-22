@@ -191,4 +191,24 @@ test('最近使用的地点：100 米以内算同一个地点只出现一次（�
   assert.deepStrictEqual(PL.recentPlaces(mix).map((x) => x.name), ['历史地图位置', '地点5', '地点4', '地点3', '地点2']);
 });
 
+test('只有坐标的历史位置：提示可以在地图上补名称；地图打开时停在这个位置，点选后名称就显示出来并随表单提交', () => {
+  const calls = [];
+  const wx = { chooseLocation(o) { calls.push({ latitude: o.latitude, longitude: o.longitude }); o.success({ latitude: 29.00002, longitude: 119.00001, name: '老地方网球场', address: '某区某路 9 号' }); } };
+  const c = load('components/event-form/event-form.js', wx, 'Component');
+  let value;
+  c.triggerEvent = (_, v) => { value = plain(v); };
+  c.data.recent = PL.recentPlaces(draws());
+  c.init({});
+  c.pickLocation(); // 还没选位置：地图按默认（当前位置）打开
+  assert.deepStrictEqual(calls.pop(), { latitude: undefined, longitude: undefined });
+  c.pickRecent({ currentTarget: { dataset: { i: '2' } } }); // 历史地图位置（只有坐标）
+  assert.strictEqual(value.place, null); assert.strictEqual(c.data.locText, '已选择地图位置');
+  c.pickLocation();
+  assert.deepStrictEqual(calls.pop(), { latitude: 29, longitude: 119 }, '地图停在已选的位置');
+  assert.deepStrictEqual(value.place, { name: '老地方网球场', address: '某区某路 9 号' });
+  assert.strictEqual(c.data.locText, '老地方网球场');
+  const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{v\.location && !v\.place\}\}"[^>]*>这个位置以前只存了坐标，没有名称/.test(xml));
+});
+
 module.exports = T;
