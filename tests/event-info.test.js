@@ -182,6 +182,16 @@ test('分享范围：球员主页和挑战没有分享回调并关闭分享配�
   }
 });
 
+test('活动首页转发：只转发首页，标题和封面固定，不带任何活动或成员内容；不开朋友圈', () => {
+  const deps = { '../../utils/db': {}, '../../utils/event': {}, '../../utils/next-match': {} };
+  const d = load('pages/draw/draw.js', {}, 'Page', deps);
+  d.data.list = [{ title: '周末球友赛' }]; d.data.next = { title: '周末球友赛', opp: 'Bob' };
+  assert.deepStrictEqual(plain(d.onShareAppMessage()), { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' });
+  assert.strictEqual(d.onShareTimeline, undefined);
+  const img = path.resolve(__dirname, '..', 'images/share-home.jpg');
+  assert.ok(fs.existsSync(img) && fs.statSync(img).size <= 80 * 1024, '封面在包里、不超过 80KB');
+});
+
 test('挑战书旧链接：不加载球员、不记录比分、不提供分享', () => {
   let hidden = 0;
   const p = load('pages/challenge/challenge.js', { hideShareMenu() { hidden++; } }, 'Page');

@@ -124,4 +124,9 @@ Page({
     const n = this.data.next;
     if (n) wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
   },
+  // 右上角「转发给朋友」：只转发小程序首页，标题和封面固定（不带活动名称、人名等任何内容）；
+  // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据。不开朋友圈分享。
+  onShareAppMessage() {
+    return { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' };
+  },
 });
