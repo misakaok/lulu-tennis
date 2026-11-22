@@ -5,6 +5,7 @@ const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
+const SC = require('../../utils/slot-conflict');
 const Card = require('../../utils/share-card'); // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 const COVER_DELAY_MS = 800; // 进页面后等一会儿再画封面；这期间分享会等它画完（微信最多等 3 秒）
 const S = require('../../utils/stats');
@@ -20,16 +21,20 @@ function modeText(d) {
 
 Page({
   data: {
-    draw: null, meta: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
-    signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
+    draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
+    signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null,
-    matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
+    matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
     courts: E.COURTS.map((c) => c || '沿用活动场地'),
   },
 
-  onLoad(options) { this.id = options.id; },
+  onLoad(options) {
+    this.id = options.id;
+    // 从活动首页「我的下一场」进来：打开「场次」并定位到这一场（只定位一次，返回本页刷新时不再跳）
+    if (options.tab === 'schedule') { this.setData({ tab: 'schedule' }); this.focusKey = decodeURIComponent(options.key || ''); }
+  },
   onShow() { this.load(); }, // 从录分页 / 资料页 / 抽签页回来时刷新
-  onUnload() { this.gone = true; }, // 关闭后不再画分享封面
+  onUnload() { this.gone = true; clearTimeout(this.focusTimer); }, // 关闭后不再画分享封面
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
@@ -65,7 +70,7 @@ Page({
       const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
       const matches = all.filter((m) => m.drawId === this.id);
       this.setData({
-        draw: d, meta, seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
+        draw: d, meta, levelText: E.levelRangeText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', matches,
       });
       // 发布和编辑仅管理员；生成对阵还需为发起人。历史发起人保留删除能力，云端逐项校验。
@@ -189,6 +194,8 @@ Page({
     ]);
     const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
     // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
+    // 名次和排行榜一致：只在同意公开展示的人里排。授权直接看球员列表里的 shown——这里的 players 是复制版，
+    // db.profilesOf 认不出来会退回本机缓存（第一次打开时是空的，所有人都会变成「未公开」），所以不传 profiles
     const stats = S.playerStats(matches || db.cachedMatches(), players);
     const profOf = {};
     players.forEach((p) => { profOf[p.name] = p; });
@@ -202,15 +209,16 @@ Page({
         name, uid: uid || '', initial: initialOf(name), color: colorOf(name),
       }, S.display(stats, name, cur || profOf[name], uid));
     };
-    // 候补：名额（淘汰赛的签数 / 小组赛的报名上限）用完之后报名的，按报名先后排队，前面有人取消自动递补
-    const capP = E.capacityOf(d);
-    const wait = E.waitingOf(list, capP);
+    // 候补：名额（淘汰赛的签数 / 小组赛的报名上限）用完之后报名的，按报名先后排队，前面有人取消自动递补。
+    // 报名情况的文字（还差几人 / 已满 / 候补几人）和「会不会进候补」都按 E.signupStatus，和云端 signUp 同一套
+    const st = E.signupStatus(d, list);
+    const capP = st.cap, wait = st.wait;
     const signups = list.map((s, i) => {
       const members = [person(s.name, s._openid)];
       if (s.partner) members.push(person(s.partner, s.partnerId));
       return Object.assign({ _id: s._id, no: i + 1, solo: !s.partner, waiting: !!wait[s._id], members }, members[0]);
     });
-    const waitPeople = list.reduce((n, s) => n + (wait[s._id] ? (s.partner ? 2 : 1) : 0), 0);
+    const waitPeople = st.waiting;
     // 按用户 ID 判断谁已经报名（自己报的 _openid，或被搭档带上的 partnerId）
     const takenId = {};
     let people = 0;
@@ -223,7 +231,8 @@ Page({
     this.setData({
       signups, partnerOpts,
       joined: !!mine || (!!myId && !!takenId[myId]),
-      full: capP > 0 && people >= capP, // 满了还能报，只是进候补
+      full: st.full, // 满了还能报，只是进候补
+      signText: st.text, signNote: st.note,
       myWaiting: !!mine && !!wait[mine._id] || signups.some((x) => x.waiting && x.members.some((p) => p.uid && p.uid === myId)),
       signCount: (capP ? `${people - waitPeople} / ${capP} 人` : `${people} 人`) + (waitPeople ? ` · 候补 ${waitPeople} 人` : ''),
     });
@@ -316,6 +325,16 @@ Page({
       todo: items.filter((x) => x.mine && x.ready && !x.done).length,
       progress: p.champion ? `🏆 冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
     });
+    this.focusFixture();
+  },
+  focusFixture() {
+    const key = this.focusKey;
+    if (!key) return;
+    this.focusKey = '';
+    if (!(this.items || []).some((x) => x.key === key)) return;
+    this.setData({ focus: key });
+    setTimeout(() => { if (!this.gone) wx.pageScrollTo({ selector: '#sch-' + key, offsetTop: -24, duration: 300, fail() {} }); }, 50); // 等这次渲染完再滚
+    this.focusTimer = setTimeout(() => { if (!this.gone) this.setData({ focus: '' }); }, 2400); // 高亮一会儿就恢复
   },
 
   /* ---------- 单场安排（发起人）：这一场具体哪天、几点、哪片场地 ---------- */
@@ -338,7 +357,14 @@ Page({
     const s = this.data.slotEdit;
     const slot = { date: s.date, time: s.time, court: E.courtOf(s.court) };
     if (!slot.date && !slot.time && !slot.court) { wx.showToast({ title: '请至少填一项', icon: 'none' }); return; }
-    this.saveSlot(slot);
+    // 同一天同一开打时间：同一片场地、同一位球员（按用户 ID）已经排在别的场次 → 先提示，可以返回修改或仍然保存
+    const hits = SC.slotConflicts(this.d, this.data.matches, this.uidOf, s.key, slot);
+    if (!hits.length) { this.saveSlot(slot); return; }
+    wx.showModal({
+      title: '时间场地有冲突', content: SC.conflictText(hits, slot, this.d),
+      cancelText: '返回修改', confirmText: '仍然保存',
+      success: (r) => { if (r.confirm) this.saveSlot(slot); }, // 返回修改：安排面板保持打开
+    });
   },
   async saveSlot(slot) {
     if (this.data.busy) return;

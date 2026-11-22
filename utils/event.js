@@ -89,6 +89,8 @@ function publicDraw(d) {
   const location = locationOf(d.location);
   const out = Object.assign({}, d, { title: titleOf(d), venue: courtOf(d.venue), location, place: location ? placeOf(d.place) : null });
   delete out.address;
+  const level = levelRangeOf(d.level); // 建议水平：不合法的旧值按没设置处理
+  if (level) out.level = level; else delete out.level;
   if (Array.isArray(d.withdrawals)) out.withdrawals = d.withdrawals.map((w) => {
     const row = Object.assign({}, w); delete row.reason; return row;
   });
@@ -198,6 +200,51 @@ function waitingOf(signups, cap) {
     if (full || used + n > cap) { full = true; out[s._id] = 1; } else used += n;
   });
   return out;
+}
+// 报名情况（活动详情用）：按人数算，双打带搭档的一条占 2 个名额，候补顺序就是 waitingOf 的报名先后。
+// 只要有人在候补（例如只剩 1 个名额、排在前面的是两人一组），剩下的名额就不算空位：新报名照样排在候补后面，
+// 所以这时不写「还差 N 人」。不设上限（cap = 0）只显示已报名人数。
+// full：新报名会不会进候补（和 signUp 返回的 waiting 一致）
+function signupStatus(d, signups) {
+  const list = signups || [], cap = capacityOf(d);
+  const wait = waitingOf(list, cap);
+  let used = 0, waiting = 0;
+  list.forEach((s) => { const n = s.partner ? 2 : 1; if (wait[s._id]) waiting += n; else used += n; });
+  if (!cap) return { cap: 0, used, waiting: 0, left: 0, full: false, wait, text: `已报名 ${used} 人`, note: '' };
+  const left = Math.max(0, cap - used), full = waiting > 0 || !left;
+  let text, note = '';
+  if (!waiting) {
+    text = left ? `已报名 ${used}/${cap} 人 · 还差 ${left} 人` : `已报名 ${used}/${cap} 人 · 已满`;
+    if (left === 1 && cfgOf(d).type === 'double') note = '只剩 1 个名额：单人报名可以直接报上，带搭档报名会进候补';
+  } else if (!left) text = `已满 · 候补 ${waiting} 人`;
+  else {
+    text = `已报名 ${used}/${cap} 人 · 候补 ${waiting} 人`;
+    note = `剩下的 ${left} 个名额不够排在最前面的候补（两人一组），新报名也排在候补后面，有人取消后按报名先后递补`;
+  }
+  return { cap, used, waiting, left, full, wait, text, note };
+}
+
+// 建议水平（只作参考，不限制报名）：draws.level = { min, max }，两端都从 LEVELS 里选，允许 min === max（只建议 3.0）。
+// LEVELS 必须和 utils/rating.js 的 SELF_LEVELS 一致（rating.js 不在云函数共享文件里，tests 检查两边一致）。
+// 没设置、不是这些选项、min > max 一律按没设置处理（返回 null）
+const LEVELS = [1.5, 2, 2.5, 3, 3.5, 4, 4.5];
+function levelRangeOf(v) {
+  if (!v || typeof v !== 'object') return null;
+  const { min, max } = v;
+  if (LEVELS.indexOf(min) < 0 || LEVELS.indexOf(max) < 0 || min > max) return null;
+  return { min, max };
+}
+// 校验提交的建议水平（前端保存前、云端写入前用同一套）：没设置 / 清空返回 ''，不合法返回提示文字
+function levelError(v) {
+  if (v === undefined || v === null || v === '') return '';
+  if (typeof v !== 'object' || LEVELS.indexOf(v.min) < 0 || LEVELS.indexOf(v.max) < 0) return '建议水平只能从选项里选';
+  return v.min > v.max ? '建议水平的最低不能高于最高' : '';
+}
+const levelNum = (x) => x.toFixed(1); // 选项本身就是 0.5 一档，和 R.fmt 的结果相同
+// 「2.5–3.0」，上下限相同只写「3.0」，没设置返回 ''
+function levelRangeText(d) {
+  const r = levelRangeOf(d && d.level);
+  return r ? (r.min === r.max ? levelNum(r.min) : `${levelNum(r.min)}–${levelNum(r.max)}`) : '';
 }
 
 function tsOf(m) {
@@ -523,7 +570,7 @@ function progressOf(d, matches) {
 
 module.exports = {
   TITLE_MAX, REASONS, reasonOf, COURTS, courtOf, locationOf, placeOf, titleOf, publicDraw, publicMatch,
-  CATEGORIES, categoryOf, categoryText, capacityOf, waitingOf,
+  CATEGORIES, categoryOf, categoryText, capacityOf, waitingOf, signupStatus, LEVELS, levelRangeOf, levelRangeText, levelError,
   TEAM_SEP, cfgOf, formatText, teamLabel, membersOf, tsOf, dedupe, indexFor, flipSets, scoreText, resultFor,
   bracketFor, roundRobin, standings, groupsFor, scheduleOf, findFixture, progressOf,
   withdrawalsOf, outcomeText, impactOf, dayText, slotOf, slotText, MODES, stageText, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,

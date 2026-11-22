@@ -1,4 +1,4 @@
-// 球员主页：底部「我的」（自己）和报名名单 / 排行榜点进来的别人主页共用这一个组件和同一套数据。
+// 球员主页（顶部是球员卡）：底部「我的」（自己）和报名名单 / 排行榜点进来的别人主页共用这一个组件和同一套数据。
 //   uid：要看的球员的用户 ID。是不是本人由当前登录账号判断，只有本人看得到「编辑资料」。
 //   统计数据都按正式战绩自动计算，页面上不能改。
 const db = require('../../utils/db');
@@ -45,8 +45,8 @@ Component({
       this.view = v; this.viewUid = uid;
       // 看别人的主页时：我和 TA 的交手记录（按用户 ID）
       const me = this.myId && this.myId !== uid && profiles ? profiles[this.myId] : null;
-      // 比赛等级、场数、胜负、胜率第一次显示时从 0 滚到实际值（排名不滚）
-      const nums = v.profile ? { 'view.level.match': v.level.match, 'view.stats.matches': v.stats.matches, 'view.stats.wl': v.stats.wl, 'view.stats.rate': v.stats.rate } : {};
+      // 球员卡上的比赛等级、场数、胜率第一次显示时从 0 滚到实际值（排名不滚）
+      const nums = v.profile ? { 'view.level.match': v.level.match, 'view.stats.matches': v.stats.matches, 'view.stats.rate': v.stats.rate } : {};
       this.setData(Object.assign({
         h2h: me && v.profile ? PV.h2hView(matches, this.myId, me.name, uid, v.profile.name, tagsOf) : null,
         view: v, isSelf: !!this.myId && this.myId === uid,

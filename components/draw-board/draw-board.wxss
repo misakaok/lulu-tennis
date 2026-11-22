@@ -56,8 +56,8 @@
 .g-av + .g-av { margin-left: -18rpx; border: 2rpx solid #fff; }
 .g-fix { margin-top: 14rpx; background: #F8F8FC; border-radius: 16rpx; padding: 14rpx 18rpx 6rpx; }
 .g-fix-title { font-size: 22rpx; color: #8686A0; margin-bottom: 6rpx; }
-.g-fix-item { display: flex; align-items: center; height: 60rpx; font-size: 25rpx; color: #3A3A52; border-top: 1rpx solid #EFEFF7; }
-.g-fix-item:first-of-type { border-top: 0; }
+.g-fix-item { display: flex; align-items: center; height: 60rpx; font-size: 25rpx; color: #3A3A52; }
+.g-fix-item + .g-fix-item { border-top: 1rpx solid #EFEFF7; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
 .g-fix-item.mine { color: #4F4F7D; font-weight: 600; }
 .fx-r { width: 50rpx; flex: none; font-size: 20rpx; color: #A5A5BA; }
 .fx-p { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

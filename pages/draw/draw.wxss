@@ -35,22 +35,23 @@
 .d-champ { flex: none; margin-left: 16rpx; font-size: 24rpx; font-weight: 700; color: #2E3600; background: #C9E33A; border-radius: 16rpx; padding: 0 14rpx; line-height: 1.6; }
 .d-prog { flex: none; margin-left: 16rpx; font-size: 22rpx; color: #8686A0; }
 
-/* 日历 */
-.cal { padding-bottom: 20rpx; }
-.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; }
-.cal-title { font-size: 30rpx; font-weight: 700; color: #1E1E32; }
-.cal-nav { width: 80rpx; text-align: center; font-size: 44rpx; line-height: 1; color: #6E6EA3; }
-.cal-week, .cal-grid { display: flex; flex-wrap: wrap; }
-.cal-w { width: 14.28%; text-align: center; font-size: 21rpx; color: #A5A5BA; padding-bottom: 8rpx; }
-.cal-cell { width: 14.28%; height: 76rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16rpx; }
-.cal-d { font-size: 26rpx; color: #A5A5BA; }
-.cal-d.has { color: #1E1E32; font-weight: 700; }
-.cal-cell.today .cal-d { color: #6E6EA3; font-weight: 800; }
-.cal-cell.on { background: #A3A3CB; }
-.cal-cell.on .cal-d { color: #fff; }
-.cal-dot { width: 10rpx; height: 10rpx; border-radius: 50%; margin-top: 4rpx; border: 2rpx solid #8484B6; box-sizing: border-box; }
-.cal-dot.mine { background: #8484B6; }
-.cal-cell.on .cal-dot { border-color: #fff; }
-.cal-cell.on .cal-dot.mine { background: #fff; }
-.cal-foot { margin-top: 12rpx; text-align: center; font-size: 21rpx; color: #A5A5BA; }
-.empty.cal-empty { padding: 50rpx 0; }
+/* 我的下一场：开打时间用记分牌式大数字，待定用灰色 */
+.nx { padding: 28rpx 28rpx 24rpx; border-left: 8rpx solid #A3A3CB; }
+.nx-head { display: flex; align-items: baseline; flex-wrap: wrap; }
+.nx-title { font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #1E1E32; word-break: break-all; margin-right: 16rpx; }
+.nx-stage { font-size: 24rpx; color: #6E6EA3; font-weight: 600; }
+.nx-when { display: flex; align-items: center; margin-top: 20rpx; }
+.nx-time { flex: none; font-size: 64rpx; font-weight: 800; line-height: 1; color: #6E6EA3; font-variant-numeric: tabular-nums; }
+.nx-time.tbd { font-size: 44rpx; color: #A5A5BA; }
+.nx-wd { flex: 1; min-width: 0; margin-left: 24rpx; display: flex; flex-direction: column; }
+.nx-date { font-size: 26rpx; font-weight: 600; color: #1E1E32; }
+.nx-court { margin-top: 4rpx; font-size: 24rpx; color: #8686A0; }
+.nx-note { margin-top: 14rpx; font-size: 23rpx; color: #8686A0; background: #F6F6FB; border-radius: 12rpx; padding: 8rpx 16rpx; }
+.nx-row { display: flex; align-items: center; margin-top: 18rpx; font-size: 27rpx; color: #1E1E32; }
+.nx-k { flex: none; width: 72rpx; font-size: 23rpx; color: #A5A5BA; }
+.nx-av { width: 44rpx; height: 44rpx; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 20rpx; font-weight: 800; color: #22223a; margin-right: 8rpx; }
+.nx-v { flex: 1; min-width: 0; margin-left: 4rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.nx-v.tbd { color: #A5A5BA; font-weight: 400; }
+.nx-foot { margin-top: 20rpx; text-align: right; }
+.nx-stale { margin-bottom: 16rpx; padding: 14rpx 20rpx; border-radius: 16rpx; font-size: 23rpx; color: #6B5200; background: #FBF0C8; } /* 和 .ui-tag.warn 同色 */
+.nx-stale-s { margin-top: 8rpx; font-size: 23rpx; color: #A5A5BA; }

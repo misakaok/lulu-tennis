@@ -4,10 +4,13 @@ const E = require('../../utils/event');
 const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
+const PL = require('../../utils/places');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const SIZES = [8, 12, 16, 24, 32];
 const GROUPS = [1, 2, 3, 4, 6, 8]; // 1 组 = 所有人一个小组大循环
+// 分组循环的报名上限（单打按人、双打按队）；双打多一个「2 队」= 4 人，凑一场双打用
+const LIMITS = { single: [0, 6, 8, 12, 16, 24, 32], double: [0, 2, 6, 8, 12, 16, 24, 32] };
 const CFG_KEY = 'last_event_rules';
 const DEF_RULE = { setGames: 4, noAd: true, bestOf: 1 };
 
@@ -18,11 +21,12 @@ Page({
   data: {
     canPublish: false, authError: '', title: '', mode: 'bracket', size: 8, groupCount: 4, entry: 'signup',
     type: 'single', advance: 2, byRound: false, koInfo: '',
-    category: '', limit: 0, limits: [0, 6, 8, 12, 16, 24, 32], waitInfo: '',
+    category: '', limit: 0, limits: LIMITS.single, waitInfo: '',
     rules: { group: DEF_RULE, ko: DEF_RULE, rounds: {} }, koRoundList: [], rulesSum: [],
     sizes: SIZES, groupOpts: GROUPS,
     chips: [], seedChips: [], seedList: [], teamList: [],
     info: '', seedInfo: '', canDraw: false, preview: null, saving: false,
+    recentPlaces: [],
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
   },
 
@@ -48,7 +52,8 @@ Page({
     try { last = wx.getStorageSync(CFG_KEY) || {}; } catch (e) {}
     // 记住上次的赛制设置（含分阶段 / 分轮次规则）
     const st = E.stageRules(last);
-    this.setData({ type: E.cfgOf(last).type, rules: st, byRound: Object.keys(st.rounds).length > 0 });
+    const lastType = E.cfgOf(last).type;
+    this.setData({ type: lastType, limits: LIMITS[lastType === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0 });
     if (options && options.id) {
       this.drawId = options.id;
       this.setData({ fromSignup: true, entry: 'pick' });
@@ -57,6 +62,7 @@ Page({
     } else {
       this.setData({ title: `${d.getMonth() + 1}月${d.getDate()}日 内部赛` }); // 默认填好当天的名称，可以改
       this.loadPlayers();
+      this.loadRecentPlaces();
     }
     this.refresh();
   },
@@ -67,6 +73,12 @@ Page({
     const names = full.map((p) => p.name);
     this.players.forEach((n) => { if (names.indexOf(n) < 0) names.push(n); });
     this.players = names;
+  },
+
+  // 最近使用的地点：先用本机缓存的活动马上显示，再用最新的活动列表更新（读不到就保持缓存的）
+  loadRecentPlaces() {
+    this.setData({ recentPlaces: PL.recentPlaces(db.cachedDraws()) });
+    return db.drawsShared().then((list) => { this.setData({ recentPlaces: PL.recentPlaces(list) }); }).catch(() => {});
   },
 
   async loadPlayers() {
@@ -117,7 +129,7 @@ Page({
         category: E.categoryOf(draw), limit: draw.limit || 0,
         waitInfo: waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
         title: draw.title, mode: draw.mode, size: draw.size || 8, groupCount: draw.groupCount || 4, advance: draw.advance === 1 ? 1 : 2,
-        type: cfg.type, rules: st, byRound: Object.keys(st.rounds).length > 0,
+        type: cfg.type, limits: LIMITS[cfg.type === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0,
       });
       this.recommendSeeds(true);
     } catch (e) {
@@ -257,19 +269,45 @@ Page({
   // 时间地点
   infoFields() {
     const i = this.info || {};
-    return { date: i.date || this.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location), place: E.placeOf(i.place) };
+    return { date: i.date || this.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location), place: E.placeOf(i.place), level: E.levelRangeOf(i.level) };
+  },
+  // 建议水平（可选，只作参考）：表单里选的不合法时不提交
+  levelOk() {
+    const err = E.levelError((this.info || {}).level);
+    if (err) wx.showToast({ title: err, icon: 'none' });
+    return !err;
   },
   setEntry(e) { this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh(); },
   setMode(e) { this.changed({ mode: e.currentTarget.dataset.v }); },
   setSize(e) { this.changed({ size: Number(e.currentTarget.dataset.v) }); },
-  setGroups(e) { this.changed({ groupCount: Number(e.currentTarget.dataset.v) }); },
+  setGroups(e) {
+    const groupCount = Number(e.currentTarget.dataset.v), { limit, entry } = this.data;
+    if (limit && entry === 'signup' && groupCount * 2 > limit) {
+      wx.showToast({ title: `报名上限 ${limit} ${this.isDouble() ? '队' : '人'}，最多分 ${GROUPS.filter((g) => g * 2 <= limit).pop() || 1} 组`, icon: 'none' });
+      return;
+    }
+    this.changed({ groupCount });
+  },
   setType(e) {
     const type = e.currentTarget.dataset.v;
     this.seeds = [];
-    this.changed(type !== 'double' && this.data.category === 'mixed' ? { type, category: '' } : { type }); // 单打没有混双
+    const next = { type, limits: LIMITS[type === 'double' ? 'double' : 'single'] };
+    if (type !== 'double' && this.data.category === 'mixed') next.category = ''; // 单打没有混双
+    if (next.limits.indexOf(this.data.limit) < 0) next.limit = 0; // 「2 队」只有双打有
+    this.changed(next);
   },
   setCategory(e) { this.changed({ category: e.currentTarget.dataset.v }); },
-  setLimit(e) { if (!this.data.fromSignup) this.setData({ limit: Number(e.currentTarget.dataset.v) }); },
+  // 报名上限：分的组数要放得下（每组至少 2 队 / 人），否则截止报名后生成不了，组数跟着减少（例如「2 队」只能 1 组）
+  setLimit(e) {
+    if (this.data.fromSignup) return;
+    const limit = Number(e.currentTarget.dataset.v);
+    const next = { limit };
+    if (limit && this.data.groupCount * 2 > limit) {
+      next.groupCount = GROUPS.filter((g) => g * 2 <= limit).pop() || 1;
+      wx.showToast({ title: `报名上限 ${limit} ${this.isDouble() ? '队' : '人'}，最多分 ${next.groupCount} 组`, icon: 'none' });
+    }
+    this.changed(next);
+  },
   setAdvance(e) { if (this.data.groupCount !== 1) this.changed({ advance: Number(e.currentTarget.dataset.v) }); },
   // 某个阶段 / 轮次的规则变了：stage = 'group' | 'ko' | 轮次人数（'2' = 决赛）
   onRule(e) {
@@ -372,7 +410,7 @@ Page({
     if (!this.data.canPublish) return;
     if (this.data.saving) return;
     const title = this.inputTitle();
-    if (!title) return;
+    if (!title || !this.levelOk()) return;
     this.setData({ saving: true });
     try {
       const r = await db.addDraw(Object.assign(this.settings(), this.infoFields(), {
@@ -394,7 +432,7 @@ Page({
     const p = this.data.preview;
     if (!p || this.data.saving) return;
     const title = this.drawId ? this.data.title : this.inputTitle();
-    if (!title) return;
+    if (!title || (!this.drawId && !this.levelOk())) return;
     this.setData({ saving: true });
     try {
       let id = this.drawId, dropped = false;

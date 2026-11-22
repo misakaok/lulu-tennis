@@ -1,4 +1,4 @@
-<!-- 顶部大卡片：昵称、性别、网球等级（比赛等级 / 自评分开） -->
+<!-- 球员卡（卡面不写标题）：头像 / 首字圆、昵称、比赛等级最突出；下方排名、场数、胜率。全部由正式战绩自动计算，只在小程序里展示 -->
 <view class="pcard {{view.profile ? '' : 'pcard-empty'}}" bindtap="edit">
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
@@ -9,7 +9,7 @@
         <view class="pc-name">{{view.profile.name}}</view>
         <view class="pc-tags">
           <text class="pc-tag">{{view.profile.gender}}</text>
-          <text class="pc-tag">{{view.level.tier}}</text>
+          <text wx:if="{{view.level.tier}}" class="pc-tag">{{view.level.tier}}</text>
           <text wx:if="{{view.level.provisional}}" class="pc-tag hl">定级中 {{view.level.played}}/{{view.level.need}}</text>
         </view>
       </block>
@@ -26,30 +26,30 @@
   </view>
 
   <block wx:if="{{view.profile}}">
+    <!-- 比赛等级（正式比赛算出）和自评等级（资料里填的）分开标注；没有的写「待定级」 -->
     <view class="pc-level">
       <view>
-        <view class="pc-lv-lbl"><view class="ball-dot"></view>比赛等级</view>
-        <view class="pc-lv {{view.level.match === '暂无' ? 'none' : ''}}">{{view.level.match}}</view>
+        <view class="pc-lv-lbl">比赛等级</view>
+        <view class="pc-lv {{view.level.match === '待定级' ? 'none' : ''}}">{{view.level.match}}</view>
       </view>
       <view class="pc-lv-side">
-        <view class="pc-self">自评等级 <text class="b">{{view.level.self}}</text></view>
+        <view class="pc-self">自评等级 <text class="b {{view.level.self === '待定级' ? 'none' : ''}}">{{view.level.self}}</text></view>
         <view wx:if="{{view.level.last}}" class="pc-last {{view.level.up ? 'up' : ''}} {{view.level.down ? 'down' : ''}}">上一场 {{view.level.last}}</view>
-        <view wx:elif="{{view.level.match === '暂无'}}" class="pc-lv-note">打完正式比赛后自动计算</view>
+        <view wx:elif="{{view.level.match === '待定级'}}" class="pc-lv-note">打完正式比赛后自动定级</view>
       </view>
+    </view>
+    <view class="pc-stats">
+      <view class="pcs"><text class="n {{view.stats.rank === '暂无' || view.stats.rank === '未公开' ? 'none' : ''}}">{{view.stats.rank}}</text><text class="l">排名</text></view>
+      <view class="pcs"><text class="n {{view.stats.matches === '暂无' ? 'none' : ''}}">{{view.stats.matches}}</text><text class="l">场数</text></view>
+      <view class="pcs"><text class="n {{view.stats.rate === '暂无' ? 'none' : ''}}">{{view.stats.rate}}</text><text class="l">胜率</text></view>
     </view>
   </block>
   <view wx:elif="{{isSelf}}" class="pc-cta">完善球员资料 ›</view>
 </view>
 
 <block wx:if="{{view.profile}}">
-  <!-- 数据卡片：全部由正式战绩自动计算，不能手动修改 -->
-  <view class="stats4">
-    <view class="s4"><text class="n {{view.stats.rank === '暂无' ? 'none' : ''}}">{{view.stats.rank}}</text><text class="l">排名</text></view>
-    <view class="s4"><text class="n {{view.stats.matches === '暂无' ? 'none' : ''}}">{{view.stats.matches}}</text><text class="l">比赛场数</text></view>
-    <view class="s4"><text class="n sm {{view.stats.wl === '暂无' ? 'none' : ''}}">{{view.stats.wl}}</text><text class="l">胜负</text></view>
-    <view class="s4"><text class="n {{view.stats.rate === '暂无' ? 'none' : ''}}">{{view.stats.rate}}</text><text class="l">胜率</text></view>
-  </view>
-  <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : '数据根据正式战绩自动计算（日常比赛录入即计入）'}}</view>
+  <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : (view.stats.wl === '暂无' ? '' : view.stats.wl + ' · ') + '数据根据正式战绩自动计算（日常比赛录入即计入）'}}</view>
+  <view wx:if="{{isSelf && !view.profile.shown}}" class="foot-note">没有开启公开展示：排行榜里不显示你，排名显示「未公开」，可以在「编辑资料」里开启</view>
 
   <!-- 球员操作 -->
   <view wx:if="{{loaded && !isSelf}}" class="acts">

@@ -51,6 +51,7 @@
 .g-t { font-size: 28rpx; font-weight: 800; }
 .g-s { margin-left: auto; font-size: 22rpx; color: #8686A0; }
 .gr { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
+.gr:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .gr-date { width: 92rpx; flex: none; font-size: 24rpx; color: #8686A0; font-weight: 600; }
 .gr-m { flex: 1; min-width: 0; }
 .gr-k { margin-left: 8rpx; }

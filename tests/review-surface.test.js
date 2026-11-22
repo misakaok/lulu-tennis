@@ -115,6 +115,36 @@ T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（�
   SEED_PAGES.forEach((p) => assert.ok(seedUsed.has(p), path.relative(root, p) + ' 应显示种子设置（不再用「分开排位」）'));
 } });
 
+// 卡片里的列表行（上边框分隔 + 上下内边距）：最后一行的下边距会叠在卡片 30rpx 内边距上，底部比顶部多出一截留白
+// （报名名单、成员管理、球员主页的交手 / 近期比赛都出过这个问题）。这类行都要有「:last-child { padding-bottom: 0 }」。
+T.push({ name: '界面：卡片里带分隔线的列表行，第一行上面不画线、最后一行不再多出下边距', fn() {
+  const files = [];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) walk(f); else if (e.name.endsWith('.wxss')) files.push(f);
+  });
+  ['pages', 'components'].forEach((d) => walk(path.join(root, d)));
+  const missing = [];
+  files.forEach((f) => {
+    const css = fs.readFileSync(f, 'utf8');
+    const re = /(^|\n)\.([\w-]+)\s*\{([^}]*)\}/g;
+    let m;
+    while ((m = re.exec(css))) {
+      const cls = m[2], body = m[3];
+      const esc = cls.replace(/-/g, '\\-');
+      const divided = /border-top:\s*1rpx solid/.test(body) || new RegExp('\\.' + esc + ' \\+ \\.' + esc + '\\s*\\{[^}]*border-top:\\s*1rpx solid').test(css);
+      if (!divided || !/padding:\s*[1-9]\d*rpx 0\s*[;}]/.test(body + '}')) continue;
+      const fix = new RegExp('\\.' + cls + ':last-child\\s*\\{[^}]*padding-bottom:\\s*0');
+      if (!fix.test(css)) missing.push(path.relative(root, f) + ' .' + cls);
+    }
+  });
+  assert.deepStrictEqual(missing, []);
+  // 「第一行上面不画分隔线」不能用 :first-of-type：小程序里标题、提示文字和行都是 view，它选中的是卡片里第一个 view，
+  // 第一行上面照样有线。用「.行 + .行 { border-top }」只在两行之间画线
+  const firstOfType = files.filter((f) => /:(first|last)-of-type/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f));
+  assert.deepStrictEqual(firstOfType, []);
+} });
+
 module.exports = T;
 
 T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {

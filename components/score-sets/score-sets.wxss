@@ -4,8 +4,9 @@
 .col { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8rpx; }
 .del-col { width: 48rpx; flex: none; text-align: right; }
 .del { color: #C5C5DA; font-size: 28rpx; padding: 10rpx; }
-.set { padding: 14rpx 0; border-top: 1rpx solid #F2F2F8; }
-.set:first-of-type { border-top: 0; }
+.set { padding: 14rpx 0; }
+.set + .set { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.set:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .stepper { flex: 1; display: flex; align-items: center; justify-content: center; }
 .st-btn {
   width: 64rpx; height: 64rpx; line-height: 60rpx; text-align: center; border-radius: 50%;

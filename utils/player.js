@@ -9,6 +9,7 @@ const SE = require('./season');
 const H = require('./highlight');
 
 const NONE = S.NONE;
+const UNRATED = '待定级'; // 球员卡：还没有比赛等级 / 没填自评等级
 
 // 这位球员在这场的哪一方：按统计身份（用户 ID）找；记录没有统计身份时（旧缓存）按名字
 function sideOf(m, key, name) {
@@ -169,7 +170,7 @@ function playerView(profiles, players, matches, uid) {
   const p = uid && profiles ? profiles[uid] : null;
   if (!p) return { profile: null, rows: [] };
   // 统计按用户 ID：即使有人和 TA 同名，也不会把别人的战绩算进来
-  const stats = S.playerStats(matches || [], players || []);
+  const stats = S.playerStats(matches || [], players || [], profiles);
   const st = stats.map[uid] || null;
   const r = stats.ratings.players[uid] || null;
   const mine = (matches || []).filter((m) => sideOf(m, uid, p.name));
@@ -187,19 +188,20 @@ function playerView(profiles, players, matches, uid) {
   const last = r && r.history.length ? r.history[r.history.length - 1].delta : null;
   const selfLv = typeof p.level === 'number' ? p.level : null;
   const played = st ? st.played : 0;
+  const shown = p.shown === true;
   return {
-    profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未填' },
+    profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未填', shown },
     ambiguous,
     level: {
-      // 比赛等级（由比赛算）和自评等级分开显示；没有就是「暂无」
-      match: r ? R.fmt(r.level) : NONE,
-      self: selfLv !== null ? R.fmt(selfLv) : NONE,
-      tier: r ? R.tierOf(r.level) + '球员' : selfLv !== null ? R.tierOf(selfLv) + '球员（自评）' : '等级未知',
+      // 比赛等级（由正式比赛算）和自评等级（资料里填的）分开标注；没有就是「待定级」
+      match: r ? R.fmt(r.level) : UNRATED,
+      self: selfLv !== null ? R.fmt(selfLv) : UNRATED,
+      tier: r ? R.tierOf(r.level) + '球员' : selfLv !== null ? R.tierOf(selfLv) + '球员（自评）' : '',
       provisional: !!r && r.provisional, played: r ? r.played : 0, need: R.PROVISIONAL,
       last: last === null ? '' : R.fmtDelta(last), up: last > 0, down: last < 0,
     },
     stats: {
-      rank: played ? '#' + st.rank : NONE,
+      rank: !played ? NONE : st.boardRank ? '#' + st.boardRank : S.HIDDEN, // 和排行榜一致（S.playerStats 的 boardRank）
       matches: played ? String(played) : NONE,
       wl: played ? `${wins}胜 ${played - wins}负` : NONE,
       rate: played ? st.rate + '%' : NONE,

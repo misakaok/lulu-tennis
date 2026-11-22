@@ -47,7 +47,7 @@
   <!-- 时间地点（截止报名后不再显示，到活动详情里编辑） -->
   <view wx:if="{{!fromSignup}}" class="card">
     <view class="card-title">时间地点<text class="sub">创建后可以在活动详情里编辑</text></view>
-    <event-form bind:change="onInfo" />
+    <event-form recent="{{recentPlaces}}" bind:change="onInfo" />
   </view>
 
   <!-- 比赛规则：录分时直接沿用，不用每场再选 -->
@@ -75,7 +75,7 @@
       <view class="pills">
         <view wx:for="{{limits}}" wx:key="*this" class="pill {{limit === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setLimit">{{item ? item + (type === 'double' ? ' 队' : ' 人') : '不限'}}</view>
       </view>
-      <view class="muted small">满了之后还能报名，排进候补；前面有人取消就自动递补</view>
+      <view class="muted small">{{type === 'double' ? '按队算，1 队 2 人（2 队 = 4 人，凑一场双打）；单人报名占 1 个名额。' : ''}}满了之后还能报名，排进候补；前面有人取消就自动递补</view>
     </view>
     <view wx:if="{{waitInfo}}" class="muted small">{{waitInfo}}</view>
 

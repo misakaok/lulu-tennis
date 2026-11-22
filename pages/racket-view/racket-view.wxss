@@ -21,16 +21,18 @@
 .acts .btn-primary { height: 84rpx; line-height: 84rpx; font-size: 28rpx; }
 
 .none { font-size: 24rpx; color: #A5A5BA; padding: 12rpx 0; line-height: 1.6; }
-.rm { display: flex; align-items: center; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; font-size: 25rpx; }
-.rm:first-of-type { border-top: 0; }
+.rm { display: flex; align-items: center; padding: 16rpx 0; font-size: 25rpx; }
+.rm + .rm { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.rm:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .rm-l { width: 110rpx; font-weight: 700; flex: none; }
 .rm-e { color: #8686A0; font-size: 22rpx; flex: none; width: 140rpx; }
 .rm-d { flex: 1; color: #5C5C76; font-size: 22rpx; }
 .rm-s { flex: none; }
 
 .tl-seg { margin-bottom: 14rpx; }
-.tl-i { display: flex; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; }
-.tl-i:first-of-type { border-top: 0; }
+.tl-i { display: flex; padding: 16rpx 0; }
+.tl-i + .tl-i { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.tl-i:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .tl-dot { width: 18rpx; height: 18rpx; border-radius: 50%; margin: 10rpx 18rpx 0 4rpx; flex: none; background: #B9B9DA; }
 .tl-dot.string { background: #8484B6; }
 .tl-b { flex: 1; min-width: 0; }

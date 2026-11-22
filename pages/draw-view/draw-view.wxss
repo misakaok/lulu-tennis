@@ -38,11 +38,13 @@ button.share { display: flex !important; align-items: center; justify-content: c
 
 .h-format { margin-top: 10rpx; font-size: 22rpx; opacity: 0.9; }
 .h-prog { margin-top: 16rpx; font-size: 26rpx; font-weight: 700; }
+.h-note { margin-top: 6rpx; font-size: 22rpx; opacity: 0.85; line-height: 1.5; }
+/* 建议水平：白色细框小标签 + 浅色说明（只作参考） */
+.h-level { display: inline-block; margin-top: 14rpx; font-size: 24rpx; font-weight: 700; border: 1rpx solid rgba(255, 255, 255, 0.7); border-radius: 8rpx; padding: 2rpx 12rpx; }
+.h-level-s { margin-left: 12rpx; font-size: 20rpx; font-weight: 400; opacity: 0.8; }
 .center { text-align: center; padding: 60rpx 0; }
 
 /* 双打报名 */
-.team-row { display: flex; align-items: center; padding: 16rpx 0; border-top: 1rpx solid #F2F2F8; }
-.team-row:first-child { border-top: 0; }
 .tr-no { width: 44rpx; flex: none; color: #A5A5BA; font-weight: 700; font-size: 24rpx; }
 .tr-p { flex: 1; min-width: 0; display: flex; align-items: center; }
 .tr-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: #f2f2f8; flex: none; margin-right: 12rpx; }
@@ -65,6 +67,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch { background: #fff; border-radius: 22rpx; padding: 18rpx 24rpx; margin-bottom: 16rpx; border: 2rpx solid #EEEEF7; }
 .sch.mine { border-color: #C9C9E4; box-shadow: 0 6rpx 16rpx rgba(133, 133, 184, 0.12); }
 .sch.tbd { opacity: 0.6; }
+.sch.focus { border-color: #A3A3CB; box-shadow: 0 0 0 4rpx rgba(163, 163, 203, 0.45); } /* 从「我的下一场」点进来定位的这一场 */
 .sch-top { display: flex; justify-content: space-between; font-size: 22rpx; margin-bottom: 8rpx; }
 .sch-stage { color: #8686A0; }
 .sch-st { color: #A5A5BA; }
@@ -87,8 +90,8 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .nav-btn { margin-top: 12rpx; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 38rpx; background: #F1F1F8; color: #4F4F7D; font-weight: 700; font-size: 27rpx; }
 
 /* 报名名单（排名 / 场数 / 胜率 / 等级） */
-.su-team { border-top: 1rpx solid #F2F2F8; padding: 6rpx 0; }
-.su-team:first-of-type { border-top: 0; }
+.su-team { padding: 6rpx 0; }
+.su-team + .su-team { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
 /* 名单底部不要多出一截留白：卡片下边距收小，最后一组不再加下边距（行本身的上下间距照旧） */
 .su-card { padding-bottom: 18rpx; }
 .su-team:last-child { padding-bottom: 0; }
@@ -117,8 +120,9 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch-rule { margin-top: 8rpx; font-size: 21rpx; color: #A5A5BA; }
 .sch-rule.hl { color: #6E6EA3; font-weight: 700; }
 .su-go { flex: none; margin-left: 8rpx; color: #C5C5DA; font-size: 30rpx; }
-.wd-row { display: flex; align-items: center; padding: 12rpx 0; border-top: 1rpx solid #F2F2F8; font-size: 24rpx; }
-.wd-row:first-of-type { border-top: 0; }
+.wd-row { display: flex; align-items: center; padding: 12rpx 0; font-size: 24rpx; }
+.wd-row + .wd-row { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.wd-row:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .wd-n { font-weight: 700; color: #1E1E32; margin-right: 12rpx; flex: none; }
 .wd-t { flex: 1; min-width: 0; color: #8686A0; font-size: 23rpx; }
 .wd-a { flex: none; margin-left: 10rpx; }

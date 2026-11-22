@@ -4,8 +4,9 @@
 .card.list:empty { display: none; }
 .foot { text-align: center; font-size: 21rpx; color: #A5A5BA; margin-top: 16rpx; }
 /* 每行三层：日期 + 名称 → 对手（左）和胜负、比分（右）同一行居中对齐 → 亮点标签 */
-.mr { padding: 20rpx 0; border-top: 1rpx solid #F2F2F8; }
-.mr:first-of-type { border-top: 0; }
+.mr { padding: 20rpx 0; }
+.mr + .mr { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.mr:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
 .mr-top { display: flex; align-items: center; font-size: 21rpx; line-height: 1.4; color: #A5A5BA; }
 .mr-main { display: flex; align-items: center; margin-top: 12rpx; }
 .mr-date { margin-right: 12rpx; }

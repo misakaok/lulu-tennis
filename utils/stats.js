@@ -10,19 +10,30 @@ function rankOrder(list) {
 }
 
 // map 按统计身份（用户 ID，或 'n:' + 名字，见 utils/ident.js）索引；只有名字时用 stats.keyOf(名字) 换算
-function playerStats(matches, players) {
+//   rank：全体统计身份里的名次（内部用）；boardRank：排行榜上的名次——和排行榜默认榜（生涯 · 全部 · 按水平）一致，
+//   只在同意公开展示的账号里排，没同意的 / 没有账号的旧名字是 0（界面显示「未公开」）。
+//   界面上显示名次一律用 boardRank（球员卡、报名名单、战绩页我的卡片）。
+//   profiles（db.profilesOf(players)，按用户 ID）可选：不传时用 players 里的 uid / shown
+function playerStats(matches, players, profiles) {
   const ratings = R.computeRatings(matches || [], R.startLevelsFrom(players || []));
   const rows = computeRank(matches || [], 'all').map((p) => {
     const r = ratings.players[p.key];
     return Object.assign(p, { level: r ? r.level : R.DEFAULT_LEVEL, provisional: !r || r.provisional });
   });
   const map = {};
-  rankOrder(rows).forEach((p, i) => { map[p.key] = { played: p.played, win: p.win, rate: p.rate, rank: i + 1, level: p.level, provisional: p.provisional }; });
+  const shownUid = {};
+  if (profiles) Object.keys(profiles).forEach((u) => { if (profiles[u] && profiles[u].shown === true) shownUid[u] = 1; });
+  else (players || []).forEach((p) => { if (p && p.uid && p.shown === true) shownUid[p.uid] = 1; });
+  let n = 0;
+  rankOrder(rows).forEach((p, i) => {
+    map[p.key] = { played: p.played, win: p.win, rate: p.rate, rank: i + 1, boardRank: shownUid[p.key] ? ++n : 0, level: p.level, provisional: p.provisional };
+  });
   return { map, ratings, total: rows.length, keyOf: ID.keyResolver(players || []) };
 }
 
 const GENDER = { m: '男', f: '女' };
 const NONE = '暂无';
+const HIDDEN = '未公开'; // 没同意公开展示：不上排行榜，也不显示名次
 
 // 报名列表等处展示用：没有数据的显示「暂无」。有用户 ID 时按 ID 找，否则按名字
 function display(stats, name, profile, uid) {
@@ -32,7 +43,7 @@ function display(stats, name, profile, uid) {
     gender: (profile && GENDER[profile.gender]) || NONE,
     played: s && s.played ? `${s.played} 场` : NONE,
     rate: s && s.played ? `${s.rate}%` : NONE,
-    rank: s && s.played ? `第 ${s.rank} 名` : NONE,
+    rank: s && s.played ? (s.boardRank ? `第 ${s.boardRank} 名` : HIDDEN) : NONE,
     level: s && s.played ? R.fmt(s.level) + (s.provisional ? ' 定级中' : '') : self !== null ? `${R.fmt(self)} 自评` : NONE,
   };
 }
@@ -69,4 +80,4 @@ function genderFinder(players) {
   return (name, uid) => GENDER[uid ? byUid[uid] : byName[name]] || '';
 }
 
-module.exports = { rankOrder, playerStats, display, genderFinder, boards, GENDER, NONE };
+module.exports = { rankOrder, playerStats, display, genderFinder, boards, GENDER, NONE, HIDDEN };

@@ -1,4 +1,4 @@
-// 编辑活动信息（仅管理员）：手动名称、日期、开始时间、场地编号、定位
+// 编辑活动信息（仅管理员）：手动名称、日期、开始时间、场地编号、定位、建议水平
 const db = require('../../utils/db');
 const E = require('../../utils/event');
 
@@ -17,7 +17,7 @@ Page({
       this.info = null;
       this.setData({
         loading: false, title: d.title || '',
-        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, place: d.place || null },
+        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, place: d.place || null, level: E.levelRangeOf(d.level) },
       });
     } catch (e) {
       console.error(e);
@@ -36,10 +36,14 @@ Page({
       wx.showToast({ title: title ? `比赛名称最多 ${E.TITLE_MAX} 个字` : '请填写比赛名称', icon: 'none' });
       return;
     }
+    const levelErr = E.levelError(i.level);
+    if (levelErr) { wx.showToast({ title: levelErr, icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
+      // 建议水平每次都明确带上：null = 清空（云端只有没收到这个字段时才保留原值，给旧版小程序用）
       const r = await db.updateDrawInfo(this.id, {
         title, date: i.date, startTime: i.startTime || '', venue: E.courtOf(i.venue), location: E.locationOf(i.location), place: E.placeOf(i.place),
+        level: E.levelRangeOf(i.level),
       });
       wx.showToast(r && r.placeDropped ? { title: '已保存。地点名称没通过安全检测，只保存了地图位置', icon: 'none', duration: 2500 } : { title: '已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);

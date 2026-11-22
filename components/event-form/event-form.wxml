@@ -24,3 +24,28 @@
   </view>
   <view wx:if="{{locText}}" class="btn-line ef-clear" hover-class="tap-on" bindtap="clearLocation">清除</view>
 </view>
+<view wx:if="{{recent.length}}" class="ef-recent">
+  <view class="ef-recent-h">最近使用的地点</view>
+  <view wx:for="{{recent}}" wx:key="key" class="ef-rc {{item.key === locKey ? 'on' : ''}}" hover-class="tap-row-on" data-i="{{index}}" bindtap="pickRecent">
+    <view class="ef-rc-b">
+      <text class="ef-rc-n">{{item.name}}</text>
+      <text wx:if="{{item.sub}}" class="ef-rc-s">{{item.sub}}</text>
+    </view>
+    <text wx:if="{{item.key === locKey}}" class="ui-tag solid ef-rc-c">已选</text>
+    <text wx:else class="btn-line mini ef-rc-c">选择</text>
+  </view>
+</view>
+<view class="ef-row">
+  <text class="label">建议水平</text>
+  <view class="ef-lv">
+    <picker range="{{levelOpts}}" value="{{levelView ? levelView.minIndex : 3}}" bindchange="onLevelMin">
+      <view class="ef-pick {{levelView ? '' : 'ph'}}">{{levelView ? levelView.min : '最低'}} <text class="ef-arrow">›</text></view>
+    </picker>
+    <text class="ef-dash">–</text>
+    <picker range="{{levelOpts}}" value="{{levelView ? levelView.maxIndex : 3}}" bindchange="onLevelMax">
+      <view class="ef-pick {{levelView ? '' : 'ph'}}">{{levelView ? levelView.max : '最高'}} <text class="ef-arrow">›</text></view>
+    </picker>
+  </view>
+  <view wx:if="{{levelView}}" class="btn-line ef-clear" hover-class="tap-on" bindtap="clearLevel">清除</view>
+</view>
+<view class="ef-hint">只作参考，不限制报名；不设置就不显示</view>

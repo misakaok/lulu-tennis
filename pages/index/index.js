@@ -126,8 +126,8 @@ Page({
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
     this.gOf = S.genderFinder(players);
     this.myId = myId || '';
-    // 和排行榜同一套口径（S.playerStats：名次按水平排序）
-    const st = S.playerStats(all, players || []);
+    // 和排行榜同一套口径（S.playerStats：名次按水平排序，只在同意公开展示的人里排）
+    const st = S.playerStats(all, players || [], db.profilesOf(players || []));
     this.src = {
       shown,
       me: this.meCard(all, st, players || []),
@@ -170,7 +170,7 @@ Page({
     return {
       name, uid, initial: initialOf(name), color: colorOf(name),
       level: R.fmt(s.level), levelLbl: s.provisional ? '定级中' : '水平分',
-      rankText: s.provisional ? '打满几场后参与排名' : `排名第 ${s.rank} 位`,
+      rankText: !s.boardRank ? '未开启公开展示，不在排行榜里' : s.provisional ? '打满几场后参与排名' : `排名第 ${s.boardRank} 位`,
       played: s.played, win: s.win, lose: s.played - s.win, rate: s.rate, recent,
     };
   },

@@ -9,3 +9,17 @@
 .ef-loc-t.ph { color: #B7B7CC; }
 .ef-loc .ef-arrow { flex: none; }
 .ef-clear { flex: none; height: 56rpx; line-height: 50rpx; margin: 0 0 0 16rpx; padding: 0 16rpx; font-size: 24rpx; }
+/* 最近使用的地点：地图定位下面，点一行直接填回（已选的那一行淡紫底） */
+.ef-recent { padding: 8rpx 0 16rpx 150rpx; border-bottom: 1rpx solid #F0F0F6; }
+.ef-recent-h { font-size: 22rpx; color: #9A9AB0; margin: 4rpx 0 8rpx; }
+.ef-rc { display: flex; align-items: center; padding: 14rpx 18rpx; margin-bottom: 10rpx; border-radius: 16rpx; background: #F6F6FB; border: 2rpx solid transparent; }
+.ef-rc.on { background: #EFEFF8; border-color: #C9C9E4; }
+.ef-rc-b { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ef-rc-n { font-size: 26rpx; font-weight: 600; color: #4F4F7D; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ef-rc-s { font-size: 22rpx; color: #9A9AB0; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ef-rc-c { flex: none; margin-left: 16rpx; }
+.ef-rc:last-child { margin-bottom: 0; }
+/* 建议水平：最低 – 最高 两个下拉 */
+.ef-lv { flex: 1; min-width: 0; display: flex; align-items: center; }
+.ef-dash { margin: 0 20rpx; color: #B7B7CC; }
+.ef-hint { padding: 12rpx 0 4rpx 150rpx; font-size: 22rpx; color: #9A9AB0; }

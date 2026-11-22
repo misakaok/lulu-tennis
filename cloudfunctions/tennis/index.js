@@ -865,6 +865,16 @@ function cleanInfo(i) {
   };
 }
 
+// 建议水平（只作参考，不限制报名）：undefined = 没传（旧客户端编辑时保留原值），null / '' = 明确清空，
+// 其他必须是 E.LEVELS 里的两个值且最低不高于最高，否则拒绝（不悄悄丢掉，免得管理员以为设置上了）
+function cleanLevel(v) {
+  if (v === undefined) return undefined;
+  if (v === null || v === '') return null;
+  const err = plainObj(v) ? E.levelError(v) : '建议水平只能从选项里选';
+  if (err) deny(err);
+  return { min: v.min, max: v.max };
+}
+
 function cleanSettings(s) {
   s = s || {};
   if (!E.MODES[s.mode]) deny('请选择活动形式');
@@ -976,6 +986,8 @@ async function createDraw({ draw }, uid) {
   const p = plainObj(draw) ? draw : {};
   const settings = cleanSettings(p);
   const doc = Object.assign({}, settings, cleanInfo(p), { results: {} });
+  const level = cleanLevel(p.level);
+  if (level) doc.level = level;
   const [title, pl] = await Promise.all([checkedTitle(p.title, uid), checkedPlace(p.place, doc.location, uid)]);
   doc.title = title;
   doc.place = pl.place;
@@ -1004,13 +1016,16 @@ async function updateDrawInfo({ drawId, info }, uid) {
   const { d, asAdmin } = await manageDraw(drawId, uid);
   const i = plainObj(info) ? info : {};
   const c = cleanInfo(i);
+  const level = cleanLevel(i.level); // 没传（旧客户端）就不动原来的建议水平
   const [title, pl] = await Promise.all([checkedTitle(i.title, uid), checkedPlace(i.place, c.location, uid, E.placeOf(d.place))]);
-  await db.collection('draws').doc(drawId).update({ data: Object.assign({ title }, c, {
+  const data = Object.assign({ title }, c, {
     location: c.location ? _.set(c.location) : null, place: pl.place ? _.set(pl.place) : null, updatedAt: db.serverDate(), updatedBy: uid,
-  }) });
+  });
+  if (level !== undefined) data.level = level ? _.set(level) : _.remove();
+  await db.collection('draws').doc(drawId).update({ data });
   if (asAdmin) {
-    const pick = (x) => ({ title: x.title || '', date: x.date || '', startTime: x.startTime || '', venue: x.venue || '', place: (E.placeOf(x.place) || {}).name || '' });
-    await logAction({ type: 'adminEditDraw', drawId, by: uid, before: pick(d), after: pick(Object.assign({ title, place: pl.place }, c)) });
+    const pick = (x) => ({ title: x.title || '', date: x.date || '', startTime: x.startTime || '', venue: x.venue || '', place: (E.placeOf(x.place) || {}).name || '', level: E.levelRangeText(x) });
+    await logAction({ type: 'adminEditDraw', drawId, by: uid, before: pick(d), after: pick(Object.assign({ title, place: pl.place, level: level === undefined ? d.level : level }, c)) });
   }
   return { placeDropped: !!pl.placeDropped };
 }

@@ -36,6 +36,7 @@ test('发布页面：普通成员直接进入创建和编辑页不会显示表�
       addDraw() { submitted++; }, generateDraw() { submitted++; },
       cachedPlayersFull: () => [], fetchPlayersFull: async () => { loaded++; return []; }, fetchMatches: async () => [],
       getDraw: async () => ({ _openid: 'alice', title: '历史活动' }),
+      cachedDraws: () => [], drawsShared: async () => [],
     },
   };
   const wx = { getStorageSync: () => ({}), setNavigationBarTitle() {} };
@@ -79,7 +80,7 @@ test('战绩页：「记一场」用缓存版身份显示，和读数据同时�
     },
     '../../utils/db': {
       cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null,
-      matchesAllShared: async () => [], playersShared: async () => [], myOpenid: async () => 'alice',
+      matchesAllShared: async () => [], playersShared: async () => [], myOpenid: async () => 'alice', profilesOf: () => ({}),
     },
   };
   const p = load('pages/index/index.js', { showToast() {}, getStorageSync: () => '' }, 'Page', deps);
@@ -363,6 +364,150 @@ test('旧活动的种子名单：活动详情按「N 号种子」显示，单打
   assert.match(meta.old1, / · 种子选手 2 位$/);
   assert.match(meta.old2, / · 种子队伍 1 支$/);
   assert.ok(!/种子/.test(meta.old3));
+});
+
+/* ---------- 成员内约球：建议水平、剩余名额、四人双打 ---------- */
+test('建议水平表单：选项沿用自评等级；只选一头时另一头取同一档，始终最低 ≤ 最高；可以清除；旧活动按没设置', () => {
+  const R = require('../utils/rating');
+  const c = load('components/event-form/event-form.js', {}, 'Component');
+  let value;
+  c.triggerEvent = (_, v) => { value = plain(v); };
+  assert.deepStrictEqual(plain(c.data.levelOpts), R.SELF_LEVELS.map((x) => x.t));
+  const at = (v) => ({ detail: { value: String(R.SELF_LEVELS.findIndex((x) => x.v === v)) } });
+  c.init({ date: '2026-11-29' });
+  assert.strictEqual(value.level, null); assert.strictEqual(c.data.levelView, null);
+  c.onLevelMin(at(2.5));
+  assert.deepStrictEqual(value.level, { min: 2.5, max: 2.5 });
+  c.onLevelMax(at(3));
+  assert.deepStrictEqual(value.level, { min: 2.5, max: 3 });
+  assert.deepStrictEqual(plain(c.data.levelView), { min: '2.5', max: '3.0', minIndex: 2, maxIndex: 3 });
+  c.onLevelMin(at(3.5)); // 最低选得比最高高：最高跟过去
+  assert.deepStrictEqual(value.level, { min: 3.5, max: 3.5 });
+  c.onLevelMax(at(3)); // 最高选得比最低低：最低跟过去
+  assert.deepStrictEqual(value.level, { min: 3, max: 3 });
+  c.clearLevel();
+  assert.strictEqual(value.level, null); assert.strictEqual(c.data.levelView, null);
+  c.onLevelMax(at(4)); // 只选最高
+  assert.deepStrictEqual(value.level, { min: 4, max: 4 });
+  // 编辑已有活动：回填；旧活动没有或存着不合法的值，按没设置
+  c.init({ date: '2026-11-29', level: { min: 2, max: 3.5 } });
+  assert.deepStrictEqual(value.level, { min: 2, max: 3.5 });
+  c.init({ date: '2026-11-29', level: { min: 4, max: 2 } });
+  assert.strictEqual(value.level, null);
+  c.init({ date: '2026-11-29' });
+  assert.strictEqual(value.level, null);
+  const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
+  assert.ok(/建议水平/.test(xml) && /bindchange="onLevelMin"/.test(xml) && /bindchange="onLevelMax"/.test(xml) && /bindtap="clearLevel"/.test(xml));
+});
+
+test('创建和编辑：建议水平随表单提交；编辑时明确带上（清空 = null），不合法的不提交', async () => {
+  const sent = [];
+  const deps = { '../../utils/db': {
+    addDraw: async (d) => { sent.push(['add', plain(d)]); return { id: 'n1' }; },
+    updateDrawInfo: async (id, info) => { sent.push(['edit', plain(info)]); return {}; },
+  } };
+  const toasts = [];
+  const wx = { showToast: (t) => toasts.push(t.title), showModal() {}, redirectTo() {}, navigateBack() {}, setStorageSync() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: () => {}, console });
+  p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
+  p.setData({ canPublish: true, title: '周日约球' });
+  p.onInfo({ detail: { date: '2026-11-30', level: { min: 2.5, max: 3 } } });
+  await p.publishSignup();
+  assert.deepStrictEqual(sent.pop()[1].level, { min: 2.5, max: 3 });
+  p.onInfo({ detail: { date: '2026-11-30', level: null } });
+  await p.publishSignup();
+  assert.strictEqual(sent.pop()[1].level, null);
+  p.onInfo({ detail: { date: '2026-11-30', level: { min: 3.5, max: 3 } } });
+  await p.publishSignup();
+  assert.strictEqual(sent.length, 0); assert.match(toasts.pop(), /最低不能高于最高/);
+
+  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps, { setTimeout: () => {}, console });
+  e.id = 'd1'; e.setData({ title: '周日约球' });
+  e.info = { date: '2026-11-30', level: { min: 3, max: 3 } };
+  await e.save();
+  assert.deepStrictEqual(sent.pop()[1].level, { min: 3, max: 3 });
+  e.info = { date: '2026-11-30', level: null };
+  await e.save();
+  const cleared = sent.pop()[1];
+  assert.ok('level' in cleared && cleared.level === null, '清空时明确传 null，云端才会移除');
+  e.info = { date: '2026-11-30', level: { min: 2.2, max: 3 } };
+  await e.save();
+  assert.strictEqual(sent.length, 0); assert.match(toasts.pop(), /选项/);
+});
+
+test('双打报名上限：多一个「2 队」（4 人），组数跟着减到放得下；单打没有「2 队」', () => {
+  const { p, toasts } = seedPage();
+  p.setData({ entry: 'signup' });
+  const pick = (v) => tap({ v });
+  assert.ok(p.data.limits.indexOf(2) < 0, '单打没有 2');
+  p.setMode(pick('groups')); p.setType(pick('double'));
+  assert.deepStrictEqual(plain(p.data.limits), [0, 2, 6, 8, 12, 16, 24, 32]);
+  assert.strictEqual(p.data.groupCount, 4);
+  p.setLimit(pick(2));
+  assert.strictEqual(p.data.limit, 2); assert.strictEqual(p.data.groupCount, 1, '2 队只能分 1 组');
+  assert.match(toasts.pop(), /最多分 1 组/);
+  p.setGroups(pick(2)); // 放不下：不改
+  assert.strictEqual(p.data.groupCount, 1); assert.match(toasts.pop(), /最多分 1 组/);
+  const s = p.settings();
+  assert.strictEqual(s.limit, 2); assert.strictEqual(s.type, 'double'); assert.strictEqual(s.groupCount, 1);
+  assert.strictEqual(require('../utils/event').capacityOf(s), 4);
+  p.setType(pick('single'));
+  assert.ok(p.data.limits.indexOf(2) < 0); assert.strictEqual(p.data.limit, 0, '切回单打，2 队的上限作废');
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  assert.ok(/2 队 = 4 人/.test(xml));
+});
+
+test('活动详情和列表：显示建议水平和报名情况（还差 / 已满 / 候补），没设置建议水平整行不显示', async () => {
+  const show = async (d, signups) => {
+    const deps = {
+      '../../utils/db': {
+        fetchDrawDetail: async () => ({ draw: d, profile: null, signups }), fetchMatches: async () => [], myOpenid: async () => 'x',
+        fetchPlayersFull: async () => [], cachedPlayersFull: () => [], cachedMatches: () => [], profilesOf: () => ({}),
+      },
+      '../../utils/member': { isAdminLocal: () => false },
+    };
+    const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {} }, 'Page', deps);
+    v.id = d._id; v.makeCover = () => {}; v.renderSchedule = () => {};
+    await v.load();
+    assert.strictEqual(v.data.error, '');
+    return v.data;
+  };
+  const su = (rows) => rows.map((r, i) => Object.assign({ _id: 's' + i, createdAt: i + 1, drawId: 'x1' }, r));
+  const dbl = { _id: 'x1', title: '四人双打', status: 'signup', mode: 'groups', groupCount: 1, type: 'double', limit: 2, level: { min: 2.5, max: 3 } };
+  let v = await show(dbl, su([{ name: 'A', partner: 'B' }, { name: 'C' }]));
+  assert.strictEqual(v.levelText, '2.5–3.0');
+  assert.strictEqual(v.signText, '已报名 3/4 人 · 还差 1 人'); assert.strictEqual(v.full, false);
+  assert.match(v.signNote, /带搭档报名会进候补/);
+  v = await show(dbl, su([{ name: 'A', partner: 'B' }, { name: 'C' }, { name: 'D' }, { name: 'E' }, { name: 'F' }]));
+  assert.strictEqual(v.signText, '已满 · 候补 2 人'); assert.strictEqual(v.full, true);
+  assert.deepStrictEqual(v.signups.map((x) => x.waiting), [false, false, false, true, true]);
+  // 剩 1 个名额、最前面的候补是两人一组：不写「还差」，报名按钮是排队候补
+  v = await show(dbl, su([{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D', partner: 'E' }]));
+  assert.strictEqual(v.signText, '已报名 3/4 人 · 候补 2 人'); assert.strictEqual(v.full, true);
+  assert.match(v.signNote, /新报名也排在候补后面/);
+  // 不设上限、没设建议水平（旧活动）
+  v = await show({ _id: 'x2', title: '老活动', status: 'signup', mode: 'groups', groupCount: 2, type: 'single' }, su([{ name: 'A' }, { name: 'B' }]));
+  assert.strictEqual(v.levelText, ''); assert.strictEqual(v.signText, '已报名 2 人'); assert.strictEqual(v.signNote, '');
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-view/draw-view.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{levelText\}\}"[^>]*>建议水平 \{\{levelText\}\}/.test(xml));
+  assert.ok(/\{\{signText\}\}/.test(xml) && /wx:if="\{\{signing && signNote\}\}"/.test(xml));
+
+  const list = load('pages/draw/draw.js', { showToast() {} }, 'Page', {
+    '../../utils/member': { statusCached: async () => ({ status: 'active', isAdmin: false }) },
+    '../../utils/db': {
+      drawsShared: async () => [
+        { _id: 'a', title: '约球', mode: 'groups', groupCount: 1, type: 'double', status: 'signup', level: { min: 2.5, max: 3 } },
+        { _id: 'b', title: '只建议 3.0', mode: 'groups', groupCount: 1, type: 'single', status: 'signup', level: { min: 3, max: 3 } },
+        { _id: 'c', title: '老活动', mode: 'bracket', size: 8, status: 'signup' },
+      ],
+      matchesShared: async () => [], myOpenid: async () => 'x', fetchMySignups: async () => [],
+    },
+  });
+  await list.load();
+  const meta = Object.fromEntries(list.data.shown.map((x) => [x._id, x.meta.replace(/\u00a0/g, ' ')]));
+  assert.match(meta.a, / · 建议水平 2\.5–3\.0/);
+  assert.match(meta.b, / · 建议水平 3\.0/);
+  assert.ok(!/建议水平/.test(meta.c));
 });
 
 module.exports = T;

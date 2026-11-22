@@ -443,6 +443,165 @@ test('报名上限和候补：满了还能报，排进候补；前面有人取�
   assert.ok(!('limit' in env.coll('draws')[z]));
 });
 
+/* ---------- 成员内约球：建议水平、剩余名额、四人双打 ---------- */
+// 内存数据库里同一毫秒写入的报名时间可能一样：每次报名后给最新的一条排上先后
+const signInOrder = async (env, uid, data) => {
+  const before = new Set(Object.keys(env.coll('signups')));
+  const r = ok(await env.call(uid, 'signUp', data));
+  const fresh = Object.keys(env.coll('signups')).find((k) => !before.has(k));
+  env.coll('signups')[fresh].createdAt = (env.signSeq = (env.signSeq || 0) + 1);
+  return r;
+};
+const statusOf = (env, id) => {
+  const E = require('../utils/event');
+  return E.signupStatus(env.coll('draws')[id], Object.values(env.coll('signups')).filter((s) => s.drawId === id));
+};
+const waitingUids = (env, id) => {
+  const st = statusOf(env, id);
+  return Object.keys(st.wait).map((k) => env.coll('signups')[k]._openid).sort();
+};
+
+test('建议水平：选项和自评等级一致；创建、修改、清空都由云端校验，不合法的拒绝且不写入', async () => {
+  const E = require('../utils/event'), R = require('../utils/rating');
+  assert.deepStrictEqual(E.LEVELS, R.SELF_LEVELS.map((x) => x.v), 'E.LEVELS 要和 SELF_LEVELS 一致');
+  const env = setup();
+  const base = { title: '周末约球', mode: 'groups', groupCount: 1, type: 'single' };
+  const id = ok(await adminCall(env, 'owner', 'createDraw', { draw: Object.assign({ level: { min: 2.5, max: 3 } }, base) })).id;
+  assert.deepStrictEqual(env.coll('draws')[id].level, { min: 2.5, max: 3 });
+  const view = ok(await env.call('alice', 'drawDetail', { drawId: id })).draw;
+  assert.deepStrictEqual(view.level, { min: 2.5, max: 3 });
+  assert.strictEqual(E.levelRangeText(view), '2.5–3.0');
+  // 上下限相同：只建议 3.0
+  const one = ok(await adminCall(env, 'owner', 'createDraw', { draw: Object.assign({ level: { min: 3, max: 3 } }, base) })).id;
+  assert.strictEqual(E.levelRangeText(env.coll('draws')[one]), '3.0');
+  // 不设置 / 明确不设置：没有这个字段
+  for (const level of [undefined, null, '']) {
+    const x = ok(await adminCall(env, 'owner', 'createDraw', { draw: Object.assign({ level }, base) })).id;
+    assert.ok(!('level' in env.coll('draws')[x]), String(level));
+  }
+  // 不合法：最低高于最高、不是选项里的值、字符串、数组，都拒绝，不写入、也不做内容检测
+  const count = Object.keys(env.coll('draws')).length, checks = env.textChecks.length;
+  no(await adminCall(env, 'owner', 'createDraw', { draw: Object.assign({ level: { min: 3.5, max: 3 } }, base) }), /最低不能高于最高/);
+  for (const level of [{ min: 2.2, max: 3 }, { min: '2.5', max: '3.0' }, { min: 5, max: 5 }, { min: 2.5 }, '3.0', [2.5, 3]]) {
+    no(await adminCall(env, 'owner', 'createDraw', { draw: Object.assign({ level }, base) }), /选项/);
+  }
+  assert.strictEqual(Object.keys(env.coll('draws')).length, count);
+  assert.strictEqual(env.textChecks.length, checks);
+
+  // 修改：旧客户端不带 level，原值保留；新值替换；null 清空；不合法拒绝且原值不变
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '周末约球', date: '2026-11-29' } }));
+  assert.deepStrictEqual(env.coll('draws')[id].level, { min: 2.5, max: 3 }, '没传就保留');
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '周末约球', level: { min: 3, max: 3.5 } } }));
+  assert.deepStrictEqual(env.coll('draws')[id].level, { min: 3, max: 3.5 });
+  no(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '周末约球', level: { min: 4, max: 3.5 } } }), /最低不能高于最高/);
+  no(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '改了名称', level: { min: 1, max: 3.5 } } }), /选项/);
+  assert.deepStrictEqual(env.coll('draws')[id].level, { min: 3, max: 3.5 });
+  assert.strictEqual(env.coll('draws')[id].title, '周末约球', '校验不过整次都不写');
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '周末约球', level: null } }));
+  assert.ok(!('level' in env.coll('draws')[id]), 'null = 清空');
+  assert.ok(!('level' in ok(await env.call('alice', 'drawDetail', { drawId: id })).draw));
+  // 管理员编辑别人的活动：留档里有改前改后的建议水平
+  ok(await adminCall(env, 'alice', 'updateDrawInfo', { drawId: one, info: { title: '周末约球', level: { min: 2, max: 2.5 } } }));
+  const log = Object.values(env.coll('requests')).find((x) => x.type === 'adminEditDraw' && x.drawId === one);
+  assert.strictEqual(log.before.level, '3.0'); assert.strictEqual(log.after.level, '2.0–2.5');
+  ok(await adminCall(env, 'alice', 'updateDrawInfo', { drawId: one, info: { title: '周末约球' } }));
+  const log2 = Object.values(env.coll('requests')).filter((x) => x.type === 'adminEditDraw' && x.drawId === one)[1];
+  assert.strictEqual(log2.after.level, '2.0–2.5', '没传的留档按保留的原值记');
+  // 生成对阵不动建议水平
+  ok(await adminCall(env, 'owner', 'updateDrawInfo', { drawId: id, info: { title: '周末约球', level: { min: 3, max: 3 } } }));
+  ok(await env.call('alice', 'signUp', { drawId: id })); ok(await env.call('bob', 'signUp', { drawId: id }));
+  ok(await adminCall(env, 'owner', 'generateDraw', { drawId: id, draw: { entrants: ['Alice', 'Bob'], groups: [{ members: [{ name: 'Alice' }, { name: 'Bob' }] }] } }));
+  assert.deepStrictEqual(env.coll('draws')[id].level, { min: 3, max: 3 });
+});
+
+test('建议水平只作参考：旧活动按没设置；没有等级、低于或高于区间的成员，单打双打都照常报名', async () => {
+  const E = require('../utils/event');
+  const env = setup();
+  // 旧活动：没有字段、或者存着不合法的值，都按没设置，不下发
+  assert.ok(!('level' in ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).draw));
+  env.coll('draws').d1.level = { min: 4.5, max: 1.5 };
+  assert.ok(!('level' in ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).draw));
+  assert.strictEqual(E.levelRangeText(env.coll('draws').d1), '');
+  // 区间 4.0–4.5：alice 自评 2.0（低于）、bob 自评 4.5（区间内）、carl 没有自评等级、eve 4.5 以上的比赛等级也一样
+  const pl = env.coll('players');
+  Object.values(pl).forEach((p) => { if (p._openid === 'alice') p.level = 2; if (p._openid === 'bob') p.level = 4.5; if (p._openid === 'carl') delete p.level; });
+  const single = ok(await adminCall(env, 'owner', 'createDraw', { draw: { title: '高水平约球', mode: 'groups', groupCount: 1, type: 'single', level: { min: 4, max: 4.5 } } })).id;
+  for (const uid of ['alice', 'bob', 'carl']) assert.ok(!ok(await env.call(uid, 'signUp', { drawId: single })).waiting, uid);
+  const dbl = ok(await adminCall(env, 'owner', 'createDraw', { draw: { title: '双打约球', mode: 'groups', groupCount: 1, type: 'double', level: { min: 1.5, max: 2 } } })).id;
+  ok(await env.call('bob', 'signUp', { drawId: dbl, partnerId: 'carl' })); // 高于区间 + 没有等级
+  ok(await env.call('alice', 'signUp', { drawId: dbl }));
+  assert.strictEqual(Object.values(env.coll('signups')).filter((s) => s.drawId === dbl).length, 2);
+});
+
+test('四人双打：报名上限 2 队 = 4 人；3 人已报名，第 4 人补位，第 5 人候补；取消一名正式报名后候补递补', async () => {
+  const env = setup();
+  const id = ok(await adminCall(env, 'owner', 'createDraw', { draw: { title: '四人双打', mode: 'groups', groupCount: 1, type: 'double', limit: 2 } })).id;
+  assert.strictEqual(env.coll('draws')[id].limit, 2);
+  assert.strictEqual(require('../utils/event').capacityOf(env.coll('draws')[id]), 4);
+  assert.strictEqual(statusOf(env, id).text, '已报名 0/4 人 · 还差 4 人');
+  // 3 人：一对带搭档（占 2 个名额）+ 一个单人
+  assert.ok(!(await signInOrder(env, 'alice', { drawId: id, partnerId: 'bob' })).waiting);
+  assert.ok(!(await signInOrder(env, 'carl', { drawId: id })).waiting);
+  let st = statusOf(env, id);
+  assert.strictEqual(st.text, '已报名 3/4 人 · 还差 1 人');
+  assert.match(st.note, /单人报名可以直接报上，带搭档报名会进候补/);
+  assert.strictEqual(st.full, false);
+  // 第 4 人补位
+  assert.ok(!(await signInOrder(env, 'eve', { drawId: id })).waiting);
+  st = statusOf(env, id);
+  assert.strictEqual(st.text, '已报名 4/4 人 · 已满'); assert.strictEqual(st.full, true);
+  // 第 5 人进候补
+  assert.ok((await signInOrder(env, 'owner', { drawId: id })).waiting);
+  assert.strictEqual(statusOf(env, id).text, '已满 · 候补 1 人');
+  assert.deepStrictEqual(waitingUids(env, id), ['owner']);
+  // 取消一名正式报名：候补自动递补
+  ok(await env.call('carl', 'cancelSignup', { drawId: id }));
+  assert.deepStrictEqual(waitingUids(env, id), []);
+  assert.strictEqual(statusOf(env, id).text, '已报名 4/4 人 · 已满');
+});
+
+test('剩 1 个名额、排在最前面的候补是两人一组：不算空位，后面的单人也排队；有人取消后按报名先后递补', async () => {
+  const env = setup();
+  env.members([['dan', 'Dan']]);
+  const id = ok(await adminCall(env, 'owner', 'createDraw', { draw: { title: '四人双打', mode: 'groups', groupCount: 1, type: 'double', limit: 2 } })).id;
+  for (const uid of ['carl', 'eve', 'owner']) assert.ok(!(await signInOrder(env, uid, { drawId: id })).waiting);
+  assert.strictEqual(statusOf(env, id).text, '已报名 3/4 人 · 还差 1 人');
+  // 带搭档的两人组：只剩 1 个名额，进候补
+  assert.ok((await signInOrder(env, 'alice', { drawId: id, partnerId: 'bob' })).waiting);
+  let st = statusOf(env, id);
+  assert.strictEqual(st.text, '已报名 3/4 人 · 候补 2 人');
+  assert.ok(!/还差/.test(st.text), '剩下的 1 位不写成可以马上报名的空位');
+  assert.match(st.note, /新报名也排在候补后面/);
+  assert.strictEqual(st.full, true);
+  // 后面来的单人：虽然剩 1 个名额，也排在两人组后面
+  assert.strictEqual((await signInOrder(env, 'dan', { drawId: id })).waiting, true);
+  assert.deepStrictEqual(waitingUids(env, id), ['alice', 'dan']);
+  assert.strictEqual(statusOf(env, id).text, '已报名 3/4 人 · 候补 3 人');
+  // 取消一位单人：两人组按顺序递补（正好 4 人），dan 继续候补
+  ok(await env.call('eve', 'cancelSignup', { drawId: id }));
+  assert.deepStrictEqual(waitingUids(env, id), ['dan']);
+  assert.strictEqual(statusOf(env, id).text, '已满 · 候补 1 人');
+  // 两人组取消（由报名人取消，连同搭档；搭档本人不能替 TA 取消）：dan 递补
+  no(await env.call('bob', 'cancelSignup', { drawId: id }), /搭档/);
+  ok(await env.call('alice', 'cancelSignup', { drawId: id }));
+  assert.deepStrictEqual(waitingUids(env, id), []);
+  assert.strictEqual(statusOf(env, id).text, '已报名 3/4 人 · 还差 1 人');
+});
+
+test('报名情况文字：不设上限只显示人数；单打满员和候补', () => {
+  const E = require('../utils/event');
+  const su = (n, pairs) => Array.from({ length: n }, (_, i) => Object.assign({ _id: 's' + i, createdAt: i + 1 }, pairs && pairs.indexOf(i) >= 0 ? { partner: 'P' + i } : {}));
+  const open = E.signupStatus({ mode: 'groups', groupCount: 1, type: 'double' }, su(3, [0]));
+  assert.strictEqual(open.text, '已报名 4 人'); assert.strictEqual(open.full, false); assert.strictEqual(open.note, '');
+  assert.strictEqual(E.signupStatus({ mode: 'groups', groupCount: 1 }, []).text, '已报名 0 人');
+  const single = { mode: 'groups', groupCount: 1, type: 'single', limit: 4 };
+  assert.strictEqual(E.signupStatus(single, su(3)).text, '已报名 3/4 人 · 还差 1 人');
+  assert.strictEqual(E.signupStatus(single, su(3)).note, '', '单打没有「带搭档」的提示');
+  assert.strictEqual(E.signupStatus(single, su(6)).text, '已满 · 候补 2 人');
+  // 淘汰赛：名额是签数
+  assert.strictEqual(E.signupStatus({ mode: 'bracket', size: 8, type: 'single' }, su(5)).text, '已报名 5/8 人 · 还差 3 人');
+});
+
 /* ---------- 个人资料 ---------- */
 test('资料：网关不能改资料，也不能新增本人资料', async () => {
   const env = setup();

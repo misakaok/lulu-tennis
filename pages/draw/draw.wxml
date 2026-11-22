@@ -8,29 +8,47 @@
   <view class="seg tabs">
     <view class="seg-item {{tab === 'all' ? 'on' : ''}}" data-v="all" bindtap="setTab">全部活动</view>
     <view class="seg-item {{tab === 'mine' ? 'on' : ''}}" data-v="mine" bindtap="setTab">我的活动{{mineCount ? ' ' + mineCount : ''}}</view>
-    <view class="seg-item {{tab === 'cal' ? 'on' : ''}}" data-v="cal" bindtap="setTab">日历</view>
+    <view class="seg-item {{tab === 'next' ? 'on' : ''}}" data-v="next" bindtap="setTab">我的下一场</view>
   </view>
 
-  <!-- 日历：有活动的日子带圆点（我发起 / 报名 / 参赛的是实心），点某一天只看那天 -->
-  <view wx:if="{{tab === 'cal' && cal}}" class="card cal">
-    <view class="cal-head">
-      <text class="cal-nav" data-v="-1" bindtap="calMove">‹</text>
-      <text class="cal-title" bindtap="calToday">{{cal.title}}</text>
-      <text class="cal-nav" data-v="1" bindtap="calMove">›</text>
-    </view>
-    <view class="cal-week"><text wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="*this" class="cal-w">{{item}}</text></view>
-    <view class="cal-grid">
-      <view wx:for="{{cal.cells}}" wx:key="k" class="cal-cell {{item.on ? 'on' : ''}} {{item.today ? 'today' : ''}}" data-date="{{item.n ? item.date : ''}}" bindtap="calPick">
-        <text class="cal-d {{item.n ? 'has' : ''}}">{{item.d}}</text>
-        <view wx:if="{{item.n}}" class="cal-dot {{item.mine ? 'mine' : ''}}"></view>
+  <!-- 我的下一场：只有一场；时间、对手没确定的明确写「待定」；点进活动详情的「场次」并定位到这场 -->
+  <block wx:if="{{tab === 'next'}}">
+    <view wx:if="{{nextStale && next}}" class="nx-stale">网络异常，下面可能不是最新的安排，下拉刷新重试</view>
+    <view wx:if="{{next}}" class="card nx ani-in" hover-class="tap-on" bindtap="openNext">
+      <view class="nx-head">
+        <text class="nx-title">{{next.title}}</text>
+        <text class="nx-stage">{{next.stage}}</text>
       </view>
+      <view class="nx-when">
+        <text class="nx-time {{next.time ? '' : 'tbd'}}">{{next.time || '待定'}}</text>
+        <view class="nx-wd">
+          <text class="nx-date">{{next.dateText}}</text>
+          <text class="nx-court">{{next.court}}</text>
+        </view>
+      </view>
+      <view wx:if="{{next.note}}" class="nx-note">{{next.note}}</view>
+      <view wx:if="{{next.double && next.partner}}" class="nx-row">
+        <text class="nx-k">搭档</text>
+        <pl-av wx:for="{{next.partnerP}}" wx:key="name" wx:for-item="p" class="nx-av" uid="{{p.uid}}" name="{{p.name}}" />
+        <text class="nx-v">{{next.partner}}</text>
+      </view>
+      <view class="nx-row">
+        <text class="nx-k">对手</text>
+        <pl-av wx:for="{{next.oppP}}" wx:key="name" wx:for-item="p" class="nx-av" uid="{{p.uid}}" name="{{p.name}}" />
+        <text class="nx-v {{next.oppTbd ? 'tbd' : ''}}">{{next.opponent}}</text>
+      </view>
+      <view class="nx-foot"><text class="btn-line mini">查看场次 ›</text></view>
     </view>
-    <view class="cal-foot">{{cal.day ? cal.day + '的活动（再点一次看整月）' : '这个月有 ' + cal.count + ' 个活动 · 实心圆点是我的活动 · 点标题回到本月'}}</view>
-  </view>
+    <view wx:elif="{{!loading}}" class="empty">
+      <view class="empty-ball"></view>
+      <view>{{nextStale ? '网络异常，暂时查不到你的下一场' : '暂无下一场'}}</view>
+      <view wx:if="{{nextStale}}" class="nx-stale-s">下拉刷新重试</view>
+    </view>
+  </block>
 
-  <view wx:if="{{!shown.length && !loading}}" class="empty {{tab === 'cal' ? 'cal-empty' : ''}}">
+  <view wx:if="{{tab !== 'next' && !shown.length && !loading}}" class="empty">
     <view class="empty-ball"></view>
-    <view>{{tab === 'cal' ? '这个月没有活动' : tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
+    <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 
   <view wx:for="{{shown}}" wx:key="_id" class="card draw {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
