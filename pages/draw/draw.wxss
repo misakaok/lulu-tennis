@@ -1,7 +1,7 @@
 /* 顶部球场图：图片铺满（aspectFill，竖向居中裁），文字和按钮放在左边约 56% 的纯色场地上，不压到白线和网球 */
 .hero {
   min-height: 300rpx;
-  background: #8988B9; /* 图片还没显示出来时的底色，和左边场地颜色接近 */
+  background: #9796C4; /* 图片还没显示出来时的底色，和左边场地颜色接近 */
   color: #fff; padding: 40rpx 36rpx 44rpx; border-radius: 0 0 40rpx 40rpx;
 }
 .hero-in { width: 56%; }

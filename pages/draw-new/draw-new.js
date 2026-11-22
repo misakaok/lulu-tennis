@@ -26,7 +26,7 @@ Page({
     sizes: SIZES, groupOpts: GROUPS,
     chips: [], seedChips: [], seedList: [], teamList: [],
     info: '', seedInfo: '', canDraw: false, preview: null, saving: false,
-    recentPlaces: [],
+    recentPlaces: [], heroTop: '', heroSub: '',
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
   },
 
@@ -178,7 +178,18 @@ Page({
     if (!silent) wx.showToast({ title: `已按水平推荐 ${this.seeds.length} ${this.seedUnit()}${this.seedName()}`, icon: 'none' });
   },
 
+  // 顶部概要：形式 · 签数 / 组数 · 参加方式；日期 · 时间 · 单双打 · 组别
+  setHero() {
+    const { mode, size, groupCount, entry, type, category, fromSignup } = this.data;
+    const i = this.info || {};
+    const top = [E.MODES[mode], mode === 'bracket' ? `${size} 签` : (groupCount === 1 ? '大循环' : `${groupCount} 组`), fromSignup ? '' : (entry === 'signup' ? '开放报名' : '我来选人')];
+    const cat = { m: '男子', f: '女子', mixed: '混双' }[category] || '';
+    const sub = (fromSignup ? [] : [E.dayText(i.date) || '日期待定', i.startTime || '时间待定']).concat([type === 'double' ? '双打' : '单打', cat]);
+    const heroTop = top.filter(Boolean).join(' · '), heroSub = sub.filter(Boolean).join(' · ');
+    if (heroTop !== this.data.heroTop || heroSub !== this.data.heroSub) this.setData({ heroTop, heroSub });
+  },
   refresh() {
+    this.setHero();
     const { mode, size, groupCount, entry } = this.data;
     const dbl = this.isDouble();
     const ents = this.entrants();
@@ -255,7 +266,7 @@ Page({
   },
 
   onTitle(e) { if (!this.data.fromSignup) this.setData({ title: e.detail.value }); },
-  onInfo(e) { this.info = e.detail; },
+  onInfo(e) { this.info = e.detail; this.setHero(); },
 
   inputTitle() {
     const title = this.data.title.trim();

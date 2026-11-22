@@ -14,9 +14,10 @@ picker { display: block; }
 .tag { font-size: 25rpx; color: #5C5C76; background: #F4F4F9; border: 2rpx solid transparent; border-radius: 30rpx; padding: 10rpx 24rpx; margin: 0 14rpx 14rpx 0; }
 .tag.on { color: #6E6EA3; background: #EFEFF6; border-color: #A3A3CB; font-weight: 700; }
 .del { margin-top: 24rpx; }
-.ph-card { display: flex; align-items: center; }
+/* 顶部示意图卡：和球拍列表、详情页顶部一样是淡紫渐变（整页唯一的重点色块），下面的表单卡保持白底 */
+.card.ph-card { display: flex; align-items: center; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
 /* 示意图用 .pic，不要叫 .ph：.ph 是选项「未选」的修饰类（.picker.ph），同名会把「请选择」撑成方块 */
-.pic { width: 180rpx; height: 180rpx; border-radius: 28rpx; font-size: 30rpx; }
+.pic { width: 180rpx; height: 180rpx; border-radius: 28rpx; font-size: 30rpx; box-shadow: 0 0 0 6rpx rgba(255, 255, 255, 0.35); }
 .ph-r { flex: 1; min-width: 0; margin-left: 24rpx; }
-.ph-t { font-size: 32rpx; font-weight: 800; color: #2E2E48; }
-.ph-s { font-size: 22rpx; color: #8686A0; margin-top: 10rpx; }
+.ph-t { font-size: 32rpx; font-weight: 800; color: #fff; }
+.ph-s { font-size: 22rpx; color: rgba(255, 255, 255, 0.88); margin-top: 10rpx; }

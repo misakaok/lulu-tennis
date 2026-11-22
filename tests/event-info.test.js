@@ -110,6 +110,24 @@ test('普通用户无法经日常录分页提交；管理员入口经实时身�
   assert.strictEqual(p.data.canRecordDaily, false);
 });
 
+test('创建活动顶部概要：形式、签数 / 组数、参加方式，日期、时间、单双打、组别，选项一改就跟着变', () => {
+  const p = load('pages/draw-new/draw-new.js', { setStorageSync() {} }, 'Page');
+  p.selected = []; p.seeds = []; p.players = [];
+  const pick = (v) => ({ currentTarget: { dataset: { v } } });
+  p.onInfo({ detail: { date: '2026-11-22', startTime: '' } });
+  assert.strictEqual(p.data.heroTop, '单淘汰 · 8 签 · 开放报名');
+  assert.strictEqual(p.data.heroSub, '11月22日 周日 · 时间待定 · 单打');
+  p.setSize(pick('16')); p.setEntry(pick('pick'));
+  assert.strictEqual(p.data.heroTop, '单淘汰 · 16 签 · 我来选人');
+  p.setMode(pick('groups')); p.setGroups(pick('1')); p.setType(pick('double')); p.setCategory(pick('mixed'));
+  p.onInfo({ detail: { date: '2026-11-22', startTime: '14:00' } });
+  assert.strictEqual(p.data.heroTop, '分组循环 · 大循环 · 我来选人');
+  assert.strictEqual(p.data.heroSub, '11月22日 周日 · 14:00 · 双打 · 混双');
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  assert.ok(/<image class="hero-art" src="\/images\/art-net\.png" mode="aspectFit" \/>/.test(xml) && /<view class="card-title">活动设置<\/view>/.test(xml));
+  assert.ok(!/\.pill\.on \{[^}]*background: #6E6EA3/.test(fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxss'), 'utf8')), '签数等选中样式和分段选择一致，不用深紫实心块');
+});
+
 test('创建和编辑：名称手动输入，改日期、单双打、组别、赛制都不会覆盖', () => {
   const wx = { setStorageSync() {} };
   const p = load('pages/draw-new/draw-new.js', wx, 'Page');
