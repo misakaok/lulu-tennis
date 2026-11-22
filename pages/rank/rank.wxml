@@ -51,9 +51,9 @@
       <text class="c-rank {{item.rank > 3 ? '' : 'gold'}}">{{item.rank}}</text>
       <view class="c-name">
         <pl-av class="avatar sm" uid="{{item.uid}}" name="{{item.name}}" />
-        <text class="nm">{{item.name}}</text>
-        <text wx:if="{{item.gender}}" class="g-tag">{{item.gender}}</text>
-        <text wx:if="{{item.key === myKey}}" class="me-tag">我</text>
+        <!-- 名字和标签在同一段文字里：名字长换行时，性别、「我」跟在名字后面到第二行。
+             间距用绑定进去的空格（标签之间直接写的空格小程序会忽略）：换行时空格留在上一行末尾，第二行的标签和名字左对齐 -->
+        <view class="nm"><text>{{item.name}}{{' '}}</text><text wx:if="{{item.gender}}" class="g-tag">{{item.gender}}</text><text wx:if="{{item.gender && item.key === myKey}}">{{' '}}</text><text wx:if="{{item.key === myKey}}" class="me-tag">我</text></view>
       </view>
       <view class="c-n"><text class="lv">{{item.colText}}</text><text wx:if="{{item.provisional && !board}}" class="prov">定级中</text></view>
       <text class="c-n b">{{item.win}}-{{item.lose}}</text>

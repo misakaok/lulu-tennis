@@ -5,7 +5,8 @@
 .medal { font-size: 40rpx; margin-bottom: 6rpx; }
 .avatar.big { width: 100rpx; height: 100rpx; font-size: 40rpx; border: 5rpx solid #fff; box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.1); }
 .r1 .avatar.big { width: 124rpx; height: 124rpx; font-size: 48rpx; }
-.pod-name { font-size: 28rpx; font-weight: 700; margin-top: 12rpx; max-width: 200rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 名字长时换到第二行（最多两行，居中），不在第一行就截成省略号 */
+.pod-name { font-size: 28rpx; font-weight: 700; margin-top: 12rpx; max-width: 200rpx; text-align: center; line-height: 1.35; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .pod-rec { font-size: 22rpx; color: #8686A0; margin: 4rpx 0 12rpx; }
 .pod-base {
   width: 100%; border-radius: 20rpx 20rpx 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -25,7 +26,8 @@
 .c-rank.gold { color: #d79b00; }
 .c-name { flex: 1; display: flex; align-items: center; overflow: hidden; }
 .c-name .avatar { margin-right: 14rpx; }
-.nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+/* 名字长时换到第二行（最多两行），性别、「我」标签跟在名字后面一起折行 */
+.nm { flex: 1; min-width: 0; font-weight: 600; line-height: 1.4; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .c-n { width: 120rpx; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .th .c-n { display: block; }
 .b { font-weight: 700; }
@@ -43,7 +45,7 @@
 .lv { font-weight: 800; color: #4f4f7d; font-size: 28rpx; }
 .prov { font-size: 18rpx; color: #A5A5BA; margin-top: 2rpx; }
 .tr.me { background: #f6f6fb; margin: 0 -24rpx; padding: 0 24rpx; }
-.me-tag { font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; margin-left: 8rpx; flex: none; }
+.me-tag { display: inline-block; vertical-align: middle; line-height: 1.5; font-weight: 400; font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; }
 
 /* 赛季筛选 */
 .top-seg { margin-bottom: 18rpx; }
@@ -52,7 +54,7 @@
 .season.on { color: #fff; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
 
 /* 性别（个人资料里填了才显示） */
-.g-tag { flex: none; margin-left: 8rpx; font-size: 18rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 0 8rpx; }
+.g-tag { display: inline-block; vertical-align: middle; line-height: 1.5; font-weight: 400; font-size: 18rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 0 8rpx; }
 .pod-g { font-size: 20rpx; color: #6E6EA3; margin-top: 2rpx; }
 
 /* 排序 / 榜单一行可以横向滑动 */
