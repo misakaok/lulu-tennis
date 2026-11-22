@@ -97,7 +97,7 @@ Page({
     let check;
     if (r.ok) {
       const wn = r.winner === 'a' ? this.f.a : this.f.b;
-      check = { ok: true, msg: `🏆 ${wn} 以 ${Math.max(r.won.a, r.won.b)}:${Math.min(r.won.a, r.won.b)} 获胜` };
+      check = { ok: true, msg: `${wn} 以 ${Math.max(r.won.a, r.won.b)}:${Math.min(r.won.a, r.won.b)} 获胜` };
     } else check = { ok: false, msg: r.msg };
     this.setData({ check });
   },

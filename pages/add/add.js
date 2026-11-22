@@ -112,7 +112,7 @@ Page({
     else if (used.length < n * 2) check = { ok: false, msg: dbl ? '请选择搭档和两名对手' : '请选择对手' };
     else if (res.ok) {
       const wn = (res.winner === 'a' ? aNames : bNames).join(' / ');
-      check = { ok: true, msg: `🏆 ${wn} 以 ${Math.max(res.won.a, res.won.b)}:${Math.min(res.won.a, res.won.b)} 获胜` };
+      check = { ok: true, msg: `${wn} 以 ${Math.max(res.won.a, res.won.b)}:${Math.min(res.won.a, res.won.b)} 获胜` };
     } else check = { ok: false, msg: res.msg };
     this.result = res.ok && used.length === n * 2 ? { sets: res.sets, winner: res.winner, won: res.won, a: aNames, b: bNames } : null;
 

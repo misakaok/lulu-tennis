@@ -19,7 +19,7 @@
 <view class="ef-row">
   <text class="label">地图定位</text>
   <view class="ef-loc" bindtap="pickLocation">
-    <text class="ef-loc-t {{locText ? '' : 'ph'}}">{{locText ? '📍 ' + locText : '在地图上选择'}}</text>
+    <text class="ef-loc-t {{locText ? '' : 'ph'}}">{{locText || '在地图上选择'}}</text>
     <text class="ef-arrow">›</text>
   </view>
   <view wx:if="{{locText}}" class="btn-line ef-clear" hover-class="tap-on" bindtap="clearLocation">清除</view>

@@ -35,7 +35,7 @@
           <view class="in-v"><view class="in-place">{{info.place.name || info.place.address}}</view><view wx:if="{{info.place.name && info.place.address}}" class="in-addr">{{info.place.address}}</view></view>
         </view>
         <view class="in-row"><text class="in-k">场地</text><text class="in-v">{{info.venue || '暂无'}}</text></view>
-        <view wx:if="{{info.canNav}}" class="nav-btn" hover-class="tap-on" bindtap="openMap">📍 打开地图导航</view>
+        <view wx:if="{{info.canNav}}" class="nav-btn" hover-class="tap-on" bindtap="openMap">打开地图导航</view>
       </block>
       <view wx:else class="muted">{{canEdit ? '还没有填写场地，点右上角「编辑」补充' : '发起人还没有填写场地'}}</view>
     </view>
@@ -125,7 +125,7 @@
             <text wx:if="{{item.winner === 'b'}}" class="sch-win">胜</text>
           </view>
           <view wx:if="{{item.score}}" class="sch-score">{{item.score}}</view>
-          <view wx:if="{{item.slotText && !item.done}}" class="sch-slot">🕒 {{item.slotText}}</view>
+          <view wx:if="{{item.slotText && !item.done}}" class="sch-slot">{{item.slotText}}</view>
           <view class="sch-foot">
             <text class="sch-rule {{item.ruleCustom ? 'hl' : ''}}">{{item.ruleCustom ? '★ ' : ''}}{{item.ruleText}}</text>
             <text wx:if="{{isOwner && !item.done}}" class="sch-plan" data-key="{{item.key}}" catchtap="planSlot">{{item.slotText ? '修改安排' : '安排时间场地'}}</text>

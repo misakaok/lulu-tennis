@@ -156,7 +156,7 @@
     </view>
 
     <view wx:if="{{view.career.titles.length || view.career.lines.length || mine}}" class="cr-list">
-      <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><text class="cr-k">🏆 冠军</text><text class="cr-v">{{item.title}}</text><text class="cr-d">{{item.date}}</text></view>
+      <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><view class="cr-k"><text class="ui-tag lime">冠军</text></view><text class="cr-v">{{item.title}}</text><text class="cr-d">{{item.date}}</text></view>
       <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
       <view wx:if="{{mine && total}}" class="cr-line cr-all" hover-class="tap-row-on" bindtap="allHistory"><text class="cr-k">全部比赛</text><text class="cr-v">{{total}} 场正式比赛</text><text class="cr-go">›</text></view>
     </view>

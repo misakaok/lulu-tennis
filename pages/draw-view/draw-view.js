@@ -323,7 +323,7 @@ Page({
     this.setData({
       schedule: this.data.onlyMine ? items.filter((x) => x.mine) : items,
       todo: items.filter((x) => x.mine && x.ready && !x.done).length,
-      progress: p.champion ? `🏆 冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
+      progress: p.champion ? `冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
     });
     this.focusFixture();
   },

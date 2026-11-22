@@ -33,7 +33,7 @@
 <view wx:if="{{rounds.length}}">
   <view wx:if="{{both}}" class="stage-title">单淘汰<text class="stage-sub">{{koPending ? '分组循环全部结束后，按排名自动生成对阵' : '按小组排名生成'}}</text></view>
   <view wx:if="{{champion}}" class="champ">
-    <text class="champ-cup">🏆</text>
+    <image class="champ-cup" src="/images/art-trophy.png" mode="aspectFit" />
     <view><view class="champ-lbl">冠军</view><view class="champ-name">{{champion.name}}</view></view>
   </view>
 

@@ -56,7 +56,18 @@ test('不那么素：全部比赛顶部数字卡、录日常比赛顶部概要�
   assert.ok(/class="hs"/.test(hist) && ['场数', '胜', '负', '胜率'].every((l) => hist.indexOf(`<text class="hs-l">${l}</text>`) >= 0));
   const add = read('pages/add/add.wxml');
   assert.ok(/<image class="hero-art" src="\/images\/art-ball\.png" mode="aspectFit" \/>/.test(add) && /待选对手/.test(add));
-  for (const f of ['pages/add/add.wxml', 'pages/racket-log/racket-log.wxml', 'pages/history/history.wxml']) assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(read(f)), f + ' 里不要 emoji');
+  // 界面上不用彩色 emoji（和 3D 配图风格不搭）：冠军用黄绿标签 / 奖杯插画，名次用数字圆章；✓ ★ ✕ 这类单色符号可以
+  const files = [];
+  for (const dir of ['pages', 'components']) {
+    for (const d of fs.readdirSync(path.join(__dirname, '..', dir))) {
+      for (const ext of ['wxml', 'js']) { const f = `${dir}/${d}/${d}.${ext}`; if (fs.existsSync(path.join(__dirname, '..', f))) files.push(f); }
+    }
+  }
+  files.push('utils/career.js');
+  for (const f of files) {
+    const code = read(f).replace(/\/\*[\s\S]*?\*\/|\/\/.*$|<!--[\s\S]*?-->/gm, '');
+    assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(code), f + ' 里不要彩色 emoji');
+  }
 });
 
 test('名次口径：球员卡、报名名单、战绩页卡片都和排行榜（生涯 · 全部 · 按水平）一致，只在同意公开展示的账号里排；没同意的显示「未公开」', async () => {

@@ -24,27 +24,27 @@ const weekOf = (date) => { const t = Date.parse(String(date || '') + 'T00:00:00Z
 
 // 成就徽章：need 是达成条件，v 取当前进度
 const BADGES = [
-  { id: 'debut', icon: '🎾', name: '初登场', desc: '完成第一场正式比赛', need: 1, v: (c) => c.played },
-  { id: 'win1', icon: '✌️', name: '首胜', desc: '赢下第一场比赛', need: 1, v: (c) => c.win },
-  { id: 'p10', icon: '🔟', name: '常客', desc: '打满 10 场', need: 10, v: (c) => c.played },
-  { id: 'p50', icon: '💪', name: '老将', desc: '打满 50 场', need: 50, v: (c) => c.played },
-  { id: 'p100', icon: '💯', name: '百场', desc: '打满 100 场', need: 100, v: (c) => c.played },
-  { id: 's3', icon: '🔥', name: '三连胜', desc: '连赢 3 场', need: 3, v: (c) => c.bestStreak },
-  { id: 's5', icon: '🚀', name: '五连胜', desc: '连赢 5 场', need: 5, v: (c) => c.bestStreak },
-  { id: 's10', icon: '👑', name: '十连胜', desc: '连赢 10 场', need: 10, v: (c) => c.bestStreak },
-  { id: 'final', icon: '🥈', name: '闯到最后', desc: '打进一次活动的最后一轮', need: 1, v: (c) => c.finals },
-  { id: 'champ', icon: '🏆', name: '冠军', desc: '在一次活动中夺冠', need: 1, v: (c) => c.titles.length },
-  { id: 'champ3', icon: '🏅', name: '三冠王', desc: '在 3 次活动中夺冠', need: 3, v: (c) => c.titles.length },
-  { id: 'ev5', icon: '📅', name: '活动达人', desc: '参加 5 次活动', need: 5, v: (c) => c.events },
-  { id: 'bagel', icon: '🥚', name: '送蛋', desc: '一盘没让对手拿到一局', need: 1, v: (c) => c.bagels },
-  { id: 'comeback', icon: '🔄', name: '逆转', desc: '先丢一盘后赢下比赛', need: 1, v: (c) => c.comebacks },
-  { id: 'both', icon: '🤝', name: '单双全能', desc: '单打和双打都赢过', need: 2, v: (c) => (c.single.win ? 1 : 0) + (c.double.win ? 1 : 0) },
-  { id: 'tb5', icon: '🎯', name: '抢七之王', desc: '赢下 5 次抢七', need: 5, v: (c) => c.tbWins },
-  { id: 'iron', icon: '🦾', name: '铁人', desc: '一天打 3 场', need: 3, v: (c) => c.bestDay },
-  { id: 'giant', icon: '🗡️', name: '巨人杀手', desc: `定级后，赢下等级比自己高 ${H.UPSET_GAP} 以上的对手`, need: 1, v: (c) => c.upsets },
-  { id: 'weeks4', icon: '🗓️', name: '全勤', desc: '连续 4 周都有比赛', need: 4, v: (c) => c.bestWeeks },
-  { id: 'social', icon: '🧑‍🤝‍🧑', name: '社交达人', desc: '和 10 位不同的搭档打过双打', need: 10, v: (c) => c.partners },
-  { id: 'revenge', icon: '⚔️', name: '复仇', desc: `对同一位对手连输 ${REVENGE_AFTER} 场后赢回来`, need: 1, v: (c) => c.revenges },
+  { id: 'debut', name: '初登场', desc: '完成第一场正式比赛', need: 1, v: (c) => c.played },
+  { id: 'win1', name: '首胜', desc: '赢下第一场比赛', need: 1, v: (c) => c.win },
+  { id: 'p10', name: '常客', desc: '打满 10 场', need: 10, v: (c) => c.played },
+  { id: 'p50', name: '老将', desc: '打满 50 场', need: 50, v: (c) => c.played },
+  { id: 'p100', name: '百场', desc: '打满 100 场', need: 100, v: (c) => c.played },
+  { id: 's3', name: '三连胜', desc: '连赢 3 场', need: 3, v: (c) => c.bestStreak },
+  { id: 's5', name: '五连胜', desc: '连赢 5 场', need: 5, v: (c) => c.bestStreak },
+  { id: 's10', name: '十连胜', desc: '连赢 10 场', need: 10, v: (c) => c.bestStreak },
+  { id: 'final', name: '闯到最后', desc: '打进一次活动的最后一轮', need: 1, v: (c) => c.finals },
+  { id: 'champ', name: '冠军', desc: '在一次活动中夺冠', need: 1, v: (c) => c.titles.length },
+  { id: 'champ3', name: '三冠王', desc: '在 3 次活动中夺冠', need: 3, v: (c) => c.titles.length },
+  { id: 'ev5', name: '活动达人', desc: '参加 5 次活动', need: 5, v: (c) => c.events },
+  { id: 'bagel', name: '送蛋', desc: '一盘没让对手拿到一局', need: 1, v: (c) => c.bagels },
+  { id: 'comeback', name: '逆转', desc: '先丢一盘后赢下比赛', need: 1, v: (c) => c.comebacks },
+  { id: 'both', name: '单双全能', desc: '单打和双打都赢过', need: 2, v: (c) => (c.single.win ? 1 : 0) + (c.double.win ? 1 : 0) },
+  { id: 'tb5', name: '抢七之王', desc: '赢下 5 次抢七', need: 5, v: (c) => c.tbWins },
+  { id: 'iron', name: '铁人', desc: '一天打 3 场', need: 3, v: (c) => c.bestDay },
+  { id: 'giant', name: '巨人杀手', desc: `定级后，赢下等级比自己高 ${H.UPSET_GAP} 以上的对手`, need: 1, v: (c) => c.upsets },
+  { id: 'weeks4', name: '全勤', desc: '连续 4 周都有比赛', need: 4, v: (c) => c.bestWeeks },
+  { id: 'social', name: '社交达人', desc: '和 10 位不同的搭档打过双打', need: 10, v: (c) => c.partners },
+  { id: 'revenge', name: '复仇', desc: `对同一位对手连输 ${REVENGE_AFTER} 场后赢回来`, need: 1, v: (c) => c.revenges },
 ];
 
 /**
@@ -121,7 +121,7 @@ function career(matches, key, name, history, pre) {
   });
   c.badges = BADGES.map((b) => {
     const v = b.v(c);
-    return { id: b.id, icon: b.icon, name: b.name, desc: b.desc, got: v >= b.need, progress: v >= b.need ? '' : `${v}/${b.need}` };
+    return { id: b.id, name: b.name, desc: b.desc, got: v >= b.need, progress: v >= b.need ? '' : `${v}/${b.need}` };
   });
   c.got = c.badges.filter((b) => b.got).length;
   return c;

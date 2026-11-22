@@ -72,7 +72,7 @@
         <view class="d-roles">
           <text wx:for="{{item.roleTags}}" wx:key="*this" wx:for-item="t" class="d-role">{{t}}</text>
         </view>
-        <text wx:if="{{item.champion}}" class="d-champ">🏆 冠军 {{item.champion}}</text>
+        <text wx:if="{{item.champion}}" class="d-champ">冠军 {{item.champion}}</text>
         <text wx:elif="{{item.progress}}" class="d-prog">{{item.progress}}</text>
       </view>
     </view>
