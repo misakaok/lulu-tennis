@@ -187,22 +187,6 @@ test('比赛亮点标签：爆冷、逆转、终结连胜、抢七、送蛋；�
   assert.strictEqual(PV.h2hView(ms, 'ub', 'B', 'ua', 'A', v.tagsOf).rows.find((r) => r.id === ms[3]._id).tags.length, 4);
 });
 
-test('待办的下一场：排过的场次用单场安排的时间和场地，没排的沿用活动的', () => {
-  const { nextMatches } = require('../utils/todo');
-  const ents = ['A', 'B', 'C', 'D'];
-  const d = { _id: 'd1', title: '周末赛', status: 'drawn', type: 'single', mode: 'groups', groupCount: 1, date: '2026-11-21', startTime: '09:00', venue: '1 号场',
-    entrants: ents, groups: [{ name: 'A 组', members: ents.map((x) => ({ name: x })) }], uidOf: { A: 'ua', B: 'ub' }, slots: {} };
-  const first = nextMatches([d], [], 'ua', []);
-  assert.strictEqual(first.length, 3);
-  assert.ok(first.every((x) => x.when === '11月21日 周六 09:00' && x.venue === '1 号场' && x.title === '周末赛'));
-  d.slots[first[2].key] = { date: '2026-11-20', time: '19:30', court: '2 号场' };
-  d.slots[first[1].key] = { date: '2026-11-22', time: '', court: '' };
-  const next = nextMatches([d], [], 'ua', []);
-  assert.strictEqual(next[0].key, first[2].key); // 排得更早的排在前面
-  assert.strictEqual(next[0].when, '11月20日 周五 19:30');
-  assert.strictEqual(next[0].venue, '2 号场');
-  assert.strictEqual(next[2].when, '11月22日 周日'); // 只改了日期：不沿用活动的开始时间
-});
 
 test('阶段名：新记录叫「最后一轮 / N 强」，旧记录的「决赛 / 半决赛 / 淘汰赛 / 小组赛」只在展示时换叫法，冠军照常认定', () => {
   const D = require('../utils/draw'), EV = require('../utils/event');

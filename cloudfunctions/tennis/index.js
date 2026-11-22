@@ -47,7 +47,7 @@ async function byIds(col, values, field) {
   }));
   return [].concat(...parts);
 }
-// 先查缓存里预取好的文档（prefetch 填的；null 表示确认过不存在），没有再查数据库
+// 先查缓存里已有的文档（null 表示确认过不存在），没有再查数据库
 async function cget(cache, col, id) {
   const d = cache && cache.docs && cache.docs[col];
   if (d && Object.prototype.hasOwnProperty.call(d, id)) return d[id];
@@ -141,33 +141,6 @@ async function markVerified(m, cache) {
   if (v && v.snap === snap) return;
   await db.collection('verified').doc(m._id).set({ data: { snap, at: db.serverDate() } });
   if (cache && cache.docs && cache.docs.verified) cache.docs.verified[m._id] = { _id: m._id, snap };
-}
-
-// 列表类接口（待办、待确认）要对很多场比赛逐场算状态：先把要用的数据一次查齐放进 cache，
-// 之后 matchState 读缓存，不再每场查 6～8 次数据库。只用于只读计算，写入流程不用。
-async function prefetch(ms, uid, cache) {
-  if (!ms.length) return;
-  const ids = ms.map((m) => m._id);
-  const drawIds = Array.from(new Set(ms.map((m) => m.drawId).filter(Boolean)));
-  const reqIds = ids.map((id) => 'sc_' + id);
-  const [ver, cf, rq, dr, prof] = await Promise.all([
-    byIds('verified', ids), byIds('confirms', ids, 'matchId'), byIds('requests', reqIds), byIds('draws', drawIds),
-    db.collection('players').where({ self: true }).limit(1000).get().then((r) => r.data),
-  ]);
-  const docs = cache.docs = cache.docs || {};
-  const put = (col, keys, rows) => {
-    const d = docs[col] = docs[col] || {};
-    keys.forEach((k) => { if (!Object.prototype.hasOwnProperty.call(d, k)) d[k] = null; });
-    rows.forEach((r) => { d[r._id] = r; });
-  };
-  put('matches', [], ms); put('verified', ids, ver); put('requests', reqIds, rq); put('draws', drawIds, dr);
-  cache.confirms = cache.confirms || {};
-  ids.forEach((id) => { cache.confirms[id] = []; });
-  cf.forEach((c) => { (cache.confirms[c.matchId] = cache.confirms[c.matchId] || []).push(c); });
-  // 昵称：和 profileOf 一样取每个账号最早的那条本人资料
-  const names = cache.names = cache.names || {};
-  prof.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !(p._openid in names)) names[p._openid] = p.name || ''; });
-  await Promise.all(drawIds.map((id) => Promise.all([officialEventMatches(id, cache), drawUidMap(id, cache)])));
 }
 
 // 录入人：云函数写入的记录看 recordedBy（服务端填的）；小程序端写入的记录只认系统写的 _openid
@@ -355,13 +328,6 @@ async function checkedTitle(value, uid) {
   if (/[\u0000-\u001f\u007f]/.test(title)) deny('比赛名称里有不支持的字符');
   await requireSafeText(title, uid, '比赛名称');
   return title;
-}
-
-// 我参加的比赛（按 aIds / bIds 查出来的两组）：去重，按日期、录入时间从新到旧
-function uniqueMatches(rows) {
-  const seen = {};
-  return rows.filter((m) => (seen[m._id] ? false : (seen[m._id] = 1)))
-    .sort((x, y) => String(y.date || '').localeCompare(String(x.date || '')) || tsOf(y) - tsOf(x));
 }
 
 /* ---------- 撤销赛果 ---------- */
@@ -1577,62 +1543,6 @@ async function drawRequests({ drawId }, uid) {
   return { owner, list, withdrawals: E.publicDraw(draw).withdrawals || [], myEntrants: await entrantsOf(draw, uid) };
 }
 
-/* ---------- 待办 ---------- */
-async function myTodos(_d, uid) {
-  // 第一轮（互不依赖，同时查）：我参加的比赛、我发起的活动、我提交的待处理改分申请
-  const [ra, rb, myDraws, reqMine] = await Promise.all([
-    db.collection('matches').where({ aIds: uid }).orderBy('date', 'desc').limit(100).get(),
-    db.collection('matches').where({ bIds: uid }).orderBy('date', 'desc').limit(100).get(),
-    db.collection('draws').where({ _openid: uid }).limit(200).get().then((r) => r.data),
-    db.collection('requests').where({ type: 'score', status: 'pending', requesterId: uid }).limit(500).get().then((r) => r.data),
-  ]);
-  const cache = {}, toConfirm = [], waiting = [];
-  const mine = uniqueMatches(ra.data.concat(rb.data));
-  const all = mine.filter((m) => !finishedReason(m));
-  const myDrawIds = myDraws.map((d) => d._id);
-  // 第二轮（同时查）：比赛状态要用的数据、和我有关的申请
-  const [, reqOnMine, reqInMyDraws] = await Promise.all([
-    prefetch(all, uid, cache),
-    byIds('requests', mine.map((m) => 'sc_' + m._id)), // 我参加的比赛上的改分申请（申请的 _id 固定是 sc_<比赛 ID>）
-    byIds('requests', myDrawIds, 'drawId'),             // 我发起的活动里的申请（改分、退赛）
-  ]);
-  for (const m of all) {
-    const s = await matchState({ matchId: m._id }, uid, cache);
-    if (!s.finished || !s.mySide) continue;
-    const row = { matchId: m._id, date: m.date || '', title: m.drawId ? `${E.publicMatch(m).drawTitle}${m.stage ? ' · ' + E.stageText(m.stage) : ''}` : '日常比赛', opp: (m[s.mySide === 'a' ? 'b' : 'a'] || []).join(' / '), score: E.scoreText(m.sets) };
-    if (s.canConfirm) toConfirm.push(row);
-    else if (!s.confirmed) { if (!s.daily) waiting.push(row); } // 日常比赛不需要确认，不算待办
-
-  }
-  // 改分申请：等我同意的 / 我提交的（只看和我有关的：我提交的、我参加的比赛、我发起的活动）
-  const byId = {};
-  reqMine.concat(reqOnMine, reqInMyDraws).forEach((q) => { if (q.type === 'score' && q.status === 'pending') byId[q._id] = q; });
-  const reqs = Object.values(byId).sort((p, q) => tsOf(p) - tsOf(q));
-  const matchOf = {};
-  mine.forEach((m) => { matchOf[m._id] = m; });
-  (await byIds('matches', reqs.map((q) => q.matchId).filter((id) => !matchOf[id]))).forEach((m) => { matchOf[m._id] = m; });
-  const ownDraw = {};
-  myDrawIds.forEach((id) => { ownDraw[id] = 1; });
-  const toRespond = [], myRequests = [];
-  for (const q of reqs) {
-    const m = matchOf[q.matchId];
-    if (!m) continue;
-    const ids = await sidesOf(m, cache);
-    const my = sideOf(ids, uid);
-    const row = { matchId: m._id, requestId: q._id, date: m.date || '', title: m.drawId ? `${E.publicMatch(m).drawTitle}${m.stage ? ' · ' + E.stageText(m.stage) : ''}` : '日常比赛', from: E.scoreText(q.from.sets), to: E.scoreText(q.to.sets) };
-    if (q.requesterId === uid) myRequests.push(row);
-    else if (my && my !== q.requesterSide) toRespond.push(row);
-    else if (m.drawId && ownDraw[m.drawId]) toRespond.push(Object.assign(row, { asOwner: true }));
-  }
-  // 我发起的活动里待处理的退赛申请
-  const withdraws = [];
-  for (const d of myDraws) {
-    reqInMyDraws.filter((x) => x.drawId === d._id && x.type === 'withdraw' && x.status === 'pending')
-      .forEach((x) => withdraws.push({ drawId: d._id, title: E.titleOf(d), entrant: x.entrant, reason: E.reasonOf(x.reason), requestId: x._id }));
-  }
-  return { toConfirm, waiting, toRespond, myRequests, withdraws };
-}
-
 async function loadDraw(drawId) {
   if (typeof drawId !== 'string' || !drawId) deny('缺少活动');
   const d = await getDoc('draws', drawId);
@@ -1662,7 +1572,7 @@ async function drawDetail({ drawId }, uid) {
   };
 }
 
-// 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」、待办用。前端原来要分 2～4 次读
+// 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」用。前端原来要分 2～4 次读
 async function mySignups(_d, uid) {
   const [own, asPartner] = await Promise.all([allDocs('signups', { _openid: uid }), allDocs('signups', { partnerId: uid })]);
   return { list: own.concat(asPartner) };
@@ -2130,7 +2040,7 @@ async function racketClear({ confirm }, uid) {
   return { rackets: (rackets && rackets.stats && rackets.stats.removed) || 0, logs: (logs && logs.stats && logs.stats.removed) || 0 };
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, myTodos, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

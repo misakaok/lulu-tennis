@@ -25,7 +25,7 @@ async function call(action, data) {
 // 写操作成功后作废前端内存缓存（utils/memo.js），保证自己刚改的数据马上能看到。
 // 只读操作不作废；未列出的操作一律当作写操作（宁可多拉一次，也不显示旧数据）
 const READ_ONLY = {
-  memberStatus: 1, ping: 1, matchState: 1, myTodos: 1,
+  memberStatus: 1, ping: 1, matchState: 1,
   drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
   myPhoto: 1, photoUrls: 1, growthList: 1, racketList: 1,
 };

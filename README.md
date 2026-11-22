@@ -163,12 +163,11 @@ pages/add                      记录日常比赛（从「战绩」页进入）
 pages/match                    比赛详情（比分、确认、改分、撤销）
 pages/correct                  修改比分 / 申请修改比分 / 管理员更正比分
 pages/rank                     排行榜
-pages/me                       我的（自己的球员主页、待办入口、成员管理入口）
+pages/me                       我的（自己的球员主页、成长档案、成员管理入口）
 pages/player / pages/history   别人的球员主页 / 某位球员的全部战绩
 pages/profile                  编辑资料（昵称、性别、自评等级）
 pages/challenge                挑战书（胜率预估、防炸鱼检查、分享）
 pages/summary                  赛季总结（某位球员某一年的汇总）
-pages/todo                     我的待办
 pages/members                  成员管理（仅管理员）
 components/draw-board          签表 / 小组积分榜组件
 components/score-sets          局分录入组件（日常比赛和活动录分共用）
@@ -189,7 +188,6 @@ utils/stats.js                 场数、胜率、排名、等级、性别显示�
 utils/player.js                球员主页数据（统计、近期比赛）
 utils/season.js                赛季（按自然年筛选正式战绩）
 utils/career.js                生涯成就（冠军、连胜、徽章，由正式战绩计算）
-utils/todo.js                  待办
 cloudfunctions/tennis          云函数：成员准入、数据网关、录分、改分、撤销、活动（所有权限校验在这里）
 cloudfunctions/tennis/shared   云函数用的共用代码（scripts/sync-shared.sh 同步）
 tests                          测试（node tests/run.js，在内存数据库里跑真实的云函数代码）
@@ -208,11 +206,10 @@ tests                          测试（node tests/run.js，在内存数据库�
 **改了 `utils/rules.js`、`utils/draw.js`、`utils/event.js` 或 `utils/official.js` 之后**，要运行 `scripts/sync-shared.sh`，
 把它们同步到 `cloudfunctions/tennis/shared/`，再重新部署云函数 `tennis`（云函数要用同一套规则校验比分）。
 
-## 我的活动、待办、比分纠错、退赛弃权
+## 我的活动、比分纠错、退赛弃权
 
 - **我的活动**：「活动」页可以切换「全部活动 / 我的活动」，后者只列我发起、报名、参赛的活动，并标出「我发起 / 已报名 / 参赛中 / 已结束」。
-- **我的待办**（「我的」页入口）：下一场比赛（活动、对手、阶段、场地、开赛时间，没安排显示「待安排」）、待我确认的活动比分、改分申请、退赛申请（发起人）、等待对方处理。日常比赛不需要确认，不进待办。
-  全部实时计算，处理完、取消或失效的事项自动消失。只做小程序内待办，不发订阅消息。
+- **待办已删除**（2026-11-22）：待办页、`utils/todo.js` 和云函数 `myTodos` 都已删除。改分申请在比赛详情里处理，退赛申请在活动详情里处理，不发订阅消息。
 - **比分纠错**：
   - 日常比赛：录入人和参赛者都可以直接改，改完立即生效。
   - 活动比赛对方还没确认：参赛球员或发起人在赛程里重新录。

@@ -240,14 +240,6 @@ test('旧云函数和本机缓存：保留手动活动名称、历史名称快�
     }
     const all = await c.db.fetchMatchesAll();
     assert.strictEqual(all.find((m) => m._id === 'ev1').drawTitle, '旧自由活动名称');
-    const baseCall = wx.cloud.callFunction;
-    wx.cloud.callFunction = (args) => args.data.action === 'myTodos' ? Promise.resolve({ result: { ok: true,
-      toConfirm: [{ matchId: 'ev1', title: '旧自由活动名称', date: '2026-11-01' }], waiting: [], toRespond: [], myRequests: [],
-      withdraws: [{ drawId: 'd1', title: '旧自由活动名称' }],
-    } }) : baseCall(args);
-    const todo = await require('../utils/todo').load();
-    assert.strictEqual(todo.toConfirm[0].title, '旧自由活动名称');
-    assert.strictEqual(todo.withdraws[0].title, '旧自由活动名称');
     results.push(all);
   }
   assert.deepStrictEqual(results[0], results[1]);
@@ -287,12 +279,12 @@ test('我的报名：1 次调用，旧版云函数时分开读，结果一致；
   assert.strictEqual(c.calls(), 1); assert.strictEqual(a.length, 1);
   await c.db.fetchMySignups(); assert.strictEqual(c.calls(), 1, '缓存期内不重复调用');
   const cloud = require(path.join(ROOT, 'utils/cloud.js'));
-  await cloud.cached('myTodos'); await cloud.cached('myTodos');
+  await cloud.cached('ping'); await cloud.cached('ping');
   assert.strictEqual(c.calls(), 2);
   await c.db.cancelSignup('d1'); // 写操作：全部作废
   const n = c.calls();
   assert.strictEqual((await c.db.fetchMySignups()).length, 0);
-  await cloud.cached('myTodos');
+  await cloud.cached('ping');
   assert.strictEqual(c.calls(), n + 2);
   // 旧版云函数
   await env.call('alice', 'signUp', { drawId: 'd1' });

@@ -243,10 +243,6 @@ test('日常比赛：管理员录入即生效；普通参赛者改分留档且�
   assert.ok(!st.canConfirm && st.canEdit && !st.reason);
   const ds = ok(await env.call('bob', 'dataset', {}));
   assert.strictEqual(ds.matches.find((m) => m._id === id).status, 'official');
-  // 不进待办
-  const t = ok(await env.call('bob', 'myTodos', {}));
-  assert.ok(!t.toConfirm.length && !t.waiting.length);
-  assert.ok(!ok(await env.call('alice', 'myTodos', {})).waiting.length);
   // 对手直接改，立即生效；无关的人不能改
   no(await env.call('eve', 'editMatchScore', { matchId: id, sets: [{ a: 1, b: 4 }] }), /参加者/);
   ok(await env.call('bob', 'editMatchScore', { matchId: id, sets: [{ a: 1, b: 4 }] }));
@@ -729,7 +725,6 @@ test('原因只能从固定选项里选：手写文字一律拒绝；改分原�
   assert.strictEqual(ok(await env.call('owner', 'drawRequests', { drawId: 'd1' })).list.find((x) => x.type === 'withdraw').reason, '受伤');
   wd.reason = '旧的手写退赛原因';
   assert.strictEqual(ok(await env.call('owner', 'drawRequests', { drawId: 'd1' })).list.find((x) => x.type === 'withdraw').reason, '');
-  assert.ok(!JSON.stringify(ok(await env.call('owner', 'myTodos'))).includes('旧的手写退赛原因'));
 });
 test('准入：称呼先过内容检测，不接收申请说明和邀请备注；拒绝原因只能是固定选项，旧的手写内容不下发', async () => {
   const env = setup();
@@ -784,8 +779,6 @@ test('旧活动和比分：各读取接口保留手动名称，隐藏场地文�
     ok(await env.call('alice', 'matchState', { matchId: 'legacy_title', detail: true })).match,
   ];
   matches.forEach((m) => { assert.strictEqual(m.drawTitle, '旧自定义活动'); assert.deepStrictEqual(m.sets, [{ a: 4, b: 1 }]); assert.strictEqual(m.resolution.reason, undefined); });
-  const todos = ok(await env.call('bob', 'myTodos'));
-  assert.ok(todos.toConfirm.every((x) => !x.title.includes('私人')));
   assert.strictEqual(ok(await env.call('eve', 'drawRequests', { drawId: 'd1' })).withdrawals[0].reason, undefined);
   assert.strictEqual(env.coll('draws').d1.title, '旧自定义活动');
   assert.strictEqual(env.coll('matches').legacy_title.drawTitle, '旧自定义活动');
@@ -911,8 +904,6 @@ test('清空战绩：默认关闭、要口令、只有管理员；只删战绩�
     assert.deepStrictEqual(env.coll('draws').d1.results, {});
     assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice && env.coll('bios').alice, '活动、成员、资料、简介保留');
     assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'resetScores'), '留档');
-    // 清空后排行、待办正常
-    assert.strictEqual(ok(await env.call('alice', 'myTodos')).toConfirm.length, 0);
   } finally {
     if (old[0] === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old[0];
     if (old[1] === undefined) delete process.env.ALLOW_RESET_SCORES; else process.env.ALLOW_RESET_SCORES = old[1];
@@ -971,23 +962,6 @@ test('日期：默认日期按北京时间（UTC 早上也不会变成前一天�
     const r = ok(await env.call('alice', 'recordEventMatch', { drawId: 'd1', key: '0-0', sets: [{ a: 4, b: 2 }] }));
     assert.strictEqual(env.coll('matches')[r.matchId].date, '2026-11-10');
   } finally { Date.now = realNow; }
-});
-
-/* ---------- 列表接口：批量查询的结果要和逐场计算一致 ---------- */
-test('待办：myTodos 和逐场 matchState 结果一致，查询次数不随比赛数线性增长', async () => {
-  const env = setup();
-  const ids = [];
-  for (let i = 0; i < 30; i++) {
-    const r = ok(await daily(env, i % 2 ? 'alice' : 'bob', i % 2 ? 'bob' : 'alice', { sets: [{ a: 4, b: i % 3 }], date: '2026-10-' + (10 + (i % 20)) }));
-    ids.push(r._id);
-    if (i % 3 === 0) ok(await env.call(i % 2 ? 'bob' : 'alice', 'confirmResult', { matchId: r._id }));
-  }
-  const todo = ok(await env.call('alice', 'myTodos'));
-  const budget = env.queries;
-  const expect = [];
-  for (const id of ids) { const s = ok(await env.call('alice', 'matchState', { matchId: id })); if (s.canConfirm) expect.push(id); }
-  assert.deepStrictEqual(todo.toConfirm.map((x) => x.matchId).sort(), expect.sort());
-  assert.ok(budget < 40, `myTodos 查询次数 ${budget}，应该是固定的少量批量查询`);
 });
 
 /* ---------- 活动详情一次取齐 ---------- */
