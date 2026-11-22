@@ -152,6 +152,9 @@ Page({
   isGroups() { return this.data.mode !== 'bracket'; }, // 小组赛、小组赛＋淘汰赛都要先分组
   maxSeeds(n) { return D.maxSeeds(this.isGroups() ? 'groups' : 'bracket', this.isGroups() ? this.data.groupCount : this.data.size, n); },
   recSeeds(n) { return Math.min(this.maxSeeds(n), this.isGroups() ? this.data.groupCount : D.nextPow2(this.data.size) / 4); },
+  // 种子的叫法：单打「N 位种子选手」，双打「N 支种子队伍」（只在种子设置相关的界面用「种子」）
+  seedUnit() { return this.isDouble() ? '支' : '位'; },
+  seedName() { return this.isDouble() ? '种子队伍' : '种子选手'; },
 
   // 按水平分推荐种子
   recommendSeeds(silent) {
@@ -160,7 +163,7 @@ Page({
     this.seeds = sorted.slice(0, this.recSeeds(ents.length));
     this.setData({ preview: null });
     this.refresh();
-    if (!silent) wx.showToast({ title: `已按水平选出 ${this.seeds.length} 个分开排位`, icon: 'none' });
+    if (!silent) wx.showToast({ title: `已按水平推荐 ${this.seeds.length} ${this.seedUnit()}${this.seedName()}`, icon: 'none' });
   },
 
   refresh() {
@@ -182,14 +185,15 @@ Page({
       const byes = D.nextPow2(size) - n;
       if (n < 2) info = dbl ? `按顺序点选球员，每 2 人组成一队（${size} 签最多 ${size} 队）` : `请选择参加的球员（${size} 签最多 ${size} 人）`;
       else if (n > size) info = `已有 ${n} ${unit}，超过了 ${size} 签，请减少 ${n - size} ${unit}或选更大的签`;
-      else { ok = true; info = `已有 ${n} / ${size} ${unit}` + (byes ? ` · 首轮 ${byes} 个轮空（排位靠前的优先轮空）` : ''); }
+      else { ok = true; info = `已有 ${n} / ${size} ${unit}` + (byes ? ` · 首轮 ${byes} 个轮空` + (this.seeds.length ? '（种子优先轮空）' : '') : ''); }
     } else if (n < groupCount * 2) info = `分 ${groupCount} 组至少需要 ${groupCount * 2} ${unit}，现在 ${n} ${unit}`;
     else {
       ok = true;
       const lo = Math.floor(n / groupCount), hi = Math.ceil(n / groupCount);
       info = groupCount === 1 ? `已有 ${n} ${unit} · 大循环，每${unit}打 ${n - 1} 场` : `已有 ${n} ${unit} · 分 ${groupCount} 组，每组 ${lo === hi ? lo : lo + '~' + hi} ${unit}`;
     }
-    const seedInfo = `建议选 ${this.recSeeds(n)} 个，最多 ${max} 个` + (this.isGroups() ? '（按蛇形分到各组）' : '（1、2 号位分在上下半区）');
+    const su = this.seedUnit();
+    const seedInfo = `建议选 ${this.recSeeds(n)} ${su}，最多 ${max} ${su}` + (this.isGroups() ? '（按蛇形分到各组）' : '（1、2 号种子分在上下半区）');
     const lv = (x) => (this.ratings ? R.fmt(x) : '');
     const chip = (ent) => ({
       name: ent, level: lv(this.levelOfEnt(ent)),
@@ -310,7 +314,7 @@ Page({
     const max = this.maxSeeds(this.entrants().length);
     if (i >= 0) this.seeds.splice(i, 1);
     else if (this.seeds.length >= max) {
-      wx.showToast({ title: `最多选 ${max} 个`, icon: 'none' });
+      wx.showToast({ title: `最多选 ${max} ${this.seedUnit()}${this.seedName()}`, icon: 'none' });
       return;
     } else this.seeds.push(name);
     this.setData({ preview: null });

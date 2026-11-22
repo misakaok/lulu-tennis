@@ -77,20 +77,34 @@ T.push({ name: '所有注册页面和组件：没有多行文字框和可输入�
   app.pages.forEach((page) => inspect(path.join(root, page)));
 } });
 
-T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、种子、抽签、赛程、决赛、晋级等）和社交圈子用语（球友圈、社区、交友等）', fn() {
+T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、抽签、赛程、决赛、晋级等）和社交圈子用语（球友圈、社区、交友等）；「种子」只出现在种子设置相关的界面', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  const banned = /小组赛|淘汰赛|签表|种子|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事|球友圈|圈子|社区|社群|交友/; // 「球友圈」2026-11-19 未过审核；「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
+  const banned = /小组赛|淘汰赛|签表|分开排位|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事|球友圈|圈子|社区|社群|交友/; // 「球友圈」2026-11-19 未过审核；「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
+  // 「种子」只用在种子设置相关的界面（2026-11-22 用户要求把「分开排位」改成看得懂的种子设置）：
+  // 创建 / 生成对阵页的种子区块、活动详情的种子名单、活动列表卡片的种子数，且只用下面几种固定说法
+  const SEED_PAGES = ['pages/draw-new/draw-new', 'pages/draw-view/draw-view', 'pages/draw/draw'].map((p) => path.join(root, p));
+  const seedOk = /种子(选手|队伍|优先轮空)|号种子/g;
+  const seedUsed = new Set();
   const seen = new Set();
+  const check = (label, text, base) => {
+    const hit = text.match(banned);
+    assert.ok(!hit, label + '：' + (hit && hit[0]));
+    let rest = text;
+    if (SEED_PAGES.indexOf(base) >= 0) {
+      if (seedOk.test(text)) seedUsed.add(base);
+      seedOk.lastIndex = 0;
+      rest = text.replace(seedOk, '');
+    }
+    assert.ok(!/种子/.test(rest), label + '：「种子」只能用在种子设置相关的界面，并用「种子选手 / 种子队伍 / N 号种子」这些说法');
+  };
   const inspect = (base) => {
     if (seen.has(base)) return;
     seen.add(base);
     const xml = fs.readFileSync(base + '.wxml', 'utf8').replace(/<!--[\s\S]*?-->/g, '');
-    const hit = xml.match(banned);
-    assert.ok(!hit, base + '.wxml：' + (hit && hit[0]));
+    check(base + '.wxml', xml, base);
     // 脚本里只看字符串（提示、弹窗文字），不看注释
     const code = fs.readFileSync(base + '.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
-    const bad = code.match(banned);
-    assert.ok(!bad, base + '.js：' + (bad && bad[0]));
+    check(base + '.js', code, base);
     const config = JSON.parse(fs.readFileSync(base + '.json', 'utf8'));
     assert.ok(!banned.test(config.navigationBarTitleText || ''), base + '.json');
     Object.values(config.usingComponents || {}).forEach((target) => {
@@ -98,6 +112,7 @@ T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（�
     });
   };
   app.pages.forEach((page) => inspect(path.join(root, page)));
+  SEED_PAGES.forEach((p) => assert.ok(seedUsed.has(p), path.relative(root, p) + ' 应显示种子设置（不再用「分开排位」）'));
 } });
 
 module.exports = T;

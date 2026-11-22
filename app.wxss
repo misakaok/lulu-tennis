@@ -52,6 +52,10 @@ page {
 }
 .btn-line { color: #6E6EA3; border: 3rpx solid #B9B9DA; }
 .btn-danger { color: #b34d4d; border: 3rpx solid #E5C4C4; }
+/* 小号：卡片标题右边、列表行里的操作（全选、编辑、上移、拒绝 / 同意……），代替文字链接 */
+.btn-line.mini, .btn-danger.mini { display: inline-block; height: 52rpx; line-height: 48rpx; padding: 0 22rpx; border-width: 2rpx; border-radius: 26rpx; font-size: 23rpx; font-weight: 600; vertical-align: middle; }
+.btn-primary.mini { display: inline-block; height: 52rpx; line-height: 52rpx; padding: 0 24rpx; border-radius: 26rpx; font-size: 23rpx; font-weight: 600; vertical-align: middle; box-shadow: none; }
+.btn-line.disabled, .btn-danger.disabled { opacity: 0.45; }
 
 /* 小标签：性别、组别、候补中、定级中…… */
 .ui-tag { display: inline-block; padding: 2rpx 14rpx; border-radius: 16rpx; font-size: 22rpx; line-height: 1.6; color: #6E6EA3; background: #EFEFF6; font-weight: 400; }

@@ -40,7 +40,7 @@ function makeBracket(entrants, seeds, drawSize) {
   const P = entrants.length, n = nextPow2(drawSize);
   if (P < 2) throw new Error('至少需要 2 名参加者');
   if (P > drawSize) throw new Error(`参加人数 ${P} 超过了 ${drawSize} 签`);
-  if (seeds.length > n / 2) throw new Error(`${drawSize} 签最多选 ${n / 2} 个分开排位`);
+  if (seeds.length > n / 2) throw new Error(`${drawSize} 签最多选 ${n / 2} 个种子`);
 
   const order = bracketOrder(n);
   const lines = new Array(n).fill(null);

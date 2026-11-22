@@ -9,31 +9,31 @@
 .pill.on { background: #6E6EA3; color: #fff; font-weight: 700; box-shadow: 0 6rpx 14rpx rgba(133, 133, 184, 0.3); }
 
 .row { display: flex; justify-content: space-between; align-items: center; }
-.links .link { font-size: 24rpx; color: #6E6EA3; font-weight: 500; margin-left: 24rpx; }
+.links .btn-line { margin-left: 16rpx; }
 
 .chips { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
 .chip { padding: 12rpx 24rpx; margin: 8rpx; border-radius: 30rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; display: flex; align-items: center; }
 .chip.on { background: #6E6EA3; color: #fff; }
 .chip.seedable { background: #fff; border: 2rpx solid #E3E3EF; }
-.chip.seeded { background: #fff7e0; border-color: #f5c84c; color: #8a5a00; font-weight: 700; }
-.badge { width: 34rpx; height: 34rpx; line-height: 34rpx; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 20rpx; text-align: center; margin-right: 10rpx; }
+.chip.seeded { background: #6E6EA3; border-color: #6E6EA3; color: #fff; font-weight: 700; }
+.badge { width: 34rpx; height: 34rpx; line-height: 34rpx; border-radius: 50%; background: #fff; color: #6E6EA3; font-weight: 700; font-size: 20rpx; text-align: center; margin-right: 10rpx; }
 .muted { color: #A5A5BA; font-size: 24rpx; padding: 8rpx; }
 .muted.small { font-size: 22rpx; margin-top: 10rpx; }
 
 .info { margin-top: 18rpx; padding: 16rpx 18rpx; border-radius: 14rpx; background: #F7F7FB; color: #8686A0; font-size: 24rpx; }
 .info.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 600; }
 
-.seed-list { margin-top: 14rpx; background: #fffbef; border-radius: 16rpx; padding: 6rpx 20rpx; }
+.seed-list { margin-top: 14rpx; background: #F1F1F8; border-radius: 16rpx; padding: 6rpx 20rpx; }
 .seed-row { display: flex; align-items: center; height: 64rpx; }
-.seed-row + .seed-row { border-top: 1rpx solid #f6ecd0; }
-.seed-no { width: 140rpx; font-size: 24rpx; color: #b45309; font-weight: 700; }
+.seed-row + .seed-row { border-top: 1rpx solid #E3E3EF; }
+.seed-no { width: 150rpx; font-size: 24rpx; color: #6E6EA3; font-weight: 700; }
 .seed-name { flex: 1; font-size: 28rpx; font-weight: 600; }
-.seed-up { font-size: 22rpx; color: #6E6EA3; padding: 10rpx; }
 
 .preview { margin-top: 36rpx; }
 .preview-title { font-size: 32rpx; font-weight: 800; color: #4F4F7D; margin: 0 4rpx 18rpx; }
 .actions { display: flex; align-items: center; margin-top: 24rpx; }
-.btn-ghost { width: 200rpx; height: 96rpx; line-height: 96rpx; text-align: center; border-radius: 48rpx; border: 2rpx solid #CFCFE6; color: #6E6EA3; font-weight: 600; margin-right: 20rpx; font-size: 30rpx; }
+/* 和右边的主按钮一样高 */
+.btn-line.redo { flex: none; width: 200rpx; height: 96rpx; line-height: 90rpx; border-radius: 48rpx; margin-right: 20rpx; font-size: 30rpx; }
 .grow { flex: 1; }
 
 .seg.locked { opacity: 0.6; }
@@ -50,7 +50,6 @@
 .team-line:first-of-type { border-top: 0; }
 .tl-no { width: 90rpx; font-size: 24rpx; color: #6E6EA3; font-weight: 700; }
 .tl-name { flex: 1; font-size: 28rpx; font-weight: 600; }
-.card-title .link { font-size: 24rpx; color: #6E6EA3; font-weight: 500; }
 .stage { margin-top: 28rpx; padding-top: 22rpx; border-top: 1rpx solid #F0F0F6; }
 .stage-h { font-size: 27rpx; font-weight: 700; color: #4F4F7D; }
 .seg.mini { width: 260rpx; padding: 4rpx; }

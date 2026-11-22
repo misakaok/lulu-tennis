@@ -13,7 +13,7 @@
         <view class="hr-title">规则 · {{formatText}}</view>
         <view wx:for="{{rulesSum}}" wx:key="stage" class="hr-row {{item.hl ? 'hl' : ''}}"><text class="hr-k">{{item.stage}}</text><text class="hr-v">{{item.text}}</text></view>
       </view>
-      <view wx:if="{{seedsText}}" class="h-seeds"><text class="h-lbl">分开排位</text>{{seedsText}}</view>
+      <view wx:if="{{seedRows.length}}" class="h-seeds"><text class="h-lbl">{{seedLabel}}</text><text wx:for="{{seedRows}}" wx:key="no" class="h-seed">{{item.no}} 号种子 {{item.name}}</text></view>
       <view wx:if="{{!signing && progress}}" class="h-prog">{{progress}}</view>
       <view wx:if="{{signing}}" class="h-prog">已报名 {{signCount}}</view>
     </view>
@@ -22,7 +22,7 @@
     <view class="card info">
       <view class="card-title row">
         <text>时间地点</text>
-        <text wx:if="{{canEdit}}" class="link" bindtap="goEdit">编辑</text>
+        <view wx:if="{{canEdit}}" class="btn-line mini" hover-class="tap-on" bindtap="goEdit">编辑</view>
       </view>
       <view class="in-row"><text class="in-k">时间</text><text class="in-v">{{info.when || '暂无'}}</text></view>
       <block wx:if="{{!info.empty}}">
@@ -71,13 +71,13 @@
           <view class="joined-t">{{myWaiting ? '你在候补名单里' : '你已报名'}}</view>
           <view class="joined-s">{{isDouble ? '截止报名前可以取消，会连同搭档一起取消' : '截止报名前可以随时取消'}}</view>
         </view>
-        <view class="quit" hover-class="quit-hover" bindtap="quit">取消报名</view>
+        <view class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
       </view>
       <picker wx:elif="{{isDouble && myName}}" range="{{partnerOpts}}" bindchange="joinDouble">
         <view class="btn-primary {{busy ? 'disabled' : ''}}">{{full ? '名额已满，排队候补（选择搭档）' : '我要报名（选择搭档）'}}</view>
       </picker>
       <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '名额已满，排队候补' : '我要报名'}}</view>
-      <view wx:if="{{canPublish}}" class="btn-owner" hover-class="tap-on" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' ? '对阵' : '分组'}}</view>
+      <view wx:if="{{canPublish}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' ? '对阵' : '分组'}}</view>
     </block>
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
@@ -137,14 +137,14 @@
       <block wx:if="{{wdOwner}}">
         <view wx:for="{{wdPending}}" wx:key="id" class="wd-row">
           <text class="wd-n">{{item.entrant}}</text><text class="wd-t">申请退赛{{item.reason ? '：' + item.reason : ''}}</text>
-          <text class="wd-a" data-i="{{index}}" bindtap="rejectWithdraw">拒绝</text><text class="wd-a main" data-i="{{index}}" bindtap="approveWithdraw">同意</text>
+          <view class="btn-line mini wd-a" hover-class="tap-on" data-i="{{index}}" bindtap="rejectWithdraw">拒绝</view><view class="btn-primary mini wd-a" hover-class="tap-on" data-i="{{index}}" bindtap="approveWithdraw">同意</view>
         </view>
-        <picker wx:if="{{wdCandidates.length}}" range="{{wdCandidates}}" bindchange="ownerWithdraw"><view class="wd-link">登记球员退赛 / 缺席</view></picker>
+        <picker wx:if="{{wdCandidates.length}}" range="{{wdCandidates}}" bindchange="ownerWithdraw"><view class="btn-line wd-btn" hover-class="tap-on">登记球员退赛 / 缺席</view></picker>
       </block>
       <block wx:else>
         <view wx:if="{{myWd && myWd.status === 'pending'}}" class="wd-t">你的退赛申请等待发起人处理</view>
         <view wx:elif="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请{{myWd.note ? '：' + myWd.note : ''}}</view>
-        <view wx:elif="{{canWithdraw}}" class="wd-link" bindtap="requestWithdraw">申请退赛</view>
+        <view wx:elif="{{canWithdraw}}" class="btn-line wd-btn" hover-class="tap-on" bindtap="requestWithdraw">申请退赛</view>
       </block>
     </view>
 
@@ -167,9 +167,9 @@
       </view>
       <view class="sheet-note">没有安排的场次，沿用活动的日期、时间和场地。</view>
       <view class="sheet-acts">
-        <view wx:if="{{slotEdit.had}}" class="sheet-a" bindtap="slotClear">清除安排</view>
-        <view class="sheet-a" bindtap="slotCancel">取消</view>
-        <view class="sheet-a main {{busy ? 'dis' : ''}}" bindtap="slotSave">保存</view>
+        <view wx:if="{{slotEdit.had}}" class="btn-line sheet-a" hover-class="tap-on" bindtap="slotClear">清除安排</view>
+        <view class="btn-line sheet-a" hover-class="tap-on" bindtap="slotCancel">取消</view>
+        <view class="btn-primary sheet-a {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="slotSave">保存</view>
       </view>
     </view>
 

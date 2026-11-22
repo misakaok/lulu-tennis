@@ -77,8 +77,8 @@
     <view wx:if="{{isOwner && !retire}}" class="card owner-tools">
       <view class="card-title">发起人处理<text class="sub">必须选择原因，会留档</text></view>
       <view class="ot-acts">
-        <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="walkover">判赛前弃权</view>
-        <view class="ot-a {{busy ? 'dis' : ''}}" bindtap="retireStart">记录中途退赛</view>
+        <view class="btn-line ot-a {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="walkover">判赛前弃权</view>
+        <view class="btn-line ot-a {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="retireStart">记录中途退赛</view>
       </view>
       <view class="muted small">弃权不填局分，另一方进入下一轮，标「弃权胜 / 弃权负」；中途退赛保留实际已打的局分。</view>
     </view>
@@ -96,17 +96,17 @@
         <view wx:for="{{withdrawReasons}}" wx:key="*this" class="rt-reason {{retire.reason === item ? 'on' : ''}}" data-v="{{item}}" bindtap="retireReason">{{item}}</view>
       </view>
       <view class="ot-acts">
-        <view class="ot-a" bindtap="retireCancel">取消</view>
-        <view class="ot-a main {{busy ? 'dis' : ''}}" bindtap="retireSubmit">确认退赛结果</view>
+        <view class="btn-line ot-a" hover-class="tap-on" bindtap="retireCancel">取消</view>
+        <view class="btn-primary ot-a {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="retireSubmit">确认退赛结果</view>
       </view>
     </view>
 
     <block wx:if="{{editing}}">
       <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" hover-class="tap-on" bindtap="submit">{{submitting ? '保存中…' : (done ? '保存修改' : '提交比分')}}</view>
-      <view wx:if="{{done}}" class="btn-text" bindtap="cancelEdit">取消修改</view>
+      <view wx:if="{{done}}" class="btn-line cancel" hover-class="tap-on" bindtap="cancelEdit">取消修改</view>
       <view class="foot">提交后对阵表、积分榜、排行榜和水平分会自动更新</view>
     </block>
-    <view wx:elif="{{done && canEdit}}" class="btn-ghost" hover-class="tap-on" bindtap="startEdit">比分录错了？修改比分</view>
+    <view wx:elif="{{done && canEdit}}" class="btn-line edit" hover-class="tap-on" bindtap="startEdit">比分录错了？修改比分</view>
     <match-social wx:if="{{done && !editing && recordId}}" match-id="{{recordId}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
     <view wx:if="{{reason}}" class="foot">{{reason}}</view>
   </block>

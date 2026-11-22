@@ -20,7 +20,7 @@ function modeText(d) {
 
 Page({
   data: {
-    draw: null, meta: '', formatText: '', seedsText: '', error: '', myName: '', myId: '',
+    draw: null, meta: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     signing: false, isDouble: false, signups: [], signCount: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null,
     matches: [], tab: 'board', schedule: [], onlyMine: false, progress: '', todo: 0, slotEdit: null,
@@ -60,10 +60,12 @@ Page({
       const n = (d.entrants || []).length;
       const unit = cfg.type === 'double' ? '队' : '人';
       const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
-      const seedsText = (d.seeds || []).map((s, i) => `${i + 1}. ${s}`).join('   ');
+      // 种子名单（旧活动也一样）：单打「种子选手」、双打「种子队伍」，按顺序显示「1 号种子 张三」
+      const seedRows = (Array.isArray(d.seeds) ? d.seeds : []).filter((s) => typeof s === 'string' && s).map((name, i) => ({ no: i + 1, name }));
+      const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
       const matches = all.filter((m) => m.drawId === this.id);
       this.setData({
-        draw: d, meta, seedsText, error: '', signing, myName: (me && me.name) || '', myId,
+        draw: d, meta, seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', matches,
       });
       // 发布和编辑仅管理员；生成对阵还需为发起人。历史发起人保留删除能力，云端逐项校验。

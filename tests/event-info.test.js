@@ -8,11 +8,11 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-function load(file, wx, kind, deps) {
+function load(file, wx, kind, deps, globals) {
   const filename = path.resolve(__dirname, '..', file);
   let def;
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    require: (id) => deps && deps[id] || createRequire(filename)(id), wx, [kind]: (d) => { def = d; },
+    require: (id) => deps && deps[id] || createRequire(filename)(id), wx, [kind]: (d) => { def = d; }, ...globals,
   });
   return Object.assign({}, kind === 'Component' ? def.methods : def, {
     data: plain(def.data),
@@ -218,6 +218,151 @@ test('分享封面：只画日期、时间和人数（不画活动名称、昵�
   assert.ok(/imageUrl: this\.cover \|\| Card\.FALLBACK/.test(view) && /promise: this\.coverJob/.test(view));
   for (const p of ['pages/gate/gate.js', 'pages/members/members.js']) assert.ok(/imageUrl: SHARE_IMAGE/.test(fs.readFileSync(path.join(__dirname, '..', p), 'utf8')), p);
   assert.ok(fs.existsSync(path.join(__dirname, '..', Card.FALLBACK)));
+});
+
+/* ---------- 种子设置（原「分开排位」）：叫法改成种子，生成逻辑和数据结构不变 ---------- */
+const tap = (dataset) => ({ currentTarget: { dataset } });
+function seedPage(extraDeps) {
+  const toasts = [];
+  const fail = (t) => { throw new Error('不应出错：' + (t.content || t.title)); };
+  const wx = { setStorageSync() {}, getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast: (t) => toasts.push(t.title), showModal: fail, vibrateShort() {}, pageScrollTo() {}, redirectTo() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', extraDeps, { setTimeout: () => {}, console });
+  p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
+  p.setData({ canPublish: true, entry: 'pick' });
+  return { p, toasts };
+}
+// 淘汰赛的位置：1 号种子在上半区第一个签位，2 号种子在下半区
+const halves = (lines, seedNo) => { const i = lines.findIndex((x) => x && x.seed === seedNo); return i < lines.length / 2 ? 'top' : 'bottom'; };
+
+test('种子选手（单打手选）：点选、取消、上移调整顺序，1、2 号种子分在上下半区', () => {
+  const { p, toasts } = seedPage();
+  p.players = ['A', 'B', 'C', 'D', 'E', 'F']; p.selected = p.players.slice();
+  p.refresh();
+  assert.strictEqual(p.data.seedChips.length, 6);
+  p.toggleSeed(tap({ name: 'C' })); p.toggleSeed(tap({ name: 'A' })); p.toggleSeed(tap({ name: 'E' }));
+  assert.deepStrictEqual(plain(p.data.seedList.map((x) => [x.seed, x.name])), [[1, 'C'], [2, 'A'], [3, 'E']]);
+  p.seedUp(tap({ i: 1 }));
+  assert.deepStrictEqual(plain(p.seeds), ['A', 'C', 'E']);
+  p.toggleSeed(tap({ name: 'C' })); // 取消后后面的顺延
+  assert.deepStrictEqual(plain(p.data.seedList.map((x) => [x.seed, x.name])), [[1, 'A'], [2, 'E']]);
+  assert.strictEqual(p.data.seedChips.find((x) => x.name === 'E').seed, 2);
+  assert.match(p.data.seedInfo, /^建议选 2 位，最多 4 位（1、2 号种子分在上下半区）$/);
+  assert.match(p.data.info, /首轮 2 个轮空（种子优先轮空）/);
+  p.toggleSeed(tap({ name: 'B' })); p.toggleSeed(tap({ name: 'D' })); p.toggleSeed(tap({ name: 'F' })); // 8 签最多 4 个
+  assert.strictEqual(p.seeds.length, 4); assert.strictEqual(toasts.pop(), '最多选 4 位种子选手');
+  for (let k = 0; k < 20; k++) {
+    const before = toasts.length;
+    p.doDraw();
+    assert.strictEqual(toasts.length, before, '生成预览不报错');
+    const lines = p.data.preview.lines;
+    assert.deepStrictEqual(plain(p.data.preview.seeds), ['A', 'E', 'B', 'D'], '保存的仍是 seeds 名单');
+    assert.strictEqual(lines[0].name, 'A'); assert.strictEqual(lines[0].seed, 1);
+    assert.strictEqual(halves(lines, 1), 'top'); assert.strictEqual(halves(lines, 2), 'bottom');
+    assert.strictEqual(lines.find((x) => x && x.seed === 2).name, 'E');
+    assert.strictEqual(lines[1].bye, true, '1 号种子优先轮空');
+  }
+  p.autoSeeds();
+  assert.strictEqual(toasts.pop(), '已按水平推荐 2 位种子选手');
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  assert.ok(/\{\{type === 'double' \? '种子队伍' : '种子选手'\}\}/.test(xml) && /\{\{item\.seed\}\} 号种子/.test(xml) && !/分开排位|号位/.test(xml));
+});
+
+test('种子队伍（双打按队设置）：按队伍点选和推荐，分组按蛇形分配', () => {
+  const { p, toasts } = seedPage();
+  p.setType(tap({ v: 'double' }));
+  p.setMode(tap({ v: 'groups' })); p.setGroups(tap({ v: 2 }));
+  p.players = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']; p.selected = p.players.slice();
+  p.refresh();
+  const teams = ['A / B', 'C / D', 'E / F', 'G / H'];
+  assert.deepStrictEqual(plain(p.data.seedChips.map((x) => x.name)), teams, '种子按队伍选，不按个人');
+  p.toggleSeed(tap({ name: 'G / H' })); p.toggleSeed(tap({ name: 'C / D' }));
+  assert.deepStrictEqual(plain(p.data.seedList.map((x) => [x.seed, x.name])), [[1, 'G / H'], [2, 'C / D']]);
+  assert.match(p.data.seedInfo, /^建议选 2 支，最多 4 支（按蛇形分到各组）$/);
+  p.toggleSeed(tap({ name: 'A / B' }));
+  p.doDraw();
+  const pv = p.data.preview;
+  assert.deepStrictEqual(plain(pv.seeds), ['G / H', 'C / D', 'A / B']);
+  assert.deepStrictEqual(plain(pv.teams['G / H']), ['G', 'H']);
+  const groupOf = (name) => pv.groups.findIndex((g) => g.members.some((m) => m.name === name && m.seed));
+  assert.deepStrictEqual([groupOf('G / H'), groupOf('C / D'), groupOf('A / B')], [0, 1, 1], '蛇形：1→A，2→B，3→B');
+  p.autoSeeds();
+  assert.strictEqual(toasts.pop(), '已按水平推荐 2 支种子队伍');
+  p.setType(tap({ v: 'single' }));
+  assert.deepStrictEqual(plain(p.seeds), [], '换单双打后清空种子');
+});
+
+test('报名后：按水平推荐种子，发起人可以取消、换人、调整顺序再生成，名单里去掉的人不再是种子', async () => {
+  let sent = null;
+  const players = ['Ann', 'Ben', 'Cat', 'Dan', 'Eve'].map((name, i) => ({ name, uid: 'u' + i, level: [3, 4.5, 2.5, 4, 3.5][i] }));
+  const deps = {
+    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
+    '../../utils/db': {
+      cachedPlayersFull: () => [], fetchPlayersFull: async () => players, fetchMatches: async () => [],
+      getDraw: async () => ({ _id: 'd1', title: '周日内部赛', mode: 'bracket', size: 8, type: 'single', status: 'signup' }),
+      fetchSignups: async () => players.map((x, i) => ({ _id: 's' + i, _openid: x.uid, name: x.name, createdAt: i })),
+      generateDraw: async (id, draw) => { sent = { id, draw }; },
+    },
+  };
+  const { p, toasts } = seedPage(deps);
+  p.setData({ canPublish: false });
+  await p.onLoad({ id: 'd1' });
+  await new Promise((r) => setImmediate(r));
+  assert.strictEqual(p.data.fromSignup, true);
+  assert.deepStrictEqual(plain(p.seeds), ['Ben', 'Dan'], '按水平推荐 2 位');
+  p.toggleSeed(tap({ name: 'Dan' })); p.toggleSeed(tap({ name: 'Eve' })); p.toggleSeed(tap({ name: 'Dan' }));
+  p.seedUp(tap({ i: 1 }));
+  assert.deepStrictEqual(plain(p.data.seedList.map((x) => x.seed + ' 号种子 ' + x.name)), ['1 号种子 Eve', '2 号种子 Ben', '3 号种子 Dan']);
+  p.togglePlayer(tap({ name: 'Ben' })); // 发起人把 Ben 从名单里去掉
+  assert.deepStrictEqual(plain(p.seeds), ['Eve', 'Dan']);
+  p.doDraw();
+  assert.strictEqual(p.data.preview.lines.find((x) => x && x.seed === 1).name, 'Eve');
+  await p.save();
+  assert.strictEqual(toasts.pop(), '已生成');
+  assert.strictEqual(sent.id, 'd1');
+  assert.deepStrictEqual(plain(sent.draw.seeds), ['Eve', 'Dan']);
+  assert.ok(sent.draw.lines.some((x) => x && x.name === 'Dan' && x.seed === 2));
+});
+
+test('旧活动的种子名单：活动详情按「N 号种子」显示，单打叫种子选手、双打叫种子队伍；活动列表显示种子数', async () => {
+  const show = async (d) => {
+    const deps = {
+      '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: null, signups: [] }), fetchMatches: async () => [], myOpenid: async () => 'x' },
+      '../../utils/member': { isAdminLocal: () => false },
+    };
+    const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {} }, 'Page', deps);
+    v.id = d._id; v.makeCover = () => {}; v.renderSchedule = () => {};
+    await v.load();
+    assert.strictEqual(v.data.error, '');
+    return v.data;
+  };
+  // 旧版本创建的活动：没有 type 字段（按单打）、seeds 只是名字数组
+  const single = await show({ _id: 'old1', title: '老活动', mode: 'bracket', size: 8, status: 'drawn', entrants: ['老张', '老李', '小王'], seeds: ['老张', '老李'], lines: [] });
+  assert.strictEqual(single.seedLabel, '种子选手');
+  assert.deepStrictEqual(plain(single.seedRows), [{ no: 1, name: '老张' }, { no: 2, name: '老李' }]);
+  const dbl = await show({ _id: 'old2', title: '老双打', mode: 'groups', groupCount: 2, type: 'double', status: 'drawn', entrants: ['A / B', 'C / D'], seeds: ['C / D'], groups: [] });
+  assert.strictEqual(dbl.seedLabel, '种子队伍');
+  assert.deepStrictEqual(plain(dbl.seedRows), [{ no: 1, name: 'C / D' }]);
+  const none = await show({ _id: 'old3', title: '没种子', mode: 'bracket', size: 8, status: 'drawn', entrants: ['A', 'B'], lines: [] });
+  assert.deepStrictEqual(plain(none.seedRows), []);
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-view/draw-view.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{seedRows\.length\}\}"/.test(xml) && /\{\{item\.no\}\} 号种子 \{\{item\.name\}\}/.test(xml) && !/分开排位/.test(xml));
+
+  const list = load('pages/draw/draw.js', { showToast() {} }, 'Page', {
+    '../../utils/member': { statusCached: async () => ({ status: 'active', isAdmin: false }) },
+    '../../utils/db': {
+      drawsShared: async () => [
+        { _id: 'old1', title: '老活动', mode: 'bracket', size: 8, status: 'drawn', entrants: ['老张', '老李', '小王'], seeds: ['老张', '老李'] },
+        { _id: 'old2', title: '老双打', mode: 'groups', groupCount: 2, type: 'double', status: 'drawn', entrants: ['A / B', 'C / D'], seeds: ['C / D'] },
+        { _id: 'old3', title: '没种子', mode: 'bracket', size: 8, status: 'drawn', entrants: ['A', 'B'] },
+      ],
+      matchesShared: async () => [], myOpenid: async () => 'x', fetchMySignups: async () => [],
+    },
+  });
+  await list.load();
+  const meta = Object.fromEntries(list.data.shown.map((x) => [x._id, x.meta.replace(/ /g, ' ')]));
+  assert.match(meta.old1, / · 种子选手 2 位$/);
+  assert.match(meta.old2, / · 种子队伍 1 支$/);
+  assert.ok(!/种子/.test(meta.old3));
 });
 
 module.exports = T;

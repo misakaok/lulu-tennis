@@ -33,7 +33,7 @@ function toView(d, matches, myId, signed) {
   const typeText = (E.categoryText(d) && E.categoryOf(d) !== 'mixed' ? E.categoryText(d) : '') + (E.categoryOf(d) === 'mixed' ? '混双' : cfg.type === 'double' ? '双打' : '单打');
   const meta = [modeText, typeText];
   if (!signing) meta.push(`${(d.entrants || []).length} ${cfg.type === 'double' ? '队' : '人'}`);
-  if ((d.seeds || []).length) meta.push(`分开排位 ${d.seeds.length} 个`);
+  if ((d.seeds || []).length) meta.push(cfg.type === 'double' ? `种子队伍 ${d.seeds.length} 支` : `种子选手 ${d.seeds.length} 位`);
   return {
     _id: d._id, signing, mine: !!role, roleTags,
     title: d.title,
