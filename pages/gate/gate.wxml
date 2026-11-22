@@ -1,7 +1,8 @@
 <view class="page">
   <view class="g-hero bg-host">
     <image class="bg-img" src="/images/bg-gate.jpg" mode="aspectFill" />
-    <image class="g-logo" src="/images/art-ball.png" mode="aspectFit" />
+    <!-- 小程序图标的那只小狗（品牌形象，见 CLAUDE.md「小狗」）：新人第一眼看到的就是图标里的它 -->
+    <view class="g-dog"><image class="g-logo" src="/images/dog-smile.png" mode="aspectFit" /></view>
     <view class="g-title">{{loading ? '正在确认身份…' : title}}</view>
     <view class="g-desc">{{desc}}</view>
     <view wx:if="{{reason}}" class="g-reason">原因：{{reason}}</view>

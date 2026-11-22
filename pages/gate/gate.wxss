@@ -1,5 +1,11 @@
 .g-hero { margin: 20rpx 0 28rpx; padding: 50rpx 36rpx 40rpx; border-radius: 32rpx; color: #fff; text-align: center; background: #9493C0; box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
-.g-logo { display: block; width: 104rpx; height: 104rpx; margin: 0 auto; }
+.g-dog { position: relative; width: 161rpx; height: 200rpx; margin: 0 auto; }
+.g-logo { display: block; width: 161rpx; height: 200rpx; } /* dog-smile.png 241×300（3 倍屏 200rpx 高） */
+/* 小狗下面一圈淡淡的椭圆影子，让它像「坐」在卡片上；z-index: -1 → 在背景图上面、小狗下面 */
+.g-dog::before {
+  content: ''; position: absolute; left: 50%; top: 166rpx; width: 196rpx; height: 60rpx; margin-left: -98rpx; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(55, 55, 105, 0.32), rgba(55, 55, 105, 0.22) 50%, rgba(55, 55, 105, 0.07) 80%, rgba(55, 55, 105, 0));
+}
 .g-title { margin-top: 16rpx; font-size: 38rpx; font-weight: 900; }
 .g-desc { margin-top: 12rpx; font-size: 25rpx; opacity: 0.95; line-height: 1.6; }
 .g-reason { margin-top: 14rpx; font-size: 24rpx; background: rgba(255,255,255,0.2); border-radius: 14rpx; padding: 10rpx 16rpx; }
