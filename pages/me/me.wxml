@@ -4,7 +4,7 @@
   <!-- 成长档案：只有自己看得到的私人记录，和正式战绩分开统计 -->
   <view class="card gw" hover-class="tap-on" bindtap="openGrowth">
     <view class="hd">
-      <view class="hd-ic">📈</view>
+      <view class="hd-ic"><image class="hd-img" src="/images/art-basket.png" mode="aspectFit" /></view>
       <view class="hd-m">
         <view class="hd-t">我的成长档案</view>
       </view>
@@ -32,7 +32,7 @@
   <!-- 成员管理：仅管理员，放在最下面 -->
   <view wx:if="{{isAdmin}}" class="card adm" hover-class="tap-on" bindtap="openMembers">
     <view class="hd">
-      <view class="hd-ic">👥</view>
+      <view class="hd-ic"><image class="hd-img full" src="/images/badges/social.png" mode="aspectFit" /></view>
       <view class="hd-m">
         <view class="hd-t">成员管理<text class="ui-tag adm-only">仅管理员</text></view>
         <view class="hd-s {{pendingApply ? 'warn' : ''}}">{{pendingApply ? pendingApply + ' 个新申请等你审核' : '审核申请、邀请、移除成员'}}</view>

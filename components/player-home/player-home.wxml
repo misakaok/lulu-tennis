@@ -161,4 +161,24 @@
       <view wx:if="{{mine && total}}" class="cr-line cr-all" hover-class="tap-row-on" bindtap="allHistory"><text class="cr-k">全部比赛</text><text class="cr-v">{{total}} 场正式比赛</text><text class="cr-go">›</text></view>
     </view>
   </view>
+
+  <!-- 还没有正式比赛（只在「我的」）：照样摆出徽章（都没达成），告诉本人第一个怎么拿；默认只露前两行 -->
+  <view wx:if="{{mine && loaded && !view.career.has}}" class="card cr">
+    <view class="cr-head">
+      <text class="cr-title">生涯成就</text>
+      <text class="cr-cnt">徽章 <text class="b">0</text> / {{view.career.total}}</text>
+    </view>
+    <view class="cr-tip">打完第一场正式比赛，就能拿到「初登场」</view>
+    <view class="bd-grid cr-first">
+      <block wx:for="{{view.career.badges}}" wx:key="id">
+        <view wx:if="{{index < 8 || allBadges}}" class="bd off" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
+          <view class="bd-in">
+            <view class="bd-ic"><image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" /></view>
+            <text class="bd-n">{{item.name}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view class="cr-more"><view class="btn-line mini" hover-class="tap-on" bindtap="toggleBadges">{{allBadges ? '收起' : '看全部 ' + view.career.total + ' 个徽章'}}</view></view>
+  </view>
 </block>

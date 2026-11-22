@@ -121,7 +121,7 @@ test('球员卡界面：卡面不写标题；头像 / 首字圆（<pl-av>）、�
   assert.ok(card.indexOf('比赛等级') < card.indexOf('自评等级'));
   const stats = card.slice(card.indexOf('pc-stats'));
   assert.deepStrictEqual([...stats.matchAll(/<text class="l">([^<]+)<\/text>/g)].map((x) => x[1]), ['排名', '场数', '胜率']);
-  const fixed = xml.replace('<image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />', '').replace('<image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" />', '');
+  const fixed = xml.replace('<image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />', '').split('<image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" />').join('');
   assert.ok(!/<image /.test(fixed), '照片只走 pl-av；<image> 只有卡片背景和徽章图标（包里的静态配图）');
   assert.ok(!/stats4/.test(xml), '原来卡片下面单独的数据行已并进球员卡');
   // 第一版只在站内展示：没有分享、保存图片
@@ -146,6 +146,12 @@ T.push({ name: '生涯成就徽章：每个徽章都有图标 images/badges/<id>
   const xml = read('components/player-home/player-home.wxml'), css = read('components/player-home/player-home.wxss');
   assert.ok(/<image class="bd-img" src="\/images\/badges\/\{\{item\.id\}\}\.png" mode="aspectFit" \/>/.test(xml) && !/\{\{item\.icon\}\}/.test(xml));
   assert.ok(/\.bd\.off \.bd-img \{[^}]*grayscale/.test(css));
+  // 还没有正式比赛：「我的」照样摆出徽章（都没达成），默认只露前 8 个，告诉本人第一个怎么拿；别人的主页不显示
+  assert.ok(/wx:if="\{\{mine && loaded && !view\.career\.has\}\}"/.test(xml) && /index < 8 \|\| allBadges/.test(xml) && /就能拿到「初登场」/.test(xml));
+  assert.strictEqual(C.career([], 'u1', '小林').badges.filter((b) => b.got).length, 0);
+  // 「我的」入口图标用配图，不用 emoji
+  const me = read('pages/me/me.wxml');
+  assert.ok(/src="\/images\/art-basket\.png"/.test(me) && /src="\/images\/badges\/social\.png"/.test(me) && !/📈|👥/.test(me));
 } });
 
 module.exports = T;
