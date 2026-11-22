@@ -1,6 +1,6 @@
 <view class="page">
   <view wx:if="{{loading}}" class="muted">加载中…</view>
-  <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
+  <view wx:elif="{{error}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{error}}</view></view>
   <block wx:else>
     <view class="card">
       <view class="ee-row">

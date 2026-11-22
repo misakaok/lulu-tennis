@@ -1,12 +1,14 @@
 <view class="page">
   <view wx:if="{{error}}" class="empty">
-    <view class="empty-ball"></view>
+    <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
     <view>{{error}}</view>
     <view class="btn-primary small" hover-class="tap-on" bindtap="goHome">返回活动列表</view>
   </view>
 
   <block wx:if="{{draw}}">
-    <view class="head card">
+    <!-- 背景：几乎全是场地纹理，只在右上角有调暗的十字线（images/bg-event.jpg），整张卡都有字 -->
+    <view class="head card bg-host">
+      <image class="bg-img" src="/images/bg-event.jpg" mode="aspectFill" />
       <view class="h-title">{{draw.title}}</view>
       <view class="h-meta">{{meta}} · {{draw.date}}</view>
       <view wx:if="{{levelText}}" class="h-level">建议水平 {{levelText}}<text class="h-level-s">仅供参考，不限制报名</text></view>

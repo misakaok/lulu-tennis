@@ -1,5 +1,6 @@
 <!-- 球员卡（卡面不写标题）：头像 / 首字圆、昵称、比赛等级最突出；下方排名、场数、胜率。全部由正式战绩自动计算，只在小程序里展示 -->
-<view class="pcard {{view.profile ? '' : 'pcard-empty'}}" bindtap="edit">
+<view class="pcard bg-host {{view.profile ? '' : 'pcard-empty'}}" bindtap="edit">
+  <image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
   <view class="pc-top">
@@ -144,7 +145,7 @@
       <block wx:for="{{view.career.badges}}" wx:key="id">
         <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got' : 'off'}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
           <view class="bd-in">
-            <view class="bd-ic"><text>{{item.icon}}</text></view>
+            <view class="bd-ic"><image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" /></view>
             <text class="bd-n">{{item.name}}</text>
             <view wx:if="{{!item.got}}" class="bd-bar"><view class="bd-bar-in" style="width:{{item.pct}}%"></view></view>
             <text wx:if="{{!item.got}}" class="bd-p">{{item.progress}}</text>

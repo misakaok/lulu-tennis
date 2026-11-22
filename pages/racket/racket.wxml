@@ -8,20 +8,24 @@
   </view>
 
   <block wx:else>
+    <!-- 右边是固定配图（images/racket-hero.png，通用球拍、没有品牌），不随球拍变化；每支球拍仍用 <rk-art> 按配色画 -->
     <view class="hero {{play ? 'ani-in' : 'ani-wait'}}">
-      <view class="hero-row">
-        <view class="hc"><view class="hc-n">{{o.inUse}}</view><view class="hc-l">在用球拍</view></view>
-        <view class="hc"><view class="hc-n">{{o.stringCount}}</view><view class="hc-l">累计穿线</view></view>
-        <view class="hc"><view class="hc-n">{{o.maintCount}}</view><view class="hc-l">累计维护</view></view>
+      <view class="hero-main">
+        <view class="hero-row">
+          <view class="hc"><view class="hc-n">{{o.inUse}}</view><view class="hc-l">在用球拍</view></view>
+          <view class="hc"><view class="hc-n">{{o.stringCount}}</view><view class="hc-l">累计穿线</view></view>
+          <view class="hc"><view class="hc-n">{{o.maintCount}}</view><view class="hc-l">累计维护</view></view>
+        </view>
+        <view class="hero-foot">
+          <text wx:if="{{o.due}}" class="hero-due">{{o.due}} 项到期或快到了</text>
+          <text wx:else>{{o.lastString ? '上次穿线 ' + o.lastString : '还没有穿线记录'}}</text>
+        </view>
       </view>
-      <view class="hero-foot">
-        <text wx:if="{{o.due}}" class="hero-due">{{o.due}} 项到期或快到了</text>
-        <text wx:else>{{o.lastString ? '上次穿线 ' + o.lastString : '还没有穿线记录'}}</text>
-      </view>
+      <image class="hero-art" src="/images/racket-hero.png" mode="aspectFit" />
     </view>
 
     <view wx:if="{{!cards.length}}" class="card empty-card">
-      <view class="empty-ball"></view>
+      <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
       <view class="ec-t">还没有球拍</view>
       <view class="ec-s">添加球拍后可以记录每次穿线、换手胶，设置提醒间隔，到期时这里会提示</view>
       <view class="btn-primary small" hover-class="tap-on" bindtap="add">＋ 添加球拍</view>

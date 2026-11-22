@@ -22,7 +22,7 @@
   </view>
 
   <view wx:if="{{none && !loading}}" class="empty">
-    <view class="empty-ball"></view>
+    <image class="empty-art" src="/images/art-trophy.png" mode="aspectFit" />
     <view>{{emptyText}}</view>
   </view>
 

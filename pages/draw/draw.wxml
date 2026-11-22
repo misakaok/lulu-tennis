@@ -1,7 +1,11 @@
-<view class="hero">
-  <view class="hero-title">活动</view>
-  <view class="hero-sub">查看活动 → 报名参加 → 按场次录分 → 自动排名</view>
-  <view wx:if="{{canPublish}}" class="hero-btn" hover-class="tap-on" bindtap="goNew">＋ 创建球友活动</view>
+<!-- 顶部：球场图只作背景（images/hero-court.jpg，固定图片），标题和按钮是页面组件，叠在左边一块纯色场地上 -->
+<view class="hero bg-host">
+  <image class="bg-img" src="/images/hero-court.jpg" mode="aspectFill" />
+  <view class="hero-in">
+    <view class="hero-title">活动</view>
+    <view class="hero-sub"><view>查看活动 → 报名参加</view><view>按场次录分 → 自动排名</view></view>
+    <view wx:if="{{canPublish}}" class="hero-btn" hover-class="tap-on" bindtap="goNew">＋ 创建球友活动</view>
+  </view>
 </view>
 
 <view class="page">
@@ -40,14 +44,14 @@
       <view class="nx-foot"><text class="btn-line mini">查看场次 ›</text></view>
     </view>
     <view wx:elif="{{!loading}}" class="empty">
-      <view class="empty-ball"></view>
+      <image class="empty-art" src="/images/art-net.png" mode="aspectFit" />
       <view>{{nextStale ? '网络异常，暂时查不到你的下一场' : '暂无下一场'}}</view>
       <view wx:if="{{nextStale}}" class="nx-stale-s">下拉刷新重试</view>
     </view>
   </block>
 
   <view wx:if="{{tab !== 'next' && !shown.length && !loading}}" class="empty">
-    <view class="empty-ball"></view>
+    <image class="empty-art" src="/images/art-net.png" mode="aspectFit" />
     <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 

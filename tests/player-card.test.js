@@ -121,7 +121,8 @@ test('球员卡界面：卡面不写标题；头像 / 首字圆（<pl-av>）、�
   assert.ok(card.indexOf('比赛等级') < card.indexOf('自评等级'));
   const stats = card.slice(card.indexOf('pc-stats'));
   assert.deepStrictEqual([...stats.matchAll(/<text class="l">([^<]+)<\/text>/g)].map((x) => x[1]), ['排名', '场数', '胜率']);
-  assert.ok(!/<image /.test(xml));
+  const fixed = xml.replace('<image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />', '').replace('<image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" />', '');
+  assert.ok(!/<image /.test(fixed), '照片只走 pl-av；<image> 只有卡片背景和徽章图标（包里的静态配图）');
   assert.ok(!/stats4/.test(xml), '原来卡片下面单独的数据行已并进球员卡');
   // 第一版只在站内展示：没有分享、保存图片
   for (const f of ['components/player-home/player-home.js', 'pages/player/player.js']) {
@@ -132,5 +133,19 @@ test('球员卡界面：卡面不写标题；头像 / 首字圆（<pl-av>）、�
   assert.ok(/<player-home id="home" uid="\{\{myId\}\}" mine \/>/.test(read('pages/me/me.wxml')));
   assert.ok(/<player-home id="home" uid="\{\{uid\}\}" \/>/.test(read('pages/player/player.wxml')));
 });
+
+T.push({ name: '生涯成就徽章：每个徽章都有图标 images/badges/<id>.png（3D 图标，不再用 emoji），没达成的灰色变淡', fn() {
+  const C = require('../utils/career');
+  const ids = C.career([], 'u1', '小林').badges.map((b) => b.id);
+  assert.ok(ids.length >= 21);
+  ids.forEach((id) => {
+    const f = path.join(__dirname, '../images/badges', id + '.png');
+    assert.ok(fs.existsSync(f), id + ' 没有图标');
+    assert.ok(fs.statSync(f).size < 12 * 1024, id + ' 图标太大');
+  });
+  const xml = read('components/player-home/player-home.wxml'), css = read('components/player-home/player-home.wxss');
+  assert.ok(/<image class="bd-img" src="\/images\/badges\/\{\{item\.id\}\}\.png" mode="aspectFit" \/>/.test(xml) && !/\{\{item\.icon\}\}/.test(xml));
+  assert.ok(/\.bd\.off \.bd-img \{[^}]*grayscale/.test(css));
+} });
 
 module.exports = T;

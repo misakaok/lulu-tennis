@@ -22,7 +22,8 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
     assert.ok(!/wx\.(?:chooseImage|chooseMedia|uploadFile|chooseAvatar)\s*\(|wx\.cloud\.uploadFile/.test(code), base + ' 不能直接选图 / 上传');
     assert.ok(!/open-type\s*=\s*['"]chooseAvatar['"]/.test(xml), base);
     if (!UPLOAD[rel]) assert.ok(!/\bP\.(?:pick|upload|put)\s*\(|['"]setPhoto['"]/.test(code), base + ' 不能上传照片');
-    if (!SHOW[rel]) assert.ok(!/<image\b[^>]*\bsrc\s*=\s*['"][^'"]*\{\{/.test(xml), base + ' 动态图片只能用 <pl-av>');
+    // 动态图片只能用 <pl-av>；例外是包里的静态配图按编号取（如徽章 /images/badges/{{id}}.png），不是用户上传的
+    if (!SHOW[rel]) assert.ok(!/<image\b[^>]*\bsrc\s*=\s*['"](?!\/images\/)[^'"]*\{\{/.test(xml), base + ' 动态图片只能用 <pl-av>');
     Object.values(config.usingComponents || {}).forEach((target) => {
       inspect(target.startsWith('/') ? path.join(root, target.slice(1)) : path.resolve(path.dirname(base), target));
     });
@@ -37,11 +38,51 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   // 球拍没有照片：不上传、不调用 racketPhoto，也没有拍照 / 相册 / 画布
   const rk = fs.readFileSync(path.join(root, 'utils/rackets.js'), 'utf8');
   assert.ok(!/racketPhoto|require\('\.\/photo'\)/.test(rk), '球拍不能上传照片');
+  // 例外只有包里的静态界面配图（/images/ 下的固定图片，不是用户上传的）：球拍页顶部的通用球拍图、空状态插画
+  const FIXED_ART = /<image class="[\w-]+" src="\/images\/[\w-]+\.(?:png|jpg)" mode="aspectFit" \/>/g;
+  assert.ok(/<image class="hero-art" src="\/images\/racket-hero\.png"/.test(fs.readFileSync(path.join(root, 'pages/racket/racket.wxml'), 'utf8')), '球拍页的固定配图');
   for (const p of ['pages/racket/racket', 'pages/racket-view/racket-view', 'pages/racket-edit/racket-edit', 'pages/racket-log/racket-log']) {
-    const code = fs.readFileSync(path.join(root, p + '.js'), 'utf8') + fs.readFileSync(path.join(root, p + '.wxml'), 'utf8');
+    const code = fs.readFileSync(path.join(root, p + '.js'), 'utf8') + fs.readFileSync(path.join(root, p + '.wxml'), 'utf8').replace(FIXED_ART, '');
     assert.ok(!/utils\/photo|chooseMedia|chooseImage|racketPhoto|setPhoto|<canvas\b|<image\b|rk-photo/.test(code), p + ' 不能有照片');
   }
   assert.ok(!fs.existsSync(path.join(root, 'components/rk-photo')), '球拍照片组件已删除');
+} });
+
+T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host 卡片里的 .bg-img），文件存在、压缩过；文字和按钮仍是页面组件', fn() {
+  const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const used = {};
+  const comps = fs.readdirSync(path.join(root, 'components')).filter((c) => fs.existsSync(path.join(root, 'components', c, c + '.wxml'))).map((c) => 'components/' + c + '/' + c);
+  app.pages.concat(comps).forEach((page) => {
+    const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
+    (xml.match(/<image\b[^>]*class="bg-img"[^>]*>/g) || []).forEach((tag) => {
+      const src = (tag.match(/\bsrc="([^"]*)"/) || [])[1] || '';
+      assert.ok(/^\/images\/[\w-]+\.(?:jpg|png)$/.test(src), page + ' 背景图只能是包里的静态图片：' + src);
+      assert.ok(/mode="aspectFill"/.test(tag), page + ' 背景图铺满卡片');
+      used[src] = 1;
+    });
+    // 背景图卡片：图片是第一个子元素，卡片带 bg-host
+    (xml.match(/<view [^>]*class="[^"]*\bbg-host\b[^"]*"[^>]*>\s*<image\b[^>]*>/g) || []).forEach((m) => assert.ok(/class="bg-img"/.test(m), page));
+    assert.strictEqual((xml.match(/class="bg-img"/g) || []).length, (xml.match(/class="[^"]*\bbg-host\b/g) || []).length, page + ' 每个 bg-host 一张背景图');
+  });
+  // 主包有 2MB 上限：配图压缩后放进来，单张不超过 80KB
+  // 空状态插画和其他静态配图也一起查：文件存在、不超过 80KB
+  app.pages.concat(comps).forEach((page) => {
+    const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
+    (xml.match(/<image\b[^>]*\bsrc="\/images\/[^"{]+"/g) || []).forEach((tag) => { used[tag.match(/src="([^"]+)"/)[1]] = 1; }); // 按编号取的（徽章）在 player-card 测试里逐个查
+    assert.ok(!/empty-ball/.test(xml), page + ' 空状态用插画 .empty-art');
+  });
+  Object.keys(used).concat(['/images/racket-hero.png']).forEach((src) => {
+    const f = path.join(root, src.slice(1));
+    assert.ok(fs.existsSync(f), src + ' 不存在');
+    assert.ok(fs.statSync(f).size < 80 * 1024, src + ' 太大');
+  });
+  ['hero-court.jpg', 'bg-score.jpg', 'bg-mine.jpg', 'bg-event.jpg', 'bg-card.jpg', 'bg-gate.jpg', 'bg-growth.jpg', 'art-ball.png', 'art-net.png', 'art-basket.png', 'art-trophy.png']
+    .forEach((f) => assert.ok(used['/images/' + f], f + ' 没用上'));
+  const draw = fs.readFileSync(path.join(root, 'pages/draw/draw.wxml'), 'utf8');
+  assert.ok(/class="hero-title">活动</.test(draw) && /class="hero-btn"[^>]*bindtap="goNew"/.test(draw), '标题和按钮不放进图片里');
+  const css = fs.readFileSync(path.join(root, 'app.wxss'), 'utf8');
+  // 图片垫在卡片内容下面：卡片自成一层（z-index: 0），图片 z-index: -1
+  assert.ok(/\.bg-host \{ position: relative; overflow: hidden; z-index: 0; \}/.test(css) && /\.bg-img \{ position: absolute;[^}]*z-index: -1; \}/.test(css));
 } });
 
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {

@@ -5,7 +5,9 @@
   </view>
 
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
-  <view wx:if="{{me}}" class="mine" hover-class="tap-on" bindtap="goMe">
+  <!-- 背景：俯拍球网横在卡片底边，网球停在网带上（images/bg-mine.jpg） -->
+  <view wx:if="{{me}}" class="mine bg-host" hover-class="tap-on" bindtap="goMe">
+    <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-h">
       <pl-av class="mine-av" uid="{{me.uid}}" name="{{me.name}}" />
       <view class="mine-who"><view class="mine-n">{{me.name}}</view><view class="mine-r">{{me.rankText}}</view></view>
@@ -21,7 +23,8 @@
       <view wx:for="{{me.recent}}" wx:key="i" class="mf {{item.w ? 'w' : ''}}">{{item.w ? '胜' : '负'}}</view>
     </view>
   </view>
-  <view wx:else class="mine club">
+  <view wx:else class="mine club bg-host">
+    <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-stats">
       <view class="ms"><view class="ms-n">{{stat.total}}</view><view class="ms-l">总场次</view></view>
       <view class="ms"><view class="ms-n">{{stat.month}}</view><view class="ms-l">本月</view></view>
@@ -38,7 +41,7 @@
   </view>
 
   <view wx:if="{{!groups.length && !loading}}" class="empty">
-    <view class="empty-ball"></view>
+    <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
     <view>{{who || filter !== 'all' ? '没有符合条件的比赛' : '还没有比赛记录'}}</view>
     <view wx:if="{{canRecordDaily && !who && filter === 'all'}}" class="btn-primary small" hover-class="tap-on" bindtap="goAdd">记录一场日常比赛</view>
   </view>

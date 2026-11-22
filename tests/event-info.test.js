@@ -219,6 +219,26 @@ test('分享封面：只画日期、时间和人数（不画活动名称、昵�
   assert.ok(/imageUrl: this\.cover \|\| Card\.FALLBACK/.test(view) && /promise: this\.coverJob/.test(view));
   for (const p of ['pages/gate/gate.js', 'pages/members/members.js']) assert.ok(/imageUrl: SHARE_IMAGE/.test(fs.readFileSync(path.join(__dirname, '..', p), 'utf8')), p);
   assert.ok(fs.existsSync(path.join(__dirname, '..', Card.FALLBACK)));
+  // 有底图（界面配图 share-bg）：先铺底图，不再画渐变和左上的小球，文字照旧
+  assert.ok(fs.existsSync(path.join(__dirname, '..', Card.BG)) && fs.statSync(path.join(__dirname, '..', Card.BG)).size < 80 * 1024);
+  const calls = [], texts2 = [];
+  const ctx2 = new Proxy({}, { get: (o, k) => k === 'fillText' ? (t) => texts2.push(t)
+    : k === 'measureText' ? (t) => ({ width: String(t).length * 40 })
+    : ['drawImage', 'createLinearGradient', 'arc'].indexOf(k) >= 0 ? (...a) => { calls.push(k); return { addColorStop: noop }; }
+    : (k in o ? o[k] : noop), set: (o, k, v) => { o[k] = v; return true; } });
+  const bg = {};
+  Card.paint(ctx2, a, bg);
+  assert.strictEqual(calls[0], 'drawImage');
+  assert.ok(calls.indexOf('createLinearGradient') < 0 && calls.indexOf('arc') < 0, '有底图不画渐变和小球');
+  assert.deepStrictEqual(texts2, texts);
+});
+
+test('分享封面底图：画布能加载就用，加载失败或超时（1.5 秒）、基础库没有 createImage 时返回空，照旧画渐变', async () => {
+  const Card = require('../utils/share-card');
+  assert.strictEqual(await Card.loadBg({}), null);
+  const ok = await Card.loadBg({ createImage: () => { const img = {}; setTimeout(() => img.onload(), 0); return img; } });
+  assert.ok(ok && ok.src === Card.BG);
+  assert.strictEqual(await Card.loadBg({ createImage: () => { const img = {}; setTimeout(() => img.onerror(), 0); return img; } }), null);
 });
 
 /* ---------- 种子设置（原「分开排位」）：叫法改成种子，生成逻辑和数据结构不变 ---------- */

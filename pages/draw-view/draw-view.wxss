@@ -1,4 +1,4 @@
-.head { background: linear-gradient(135deg, #A3A3CB, #8484B6); color: #fff; }
+.head { background: #9695C1; color: #fff; }
 .h-title { font-size: 36rpx; font-weight: 800; }
 .h-meta { font-size: 24rpx; opacity: 0.8; margin-top: 8rpx; }
 .h-seeds { margin-top: 18rpx; font-size: 24rpx; background: rgba(255, 255, 255, 0.12); border-radius: 14rpx; padding: 12rpx 16rpx; line-height: 1.6; }

@@ -1,6 +1,7 @@
 <view class="page">
-  <view class="g-hero">
-    <view class="g-logo">🎾</view>
+  <view class="g-hero bg-host">
+    <image class="bg-img" src="/images/bg-gate.jpg" mode="aspectFill" />
+    <image class="g-logo" src="/images/art-ball.png" mode="aspectFit" />
     <view class="g-title">{{loading ? '正在确认身份…' : title}}</view>
     <view class="g-desc">{{desc}}</view>
     <view wx:if="{{reason}}" class="g-reason">原因：{{reason}}</view>

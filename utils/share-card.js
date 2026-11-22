@@ -1,7 +1,8 @@
 // 活动分享卡片封面：在页面上隐藏的 2d 画布里画「日期 + 报名人数」，导出临时图片给 onShareAppMessage 用。
 // 只画日期、时间和人数这些固定格式的内容，不画活动名称、昵称（名称已经在卡片标题里）。
 // 画不出来（基础库太旧、画布取不到）时，调用方退回固定封面 FALLBACK。
-const FALLBACK = '/images/share.png';
+const FALLBACK = '/images/share.jpg'; // 固定封面：底图 + 「LULU网球」（邀请、准入页分享，以及画布画不出来时）
+const BG = '/images/share-bg.jpg'; // 画布底图：俯拍淡紫球场，右上一个网球、一条白线（2026-11-22 界面配图）
 const W = 1000, H = 800; // 5:4，微信分享卡片的比例
 const WEEK = '日一二三四五六';
 
@@ -47,21 +48,25 @@ function ball(ctx, cx, cy, r) {
 
 const FONT = '"PingFang SC", "Helvetica Neue", sans-serif';
 
-function paint(ctx, info) {
-  // 背景：淡紫渐变 + 很淡的球场线
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, '#A3A3CB'); g.addColorStop(1, '#8484B6');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 6;
-  ctx.strokeRect(40, 40, W - 80, H - 80);
-  ctx.beginPath(); ctx.moveTo(W / 2, 40); ctx.lineTo(W / 2, H - 40); ctx.stroke();
+// bg：加载好的底图（画布 createImage）；没有就画原来的淡紫渐变 + 小球
+function paint(ctx, info, bg) {
+  if (bg) {
+    ctx.drawImage(bg, 0, 0, W, H); // 底图里已经有网球（右侧中间偏上），左上不再画小球
+  } else {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#A3A3CB'); g.addColorStop(1, '#8484B6');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 6;
+    ctx.strokeRect(40, 40, W - 80, H - 80);
+    ctx.beginPath(); ctx.moveTo(W / 2, 40); ctx.lineTo(W / 2, H - 40); ctx.stroke();
+    ball(ctx, 112, 118, 30);
+  }
   ctx.textBaseline = 'alphabetic';
 
-  // 左上：小球 + 名字
-  ball(ctx, 112, 118, 30);
+  // 左上：名字
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `bold 40px ${FONT}`;
-  ctx.fillText('LULU网球', 160, 133);
+  ctx.fillText('LULU网球', bg ? 80 : 160, 133);
 
   // 右上：报名中标签（正向状态用黄绿）
   if (info.tag) {
@@ -106,17 +111,30 @@ function paint(ctx, info) {
   }
 }
 
+// 底图加载不出来（基础库太旧、超时）就返回 null，照旧画渐变
+function loadBg(canvas) {
+  if (!canvas || typeof canvas.createImage !== 'function') return Promise.resolve(null);
+  return new Promise((ok) => {
+    const img = canvas.createImage();
+    const timer = setTimeout(() => ok(null), 1500);
+    img.onload = () => { clearTimeout(timer); ok(img); };
+    img.onerror = () => { clearTimeout(timer); ok(null); };
+    img.src = BG;
+  });
+}
+
 // canvas：页面上 <canvas type="2d"> 的节点。返回临时图片路径
 async function render(canvas, info) {
+  const bg = await loadBg(canvas);
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, W, H);
-  paint(ctx, info);
+  paint(ctx, info, bg);
   const r = await new Promise((ok, bad) => wx.canvasToTempFilePath({
     canvas, x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H, fileType: 'jpg', quality: 0.9, success: ok, fail: bad, // JPG 比 PNG 导出快、文件小一半
   }));
   return r.tempFilePath;
 }
 
-module.exports = { FALLBACK, W, H, cardInfo, paint, render };
+module.exports = { FALLBACK, BG, W, H, cardInfo, paint, render, loadBg };

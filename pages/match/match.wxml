@@ -1,11 +1,13 @@
 <view class="page">
   <view wx:if="{{loading}}" class="muted">加载中…</view>
-  <view wx:elif="{{error}}" class="empty"><view class="empty-ball"></view><view>{{error}}</view></view>
+  <view wx:elif="{{error}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{error}}</view></view>
   <block wx:else>
     <view wx:if="{{status === 'invalid'}}" class="st-tip bad">这条活动比分不是从活动对阵表录入的，不计入战绩</view>
 
     <!-- 记分牌 -->
-    <view class="hero">
+    <!-- 背景：俯拍球网竖在正中间，左右两个半场对应两方（images/bg-score.jpg） -->
+    <view class="hero bg-host">
+      <image class="bg-img" src="/images/bg-score.jpg" mode="aspectFill" />
       <view class="hero-top">
         <view class="hero-tag" bindtap="openEvent">{{m.event || '日常比赛'}}{{m.event ? ' ›' : ''}}</view>
         <view class="hero-meta">{{m.date}} · {{m.typeText}} · {{m.format}}</view>

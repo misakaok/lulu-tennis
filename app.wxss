@@ -15,6 +15,13 @@ page {
 }
 .page { padding: 24rpx 28rpx 60rpx; }
 
+/* 背景图卡片（界面配图，见 CLAUDE.md「界面配图」）：卡片加 .bg-host，第一个子元素放
+   <image class="bg-img" src="/images/xxx.jpg" mode="aspectFill" />；其余内容照常写，会叠在图上面
+   （卡片自己是一层，图片 z-index: -1 垫在最下面，卡片里原有的绝对定位装饰照常在图上面）。
+   卡片自己的 background 写成和图片相近的颜色，图片还没显示出来时不闪白。 */
+.bg-host { position: relative; overflow: hidden; z-index: 0; }
+.bg-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; }
+
 .card {
   background: #fff;
   border-radius: 36rpx;
@@ -69,10 +76,9 @@ page {
 .stat-l { font-size: 22rpx; color: #8686A0; margin-top: 4rpx; }
 
 .empty { text-align: center; color: #8686A0; padding: 100rpx 0; font-size: 28rpx; }
-.empty-ball {
-  width: 120rpx; height: 120rpx; border-radius: 50%; margin: 0 auto 28rpx;
-  background: radial-gradient(circle at 35% 30%, #f2ff9e, #c9e33a 60%, #9fbb1f);
-}
+/* 空状态插画：<image class="empty-art" src="/images/art-xxx.png" mode="aspectFit" />
+   art-ball 通用（没有记录、读取失败）、art-net 活动、art-basket 成长档案、art-trophy 排行榜 */
+.empty-art { display: block; width: 180rpx; height: 180rpx; margin: 0 auto 24rpx; }
 
 /* 名字后面的性别（个人资料里填的） */
 .gd { font-size: 20rpx; font-weight: 400; color: #8E8EB8; }
