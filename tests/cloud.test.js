@@ -240,7 +240,7 @@ test('管理员更正比分：拒绝冒充身份、弃权退赛和无效活动�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
-test('日常比赛：管理员录入即生效；普通参赛者改分留档且不重复写入', async () => {
+test('日常比赛：录入即生效；普通参赛者改分留档且不重复写入、可以撤销', async () => {
   const env = setup();
   const id = ok(await daily(env, 'alice', 'bob'))._id;
   const st = ok(await env.call('bob', 'matchState', { matchId: id, detail: true }));
@@ -259,9 +259,29 @@ test('日常比赛：管理员录入即生效；普通参赛者改分留档且�
   assert.strictEqual(edits.length, 1);
   assert.ok(edits[0].by === 'bob' && edits[0].matchId === id && edits[0].from.winner === 'a' && edits[0].from.sets[0].b === 2 && edits[0].to.winner === 'b');
   no(await env.call('bob', 'requestScoreChange', { matchId: id, sets: [{ a: 4, b: 1 }], reason: '比分录反了' }), /直接修改/);
-  // 撤销仍然只有录入人
-  no(await env.call('bob', 'revokeMatch', { matchId: id }));
-  ok(await env.call('alice', 'revokeMatch', { matchId: id }));
+  // 撤销：录入人和参加者都可以（别人乱录了自己能删掉），无关的人不行；留档不带 byAdmin
+  no(await env.call('eve', 'revokeMatch', { matchId: id }), /参加者/);
+  assert.strictEqual(ok(await env.call('bob', 'revokeMatch', { matchId: id })).removed, 1);
+  const rv = Object.values(env.coll('requests')).filter((x) => x.type === 'revoke');
+  assert.ok(rv.length === 1 && rv[0].by === 'bob' && !rv[0].byAdmin);
+  assert.ok(!ok(await env.call('alice', 'dataset', {})).matches.some((m) => m._id === id));
+  // 录入人照样能撤销自己录的
+  const id2 = ok(await daily(env, 'alice', 'bob'))._id;
+  ok(await env.call('alice', 'revokeMatch', { matchId: id2 }));
+});
+
+test('日常比赛：双打四位参加者都能撤销；锁定的比分参加者也不能撤销', async () => {
+  const env = setup();
+  const d = { op: 'add', coll: 'matches', data: { type: 'double', a: ['Alice', 'Carl'], b: ['Bob', 'Eve'], aIds: ['alice', 'carl'], bIds: ['bob', 'eve'], winner: 'a', sets: [{ a: 4, b: 2 }] } };
+  const id = ok(await env.call('alice', 'data', d))._id;
+  no(await env.call('owner', 'revokeMatch', { matchId: id }));
+  ok(await env.call('eve', 'revokeMatch', { matchId: id })); // 对方的搭档
+  const id2 = ok(await env.call('alice', 'data', d))._id;
+  ok(await env.call('carl', 'revokeMatch', { matchId: id2 })); // 自己这边的搭档
+  const id3 = ok(await env.call('alice', 'data', d))._id;
+  ok(await env.call('bob', 'confirmResult', { matchId: id3 }));
+  no(await env.call('bob', 'revokeMatch', { matchId: id3 }), /申请修改比分/);
+  no(await env.call('alice', 'revokeMatch', { matchId: id3 }), /申请修改比分/);
 });
 
 test('日常比赛：管理员也只能记录自己参加的比赛（按用户 ID）', async () => {

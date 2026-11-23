@@ -331,7 +331,7 @@ async function checkedTitle(value, uid) {
 }
 
 /* ---------- 撤销赛果 ---------- */
-// 日常比赛：只有录入人能撤销；已经锁定的比分（以前双方确认过的、管理员更正过的）不能撤销，只能「申请修改比分」。
+// 日常比赛：录入人和这场的参加者（按用户 ID，2026-11-23 起）都能撤销，别人乱录了自己可以删掉；已经锁定的比分（以前双方确认过的、管理员更正过的）不能撤销，只能「申请修改比分」。
 // 活动比赛：参赛的录入人只能撤销「还没双方确认、不影响后续场次」的正常比分；
 //   其他情况（已确认、弃权 / 退赛、会推翻后续已录分场次）只有发起人能撤销，必须填原因，受影响的场次一并作废。
 // 所有撤销都写处理记录，被删的比分快照留档。
@@ -346,7 +346,10 @@ async function revokeMatch({ matchId, reason, confirmImpact }, uid) {
   const owner = !!draw && draw._openid === uid;
   const recorder = recorderOf(m) === uid;
   const admin = isAdmin(uid);
-  if (!owner && !recorder && !admin) deny('只有录入人、活动发起人或管理员可以撤销');
+  const daily = !(m.drawId && m.drawKey);
+  const ids = await sidesOf(m, {});
+  const player = daily && !!sideOf(ids, uid); // 日常比赛的参加者
+  if (!owner && !recorder && !player && !admin) deny(daily ? '只有录入人、这场比赛的参加者或管理员可以撤销' : '只有录入人、活动发起人或管理员可以撤销');
   const pend = await getDoc('requests', 'sc_' + m._id);
   const open = !!pend && (pend.status === 'pending' || pend.status === 'processing');
   if (open && !admin) deny('这场有待处理的改分申请，处理完之前不能撤销');
@@ -354,17 +357,16 @@ async function revokeMatch({ matchId, reason, confirmImpact }, uid) {
   // 管理员撤销时，待处理的改分申请一并失效（原子领取，避免和对方同时处理）
   const closeReq = async () => { if (open) await finish(pend._id, { status: 'stale', handledBy: uid, handleNote: '管理员已撤销这场比赛' }); };
   const normal = (m.outcome || 'normal') === 'normal' && !m.walkover;
-  const confirmed = !finishedReason(m) && (await confirmState(m, await sidesOf(m, {}))).confirmed;
+  const confirmed = !finishedReason(m) && (await confirmState(m, ids)).confirmed;
 
-  if (!(m.drawId && m.drawKey)) {
+  if (daily) {
     if (!admin) {
-      if (!recorder) deny('只有录入人可以撤销日常比赛');
       if (confirmed) deny('比分已经锁定，不能单方面撤销；如果比分有误，请「申请修改比分」');
     }
     if (open && !(await claim(pend._id, uid))) deny('这场的改分申请正在处理中，请稍后再试');
     const removed = await voidRecords([m._id]);
     await closeReq();
-    await logAction(Object.assign({ type: 'revoke', matchId: m._id, by: uid, reason: cleanReason(reason), removed }, admin && !recorder ? { byAdmin: true } : {}));
+    await logAction(Object.assign({ type: 'revoke', matchId: m._id, by: uid, reason: cleanReason(reason), removed }, admin && !recorder && !player ? { byAdmin: true } : {}));
     return { removed: removed.length, voided: [] };
   }
 

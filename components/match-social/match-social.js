@@ -9,7 +9,7 @@ Component({
   properties: {
     matchId: { type: String, value: '' },
     preset: { type: Object, value: null }, // 页面已经取到的 matchState 结果：第一次直接用，不再调云函数
-    revocable: { type: Boolean, value: false }, // 前端提示用：录入人或发起人（云函数会再校验）
+    revocable: { type: Boolean, value: false }, // 前端提示用：录入人、日常比赛的参加者（云函数会再校验）
   },
   // 多字段监听器在同批属性更新后执行，不依赖 Promise 微任务的调度时机。
   observers: { 'matchId, preset'() { this.load(true); } },

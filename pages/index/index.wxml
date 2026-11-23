@@ -80,7 +80,7 @@
   </block>
 
   <view wx:if="{{more}}" class="foot">上滑加载更多</view>
-  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己录入的日常比赛</view>
+  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己参加的日常比赛</view>
 </view>
 
 <!-- 记录日常比赛（活动比赛在签表里录） -->
