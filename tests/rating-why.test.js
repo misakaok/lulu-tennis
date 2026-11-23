@@ -190,9 +190,11 @@ test('比赛详情页：只给本人看自己参加的正式比赛；弃权、�
   assert.strictEqual((await open('up', 'op')).data.why.reason, '这场赢了，但你拿到的局数低于赛前预期，水平分下降了');
   assert.strictEqual((await open('up', 'x')).data.why, null, '没参加的人看不到');
   assert.strictEqual((await open('up', '')).data.why, null);
-  assert.match((await open('wo', 'me')).data.why.none, /弃权的比赛不计入水平分/);
-  assert.match((await open('rt', 'me')).data.why.none, /中途退赛的比赛不计入水平分/);
-  assert.match((await open('empty', 'me')).data.why.none, /没有可用的局分记录/);
+  const wo = (await open('wo', 'me')).data.why, rt = (await open('rt', 'me')).data.why, em = (await open('empty', 'me')).data.why;
+  assert.strictEqual(wo.noneTitle, '本场未计入水平分'); assert.match(wo.none, /^弃权：.*不计入水平分/);
+  assert.strictEqual(rt.noneTitle, '本场未计入水平分'); assert.match(rt.none, /^中途退赛：.*不计入水平分/);
+  assert.strictEqual(em.noneTitle, '本场未计入水平分'); assert.match(em.none, /没有可用的局分记录/);
+  assert.ok(/why\.noneTitle/.test(fs.readFileSync(path.resolve(__dirname, '../pages/match/match.wxml'), 'utf8')), '页面显示「本场未计入水平分」标题');
   assert.strictEqual((await open('pending', 'me')).data.why, null, '不在正式战绩里不显示');
   assert.strictEqual((await open('legacy', 'op')).data.why.dir !== undefined, true, '对方有账号照常显示');
   // 页面上等级只经 R.fmt，涨跌只有箭头；展开按钮用 .btn-line mini

@@ -41,7 +41,10 @@
     <!-- 这场为什么涨分 / 掉分：只给本人看自己参加的正式比赛；等级按 0.5 档显示，涨跌只有箭头 -->
     <view wx:if="{{why}}" class="card why">
       <view class="card-title">这场的水平分<text class="sub">只有你自己能看到</text></view>
-      <view wx:if="{{why.none}}" class="why-none">{{why.none}}</view>
+      <block wx:if="{{why.none}}">
+        <view class="why-head"><text class="why-ar">—</text><text class="why-t">{{why.noneTitle}}</text></view>
+        <view class="why-none">{{why.none}}</view>
+      </block>
       <block wx:else>
         <view class="why-head">
           <text class="why-ar {{why.dir}}">{{why.arrow || '—'}}</text>

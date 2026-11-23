@@ -150,3 +150,17 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .share-cv { position: fixed; left: -2000px; top: 0; width: 1000px; height: 800px; }
 .in-place { font-weight: 600; }
 .in-addr { margin-top: 4rpx; font-size: 24rpx; line-height: 1.45; color: #8686A0; }
+
+/* 场次：全部 / 退赛／弃权 */
+.sch-seg { margin-bottom: 16rpx; }
+.wdv-p { padding: 14rpx 0; }
+.wdv-p + .wdv-p { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间（见 tests/review-surface.test.js） */
+.wdv-p:last-child { padding-bottom: 0; } /* 最后一行不再多出下边距 */
+.wdv-top { display: flex; align-items: center; flex-wrap: wrap; }
+.wdv-n { font-size: 27rpx; font-weight: 700; color: #1E1E32; margin-right: 12rpx; }
+.wdv-st { margin-left: 12rpx; font-size: 22rpx; color: #8686A0; }
+.wdv-s { font-size: 23rpx; color: #5C5C76; line-height: 1.6; margin-top: 6rpx; }
+.wdv-vs { display: flex; align-items: center; flex-wrap: wrap; font-size: 27rpx; color: #5C5C76; margin-top: 10rpx; }
+.wdv-w { color: #1E1E32; font-weight: 800; }
+.wdv-x { margin: 0 14rpx; font-size: 22rpx; color: #A5A5BA; }
+.wdv-u { font-size: 21rpx; color: #8686A0; margin-top: 6rpx; }

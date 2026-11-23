@@ -3,6 +3,7 @@
 //   仍由本人核对后点「提交比分」（recordEventMatch）；提交成功才清掉那份记分草稿
 const E = require('../../utils/event');
 const SC = require('../../utils/scorer');
+const RT = require('../../utils/rating');
 const R = require('../../utils/rules');
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
@@ -22,7 +23,7 @@ Page({
     editing: false, init: [], canEdit: false, reason: '', withdrawReasons: E.REASONS.withdraw,
     check: { ok: false, msg: '' }, submitting: false,
     recordId: '', revocable: false,
-    isOwner: false, outcomeText: '', retire: null, busy: false,
+    isOwner: false, outcomeText: '', unrated: null, retire: null, busy: false,
     scorerOk: false, scorerResume: false, fromScorer: false,
   },
 
@@ -76,6 +77,7 @@ Page({
         sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
         aLabel: f.a, bLabel: f.b,
         done: f.done, winner: f.winner, isOwner: !!owner, outcomeText: f.outcomeText || '',
+        unrated: f.done && f.outcome && f.outcome !== 'normal' ? RT.unratedOf(f.outcome) : null, // 弃权 / 退赛（含退赛后判的弃权）：本场未计入水平分
         resultSets: f.sets.map((s) => ({
           a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a,
           tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,

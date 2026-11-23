@@ -1,4 +1,5 @@
 const E = require('../../utils/event');
+const R = require('../../utils/rating');
 
 // 显示签表（淘汰赛）或小组积分榜（小组赛），结果由活动里录入的比分算出
 Component({
@@ -54,7 +55,9 @@ Component({
       if (!this.data.editable) return;
       const { r, i } = e.currentTarget.dataset;
       const m = this.data.rounds[r].matches[i];
-      if (m.auto || m.hasBye) return;
+      // 轮空没有比赛记录：点了说明一下（直接进入下一轮，本场未计入水平分）；两边都轮空的空签位不提示
+      if (m.hasBye) { if (m.auto) wx.showToast({ title: `轮空直接进入下一轮，${R.unratedOf('bye').title}`, icon: 'none', duration: 2500 }); return; }
+      if (m.auto) return;
       this.triggerEvent('open', { key: m.key, ready: m.ready });
     },
     tapFixture(e) {

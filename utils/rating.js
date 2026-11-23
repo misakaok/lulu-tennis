@@ -200,7 +200,17 @@ function whyOf(ratings, matchId, key) {
   };
 }
 
+// 不计入水平分的场次：弃权、中途退赛（computeRatings 只算 outcome 为 normal 的）、成绩取消（退赛后这些记录已作废，不在正式战绩里）、
+// 轮空（没有对手、没有比赛记录，直接进入下一轮）。场数、胜率也一样只算正常完赛的（rules.isNormal）。比赛详情、活动录分页、对阵表共用这几句
+const UNRATED = {
+  walkover: '弃权：没有实际打完的比分，不计入水平分、场数和胜率',
+  retired: '中途退赛：比赛没有打完，已打的局分保留，但不计入水平分、场数和胜率',
+  void: '成绩已取消：不计入水平分、场数和胜率',
+  bye: '轮空：这一轮没有对手，直接进入下一轮，不计入水平分、场数和胜率',
+};
+const unratedOf = (kind) => (UNRATED[kind] ? { title: '本场未计入水平分', text: UNRATED[kind] } : null);
+
 module.exports = {
   DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, CHALLENGE_DOWN, SELF_LEVELS,
-  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta, whyOf,
+  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta, whyOf, unratedOf,
 };

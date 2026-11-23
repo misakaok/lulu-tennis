@@ -94,10 +94,35 @@
       <draw-board wx:if="{{tab === 'board'}}" draw="{{draw}}" matches="{{matches}}" me="{{myName}}" editable="{{true}}" bind:open="onOpen" />
 
       <view wx:else>
+        <view class="seg sch-seg">
+          <view class="seg-item {{schFilter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setSchFilter">全部场次</view>
+          <view class="seg-item {{schFilter === 'wd' ? 'on' : ''}}" data-v="wd" bindtap="setSchFilter">退赛／弃权{{wdCount ? ' ' + wdCount : ''}}</view>
+        </view>
         <view class="sch-bar">
-          <text class="muted">{{isOwner ? '点击场次录分；可以给每一场安排时间和场地' : '点击场次录入或查看比分'}}</text>
+          <text class="muted">{{schFilter === 'wd' ? '只显示参加状态和对场次的影响' : isOwner ? '点击场次录分；可以给每一场安排时间和场地' : '点击场次录入或查看比分'}}</text>
           <text class="mine-tg {{onlyMine ? 'on' : ''}}" bindtap="toggleMine">{{onlyMine ? '✓ ' : ''}}只看我的</text>
         </view>
+
+        <!-- 退赛／弃权：现有的退赛名单和弃权 / 中途退赛 / 成绩取消的场次，不显示原因 -->
+        <block wx:if="{{schFilter === 'wd'}}">
+          <view wx:if="{{!wdView.entrants.length && !wdView.rows.length}}" class="muted center">{{onlyMine ? '你在这个活动里没有退赛或弃权' : '这个活动没有退赛或弃权'}}</view>
+          <view wx:if="{{wdView.entrants.length}}" class="card wdv">
+            <view class="card-title">退赛名单<text class="sub">{{wdView.entrants.length}} 位</text></view>
+            <view wx:for="{{wdView.entrants}}" wx:key="entrant" class="wdv-p">
+              <view class="wdv-top"><text class="wdv-n">{{item.entrant}}</text><text class="ui-tag warn">{{item.status}}</text><text class="wdv-st">{{item.stage}}</text></view>
+              <view class="wdv-s">{{item.policy}}</view>
+              <view wx:if="{{item.count}}" class="wdv-s">影响 {{item.count}} 场，见下面</view>
+            </view>
+          </view>
+          <view wx:for="{{wdView.rows}}" wx:key="key" class="sch done wdv-r {{item.mine ? 'mine' : ''}}" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapWd">
+            <view class="sch-top"><text class="sch-stage">{{item.stage}}</text><text class="ui-tag {{item.kind === 'void' ? '' : 'warn'}}">{{item.status}}</text></view>
+            <view class="wdv-vs"><text class="{{item.winner === 'a' ? 'wdv-w' : ''}}">{{item.a}}</text><text class="wdv-x">vs</text><text class="{{item.winner === 'b' ? 'wdv-w' : ''}}">{{item.b}}</text></view>
+            <view class="wdv-s">{{item.impact}}</view>
+            <view class="wdv-u">{{item.unrated}}</view>
+          </view>
+        </block>
+
+        <block wx:else>
         <view wx:if="{{!schedule.length}}" class="muted center">{{onlyMine ? '你在这个活动里没有比赛' : '还没有比赛'}}</view>
         <view wx:for="{{schedule}}" wx:key="key" id="sch-{{item.key}}" class="sch {{item.status}} {{item.mine ? 'mine' : ''}} {{focus === item.key ? 'focus' : ''}}" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapItem">
           <view class="sch-top">
@@ -131,6 +156,7 @@
             <text wx:if="{{isOwner && !item.done}}" class="sch-plan" data-key="{{item.key}}" catchtap="planSlot">{{item.slotText ? '修改安排' : '安排时间场地'}}</text>
           </view>
         </view>
+        </block>
       </view>
     </block>
 

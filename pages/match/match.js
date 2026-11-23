@@ -18,10 +18,9 @@ function whyView(all, ratings, m, myId) {
   const mine = (rec.aKeys || []).indexOf(myId) >= 0 || (rec.bKeys || []).indexOf(myId) >= 0;
   if (!mine) return null;
   const oc = outcomeOf(rec);
-  if (oc === 'walkover') return { none: '弃权的比赛不计入水平分，这场没有影响你的水平分' };
-  if (oc === 'retired') return { none: '中途退赛的比赛不计入水平分，这场没有影响你的水平分' };
+  if (oc === 'walkover' || oc === 'retired') { const u = R.unratedOf(oc); return { none: u.text, noneTitle: u.title }; }
   const w = R.whyOf(ratings, m._id, myId);
-  return w || { none: '这场没有可用的局分记录，没有参与水平分计算' };
+  return w || { none: '这场没有可用的局分记录，没有参与水平分计算', noneTitle: '本场未计入水平分' };
 }
 
 Page({

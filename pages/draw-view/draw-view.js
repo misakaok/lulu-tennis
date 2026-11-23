@@ -6,6 +6,7 @@ const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
 const SC = require('../../utils/slot-conflict');
+const WV = require('../../utils/withdraw-view'); // 「退赛／弃权」筛选：只整理现有的赛程和退赛名单
 const Card = require('../../utils/share-card'); // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 const COVER_DELAY_MS = 800; // 进页面后等一会儿再画封面；这期间分享会等它画完（微信最多等 3 秒）
 const S = require('../../utils/stats');
@@ -25,6 +26,7 @@ Page({
     signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null,
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
+    schFilter: 'all', wdView: { entrants: [], rows: [] }, wdCount: 0, // 场次：全部 / 退赛／弃权
     courts: E.COURTS.map((c) => c || '沿用活动场地'),
   },
 
@@ -320,7 +322,13 @@ Page({
     const done = items.filter((x) => x.done).length;
     const p = E.progressOf(d, this.data.matches);
     this.items = items;
+    // 退赛／弃权：参赛状态 + 赛程影响（谁进入下一轮、积分榜怎么记），和场次列表同一份数据；「只看我的」一样生效
+    const my = this.data.myId;
+    const wv = WV.withdrawView(d, items, (name) => !!my && ID.idsFor(E.membersOf(d, name), this.uidOf).indexOf(my) >= 0);
+    const only = this.data.onlyMine;
     this.setData({
+      wdView: { entrants: only ? wv.entrants.filter((x) => x.mine) : wv.entrants, rows: only ? wv.rows.filter((x) => x.mine) : wv.rows },
+      wdCount: wv.count,
       schedule: this.data.onlyMine ? items.filter((x) => x.mine) : items,
       todo: items.filter((x) => x.mine && x.ready && !x.done).length,
       progress: p.champion ? `冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
@@ -384,6 +392,14 @@ Page({
 
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
   toggleMine() { this.setData({ onlyMine: !this.data.onlyMine }); this.renderSchedule(); },
+  setSchFilter(e) { this.setData({ schFilter: e.currentTarget.dataset.v === 'wd' ? 'wd' : 'all' }); },
+  // 退赛／弃权里的场次：能打开的（有对阵的）进录分页查看；成绩取消的场次没有可看的比分
+  tapWd(e) {
+    const r = (this.data.wdView.rows || []).find((x) => x.key === e.currentTarget.dataset.key);
+    if (!r) return;
+    if (!r.ready) { wx.showToast({ title: '这场因退赛已取消，没有比分', icon: 'none' }); return; }
+    this.openMatch(r.key, true);
+  },
 
   // 点签表 / 积分榜 / 赛程里的某一场 → 录分页（已录的可以查看或修改）
   onOpen(e) { this.openMatch(e.detail.key, e.detail.ready); },

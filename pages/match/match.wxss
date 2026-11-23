@@ -49,7 +49,7 @@
 .chg-s .b { color: #1E1E32; font-weight: 700; }
 
 /* 这场的水平分（只给本人看） */
-.why-none { font-size: 25rpx; color: #5C5C76; line-height: 1.6; }
+.why-none { font-size: 25rpx; color: #5C5C76; line-height: 1.6; margin-top: 10rpx; }
 .why-head { display: flex; align-items: center; }
 .why-ar { font-size: 40rpx; font-weight: 800; color: #A5A5BA; margin-right: 12rpx; }
 .why-ar.up { color: #6E6EA3; }
