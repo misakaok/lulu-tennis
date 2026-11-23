@@ -1,4 +1,11 @@
 <view class="page">
+  <!-- 水平排行（正式战绩）/ LULU 积分（管理员按最终名次补录，单独存储，见 components/cup-board） -->
+  <view class="seg view-seg">
+    <view class="seg-item {{view === 'level' ? 'on' : ''}}" data-v="level" bindtap="setView">水平排行</view>
+    <view class="seg-item {{view === 'cup' ? 'on' : ''}}" data-v="cup" bindtap="setView">LULU 积分</view>
+  </view>
+  <cup-board wx:if="{{view === 'cup'}}" tick="{{cupTick}}" bind:shown="openShown" bind:loaded="onCupLoaded" />
+  <block wx:else>
   <view class="seg top-seg">
     <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
       data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
@@ -62,4 +69,5 @@
   </view>
 
   <view wx:if="{{ranked.length}}" class="foot">{{board ? '榜单只算正常完赛的比赛，胜负和胜率是生涯数据 · ' : season === 'all' ? '' : '胜负和胜率只算这个赛季，水平分不分赛季 · '}}只显示同意公开展示的球员 · 点击球员查看比赛统计</view>
+  </block>
 </view>

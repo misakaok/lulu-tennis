@@ -7,7 +7,7 @@ const path = require('path');
 (async () => {
   let pass = 0, fail = 0;
   const root = path.resolve(__dirname, '..');
-  for (const f of ['rules', 'draw', 'event', 'official', 'growth', 'racket']) {
+  for (const f of ['rules', 'draw', 'event', 'official', 'growth', 'racket', 'cup']) {
     const a = fs.readFileSync(path.join(root, 'utils', f + '.js'), 'utf8');
     const b = fs.readFileSync(path.join(root, 'cloudfunctions/tennis/shared', f + '.js'), 'utf8');
     if (a === b) pass++; else { fail++; console.log(`✗ 共享文件不一致：utils/${f}.js，请运行 scripts/sync-shared.sh`); }

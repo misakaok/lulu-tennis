@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "LULU网球",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": { "cup-board": "/components/cup-board/cup-board" }
 }

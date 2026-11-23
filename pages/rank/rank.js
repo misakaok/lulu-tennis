@@ -16,6 +16,7 @@ Page({
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
     top: [], ranked: [], more: false, loading: true, myKey: '', play: true, // play：入场动画（切换 tab 回来时重播）
     season: SE.ALL, seasons: [{ label: '生涯', value: SE.ALL }],
+    view: 'level', cupTick: 0, // 水平排行 / LULU 积分；cupTick 加一让积分组件重新读取
   },
 
   onLoad() {
@@ -26,13 +27,18 @@ Page({
   onShow() {
     const replay = Anim.enter(this); // 切换 tab 回来：重播领奖台、榜单的入场动画
     if (Object.keys(replay).length) this.setData(replay);
+    if (this.data.view === 'cup') this.setData({ cupTick: this.data.cupTick + 1 }); // 从补录页回来：积分马上更新
     this.load();
   },
   onHide() { Anim.leave(this); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+    // LULU 积分：只刷新积分，等积分组件读完（onCupLoaded）才停下拉
+    if (this.data.view === 'cup') { this.cupPulling = true; this.setData({ cupTick: this.data.cupTick + 1 }); return; }
     this.load().then(() => wx.stopPullDownRefresh()); },
+  onCupLoaded() { if (this.cupPulling) { this.cupPulling = false; wx.stopPullDownRefresh(); } },
+  setView(e) { const v = e.currentTarget.dataset.v === 'cup' ? 'cup' : 'level'; if (v !== this.data.view) this.setData({ view: v }); },
   onReachBottom() {
-    if (!this.data.more) return;
+    if (this.data.view !== 'level' || !this.data.more) return;
     this.limit += PAGE;
     this.setData({ ranked: this.list.slice(0, this.limit), more: this.list.length > this.limit });
   },

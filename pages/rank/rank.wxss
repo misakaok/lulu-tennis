@@ -69,3 +69,6 @@
 .hide-note { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; padding: 20rpx 24rpx; border-radius: 20rpx; background: #fff; border: 1rpx solid #A3A3CB; font-size: 24rpx; color: #6E6EA3; }
 .hn-t { flex: 1; margin-right: 16rpx; }
 .hn-b { flex: none; padding: 6rpx 22rpx; border-radius: 999rpx; background: #A3A3CB; color: #fff; font-weight: 600; }
+
+/* 水平排行 / LULU 积分 */
+.view-seg { margin-bottom: 18rpx; }

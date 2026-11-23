@@ -1,0 +1,31 @@
+.ce-row { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 0 16rpx; }
+.ce-lbl { margin: 14rpx 0 10rpx; font-size: 24rpx; color: #5C5C76; }
+.ce-pick { padding: 14rpx 20rpx; border-radius: 16rpx; background: #F6F6FB; font-size: 26rpx; color: #1E1E32; }
+.ce-pick.ph { color: #A5A5BA; }
+.ce-note { margin-top: 14rpx; font-size: 22rpx; color: #8686A0; line-height: 1.6; }
+.ce-slot { padding: 16rpx 0; }
+.ce-slot + .ce-slot { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间（见 tests/review-surface.test.js） */
+.ce-slot:last-child { padding-bottom: 0; } /* 最后一行不再多出下边距 */
+.ce-slot-h { display: flex; align-items: center; margin-bottom: 10rpx; }
+.ce-tier { font-size: 26rpx; font-weight: 700; color: #6E6EA3; }
+.ce-pts { margin-left: 12rpx; font-size: 22rpx; color: #8686A0; }
+.ce-rm { margin-left: auto; }
+.ce-cells { display: flex; flex-wrap: wrap; }
+.ce-cell { display: flex; align-items: center; margin: 0 16rpx 10rpx 0; }
+.ce-x { margin-left: 8rpx; padding: 8rpx; font-size: 22rpx; color: #A5A5BA; }
+.ce-add { margin-top: 14rpx; }
+.ce-err { font-size: 25rpx; color: #b7791f; line-height: 1.6; }
+.ce-pv { display: flex; align-items: center; padding: 12rpx 0; font-size: 24rpx; color: #1E1E32; }
+.ce-pv + .ce-pv { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间 */
+.ce-pv:last-child { padding-bottom: 0; }
+.ce-pv-h { color: #8686A0; font-size: 22rpx; }
+.ce-pv-t { width: 120rpx; flex: none; color: #6E6EA3; font-weight: 700; }
+.ce-pv-h .ce-pv-t { color: #8686A0; font-weight: 400; }
+.ce-pv-n { flex: 1; min-width: 0; }
+.ce-bn { font-size: 21rpx; color: #6E6EA3; }
+.ce-pv-v { min-width: 80rpx; padding-left: 8rpx; flex: none; text-align: right; white-space: nowrap; }
+.ce-pv-v.b { font-weight: 800; }
+.ce-acts { display: flex; margin: 24rpx 0 40rpx; }
+.ce-a { flex: 1; }
+.ce-a + .ce-a { margin-left: 20rpx; }
+.ce-del { margin: 0 0 48rpx; }

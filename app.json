@@ -4,6 +4,7 @@
     "pages/index/index",
     "pages/add/add",
     "pages/scorer/scorer",
+    "pages/cup-edit/cup-edit",
     "pages/rank/rank",
     "pages/me/me",
     "pages/draw-new/draw-new",

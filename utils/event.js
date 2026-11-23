@@ -78,6 +78,7 @@ const REASONS = {
   fix: ['比分录错了', '录错了场次', '重复录入', '比赛没有打', '发起人更正'], // 撤销、影响后续场次的改动
   drop: ['活动取消', '重复创建', '创建错了', '报名人数不够'], // 删除活动
   member: ['不认识这位球友', '信息不完整，请重新申请', '本人要求退出', '长期不参加活动'], // 拒绝申请、移除成员
+  cup: ['录错了这一站', '重复录入', '比赛没有打', '不计入积分'], // 撤下一站 LULU 积分
 };
 const ALL_REASONS = Object.keys(REASONS).reduce((all, k) => all.concat(REASONS[k]), []);
 const reasonOf = (v) => (typeof v === 'string' && ALL_REASONS.indexOf(v.trim()) >= 0 ? v.trim() : '');

@@ -1,0 +1,72 @@
+<view class="cup">
+  <view class="seg cup-seg">
+    <view wx:for="{{boards}}" wx:key="value" class="seg-item {{which === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setWhich">{{item.label}}</view>
+  </view>
+  <scroll-view wx:if="{{years.length > 1}}" scroll-x class="cup-years" enhanced show-scrollbar="{{false}}">
+    <text wx:for="{{years}}" wx:key="*this" class="cup-y {{year === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setYear">{{item}} 年</text>
+  </scroll-view>
+
+  <view wx:if="{{admin}}" class="cup-adm">
+    <view class="cup-adm-t">补录积分<text class="ui-tag cup-adm-tag">仅管理员</text></view>
+    <view class="btn-line mini" hover-class="tap-on" bindtap="addStop">补录一站</view>
+  </view>
+
+  <view wx:if="{{meHidden}}" class="cup-hide" hover-class="tap-on" bindtap="openShown">
+    <text class="cup-hide-t">你没有开启公开展示，其他成员在积分榜和各站明细里看到的你是「球友」</text><text class="cup-hide-b">开启</text>
+  </view>
+
+  <view wx:if="{{error}}" class="muted center">{{error}}</view>
+  <view wx:elif="{{!loading && !rows.length && !stops.length}}" class="empty">
+    <image class="empty-art" src="/images/art-trophy.png" mode="aspectFit" />
+    <view>{{year}} 年还没有{{which === 'encounter' ? '遭遇赛' : which === 'double' ? '双打' : '单打'}}积分</view>
+  </view>
+
+  <!-- 年度榜：点一行展开来源场次 -->
+  <view wx:if="{{rows.length}}" class="card cup-board">
+    <view class="card-title">{{year}} 年{{which === 'encounter' ? '遭遇赛积分' : which === 'double' ? '双打年终榜' : '单打年终榜'}}<text class="sub">{{which === 'encounter' ? '单独统计，不进年终榜' : which === 'double' ? '周赛 + 月赛 · 每站两人平分' : '周赛 + 月赛'}}</text></view>
+    <view wx:for="{{rows}}" wx:key="key" class="cup-r {{item.mine ? 'me' : ''}}">
+      <view class="cup-main" hover-class="tap-row-on" data-key="{{item.key}}" bindtap="toggleRow">
+        <text class="cup-rank {{item.rank <= 3 ? 'top' : ''}}">{{item.rank}}</text>
+        <view class="cup-avs"><pl-av wx:for="{{item.people}}" wx:key="key" wx:for-item="p" class="cup-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
+        <view class="cup-nm"><block wx:for="{{item.people}}" wx:key="key" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></view>
+        <view class="cup-pt"><text class="cup-pt-v">{{item.total}}</text><text class="cup-pt-l">{{item.stops}} 站</text></view>
+      </view>
+      <view wx:if="{{open === item.key}}" class="cup-src">
+        <view wx:for="{{item.sources}}" wx:key="i" wx:for-item="s" class="cup-s" hover-class="tap-row-on" data-id="{{s.stopId}}" bindtap="goStop">
+          <text class="cup-s-d">{{s.date}} {{s.kind}}</text><text class="cup-s-t">{{s.tier}}</text><text wx:if="{{s.partner}}" class="cup-s-d">和 {{s.partner}}</text>
+          <text class="cup-s-p">{{s.points}}{{s.bonusText ? '（' + s.bonusText + '）' : ''}} = {{s.total}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 每站名次（已发布）：点开看这一站每条记录的基础分、奖励分 -->
+  <view wx:if="{{stops.length}}" class="card cup-stops">
+    <view class="card-title">各站积分<text class="sub">{{stops.length}} 站</text></view>
+    <view wx:for="{{stops}}" wx:key="id" id="cup-stop-{{item.id}}" class="cup-st">
+      <view class="cup-st-h" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="toggleStop">
+        <text class="cup-st-d">{{item.date}}</text><text class="cup-st-k">{{item.kind}} · {{item.format}}</text>
+        <text wx:if="{{item.fixes}}" class="ui-tag">已更正</text><text class="cup-go">{{openStop === item.id ? '收起' : '›'}}</text>
+      </view>
+      <view wx:if="{{openStop === item.id}}" class="cup-st-b">
+        <view wx:for="{{item.lines}}" wx:key="i" wx:for-item="l" class="cup-l">
+          <text class="cup-l-t">{{l.tier}}</text><text class="cup-l-n">{{l.names}}</text>
+          <text class="cup-l-p">{{l.points}} = {{l.total}}</text>
+        </view>
+        <view wx:if="{{admin}}" class="cup-fix"><view class="btn-line mini" hover-class="tap-on" data-id="{{item.id}}" bindtap="fixStop">更正这一站</view></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 草稿（只有管理员看得到，不进榜） -->
+  <view wx:if="{{drafts.length}}" class="card cup-stops">
+    <view class="card-title">草稿<text class="sub">还没发布，成员看不到</text></view>
+    <view wx:for="{{drafts}}" wx:key="id" class="cup-st">
+      <view class="cup-st-h" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="fixStop">
+        <text class="cup-st-d">{{item.date}}</text><text class="cup-st-k">{{item.kind}} · {{item.format}}</text><text class="cup-go">›</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{rows.length || stops.length}}" class="cup-foot">积分由管理员按最终名次录入，不计入比赛战绩和水平分 · 没开启公开展示的球员显示为「球友」</view>
+</view>

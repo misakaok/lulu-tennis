@@ -1,0 +1,56 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:elif="{{authError}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{authError}}</view></view>
+  <block wx:else>
+    <view class="card">
+      <view class="card-title">这一站<text wx:if="{{published}}" class="ui-tag solid">已发布{{fixes ? ' · 更正过 ' + fixes + ' 次' : ''}}</text></view>
+      <view class="ce-row">
+        <text class="label">比赛日期</text>
+        <picker mode="date" value="{{date}}" end="{{today}}" bindchange="setDate"><view class="ce-pick">{{date}} ›</view></picker>
+      </view>
+      <view class="ce-lbl">类别</view>
+      <view class="seg"><view wx:for="{{kinds}}" wx:key="value" class="seg-item {{kind === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setKind">{{item.label}}</view></view>
+      <view class="ce-lbl">比赛形式</view>
+      <view class="seg"><view wx:for="{{formats}}" wx:key="value" class="seg-item {{format === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setFormat">{{item.label}}</view></view>
+      <view class="ce-note">{{pointsNote}}</view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">名次<text class="sub">从正式成员名单里选{{size === 2 ? '，两人一队' : ''}}</text></view>
+      <view wx:for="{{slots}}" wx:key="id" class="ce-slot">
+        <view class="ce-slot-h"><text class="ce-tier">{{item.label}}</text><text class="ce-pts">{{item.pts}} 分</text>
+          <view wx:if="{{item.removable}}" class="btn-line mini ce-rm" hover-class="tap-on" data-i="{{item.i}}" bindtap="removeFloor">移除</view>
+        </view>
+        <view class="ce-cells">
+          <view wx:for="{{item.cells}}" wx:key="j" wx:for-item="c" class="ce-cell">
+            <picker range="{{opts}}" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindchange="pick">
+              <view class="ce-pick {{c.uid ? '' : 'ph'}}">{{c.name || '选择球员'}} ›</view>
+            </picker>
+            <text wx:if="{{c.uid}}" class="ce-x" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindtap="clearCell">✕</text>
+          </view>
+        </view>
+      </view>
+      <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">＋ 添加参加保底</view></view>
+      <view wx:else class="ce-note">月赛没有参加保底分</view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">积分预览<text class="sub">发布时按球员资料重新核对</text></view>
+      <view wx:if="{{preview.error}}" class="ce-err">{{preview.error}}</view>
+      <block wx:else>
+        <view class="ce-pv ce-pv-h"><text class="ce-pv-t">名次</text><text class="ce-pv-n">球员</text><text class="ce-pv-v">基础</text><text class="ce-pv-v">奖励</text><text class="ce-pv-v">合计</text></view>
+        <view wx:for="{{preview.lines}}" wx:key="k" class="ce-pv">
+          <text class="ce-pv-t">{{item.tier}}</text><text class="ce-pv-n">{{item.names}}<text wx:if="{{item.bonusText}}" class="ce-bn"> {{item.bonusText}}</text></text>
+          <text class="ce-pv-v">{{item.base}}</text><text class="ce-pv-v">{{item.bonus || '—'}}</text><text class="ce-pv-v b">{{item.total}}</text>
+        </view>
+        <view class="ce-note">{{preview.board}}</view>
+      </block>
+    </view>
+
+    <view class="ce-acts">
+      <view wx:if="{{!published}}" class="btn-line ce-a {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="saveDraft">保存草稿</view>
+      <view class="btn-primary ce-a {{busy || preview.error ? 'disabled' : ''}}" hover-class="tap-on" bindtap="publish">{{published ? '发布更正' : '确认发布'}}</view>
+    </view>
+    <view wx:if="{{editing}}" class="btn-danger ce-del {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="removeStop">{{published ? '撤下这一站' : '删除这份草稿'}}</view>
+  </block>
+</view>

@@ -12,6 +12,7 @@ const RULES = require('./shared/rules');
 const OF = require('./shared/official');
 const G = require('./shared/growth');
 const K = require('./shared/racket');
+const CUP = require('./shared/cup');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
@@ -1661,7 +1662,7 @@ async function setMemberGender({ uid: target, gender }, uid) {
   return { ok: true };
 }
 
-const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1 };
+const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -2060,7 +2061,115 @@ async function racketClear({ confirm }, uid) {
   return { rackets: (rackets && rackets.stats && rackets.stats.removed) || 0, logs: (logs && logs.stats && logs.stats.removed) || 0 };
 }
 
-const ACTIONS = { data: dataGateway, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+/* ---------- LULU 积分：管理员按最终名次补录一站（比赛可能在其他平台打完），云端结算 ----------
+ * 集合 cup_stops（仅管理端可读写，不在网关白名单里）。一站一条记录，名次和结算结果（results）都存在这一条里：
+ * 重复保存 / 发布、更正名次都是更新同一条，年度榜按已发布的站实时累加，不会重复加分。
+ * 只有管理员（ADMIN_OPENIDS）能新增、保存、发布、更正（cupSave 在 ADMIN_ONLY 里，函数里再校验一次）；正式成员只能看已发布的（cupList）。
+ * 积分独立存储：不写 matches、不进正式战绩、水平分和排行口径。每次保存 / 发布 / 更正都留档（requests，type: 'cup'）。 */
+const CUP_STOPS = 'cup_stops';
+const CUP_KEY = /^[A-Za-z0-9_-]{8,40}$/;
+const cupView = (d) => ({
+  id: d._id, date: d.date, year: d.year, kind: d.kind, format: d.format, places: d.places, results: d.results || [],
+  status: d.status, fixes: d.fixes || 0, updatedAt: tsOf({ createdAt: d.updatedAt }) || tsOf(d),
+});
+// 内容是否没变：逐项取出来比（不依赖数据库返回的字段顺序）；名次里的每一队在 cleanStop 里已经排好序
+const cupCanon = (d) => {
+  const p = d.places || {};
+  const t = (x) => (Array.isArray(x) ? x.slice() : []);
+  return JSON.stringify([d.date, d.kind, d.format, t(p.champion), t(p.runnerUp), (p.semis || []).map(t), (p.floor || []).map(t),
+    (d.results || []).map((r) => [r.tier, r.key, r.base, r.bonus, r.total])]);
+};
+const cupSummary = (d) => (d ? { date: d.date, kind: d.kind, format: d.format, places: d.places, results: (d.results || []).map((r) => ({ tier: r.tier, ids: r.ids, total: r.total })) } : null);
+
+// 录入的人：都必须是正式成员（管理员默认是成员），而且设置过资料；性别取本人资料（女生夺冠奖励用）
+async function cupPeople(ids) {
+  const prof = {};
+  (await byIds('players', ids, '_openid')).filter((p) => p.self).sort((a, b) => tsOf(a) - tsOf(b))
+    .forEach((p) => { if (!(p._openid in prof)) prof[p._openid] = p; });
+  const mem = {};
+  (await byIds('members', ids)).forEach((m) => { mem[m._id] = m; });
+  for (const id of ids) {
+    const ok = isAdmin(id) || (mem[id] && mem[id].status === 'active');
+    if (!prof[id] || !ok) deny(`${prof[id] ? prof[id].name : '有一位球员'}不是正式成员，不能录入积分`);
+  }
+  return prof;
+}
+
+// key：这一站的编号（新建时由补录页生成，更正时就是原来那一站的编号）；同一个编号重复提交只会更新这一站。
+// publish：true 发布（已发布的站再保存就是更正，立即生效）；false 只保存草稿（成员看不到、不进榜）
+async function cupSave({ key, stop, publish }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以操作');
+  if (typeof key !== 'string' || !CUP_KEY.test(key)) deny('缺少这一站的编号，请返回后重新打开补录页');
+  const c = CUP.cleanStop(stop, today());
+  if (!c.ok) deny(c.error);
+  const rec = c.rec;
+  const p = rec.places;
+  const ids = [].concat(p.champion, p.runnerUp, ...p.semis, ...p.floor);
+  const prof = await cupPeople(ids);
+  rec.results = CUP.results(rec, (id) => (prof[id] && prof[id].gender) || '');
+  // 同一天、同一类、同一形式只能有一站（重复补录会重复加分）：要改就更正原来那一站
+  const dup = (await db.collection(CUP_STOPS).where({ date: rec.date, kind: rec.kind, format: rec.format }).get()).data.find((d) => d._id !== key && !d.deleted);
+  if (dup) deny(`这一天已经有一站${CUP.kindText(rec.kind)} · ${CUP.formatText(rec.format)}的积分，请在那一站里更正`);
+  const old = await getDoc(CUP_STOPS, key);
+  if (old && old.deleted) deny('这一站已经撤下，要重新录请补录一站');
+  const wasPub = !!old && old.status === 'published';
+  const status = wasPub || publish === true ? 'published' : 'draft';
+  // 内容和状态都没变（重复点了发布 / 保存）：什么都不改，也不留档
+  if (old && old.status === status && cupCanon(old) === cupCanon(rec)) return { id: key, status, same: true, stop: cupView(old) };
+  const how = !old ? (status === 'published' ? 'publish' : 'draft') : wasPub ? 'fix' : status === 'published' ? 'publish' : 'draft';
+  const data = Object.assign({}, rec, { status, updatedBy: uid, updatedAt: db.serverDate() });
+  if (how === 'fix') data.fixes = (old.fixes || 0) + 1;
+  if (status === 'published' && !wasPub) data.publishedAt = db.serverDate();
+  if (old) await db.collection(CUP_STOPS).doc(key).update({ data: Object.assign({}, data, { places: _.set(rec.places), results: _.set(rec.results) }) });
+  else {
+    // 新建：add 带编号，编号已存在就失败（getDoc 读取出错也返回 null，不能用 set，否则会把已有的站整条覆盖、清掉更正次数）
+    try { await db.collection(CUP_STOPS).add({ data: Object.assign({ _id: key }, data, { createdBy: uid, createdAt: db.serverDate(), fixes: 0 }) }); }
+    catch (e) { deny('这一站刚刚没读到，请返回积分页刷新后再试'); }
+  }
+  await logAction({ type: 'cup', how, stopId: key, by: uid, byAdmin: true, from: cupSummary(old), to: cupSummary(rec) });
+  return { id: key, status, how, stop: cupView(Object.assign({ _id: key }, old || {}, data, { fixes: data.fixes || (old && old.fixes) || 0 })) };
+}
+
+// 撤下一站（管理员）：录了不该录的整站时用（名次录错用 cupSave 更正）。软删除：记录保留、留档，成员看不到、不进榜；
+// 撤下后同一天同类同形式可以重新补录。原因只能从 E.REASONS.cup 里选；重复撤下不重复留档
+async function cupRemove({ id, reason }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以操作');
+  const why = cleanReason(reason, true);
+  if (E.REASONS.cup.indexOf(why) < 0) deny('原因只能从固定选项里选择');
+  const old = typeof id === 'string' && CUP_KEY.test(id) ? await getDoc(CUP_STOPS, id) : null;
+  if (!old) deny('没找到这一站');
+  if (old.deleted) return { id, same: true };
+  await db.collection(CUP_STOPS).doc(id).update({ data: { deleted: true, deletedBy: uid, deletedAt: db.serverDate(), deleteReason: why, updatedAt: db.serverDate() } });
+  await logAction({ type: 'cup', how: 'remove', stopId: id, by: uid, byAdmin: true, reason: why, from: cupSummary(old), to: null, wasStatus: old.status });
+  return { id, removed: true };
+}
+
+// 积分列表：正式成员看已发布的站；管理员另外能看到自己这边保存的草稿（管理员要核对、更正，拿到的是真实用户 ID）。
+// 公开展示授权：普通成员拿到的年度榜、各站明细、双打搭档里，没同意公开展示的人（自己除外）一律换成匿名编号，
+// 前端显示「球友」。匿名编号只在这一次返回里稳定（每次调用换一个随机盐），同一个人的分照样累计在一行，但对不上是谁
+async function cupMask(stops, uid) {
+  const ids = [];
+  stops.forEach((s) => (s.results || []).forEach((r) => ids.push(...r.ids, ...(r.team || []))));
+  const shown = {};
+  (await byIds('players', ids, '_openid')).filter((p) => p.self).sort((a, b) => tsOf(a) - tsOf(b))
+    .forEach((p) => { if (!(p._openid in shown)) shown[p._openid] = isShown(p); });
+  const salt = crypto.randomBytes(8).toString('hex');
+  const m = (id) => (id === uid || shown[id] ? id : 'x' + md5(salt + id).slice(0, 16));
+  const team = (t) => (Array.isArray(t) ? t.map(m) : t);
+  return stops.map((s) => Object.assign({}, s, {
+    places: { champion: team(s.places.champion), runnerUp: team(s.places.runnerUp), semis: (s.places.semis || []).map(team), floor: (s.places.floor || []).map(team) },
+    results: (s.results || []).map((r) => Object.assign({}, r, { ids: team(r.ids), key: CUP.teamKey(team(r.ids)) }, r.team ? { team: team(r.team) } : {})),
+  }));
+}
+async function cupList(_d, uid) {
+  const admin = isAdmin(uid);
+  const list = (await allDocs(CUP_STOPS, admin ? {} : { status: 'published' })).filter((d) => !d.deleted && (admin || d.status === 'published'));
+  list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : tsOf(b) - tsOf(a)));
+  const out = list.map(cupView);
+  return { list: admin ? out : await cupMask(out, uid), admin };
+}
+
+const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；
