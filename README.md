@@ -103,8 +103,6 @@
    | `requests` | 改分 / 退赛申请，以及所有留档：改分、撤销、删除活动、发起人和管理员的处理记录 |
    | `members` | 成员资格 |
    | `invites` | 邀请码 |
-   | `reviews`、`bios`、`event_photos` | 已下线功能（对手评价、个人简介、活动相册）的旧数据，小程序端不再使用；新环境可以建成空集合 |
-   | `event_contacts` | 活动联系人（已停用，可以删除） |
 
    ⚠️ **不要**把任何集合设成「所有用户可读」或「仅创建者可读写」。小程序端不直接访问数据库，所有读写都经过云函数 `tennis`：先校验成员资格，再按业务规则校验每个字段。只要有一个集合对前端开放，这些校验就能被绕过。
    完整的权限和部署说明见 `docs/项目进度.md`。
@@ -124,12 +122,12 @@
 
 ### 云存储权限
 
-小程序端只上传球员照片（`avatars/<用户 ID>/`，云函数 `setPhoto` 会再校验目录必须是本人的）。以前的活动照片还在 `event-photos/<活动 ID>/<上传者 ID>/` 里。客户端上传只进入 `avatars/`；服务端复制至 `player-photos/<用户 ID>/` 后检测，发布也使用这份快照，避免用户覆盖已检测文件。`player-photos/` 必须禁止客户端直接读写，链接只经云函数 `photoUrls` 发放（列表头像默认发服务端缩出的 320×320 缩略图 `<快照名>-s.jpg`，也在这个目录里；小程序端把缩略图存在本机 `USER_DATA_PATH/pl/`）。请使用以下自定义规则，不能仅选择「仅创建者可读写」：
+小程序端只上传球员照片（`avatars/<用户 ID>/`，云函数 `setPhoto` 会再校验目录必须是本人的）。以前的活动相册（`event-photos/`）和对应集合 2026-11-23 已删除。客户端上传只进入 `avatars/`；服务端复制至 `player-photos/<用户 ID>/` 后检测，发布也使用这份快照，避免用户覆盖已检测文件。`player-photos/` 必须禁止客户端直接读写，链接只经云函数 `photoUrls` 发放（列表头像默认发服务端缩出的 320×320 缩略图 `<快照名>-s.jpg`，也在这个目录里；小程序端把缩略图存在本机 `USER_DATA_PATH/pl/`）。请使用以下自定义规则，不能仅选择「仅创建者可读写」：
 
 ```json
 {
-  "read": "resource.openid == auth.openid && (/^avatars\\//.test(resource.path) || /^event-photos\\//.test(resource.path))",
-  "write": "resource.openid == auth.openid && (/^avatars\\//.test(resource.path) || /^event-photos\\//.test(resource.path))"
+  "read": "resource.openid == auth.openid && /^avatars\\//.test(resource.path)",
+  "write": "resource.openid == auth.openid && /^avatars\\//.test(resource.path)"
 }
 ```
 
@@ -254,7 +252,7 @@ tests                          测试（node tests/run.js，在内存数据库�
 ### 升级步骤
 
 1. **新建集合** `members`、`invites`，权限都设为「仅管理端可读写」。
-2. **把所有已有集合改成「仅管理端可读写」**：`matches`、`players`、`draws`、`signups`、`verified`（以及之前已经是这个权限的 `confirms`、`reviews`、`event_contacts`、`bios`、`event_photos`、`requests`）。
+2. **把所有已有集合改成「仅管理端可读写」**：`matches`、`players`、`draws`、`signups`、`verified`（以及之前已经是这个权限的 `confirms`、`requests`）。
 3. **云存储安全规则**按上面「云存储权限」设置（只有本人能直接读写自己的文件）。
 4. **配置第一位管理员**：
    - 先用管理员的微信打开小程序（会显示准入页），在开发者工具「调试器 → Console」或云开发控制台「云函数 → tennis → 日志」里找到这次调用的 OPENID；

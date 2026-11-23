@@ -1048,42 +1048,16 @@ async function setFixtureSlot({ drawId, key, slot }, uid) {
   return { slot: slots[key] || null };
 }
 
-// 删除活动：软删除（签表从所有列表消失，已录比分照常保留在战绩里，参赛名 → ID 的对应也还在，确认 / 评价不受影响）。
-// 旧的联系人数据（个人信息）直接删除；活动相册的照片文件和记录一起删除；还没处理的申请作废；留档。
-// 管理员删除别人的活动必须填原因（留档）
+// 删除活动：软删除（签表从所有列表消失，已录比分照常保留在战绩里，参赛名 → ID 的对应也还在，确认不受影响）。
+// 还没处理的申请作废；留档。管理员删除别人的活动必须填原因（留档）。
+// 旧的联系人 / 相册集合（event_contacts、event_photos）2026-11-23 已整个删除，这里不再访问
 async function removeDraw({ drawId, reason }, uid) {
-  const { d, asAdmin } = await manageDraw(drawId, uid);
+  const { asAdmin } = await manageDraw(drawId, uid);
   const why = cleanReason(reason, asAdmin);
   await db.collection('draws').doc(drawId).update({ data: { deleted: true, deletedBy: uid, deletedAt: db.serverDate(), deleteReason: why, deletedByAdmin: asAdmin } });
-  // 活动已经标记删除，下面几步互不依赖，同时做
-  const [, , photos] = await Promise.all([
-    db.collection('event_contacts').doc(drawId).remove().catch(() => {}),
-    db.collection('requests').where({ drawId, status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已删除', handledAt: db.serverDate() } }),
-    removeEventPhotos(drawId),
-  ]);
-  await logAction({ type: 'deleteDraw', drawId, by: uid, byAdmin: asAdmin, reason: why, photos });
-  return { photos: { removed: photos.removed, failed: photos.failed } };
-}
-
-// 删除一个活动的全部照片：先删云存储文件（每次最多 50 个），删成功的再删记录。
-// 删失败的：记录保留（活动已删除，没人能看到），fileID 写进处理记录，方便在云开发控制台手动清理
-async function removeEventPhotos(drawId) {
-  const list = await byIds('event_photos', [drawId], 'drawId');
-  let removed = 0;
-  const failed = [];
-  for (let i = 0; i < list.length; i += 50) {
-    const chunk = list.slice(i, i + 50);
-    let status = {};
-    try {
-      const r = await cloud.deleteFile({ fileList: chunk.map((p) => p.fileID) });
-      (r.fileList || []).forEach((f) => { status[f.fileID] = f.status; });
-    } catch (e) { console.error('删除活动照片文件失败', drawId, e && (e.errMsg || e.message)); status = {}; }
-    for (const p of chunk) {
-      if (status[p.fileID] === 0) { await db.collection('event_photos').doc(p._id).remove().catch(() => {}); removed++; }
-      else failed.push(p.fileID);
-    }
-  }
-  return { removed, failed: failed.length, failedFiles: failed.slice(0, 200) };
+  await db.collection('requests').where({ drawId, status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已删除', handledAt: db.serverDate() } });
+  await logAction({ type: 'deleteDraw', drawId, by: uid, byAdmin: asAdmin, reason: why });
+  return { deleted: true };
 }
 
 /* ---------- 共用：审计记录、作废记录、局分校验 ---------- */
@@ -1815,8 +1789,8 @@ async function auditSignups() {
 
 // 清空全部战绩（一次性的管理员操作，用来清掉测试数据）。两道保险：
 //   1. 云函数环境变量 ALLOW_RESET_SCORES=yes（平时不要设置，用完立即删掉）；2. 确认口令「清空全部战绩」。
-// 删除：比赛记录、确认、正式战绩快照（保留旧记录迁移标记）、对手评价、和比分有关的处理记录；清空签表里的比分。
-// 保留：成员、球员资料、简介、活动、报名、相册、退赛申请和退赛登记。
+// 删除：比赛记录、确认、正式战绩快照（保留旧记录迁移标记）、和比分有关的处理记录；清空签表里的比分。
+// 保留：成员、球员资料、活动、报名、退赛申请和退赛登记。（旧的对手评价集合 reviews 2026-11-23 已整个删除）
 const RESET_PHRASE = '清空全部战绩';
 const SCORE_REQUEST_TYPES = ['score', 'impact', 'walkover', 'retired', 'revoke'];
 async function resetScores({ confirm }, uid) {
@@ -1828,7 +1802,6 @@ async function resetScores({ confirm }, uid) {
     matches: await removed('matches', all),
     confirms: await removed('confirms', all),
     verified: await removed('verified', { _id: _.neq(OF.META_ID) }),
-    reviews: await removed('reviews', all),
     requests: await removed('requests', { type: _.in(SCORE_REQUEST_TYPES) }),
   };
   out.drawsReset = ((await db.collection('draws').where(all).update({ data: { results: _.set({}) } })).stats || {}).updated || 0;

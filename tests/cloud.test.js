@@ -969,21 +969,35 @@ test('旧活动和比分：各读取接口保留手动名称，隐藏场地文�
   assert.strictEqual(env.coll('matches').legacy_title.resolution.reason, '旧私人处理原因');
   assert.strictEqual(env.coll('draws').d1.withdrawals[0].reason, '旧私人退赛原因');
 });
-test('活动：删除是软删除，列表不再返回，联系人和照片删除，申请作废', async () => {
+test('集合：云函数只访问项目进度里登记的集合（真实数据库里集合不存在会直接报错，内存数据库测不出来）；已删除的 5 个旧集合不再出现', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../cloudfunctions/tennis/index.js'), 'utf8');
+  const consts = {};
+  (src.match(/\b[A-Z_]+ = '[a-z_]+'/g) || []).forEach((x) => { const [k, v] = x.split(" = '"); consts[k] = v.slice(0, -1); });
+  const used = new Set();
+  (src.match(/\b(?:collection|getDoc|byIds|allDocs|cget)\((?:cache, )?(?:'[a-z_]+'|[A-Z_]+)(?=[),])/g) || []).forEach((x) => {
+    const m = x.match(/'([a-z_]+)'$|\(([A-Z_]+)$|, ([A-Z_]+)$/); m[2] = m[2] || m[3]; used.add(m[1] || consts[m[2]]);
+  });
+  Object.keys({ matches: 1, players: 1, draws: 1, signups: 1, verified: 1 }).forEach((c) => used.add(c)); // 网关按 GW_READ 白名单读
+  const doc = require('fs').readFileSync(require('path').join(__dirname, '../docs/项目进度.md'), 'utf8');
+  const listed = new Set((doc.match(/^\| ([a-z_]+) \| /gm) || []).map((x) => x.slice(2, -3)));
+  const missing = [...used].filter((c) => !listed.has(c));
+  assert.deepStrictEqual(missing, [], '云函数用到了没登记的集合（要在控制台新建，并登记到项目进度的集合表）');
+  ['reviews', 'bios', 'follows', 'event_contacts', 'event_photos'].forEach((c) => {
+    assert.ok(!used.has(c) && !listed.has(c) && !new RegExp("'" + c + "'").test(src), c + ' 已经在控制台删除，代码不能再访问');
+  });
+  assert.ok(used.size >= 14, [...used].join(','));
+});
+
+test('活动：删除是软删除，列表不再返回，申请作废；不再访问已删除的联系人 / 相册集合', async () => {
   const env = setup();
-  env.put('event_contacts', { _id: 'd1', name: 'x', phone: '123456' });
   env.put('requests', { _id: 'wd_1', type: 'withdraw', drawId: 'd1', status: 'pending' });
-  [['p1', 'd1', 'alice/1'], ['p2', 'd1', 'bob/2'], ['p3', 'd1', 'bob/3'], ['p9', 'd2', 'eve/9']].forEach(([id, d, f]) => env.put('event_photos', { _id: id, drawId: d, fileID: `cloud://env1.x/event-photos/${d}/${f}.jpg`, status: 'pass' }));
-  env.deleteFails = ['cloud://env1.x/event-photos/d1/bob/3.jpg'];
   no(await env.call('alice', 'removeDraw', { drawId: 'd1' }), /发起人/);
   ok(await env.call('owner', 'removeDraw', { drawId: 'd1' }));
   assert.ok(env.coll('draws').d1.deleted);
-  assert.ok(!env.coll('event_contacts').d1);
   assert.strictEqual(env.coll('requests').wd_1.status, 'cancelled');
-  assert.deepStrictEqual(env.deletedFiles.sort(), ['cloud://env1.x/event-photos/d1/alice/1.jpg', 'cloud://env1.x/event-photos/d1/bob/2.jpg']);
-  assert.deepStrictEqual(Object.keys(env.coll('event_photos')).sort(), ['p3', 'p9'], '删除失败的和别的活动的照片记录保留');
-  const log = Object.values(env.coll('requests')).find((x) => x.type === 'deleteDraw');
-  assert.deepStrictEqual(log.photos.failedFiles, ['cloud://env1.x/event-photos/d1/bob/3.jpg']);
+  assert.ok(!('event_contacts' in env.store) && !('event_photos' in env.store), '集合已经删掉了：查不到也不会建');
+  assert.deepStrictEqual(env.deletedFiles || [], []);
+  assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'deleteDraw'), '留档');
   const list = ok(await env.call('alice', 'data', { op: 'get', coll: 'draws' })).data;
   assert.ok(list.every((x) => x._id !== 'd1'));
   assert.strictEqual(ok(await env.call('alice', 'data', { op: 'count', coll: 'draws' })).total, 1);
@@ -1071,22 +1085,21 @@ test('清空战绩：默认关闭、要口令、只有管理员；只删战绩�
   try {
     const id = ok(await daily(env, 'alice', 'bob'))._id;
     ok(await env.call('bob', 'confirmResult', { matchId: id }));
-    env.put('reviews', { _id: 'rv', matchId: id, reviewerId: 'alice', targetId: 'bob' });
     env.put('requests', { _id: 'sc_x', type: 'score', status: 'pending' });
     env.put('requests', { _id: 'wd_x', type: 'withdraw', drawId: 'd1', status: 'pending' });
-    env.put('bios', { _id: 'alice', bio: 'hi' });
     env.coll('draws').d1.results = { old: 1 };
     no(await env.call('owner', 'resetScores', { confirm: '清空全部战绩' }), /默认关闭/);
     process.env.ALLOW_RESET_SCORES = 'yes';
     no(await env.call('owner', 'resetScores', { confirm: '清空' }), /口令/);
     no(await env.call('alice', 'resetScores', { confirm: '清空全部战绩' }), /管理员/);
     const r = ok(await env.call('owner', 'resetScores', { confirm: '清空全部战绩' }));
-    assert.deepStrictEqual([r.counts.matches, r.counts.confirms, r.counts.reviews, r.counts.requests], [1, 1, 1, 1]);
+    assert.deepStrictEqual([r.counts.matches, r.counts.confirms, r.counts.requests], [1, 1, 1]);
+    assert.ok(!('reviews' in r.counts) && !('reviews' in env.store), '不再访问已删除的 reviews 集合');
     assert.strictEqual(Object.keys(env.coll('matches')).length, 0);
     assert.deepStrictEqual(Object.keys(env.coll('verified')), ['__legacy_migrated__'], '保留迁移标记');
     assert.ok(env.coll('requests').wd_x, '退赛申请保留');
     assert.deepStrictEqual(env.coll('draws').d1.results, {});
-    assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice && env.coll('bios').alice, '活动、成员、资料、简介保留');
+    assert.ok(env.coll('draws').d2 && env.coll('members').alice && env.coll('players').p_alice, '活动、成员、资料保留');
     assert.ok(Object.values(env.coll('requests')).some((x) => x.type === 'resetScores'), '留档');
   } finally {
     if (old[0] === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old[0];
