@@ -46,4 +46,43 @@
 .tl-tag { font-size: 20rpx; color: #8686A0; margin-right: 12rpx; }
 .hero-head { display: flex; align-items: center; }
 .hero-info { flex: 1; min-width: 0; }
+/* 球线使用时长（使用记录） */
+.pl-head { display: flex; align-items: center; justify-content: space-between; }
+.pl-top { display: flex; align-items: flex-end; justify-content: space-between; }
+.pl-n { display: flex; align-items: baseline; }
+.pl-big { font-size: 56rpx; font-weight: 800; color: #1E1E32; line-height: 1; }
+.pl-u { font-size: 24rpx; color: #5C5C76; margin-left: 8rpx; }
+.pl-goal { font-size: 24rpx; color: #8686A0; margin-left: 12rpx; }
+.pl-bar { height: 14rpx; border-radius: 7rpx; background: #EFEFF6; margin-top: 18rpx; overflow: hidden; }
+.pl-fill { height: 100%; border-radius: 7rpx; background: #A3A3CB; }
+.pl-fill.soon { background: #E0B34A; }
+.pl-fill.over { background: #C96B6B; }
+.pl-s { font-size: 22rpx; color: #8686A0; margin-top: 10rpx; line-height: 1.5; }
+.pl-list { margin-top: 10rpx; }
+.pl-i { display: flex; align-items: center; padding: 16rpx 0; font-size: 25rpx; }
+.pl-i + .pl-i { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
+.pl-i:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上 */
+.pl-i.old { color: #A5A5BA; }
+.pl-d { width: 200rpx; color: #5C5C76; }
+.pl-i.old .pl-d { color: #A5A5BA; }
+.pl-m { flex: 1; font-weight: 700; }
+.pl-o { font-size: 21rpx; color: #A5A5BA; }
+.pl-more { margin-top: 20rpx; }
+/* 记一次打球的弹层（同活动详情的单场安排弹层） */
+.sheet-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(30, 30, 50, 0.45); z-index: 20; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.sheet-t { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
+.sheet-s { margin: 6rpx 0 16rpx; font-size: 24rpx; color: #8686A0; }
+.sheet-row { display: flex; align-items: center; justify-content: space-between; height: 92rpx; border-top: 1rpx solid #F2F2F8; }
+.sheet-pick { font-size: 28rpx; color: #1E1E32; }
+.sheet-note { margin-top: 12rpx; font-size: 22rpx; color: #A5A5BA; line-height: 1.5; }
+.sheet-acts { display: flex; margin: 24rpx -8rpx 0; }
+.sheet-a { flex: 1; margin: 0 8rpx; height: 84rpx; border-radius: 42rpx; font-size: 28rpx; }
+.pl-in-r { display: flex; align-items: center; }
+.pl-in { width: 200rpx; text-align: right; font-size: 30rpx; font-weight: 700; color: #1E1E32; }
+.pl-ph { color: #B7B7CC; font-weight: 400; }
+.pl-unit { margin-left: 8rpx; font-size: 26rpx; color: #8686A0; }
+.qk { display: flex; flex-wrap: wrap; margin-top: 8rpx; }
+.qk-i { font-size: 25rpx; color: #5C5C76; background: #F4F4F9; border: 2rpx solid transparent; border-radius: 30rpx; padding: 10rpx 24rpx; margin: 0 14rpx 14rpx 0; }
+.qk-i.on { color: #6E6EA3; background: #EFEFF6; border-color: #A3A3CB; font-weight: 700; }
 .hero-ph { width: 168rpx; height: 168rpx; border-radius: 28rpx; margin-left: 20rpx; background: rgba(255, 255, 255, 0.92); }

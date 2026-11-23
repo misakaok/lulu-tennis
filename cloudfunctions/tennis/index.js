@@ -1979,17 +1979,19 @@ async function growthClear({ confirm }, uid) {
   return { removed: (r && r.stats && r.stats.removed) || 0 };
 }
 
-/* ---------- 我的球拍：球拍档案 + 穿线 / 维护记录（只有本人可见） ----------
+/* ---------- 我的球拍：球拍档案 + 穿线 / 维护 / 使用记录（只有本人可见） ----------
  * 集合 rackets、racket_logs（都是仅管理端可读写，不在网关白名单里）。owner = 本人用户 ID，只由云端写入；
- * 记录的 racketId 只能指向本人的球拍。别人的球拍 / 记录按「不存在」处理。 */
+ * 记录的 racketId 只能指向本人的球拍。别人的球拍 / 记录按「不存在」处理。
+ * 使用记录（打球时长）也存在 racket_logs（kind: 'play'，只有 date + minutes），所以删除球拍、清除全部照常一起删。 */
 const RACKETS = 'rackets', RLOGS = 'racket_logs';
 const racketView = (d) => ({
   id: d._id, no: d.no || 0, brand: d.brand, model: d.model, bought: d.bought || '', status: d.status,
-  tags: d.tags || [], remind: d.remind || {}, createdAt: tsOf(d),
-}); // 以前版本留下的 photo / photoState / photoRequest / photoTrace 不下发（球拍改成按配色画的示意图，没有照片）
+  tags: d.tags || [], remind: d.remind || {}, hours: d.hours || 0, createdAt: tsOf(d),
+}); // hours：按打球时长换线的提醒（小时，0 = 关闭；以前的球拍没有这个字段）。以前版本留下的 photo / photoState / photoRequest / photoTrace 不下发（球拍改成按配色画的示意图，没有照片）
 const rlogView = (d) => ({
   id: d._id, racketId: d.racketId, kind: d.kind, date: d.date, item: d.item || '', main: d.main || null, cross: d.cross || null,
-  mains: d.mains || 0, crosses: d.crosses || 0, cost: typeof d.cost === 'number' ? d.cost : null, feel: d.feel || 0, tags: d.tags || [], createdAt: tsOf(d),
+  mains: d.mains || 0, crosses: d.crosses || 0, cost: typeof d.cost === 'number' ? d.cost : null, feel: d.feel || 0, tags: d.tags || [],
+  minutes: d.minutes || 0, createdAt: tsOf(d), // minutes：使用记录（kind: 'play'）的打球分钟数
 });
 async function ownDoc(col, id, uid, what) {
   const d = typeof id === 'string' && id ? await getDoc(col, id) : null;
@@ -2032,7 +2034,9 @@ async function racketLogSave({ id, racketId, log }, uid) {
     const old = await ownDoc(RLOGS, id, uid, '记录');
     if (old.kind !== c.rec.kind) deny('记录类型不能修改');
     await ownDoc(RACKETS, old.racketId, uid, '球拍');
-    await db.collection(RLOGS).doc(id).update({ data: Object.assign({}, c.rec, { main: _.set(c.rec.main), cross: c.rec.cross ? _.set(c.rec.cross) : null, updatedAt: db.serverDate() }) });
+    const data = c.rec.kind === 'play' ? Object.assign({}, c.rec, { updatedAt: db.serverDate() }) // 使用记录只有日期和分钟数
+      : Object.assign({}, c.rec, { main: _.set(c.rec.main), cross: c.rec.cross ? _.set(c.rec.cross) : null, updatedAt: db.serverDate() });
+    await db.collection(RLOGS).doc(id).update({ data });
     return { id };
   }
   await ownDoc(RACKETS, racketId, uid, '球拍');

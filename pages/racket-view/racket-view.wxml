@@ -34,9 +34,30 @@
     <view wx:for="{{s.reminders}}" wx:key="item" class="rm">
       <text class="rm-l">{{item.label}}</text>
       <text class="rm-e">{{item.everyText}}</text>
-      <text class="rm-d">{{item.due ? '下次 ' + item.due : ''}}</text>
+      <text class="rm-d">{{item.detail}}</text>
       <text class="ui-tag rm-s {{item.state === 'over' ? 'bad' : item.state === 'soon' ? 'warn' : item.state === 'ok' ? 'lime' : ''}}">{{item.text}}</text>
     </view>
+  </view>
+
+  <!-- 使用记录（打球时长）：只存日期和整数分钟，只有本人可见；这次球线从最近一次穿线的日期算起 -->
+  <view class="card">
+    <view class="card-title pl-head">球线使用时长<view class="btn-line mini" hover-class="tap-on" bindtap="playAdd">＋ 记一次打球</view></view>
+    <view class="pl-top">
+      <view class="pl-n"><text class="pl-big">{{p.hours}}</text><text class="pl-u">小时</text><text wx:if="{{p.target}}" class="pl-goal">/ 目标 {{p.target}} 小时</text></view>
+      <text wx:if="{{p.state}}" class="ui-tag {{p.cls}}">{{p.text}}</text>
+    </view>
+    <view wx:if="{{p.target}}" class="pl-bar"><view class="pl-fill ani-grow-x {{p.state}}" style="width:{{p.pct}}%"></view></view>
+    <view class="pl-s">{{p.since}} · {{p.sessions}} 次</view>
+    <view class="pl-s">{{p.target ? '穿线当天记的时长算在新球线上' : '没有设置按时长换线的提醒，可以在「编辑球拍」里设'}}</view>
+    <view wx:if="{{!p.rows.length}}" class="none">还没有使用记录，打完球记一下实际打了多少分钟</view>
+    <view class="pl-list">
+      <block wx:for="{{p.rows}}" wx:key="id">
+        <view wx:if="{{item.cur || showOld}}" class="pl-i {{item.cur ? '' : 'old'}}" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="playOpen">
+          <text class="pl-d">{{item.date}}</text><text class="pl-m">{{item.text}}</text><text wx:if="{{!item.cur}}" class="pl-o">以前的球线</text>
+        </view>
+      </block>
+    </view>
+    <view wx:if="{{p.rows.length > p.sessions}}" class="btn-line mini pl-more" hover-class="tap-on" bindtap="toggleOld">{{showOld ? '收起以前球线的记录' : '显示以前球线的记录（' + (p.rows.length - p.sessions) + ' 条）'}}</view>
   </view>
 
   <view class="card">
@@ -61,4 +82,27 @@
   </view>
 
   <view class="btn-line" hover-class="tap-on" bindtap="edit">编辑球拍</view>
+
+  <view wx:if="{{pe}}" class="sheet-mask" bindtap="playCancel"></view>
+  <view wx:if="{{pe}}" class="sheet">
+    <view class="sheet-t">{{pe.id ? '修改打球记录' : '记一次打球'}}</view>
+    <view class="sheet-s">{{r.title}} · 填实际打球的分钟数</view>
+    <view class="sheet-row">
+      <text class="label">日期</text>
+      <picker mode="date" value="{{pe.date}}" start="2000-01-01" end="{{today}}" bindchange="playDate"><view class="sheet-pick">{{pe.date}} ›</view></picker>
+    </view>
+    <view class="sheet-row">
+      <text class="label">分钟数</text>
+      <view class="pl-in-r"><input class="pl-in" type="number" maxlength="3" placeholder="1～600" placeholder-class="pl-ph" value="{{pe.minutes}}" bindinput="playMinutes" /><text class="pl-unit">分钟</text></view>
+    </view>
+    <view class="qk">
+      <view wx:for="{{quick}}" wx:key="m" class="qk-i {{pe.minutes === item.m ? 'on' : ''}}" hover-class="tap-on" data-m="{{item.m}}" bindtap="playQuick">{{item.t}}</view>
+    </view>
+    <view class="sheet-note">穿线当天记的时长算在新球线上；补录以前的日期，按日期归到当时的球线。</view>
+    <view class="sheet-acts">
+      <view wx:if="{{pe.id}}" class="btn-danger sheet-a" hover-class="tap-on" bindtap="playRemove">删除</view>
+      <view class="btn-line sheet-a" hover-class="tap-on" bindtap="playCancel">取消</view>
+      <view class="btn-primary sheet-a {{playBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="playSave">{{playBusy ? '保存中…' : '保存'}}</view>
+    </view>
+  </view>
 </view>

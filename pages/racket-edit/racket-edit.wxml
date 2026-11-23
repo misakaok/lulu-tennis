@@ -38,6 +38,10 @@
     <picker wx:for="{{reminds}}" wx:key="k" mode="selector" range="{{dayNames}}" value="{{item.i}}" data-k="{{item.k}}" bindchange="onRemind">
       <view class="line rm"><text class="label">{{item.label}}</text><view class="picker {{item.on ? '' : 'ph'}}">{{item.text}} <text class="arrow">›</text></view></view>
     </picker>
+    <picker mode="selector" range="{{hourNames}}" value="{{hi}}" bindchange="onHours">
+      <view class="line rm"><text class="label">穿线（按打球时长）</text><view class="picker {{hi > 0 ? '' : 'ph'}}">{{hourNames[hi]}} <text class="arrow">›</text></view></view>
+    </picker>
+    <view class="rm-note">累计这次穿线以后记的打球时长（在球拍详情里记）。和按天的穿线提醒哪个先到算哪个，两个都到了也只算一项。</view>
   </view>
 
   <view class="card">

@@ -148,7 +148,7 @@ test('页面：我的球拍各页不能分享，没有文字输入框（费用�
     assert.ok(!/onShareAppMessage|onShareTimeline/.test(js) && /wx\.hideShareMenu\(\)/.test(js), p);
     assert.strictEqual(cfg.enableShareAppMessage, false); assert.strictEqual(cfg.enableShareTimeline, false);
     assert.ok(!/<textarea\b/.test(xml));
-    (xml.match(/<input\b[^>]*>/g) || []).forEach((tag) => assert.ok(/type="digit"/.test(tag), p + ' 只允许数字输入'));
+    (xml.match(/<input\b[^>]*>/g) || []).forEach((tag) => assert.ok(/type="(digit|number)"/.test(tag), p + ' 只允许数字输入'));
     assert.ok(!/wx\.cloud\.database|setStorageSync/.test(js), p + ' 不写本机存储、不直连数据库');
   }
   const cloud = fs.readFileSync(path.join(root, 'utils/cloud.js'), 'utf8');
@@ -178,6 +178,164 @@ test('球拍示意图：每个品牌、每个系列都有配色，「其他」�
   env.put('avatar_checks', { _id: 'old-trace', kind: 'racket', uid: 'alice', racketId: a, request: 'r', fileID: 'x', status: 'checking', at: Date.now() });
   assert.strictEqual(await env.push({ trace_id: 'old-trace', result: { suggest: 'pass' } }), 'success');
   assert.strictEqual(env.coll('avatar_checks')['old-trace'].status, 'checking');
+});
+
+/* ---------- 按实际打球时长换线 ---------- */
+const play = (o) => Object.assign({ kind: 'play', date: '2026-11-10', minutes: 90 }, o || {});
+
+test('使用记录校验：只存日期 + 整数分钟（1～600），字符串、小数、0、超范围、未来日期都拒绝；多余字段丢掉', () => {
+  const r = K.cleanLog(play({ note: '自由文字', cost: 30, racketId: 'x', owner: 'bob', photo: 'x.jpg' }), TODAY);
+  assert.ok(r.ok);
+  assert.deepStrictEqual(r.rec, { kind: 'play', date: '2026-11-10', minutes: 90 });
+  assert.ok(K.cleanLog(play({ minutes: 1 }), TODAY).ok);
+  assert.ok(K.cleanLog(play({ minutes: 600 }), TODAY).ok);
+  for (const m of [0, -30, 601, 90.5, '90', '', null, undefined, NaN, Infinity, [90], { v: 90 }, true]) {
+    assert.ok(!K.cleanLog(play({ minutes: m }), TODAY).ok, '应拒绝 ' + JSON.stringify(m));
+  }
+  assert.ok(!K.cleanLog(play({ date: '2026-11-18' }), TODAY).ok, '不能晚于今天');
+  assert.ok(!K.cleanLog(play({ date: '2026-02-30' }), TODAY).ok);
+  // 换线时长提醒：只能选固定值，默认关闭；没带字段（旧版小程序）不写
+  assert.strictEqual(K.cleanRacket(racket({ hours: 20 }), TODAY).rec.hours, 20);
+  assert.strictEqual(K.cleanRacket(racket({ hours: 0 }), TODAY).rec.hours, 0);
+  assert.ok(!('hours' in K.cleanRacket(racket(), TODAY).rec));
+  for (const h of [12, -10, '20', null, 20.5]) assert.ok(!K.cleanRacket(racket({ hours: h }), TODAY).ok, JSON.stringify(h));
+});
+
+test('已打时长：从最近一次穿线的日期算起（当天算新线），旧记录保留不累计；同日多次穿线、补录只看日期；没有穿线算全部', () => {
+  const r = { id: 'r1', no: 1, brand: 'wilson', model: 'Blade', bought: '2026-01-10', status: 'active', remind: {}, hours: 20 };
+  const s1 = { id: 's1', racketId: 'r1', kind: 'string', date: '2026-10-01', main: { brand: 'luxilon', model: '4G' }, cross: null, mains: 52, crosses: 52, createdAt: 1 };
+  const s2 = Object.assign({}, s1, { id: 's2', date: '2026-11-01', createdAt: 2 });
+  const p = (id, date, minutes, createdAt) => ({ id, racketId: 'r1', kind: 'play', date, minutes, createdAt: createdAt || 0 });
+  const logs = [s1, s2, p('a', '2026-10-05', 120), p('b', '2026-10-31', 60), p('c', '2026-11-01', 90), p('d', '2026-11-05', 120), p('x', '2026-11-06', 300)];
+  logs[logs.length - 1].racketId = 'r2'; // 别的球拍不算
+  let s = K.summary(r, logs, TODAY);
+  assert.deepStrictEqual([s.play.since, s.play.minutes, s.play.hours, s.play.sessions, s.play.target], ['2026-11-01', 210, '3.5', 2, 20], '穿线当天（11-01）的 90 分钟算新线');
+  assert.deepStrictEqual(s.plays.map((l) => l.id), ['d', 'c', 'b', 'a'], '旧球线的使用记录保留');
+  assert.deepStrictEqual([s.play.state, s.play.text, s.play.pct], ['ok', '还差 16.5 小时', 18]);
+  assert.ok(s.timeline.every((l) => l.kind !== 'play'), '时间线只有穿线 / 维护');
+  assert.deepStrictEqual([s.stringCount, s.maintCount], [2, 0], '使用记录不算维护次数');
+  // 记一条新穿线：新球线从零累计，旧记录还在
+  const s3 = Object.assign({}, s1, { id: 's3', date: '2026-11-10', createdAt: 3 });
+  s = K.summary(r, logs.concat(s3), TODAY);
+  assert.deepStrictEqual([s.play.since, s.play.minutes, s.play.sessions, s.plays.length], ['2026-11-10', 0, 0, 4]);
+  // 同一天又记了一次穿线：还是这一天，结果和录入顺序无关
+  const s4 = Object.assign({}, s1, { id: 's4', date: '2026-11-10', createdAt: 0 });
+  const t1 = K.summary(r, logs.concat(s3, s4, p('e', '2026-11-10', 45)), TODAY).play;
+  const t2 = K.summary(r, [p('e', '2026-11-10', 45), s4, s3].concat(logs.slice().reverse()), TODAY).play;
+  assert.deepStrictEqual([t1.since, t1.minutes], ['2026-11-10', 45]);
+  assert.deepStrictEqual(t1, t2, '只看日期，和录入顺序无关');
+  // 补录：更早的使用记录归到当时的球线；补录一条更早的穿线不会把这次清零
+  s = K.summary(r, logs.concat(p('f', '2026-10-20', 600)), TODAY);
+  assert.strictEqual(s.play.minutes, 210);
+  s = K.summary(r, logs.concat(Object.assign({}, s1, { id: 's0', date: '2026-09-01', createdAt: 9 })), TODAY);
+  assert.deepStrictEqual([s.play.since, s.play.minutes], ['2026-11-01', 210]);
+  // 补录一条更晚的使用记录，日期在这次穿线之后就算进来
+  s = K.summary(r, logs.concat(p('g', '2026-11-16', 30, 99)), TODAY);
+  assert.strictEqual(s.play.minutes, 240);
+  // 没有穿线记录：全部使用记录都算
+  s = K.summary(r, logs.filter((l) => l.kind === 'play'), TODAY);
+  assert.deepStrictEqual([s.play.since, s.play.minutes], ['', 390]);
+  // 文字
+  assert.deepStrictEqual([K.hoursText(0), K.hoursText(90), K.hoursText(100), K.hoursText(1200)], ['0', '1.5', '1.7', '20']);
+  assert.deepStrictEqual([K.minutesText(45), K.minutesText(60), K.minutesText(135)], ['45 分钟', '1 小时', '2 小时 15 分钟']);
+});
+
+test('换线提醒：时长和天数合成同一条「穿线」，两个都到了只算一次；没设时长（旧球拍）照旧；退役不提醒', () => {
+  const base = { id: 'r1', no: 1, brand: 'wilson', model: 'Blade', bought: '2026-01-10', status: 'active', remind: { string: 30 } };
+  const str1 = { id: 's1', racketId: 'r1', kind: 'string', date: '2026-10-01', main: { brand: 'luxilon', model: '4G' }, cross: null, mains: 52, crosses: 52 };
+  const p = (id, minutes) => ({ id, racketId: 'r1', kind: 'play', date: '2026-10-10', minutes });
+  const stringRm = (s) => s.reminders.filter((x) => x.item === 'string');
+  // 旧球拍（没有 hours）：只有按天的提醒，和以前一样
+  let s = K.summary(base, [str1, p('a', 600), p('b', 600)], TODAY);
+  assert.strictEqual(stringRm(s).length, 1);
+  assert.deepStrictEqual([stringRm(s)[0].state, stringRm(s)[0].text, stringRm(s)[0].hours], ['over', '已超过 17 天', undefined]);
+  assert.strictEqual(s.play.state, '', '没设目标就没有时长状态');
+  // 两个条件都到了：仍然只有一条，due 只算 1
+  s = K.summary(Object.assign({}, base, { hours: 20 }), [str1, p('a', 600), p('b', 600)], TODAY);
+  assert.strictEqual(stringRm(s).length, 1);
+  assert.strictEqual(s.due, 1);
+  assert.deepStrictEqual([stringRm(s)[0].state, stringRm(s)[0].hours, stringRm(s)[0].played], ['over', 20, '20']);
+  // 天数没到、时长到了：显示时长
+  const fresh = Object.assign({}, str1, { date: '2026-11-15' });
+  const p2 = (id, minutes) => ({ id, racketId: 'r1', kind: 'play', date: '2026-11-16', minutes });
+  s = K.summary(Object.assign({}, base, { hours: 10 }), [fresh, p2('a', 600), p2('b', 30)], TODAY);
+  assert.deepStrictEqual([stringRm(s)[0].state, stringRm(s)[0].text, s.due], ['over', '已超过 0.5 小时', 1]);
+  // 打满 80%：快到了
+  s = K.summary(Object.assign({}, base, { hours: 10 }), [fresh, p2('a', 480)], TODAY);
+  assert.deepStrictEqual([stringRm(s)[0].state, stringRm(s)[0].text], ['soon', '还差 2 小时']);
+  // 只设时长、不按天：也是一条「穿线」
+  s = K.summary(Object.assign({}, base, { remind: {}, hours: 10 }), [fresh, p2('a', 600)], TODAY);
+  assert.deepStrictEqual([stringRm(s).length, stringRm(s)[0].state, stringRm(s)[0].text, stringRm(s)[0].everyText, s.due], [1, 'over', '刚好打满', '满 10 小时', 1]);
+  // 时长关闭（0）：不出现时长提醒
+  s = K.summary(Object.assign({}, base, { remind: {}, hours: 0 }), [fresh, p2('a', 600)], TODAY);
+  assert.deepStrictEqual([s.reminders.length, s.due], [0, 0]);
+  // 退役：不提醒，但时长照常统计
+  s = K.summary(Object.assign({}, base, { hours: 10, status: 'retired' }), [fresh, p2('a', 600)], TODAY);
+  assert.deepStrictEqual([s.reminders.length, s.play.minutes, s.play.state], [0, 600, '']);
+  // tab 上的数字（overview.due）同样只算一次；使用记录不算维护
+  const o = K.overview([Object.assign({}, base, { hours: 20 })], [str1, p('a', 600), p('b', 600)], TODAY);
+  assert.deepStrictEqual([o.due, o.maintCount, o.stringCount], [1, 0, 1]);
+});
+
+test('云函数：使用记录只属于本人；分钟数严格校验；编辑不能换类型；旧版小程序编辑球拍不清掉时长提醒；删除球拍 / 清除全部一起删', async () => {
+  const env = setup();
+  const a = ok(await env.call('alice', 'racketSave', { racket: racket({ hours: 20 }) })).id;
+  const b = ok(await env.call('bob', 'racketSave', { racket: racket() })).id;
+  assert.strictEqual(env.coll('rackets')[a].hours, 20);
+  assert.strictEqual(env.coll('rackets')[b].hours, undefined, '没带字段就不写');
+  const pid = ok(await env.call('alice', 'racketLogSave', { racketId: a, log: play({ note: 'x', owner: 'bob' }) })).id;
+  const doc = env.coll('racket_logs')[pid];
+  assert.deepStrictEqual([doc.owner, doc.racketId, doc.kind, doc.minutes, doc.note, doc._openid], ['alice', a, 'play', 90, undefined, undefined]);
+  for (const m of ['90', 0, 601, 1.5, null]) no(await env.call('alice', 'racketLogSave', { racketId: a, log: play({ minutes: m }) }), /分钟/);
+  // 别人：看不到、改不了、删不掉、不能挂到 alice 的球拍上
+  const before = JSON.stringify(env.store);
+  no(await env.call('bob', 'racketLogSave', { racketId: a, log: play() }), /不存在/);
+  no(await env.call('bob', 'racketLogSave', { id: pid, racketId: b, log: play({ minutes: 5 }) }), /不存在/);
+  no(await env.call('bob', 'racketLogRemove', { id: pid }), /不存在/);
+  assert.strictEqual(JSON.stringify(env.store), before);
+  const bl = ok(await env.call('bob', 'racketList'));
+  assert.ok(!bl.logs.some((l) => l.id === pid));
+  no(await env.call('bob', 'data', { op: 'get', coll: 'racket_logs', where: { kind: 'play' } }));
+  no(await env.call('stranger', 'racketLogSave', { racketId: a, log: play() }), /请先验证/);
+  // 本人：列表带 minutes / hours；编辑只改日期和分钟，不能换球拍、不能改成穿线
+  const al = ok(await env.call('alice', 'racketList'));
+  assert.deepStrictEqual([al.rackets[0].hours, al.logs[0].minutes, al.logs[0].kind], [20, 90, 'play']);
+  ok(await env.call('alice', 'racketLogSave', { id: pid, racketId: b, log: play({ date: '2026-11-12', minutes: 75 }) }));
+  assert.deepStrictEqual([env.coll('racket_logs')[pid].racketId, env.coll('racket_logs')[pid].date, env.coll('racket_logs')[pid].minutes], [a, '2026-11-12', 75]);
+  no(await env.call('alice', 'racketLogSave', { id: pid, log: str() }), /类型/);
+  const sid = ok(await env.call('alice', 'racketLogSave', { racketId: a, log: str() })).id;
+  no(await env.call('alice', 'racketLogSave', { id: sid, log: play() }), /类型/);
+  // 旧版小程序编辑球拍（不带 hours）：保留；新版带 0：关闭
+  ok(await env.call('alice', 'racketSave', { id: a, racket: racket({ status: 'spare' }) }));
+  assert.deepStrictEqual([env.coll('rackets')[a].hours, env.coll('rackets')[a].status], [20, 'spare']);
+  ok(await env.call('alice', 'racketSave', { id: a, racket: racket({ hours: 0 }) }));
+  assert.strictEqual(env.coll('rackets')[a].hours, 0);
+  no(await env.call('alice', 'racketSave', { id: a, racket: racket({ hours: 33 }) }), /时长/);
+  // 删除：逐条、删除球拍、清除全部
+  const p2 = ok(await env.call('alice', 'racketLogSave', { racketId: a, log: play() })).id;
+  ok(await env.call('alice', 'racketLogRemove', { id: p2 }));
+  assert.ok(!env.coll('racket_logs')[p2]);
+  const a2 = ok(await env.call('alice', 'racketSave', { racket: racket() })).id;
+  const p3 = ok(await env.call('alice', 'racketLogSave', { racketId: a2, log: play() })).id;
+  ok(await env.call('alice', 'racketRemove', { id: a }));
+  assert.ok(!env.coll('racket_logs')[pid] && env.coll('racket_logs')[p3], '删除球拍只删它自己的使用记录');
+  const bp = ok(await env.call('bob', 'racketLogSave', { racketId: b, log: play() })).id;
+  ok(await env.call('alice', 'racketClear', { confirm: true }));
+  assert.ok(!env.coll('racket_logs')[p3]);
+  assert.ok(env.coll('racket_logs')[bp], '别人的不受影响');
+});
+
+test('页面：球拍详情可以记 / 改 / 删使用记录（只经 utils/rackets.js），编辑页有时长提醒且默认关闭', () => {
+  const fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
+  const vjs = fs.readFileSync(path.join(root, 'pages/racket-view/racket-view.js'), 'utf8');
+  const vxml = fs.readFileSync(path.join(root, 'pages/racket-view/racket-view.wxml'), 'utf8');
+  for (const fn of ['playAdd', 'playOpen', 'playSave', 'playRemove']) assert.ok(new RegExp(`bindtap="${fn}"`).test(vxml), fn);
+  assert.ok(/API\.saveLog\(/.test(vjs) && /API\.removeLog\(/.test(vjs) && /kind: 'play'/.test(vjs));
+  assert.ok(/<input\b[^>]*type="number"[^>]*bindinput="playMinutes"/.test(vxml), '分钟数只能填数字');
+  const ejs = fs.readFileSync(path.join(root, 'pages/racket-edit/racket-edit.js'), 'utf8');
+  assert.ok(/hours: 0 \}\); return;/.test(ejs), '新球拍默认关闭');
+  assert.ok(/hours: K\.REMIND_HOURS\[d\.hi\]/.test(ejs), '保存时总是带上 hours（0 = 关闭）');
+  assert.strictEqual(K.REMIND_HOURS[0], 0);
 });
 
 test('底部 tab：「球拍」和「我的」的下标与红点 / 数字设置一致，最多 5 个', () => {

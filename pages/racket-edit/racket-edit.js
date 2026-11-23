@@ -9,20 +9,21 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.g
 const BRAND_NAMES = K.RACKET_BRANDS.map((b) => b.n);
 const BRAND_KEYS = K.RACKET_BRANDS.map((b) => b.k);
 const DAY_NAMES = K.REMIND_DAYS.map(K.everyText);
+const HOUR_NAMES = K.REMIND_HOURS.map(K.hoursEveryText);
 
 Page({
   data: {
     id: '', title: '', ready: false, error: '', today: '',
     brandNames: BRAND_NAMES, brandKeys: BRAND_KEYS, bi: -1, models: [], mi: -1, pickName: '',
     bought: '', status: 'active', STATUS: K.STATUS, tagOpts: [], tags: [], maxTags: K.MAX_TAGS,
-    dayNames: DAY_NAMES, reminds: [], saving: false, removing: false,
+    dayNames: DAY_NAMES, reminds: [], hourNames: HOUR_NAMES, hi: 0, saving: false, removing: false,
   },
 
   onLoad(o) {
     wx.hideShareMenu();
     const id = decodeURIComponent((o && o.id) || '');
     this.setData({ id, today: today() });
-    if (!id) { this.fill({ brand: '', model: '', bought: '', status: 'active', tags: [], remind: { string: 90, overgrip: 21 } }); return; }
+    if (!id) { this.fill({ brand: '', model: '', bought: '', status: 'active', tags: [], remind: { string: 90, overgrip: 21 }, hours: 0 }); return; } // 按打球时长换线默认关闭
     wx.setNavigationBarTitle({ title: '编辑球拍' });
     API.load().then(({ rackets }) => {
       const r = rackets.find((x) => x.id === id);
@@ -37,7 +38,8 @@ Page({
     const models = bi >= 0 ? K.modelsOf(K.RACKET_BRANDS, r.brand) : [];
     this.remind = Object.assign({}, r.remind || {});
     const mi = models.indexOf(r.model);
-    this.setData({ bi, models, mi, pickName: this.nameOf(bi, models, mi), bought: r.bought || '', status: r.status || 'active', tags: r.tags || [], ready: true });
+    const hi = Math.max(0, K.REMIND_HOURS.indexOf(r.hours || 0)); // 以前的球拍没有 hours：关闭
+    this.setData({ hi, bi, models, mi, pickName: this.nameOf(bi, models, mi), bought: r.bought || '', status: r.status || 'active', tags: r.tags || [], ready: true });
     this.refresh();
   },
   refresh() {
@@ -74,13 +76,14 @@ Page({
     this.remind[e.currentTarget.dataset.k] = K.REMIND_DAYS[Number(e.detail.value)];
     this.refresh();
   },
+  onHours(e) { this.setData({ hi: Number(e.detail.value) }); },
 
   async save() {
     if (this.data.saving) return;
     const d = this.data, b = K.RACKET_BRANDS[d.bi];
     const remind = {};
     Object.keys(this.remind).forEach((k) => { if (this.remind[k]) remind[k] = this.remind[k]; });
-    const c = K.cleanRacket({ brand: b && b.k, model: d.models[d.mi], bought: d.bought, status: d.status, tags: d.tags, remind }, d.today);
+    const c = K.cleanRacket({ brand: b && b.k, model: d.models[d.mi], bought: d.bought, status: d.status, tags: d.tags, remind, hours: K.REMIND_HOURS[d.hi] || 0 }, d.today);
     if (!c.ok) { wx.showToast({ title: c.msg, icon: 'none' }); return; }
     this.setData({ saving: true });
     try {

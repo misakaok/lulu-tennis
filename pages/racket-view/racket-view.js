@@ -14,12 +14,28 @@ function rowOf(l) {
   };
 }
 
+// 使用记录（打球时长）的快捷时长
+const QUICK = [30, 60, 90, 120, 150, 180].map((m) => ({ m: String(m), t: m < 60 ? `${m} 分钟` : `${m / 60} 小时` }));
+const tagCls = (st) => (st === 'over' ? 'bad' : st === 'soon' ? 'warn' : st === 'ok' ? 'lime' : '');
+
+function playView(r, s) {
+  const p = s.play;
+  return {
+    hours: p.hours, target: p.target, pct: p.pct, state: p.state, text: p.text, cls: tagCls(p.state), sessions: p.sessions,
+    since: p.since ? `${p.since} 穿线以后` : '还没有穿线记录，算全部使用记录',
+    rows: s.plays.map((l) => ({ id: l.id, date: l.date, text: K.minutesText(l.minutes), cur: !p.since || l.date >= p.since })),
+  };
+}
+
 Page({
-  data: { id: '', loading: true, error: '', r: null, s: null, rows: [], filter: 'all', shown: [] },
+  data: {
+    id: '', loading: true, error: '', r: null, s: null, rows: [], filter: 'all', shown: [],
+    p: null, showOld: false, pe: null, quick: QUICK, today: '', playBusy: false, // pe：正在新增 / 修改的使用记录
+  },
 
   onLoad(o) {
     wx.hideShareMenu();
-    this.setData({ id: decodeURIComponent((o && o.id) || '') });
+    this.setData({ id: decodeURIComponent((o && o.id) || ''), today: today() });
   },
   onShow() { this.load(); }, // 编辑、记录后回来刷新
   onPullDownRefresh() {
@@ -35,10 +51,14 @@ Page({
       const s = K.summary(r, logs, today());
       wx.setNavigationBarTitle({ title: K.racketTitle(r) });
       this.rows = s.timeline.map(rowOf);
+      const reminders = s.reminders.map((x) => Object.assign({}, x, {
+        detail: [x.due ? '下次 ' + x.due : '', x.hours ? `已打 ${x.played} / ${x.hours} 小时` : ''].filter(Boolean).join(' · '),
+      }));
       this.setData({
         loading: false, error: '',
         r: { no: r.no, brand: r.brand, model: r.model, title: K.racketTitle(r), name: K.racketName(r), status: K.STATUS[r.status], retired: r.status === 'retired', bought: r.bought, tags: r.tags || [] },
-        s: { stringCount: s.stringCount, maintCount: s.maintCount, last: s.lastString, cost: s.cost ? money(s.cost) : '', reminders: s.reminders, hasRemind: Object.keys(r.remind || {}).length > 0 },
+        s: { stringCount: s.stringCount, maintCount: s.maintCount, last: s.lastString, cost: s.cost ? money(s.cost) : '', reminders, hasRemind: Object.keys(r.remind || {}).length > 0 },
+        p: playView(r, s),
       });
       this.apply();
     } catch (e) {
@@ -56,4 +76,53 @@ Page({
   addMaint() { wx.navigateTo({ url: `/pages/racket-log/racket-log?racket=${encodeURIComponent(this.data.id)}&kind=maint` }); },
   edit() { wx.navigateTo({ url: '/pages/racket-edit/racket-edit?id=' + encodeURIComponent(this.data.id) }); },
   openLog(e) { wx.navigateTo({ url: '/pages/racket-log/racket-log?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+
+  /* ---------- 使用记录（打球时长）：在这一页的弹层里新增、修改、删除 ---------- */
+  toggleOld() { this.setData({ showOld: !this.data.showOld }); },
+  playAdd() { this.setData({ pe: { id: '', date: today(), minutes: '' }, today: today() }); },
+  playOpen(e) {
+    const id = e.currentTarget.dataset.id;
+    API.load().then(({ logs }) => {
+      const l = logs.find((x) => x.id === id && x.kind === 'play');
+      if (!l) { wx.showToast({ title: '记录不存在，可能已被删除', icon: 'none' }); this.load(); return; }
+      this.setData({ pe: { id: l.id, date: l.date, minutes: String(l.minutes) }, today: today() });
+    }).catch((err) => wx.showToast({ title: err.message || '读取失败', icon: 'none' }));
+  },
+  playCancel() { if (!this.data.playBusy) this.setData({ pe: null }); },
+  playDate(e) { this.setData({ 'pe.date': e.detail.value }); },
+  playMinutes(e) { this.setData({ 'pe.minutes': String(e.detail.value || '').replace(/\D/g, '').slice(0, 3) }); },
+  playQuick(e) { this.setData({ 'pe.minutes': e.currentTarget.dataset.m }); },
+  async playSave() {
+    const pe = this.data.pe;
+    if (!pe || this.data.playBusy) return;
+    if (!/^\d+$/.test(pe.minutes)) { wx.showToast({ title: '请填打球分钟数', icon: 'none' }); return; }
+    const c = K.cleanLog({ kind: 'play', date: pe.date, minutes: Number(pe.minutes) }, today());
+    if (!c.ok) { wx.showToast({ title: c.msg, icon: 'none' }); return; }
+    this.setData({ playBusy: true });
+    try {
+      await API.saveLog(pe.id, this.data.id, c.rec);
+      this.setData({ pe: null, playBusy: false });
+      wx.showToast({ title: '已保存', icon: 'success' });
+      this.load();
+    } catch (err) {
+      this.setData({ playBusy: false });
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' });
+    }
+  },
+  playRemove() {
+    const pe = this.data.pe;
+    if (!pe || !pe.id || this.data.playBusy) return;
+    wx.showModal({
+      title: '删除这条打球记录？', content: '删除后无法恢复，已打时长和提醒会同步更新。', confirmText: '删除', confirmColor: '#b34d4d',
+      success: (m) => {
+        if (!m.confirm) return;
+        this.setData({ playBusy: true });
+        API.removeLog(pe.id).then(() => {
+          this.setData({ pe: null, playBusy: false });
+          wx.showToast({ title: '已删除', icon: 'success' });
+          this.load();
+        }).catch((err) => { this.setData({ playBusy: false }); wx.showToast({ title: err.message || '删除失败', icon: 'none' }); });
+      },
+    });
+  },
 });

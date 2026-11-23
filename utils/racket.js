@@ -1,4 +1,4 @@
-// 我的球拍（只有本人可见）：球拍档案、穿线 / 维护记录的字段校验、提醒和统计。小程序端和云函数共用（scripts/sync-shared.sh）。
+// 我的球拍（只有本人可见）：球拍档案、穿线 / 维护 / 使用（打球时长）记录的字段校验、提醒和统计。小程序端和云函数共用（scripts/sync-shared.sh）。
 //   个人主体不放自由文字：品牌、型号、球线、维护项目、备注一律从下面的固定选项里选；球拍没有昵称，按添加顺序自动编号（「1 号拍」）。
 //   数字字段（磅数、费用、手感）按范围校验。提醒只在小程序内显示，不发订阅消息。
 
@@ -43,6 +43,11 @@ const MAX_RACKETS = 30;
 const MAX_LOGS = 3000;
 const SOON_DAYS = 7; // 提醒日前 7 天显示「快到了」
 const MIN_DATE = '2000-01-01';
+// 使用记录（kind: 'play'）：某天这支拍实际打了多少分钟，只存日期和整数分钟
+const PLAY_MIN = 1, PLAY_MAX = 600; // 每条 1～600 分钟（一天打几场可以记几条）
+// 按累计打球时长换线（racket.hours，0 / 没有 = 不提醒，默认关闭）：这次穿线后累计满 N 小时
+const REMIND_HOURS = [0, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100];
+const SOON_RATIO = 0.8; // 打满目标的 80% 显示「快到了」
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const validDate = (s) => {
@@ -92,7 +97,13 @@ function cleanRacket(input, today) {
     if (!REMIND_ITEMS[k] || REMIND_DAYS.indexOf(r[k]) < 0) return { ok: false, msg: '提醒间隔不对' };
     if (r[k]) remind[k] = r[k];
   }
-  return { ok: true, rec: { brand: pick.brand, model: pick.model, bought, status: x.status, tags: t.tags, remind } };
+  const rec = { brand: pick.brand, model: pick.model, bought, status: x.status, tags: t.tags, remind };
+  // 换线时长提醒：没带这个字段（旧版小程序）就不写，云端编辑时保留原值；0 = 关闭
+  if (x.hours !== undefined) {
+    if (REMIND_HOURS.indexOf(x.hours) < 0) return { ok: false, msg: '换线时长提醒不对' };
+    rec.hours = x.hours;
+  }
+  return { ok: true, rec };
 }
 
 const isTension = (v) => Number.isInteger(v) && v >= TENSION_MIN && v <= TENSION_MAX;
@@ -103,12 +114,18 @@ function cleanCost(v) {
   return { cost: Math.round(n * 100) / 100 };
 }
 
-/** 整理一条穿线 / 维护记录（不含 racketId：由云端按归属校验后写入） */
+const isMinutes = (v) => Number.isInteger(v) && v >= PLAY_MIN && v <= PLAY_MAX; // 只认数字，不认 "90" 这样的字符串
+
+/** 整理一条穿线 / 维护 / 使用记录（不含 racketId：由云端按归属校验后写入） */
 function cleanLog(input, today) {
   const x = input && typeof input === 'object' ? input : {};
-  if (x.kind !== 'string' && x.kind !== 'maint') return { ok: false, msg: '记录类型不对' };
+  if (x.kind !== 'string' && x.kind !== 'maint' && x.kind !== 'play') return { ok: false, msg: '记录类型不对' };
   const e = checkDate(x.date, today, '日期');
   if (e) return { ok: false, msg: e };
+  if (x.kind === 'play') {
+    if (!isMinutes(x.minutes)) return { ok: false, msg: `打球时长要填 ${PLAY_MIN}～${PLAY_MAX} 的整数分钟` };
+    return { ok: true, rec: { kind: 'play', date: x.date, minutes: x.minutes } };
+  }
   const c = cleanCost(x.cost);
   if (c.msg) return { ok: false, msg: c.msg };
   if (x.kind === 'maint') {
@@ -146,42 +163,83 @@ function stringText(log) {
 const tensionText = (log) => (log.mains === log.crosses ? `${log.mains} 磅` : `竖 ${log.mains} · 横 ${log.crosses} 磅`);
 const everyText = (d) => (!d ? '不提醒' : d % 30 === 0 ? `每 ${d / 30} 个月` : d % 7 === 0 ? `每 ${d / 7} 周` : `每 ${d} 天`);
 const agoText = (n) => (n <= 0 ? '今天' : n === 1 ? '昨天' : n < 30 ? `${n} 天前` : n < 365 ? `${Math.floor(n / 30)} 个月前` : `${Math.floor(n / 365)} 年前`);
+// 时长显示：小时保留一位小数（90 分钟 → 1.5），去掉多余的 .0
+const hoursText = (min) => String(Math.round((min || 0) / 6) / 10);
+const minutesText = (m) => (m < 60 ? `${m} 分钟` : `${Math.floor(m / 60)} 小时${m % 60 ? ` ${m % 60} 分钟` : ''}`);
+const hoursEveryText = (h) => (h ? `满 ${h} 小时` : '不提醒');
 
 const byDate = (x, y) => String(y.date).localeCompare(String(x.date)) || (y.createdAt || 0) - (x.createdAt || 0);
+const ORDER = { over: 0, soon: 1, none: 2, ok: 3 };
+
+/**
+ * 这次球线的累计打球时长。只按日期划分，和记录的先后顺序无关（补录也一样）：
+ *   「这次球线」从最近一次穿线的日期开始（同一天记了几次穿线，都是这一天），这一天及以后的使用记录都算进来；
+ *   穿线当天记的时长算在新球线上；比这次穿线早的使用记录保留，算在以前的球线上，不再累计。
+ *   还没有穿线记录时，算这支拍的全部使用记录。
+ * 设了目标（racket.hours）且球拍没退役时给出状态：满目标 over、满 80% soon、其余 ok
+ */
+function playOf(racket, plays, lastString) {
+  const since = lastString ? lastString.date : '';
+  const cur = plays.filter((p) => !since || p.date >= since);
+  const minutes = cur.reduce((s, p) => s + (p.minutes || 0), 0);
+  const target = REMIND_HOURS.indexOf(racket.hours) > 0 ? racket.hours : 0; // 旧球拍没有这个字段 = 关闭
+  const out = { since, minutes, hours: hoursText(minutes), sessions: cur.length, target, state: '', text: '', pct: 0 };
+  if (!target) return out;
+  const goal = target * 60;
+  out.pct = Math.min(100, Math.round((minutes / goal) * 100));
+  if (racket.status === 'retired') return out;
+  out.state = minutes >= goal ? 'over' : minutes >= goal * SOON_RATIO ? 'soon' : 'ok';
+  out.text = minutes > goal ? `已超过 ${hoursText(minutes - goal)} 小时` : minutes === goal ? '刚好打满' : `还差 ${Math.ceil((goal - minutes) / 6) / 10} 小时`;
+  return out;
+}
 
 /**
  * 一支球拍的统计和提醒。logs 可以是本人全部记录，这里只取这支拍的
  * 提醒：最近一次该项目的记录 + 间隔；没有记录时从购入日期算；都没有就提示「还没有记录」。已退役的球拍不提醒
+ * 穿线另外可以按打球时长提醒（racket.hours）：和按天的穿线提醒合成同一条「穿线」，哪个条件更急就显示哪个，
+ * 两个都到了也只算一项（tab 上的数字、列表里的提示都按这一条）
  */
 function summary(racket, logs, today) {
   const mine = (logs || []).filter((l) => l.racketId === racket.id).sort(byDate);
   const strings = mine.filter((l) => l.kind === 'string');
   const maints = mine.filter((l) => l.kind === 'maint');
+  const plays = mine.filter((l) => l.kind === 'play');
   const lastOf = (item) => (item === 'string' ? strings[0] : maints.find((l) => l.item === item)) || null;
+  const last = strings[0] || null;
+  const play = playOf(racket, plays, last);
   const reminders = [];
   if (racket.status !== 'retired') {
     Object.keys(REMIND_ITEMS).forEach((item) => {
-      const every = (racket.remind || {})[item];
-      if (!every) return;
-      const last = lastOf(item);
-      const base = last ? last.date : racket.bought || '';
-      if (!base) { reminders.push({ item, label: REMIND_ITEMS[item], every, everyText: everyText(every), state: 'none', text: '还没有记录' }); return; }
-      const due = addDays(base, every), left = daysBetween(today, due);
-      const state = left < 0 ? 'over' : left <= SOON_DAYS ? 'soon' : 'ok';
-      const text = left < 0 ? `已超过 ${-left} 天` : left === 0 ? '就是今天' : `还有 ${left} 天`;
-      reminders.push({ item, label: REMIND_ITEMS[item], every, everyText: everyText(every), due, left, state, text });
+      const every = (racket.remind || {})[item] || 0;
+      const hours = item === 'string' ? play.target : 0;
+      if (!every && !hours) return;
+      let r;
+      if (!every) r = { item, label: REMIND_ITEMS[item], every: 0, everyText: hoursEveryText(hours), state: play.state, text: play.text };
+      else {
+        const lastLog = lastOf(item);
+        const base = lastLog ? lastLog.date : racket.bought || '';
+        if (!base) r = { item, label: REMIND_ITEMS[item], every, everyText: everyText(every), state: 'none', text: '还没有记录' };
+        else {
+          const due = addDays(base, every), left = daysBetween(today, due);
+          const state = left < 0 ? 'over' : left <= SOON_DAYS ? 'soon' : 'ok';
+          const text = left < 0 ? `已超过 ${-left} 天` : left === 0 ? '就是今天' : `还有 ${left} 天`;
+          r = { item, label: REMIND_ITEMS[item], every, everyText: everyText(every), due, left, state, text };
+        }
+        if (hours && ORDER[play.state] < ORDER[r.state]) { r.state = play.state; r.text = play.text; } // 时长更急：显示时长
+      }
+      if (hours) Object.assign(r, { hours, played: play.hours });
+      reminders.push(r);
     });
   }
-  const order = { over: 0, soon: 1, none: 2, ok: 3 };
-  reminders.sort((a, b) => order[a.state] - order[b.state] || (a.left || 0) - (b.left || 0));
-  const last = strings[0] || null;
+  reminders.sort((a, b) => ORDER[a.state] - ORDER[b.state] || (a.left || 0) - (b.left || 0));
   const costs = mine.filter((l) => typeof l.cost === 'number');
   return {
     stringCount: strings.length, maintCount: maints.length,
     lastString: last ? { date: last.date, ago: agoText(daysBetween(last.date, today)), text: stringText(last), tension: tensionText(last) } : null,
     cost: Math.round(costs.reduce((s, l) => s + l.cost, 0) * 100) / 100,
     reminders, due: reminders.filter((r) => r.state === 'over' || r.state === 'soon').length,
-    timeline: mine,
+    timeline: mine.filter((l) => l.kind !== 'play'), // 穿线 / 维护；使用记录单独列（plays）
+    play, plays,
   };
 }
 
@@ -194,14 +252,14 @@ function overview(rackets, logs, today) {
   const strings = mine.filter((l) => l.kind === 'string').sort(byDate);
   return {
     rackets: (rackets || []).length, inUse: (rackets || []).filter((r) => r.status !== 'retired').length,
-    stringCount: strings.length, maintCount: mine.length - strings.length,
+    stringCount: strings.length, maintCount: mine.filter((l) => l.kind === 'maint').length, // 使用记录不算维护
     lastString: strings[0] ? strings[0].date : '', due,
   };
 }
 
 module.exports = {
-  OTHER, RACKET_BRANDS, STRING_BRANDS, STATUS, MAINT_ITEMS, REMIND_ITEMS, REMIND_DAYS, RACKET_TAGS, STRING_TAGS,
-  TENSION_MIN, TENSION_MAX, COST_MAX, MAX_TAGS, MAX_RACKETS, MAX_LOGS, SOON_DAYS,
+  OTHER, RACKET_BRANDS, STRING_BRANDS, STATUS, MAINT_ITEMS, REMIND_ITEMS, REMIND_DAYS, REMIND_HOURS, RACKET_TAGS, STRING_TAGS,
+  TENSION_MIN, TENSION_MAX, COST_MAX, MAX_TAGS, MAX_RACKETS, MAX_LOGS, SOON_DAYS, PLAY_MIN, PLAY_MAX, SOON_RATIO,
   validDate, addDays, daysBetween, modelsOf, cleanRacket, cleanLog,
-  racketName, racketTitle, stringText, tensionText, everyText, agoText, summary, overview,
+  racketName, racketTitle, stringText, tensionText, everyText, agoText, hoursText, minutesText, hoursEveryText, summary, overview,
 };
