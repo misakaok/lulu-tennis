@@ -20,7 +20,6 @@
     <view wx:elif="{{stateText && !photoNew}}" class="ph-pill {{photoState === 'checking' ? '' : 'bad'}}">{{stateText}}</view>
     <view wx:elif="{{hasPhoto && !shown}}" class="ph-pill bad">没有开启公开展示，照片只有你自己能看到</view>
     <view wx:if="{{photoNew && !saving}}" class="ph-ops"><view class="btn-line ph-op" hover-class="tap-on" bindtap="undoPhoto">不换了</view></view>
-    <view class="ph-hint">1:1 裁剪 · 同意公开展示并通过图片安全检测后，其他成员才能看到；没有照片时显示名字首字</view>
   </view>
   <canvas type="2d" id="photo-cv" class="photo-cv"></canvas>
 
@@ -31,7 +30,6 @@
       <input class="name-in" type="nickname" value="{{name}}" placeholder="点击填写，可用微信昵称" maxlength="10"
         bindinput="onName" bindblur="onName" bindchange="onName" />
     </view>
-    <view class="hint left">昵称只用于展示。改昵称不影响以前的战绩和活动报名（都按账号关联）。</view>
 
     <view class="name-row">
       <text class="label">性别</text>
