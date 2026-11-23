@@ -60,3 +60,9 @@
 .rt-reason { padding: 12rpx 24rpx; margin: 0 14rpx 14rpx 0; border-radius: 999rpx; background: #F7F7FB; color: #6C6C86; font-size: 25rpx; }
 .rt-reason.on { background: #ECECF6; color: #6E6EA3; font-weight: 600; }
 .h-slot { margin-top: 6rpx; font-size: 24rpx; opacity: 0.95; }
+
+/* 场边记分入口（还没录分的场次）和带入后的提示 */
+.sc-row { display: flex; align-items: center; justify-content: space-between; margin-top: 20rpx; padding: 18rpx 20rpx; background: #F4F4F9; border-radius: 20rpx; }
+.sc-t { flex: 1; min-width: 0; font-size: 23rpx; color: #5C5C76; line-height: 1.5; margin-right: 16rpx; }
+.sc-row .btn-line.mini { flex: none; }
+.sc-from { font-size: 23rpx; color: #6E6EA3; background: #EFEFF6; border-radius: 16rpx; padding: 12rpx 18rpx; margin-bottom: 12rpx; line-height: 1.5; }

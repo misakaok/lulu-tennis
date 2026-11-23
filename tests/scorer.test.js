@@ -394,4 +394,181 @@ test('战绩页：「场边记分」和「记一场」两个入口都只给正�
 }));
 
 /* ---------- 活动场次：从活动录分页打开、完赛后回到这一场预填 ---------- */
+test('活动场次草稿：只多存活动和场次编号（没有姓名）；编号格式不对不认；交还标记只给同一场、取一次就没了', () => withWx({}, () => {
+  const c = cfg(4, true, 1);
+  const s = S.start(c, 1, { drawId: 'd1', key: 'g0-1', name: 'Alice' });
+  assert.deepStrictEqual(s.ev, { drawId: 'd1', key: 'g0-1' });
+  assert.strictEqual(S.start(c, 1, { drawId: '<x>', key: 'g0-1' }).ev, undefined);
+  assert.ok(S.saveDraft(Object.assign({}, s, { points: 'aa' })));
+  const raw = global.wx.getStorageSync(S.DRAFT_KEY);
+  assert.deepStrictEqual(Object.keys(raw).sort(), ['cfg', 'createdAt', 'ev', 'id', 'points', 'updatedAt', 'v']);
+  assert.deepStrictEqual(raw.ev, { drawId: 'd1', key: 'g0-1' });
+  assert.deepStrictEqual(S.loadDraft().ev, { drawId: 'd1', key: 'g0-1' });
+  assert.strictEqual(S.restore(Object.assign({}, raw, { ev: { drawId: 'd1', key: 'k 1' } })), null);
+  assert.strictEqual(S.restore(Object.assign({}, raw, { ev: 'd1' })), null);
+  assert.ok(S.sameEv(S.loadDraft(), 'd1', 'g0-1') && !S.sameEv(S.loadDraft(), 'd1', 'g0-2'));
+  // 名字只在内存里
+  S.setLabels(s.ev, { a: 'Alice', b: 'Bob', title: '分组循环' });
+  assert.deepStrictEqual(S.labelsOf(s.ev), { a: 'Alice', b: 'Bob', title: '分组循环' });
+  assert.ok(!/Alice|Bob/.test(JSON.stringify(global.wx.getStorageSync(S.DRAFT_KEY))));
+  S.setPending(s);
+  assert.strictEqual(S.takePending('d1', 'g0-2'), '', '别的场次拿不到');
+  assert.strictEqual(S.takePending('d1', 'g0-1'), s.id);
+  assert.strictEqual(S.takePending('d1', 'g0-1'), '', '取一次就清掉');
+}));
+
+function scorePage(store, over) {
+  const calls = [], navs = [], toasts = [], modals = [];
+  let confirm = true;
+  const wx = Object.assign(mockWx(store), {
+    showToast: (o) => toasts.push(o.title), showModal: (o) => { modals.push(o); if (o.success) o.success({ confirm }); },
+    navigateTo: (o) => navs.push(o.url), navigateBack() { navs.push('back'); }, setNavigationBarTitle() {},
+  });
+  const deps = {
+    '../../utils/db': {},
+    '../../utils/cloud': { call: async (action, data) => { calls.push({ action, data }); return { ok: true }; } },
+    '../../utils/pick': { reason: async () => '' },
+  };
+  const p = load('pages/score/score.js', wx, deps);
+  p.drawId = 'd1'; p.key = 'g0-1';
+  p.cfg = { setGames: 4, noAd: true, bestOf: 1, stage: '分组循环' };
+  p.f = { a: 'Alice', b: 'Bob', stage: '分组循环 · 第 1 轮', done: false, sets: [] };
+  p.data.canEdit = true;
+  Object.assign(p, over || {});
+  return { p, calls, navs, toasts, modals, setConfirm: (v) => { confirm = v; } };
+}
+
+test('活动录分页：还没录分时有「场边记分」，用这一场的规则开一场并带上双方名字；本机另有一场先确认覆盖', async () => {
+  const store = {};
+  await withWx(store, async () => {
+    const { p, navs, modals, setConfirm } = scorePage(store);
+    p.refreshScorer();
+    assert.deepStrictEqual([p.data.scorerOk, p.data.scorerResume], [true, false]);
+    p.openScorer();
+    assert.deepStrictEqual(navs, ['/pages/scorer/scorer?go=1']);
+    const d = S.loadDraft();
+    assert.deepStrictEqual(plain([d.ev, d.cfg, d.points]), [{ drawId: 'd1', key: 'g0-1' }, { setGames: 4, noAd: true, bestOf: 1 }, '']);
+    assert.deepStrictEqual(S.labelsOf(d.ev), { a: 'Alice', b: 'Bob', title: '分组循环 · 第 1 轮' });
+    // 记了几分回来：按钮变成「继续」，再点不重开
+    S.saveDraft(Object.assign({}, d, { points: 'ab' }));
+    p.onShow();
+    assert.strictEqual(p.data.scorerResume, true);
+    p.openScorer();
+    assert.strictEqual(S.loadDraft().points, 'ab');
+    assert.strictEqual(modals.length, 0);
+    // 本机是另一场（日常记分）：先确认，取消就不动
+    S.saveDraft(Object.assign(S.start(cfg(6, false, 3), 2), { points: 'aaa' }));
+    setConfirm(false); p.openScorer();
+    assert.strictEqual(modals.length, 1); assert.match(modals[0].content, /覆盖/);
+    assert.strictEqual(S.loadDraft().ev, undefined);
+    setConfirm(true); p.openScorer();
+    assert.deepStrictEqual(S.loadDraft().ev, { drawId: 'd1', key: 'g0-1' });
+    // 已经有比分、或者不能录这一场的人：没有入口
+    const done = scorePage(store); done.p.f.done = true; done.p.refreshScorer();
+    assert.strictEqual(done.p.data.scorerOk, false);
+    const other = scorePage(store); other.p.data.canEdit = false; other.p.refreshScorer();
+    assert.strictEqual(other.p.data.scorerOk, false);
+    other.p.openScorer();
+  });
+});
+
+test('活动录分页：完赛的场边记分退回来预填局分，不自动提交；规则变了、别的场次、没打完都不预填；提交成功才清掉草稿', async () => {
+  const store = {};
+  await withWx(store, async () => {
+    const c = cfg(4, true, 1);
+    const fin = Object.assign(S.start(c, 1, { drawId: 'd1', key: 'g0-1' }), { points: games('aaab') + games('a') }); // 4:1
+    S.saveDraft(fin);
+    const { p, calls, modals, toasts } = scorePage(store);
+    S.setPending(fin);
+    p.onShow();
+    assert.strictEqual(calls.length, 0, '只预填，不提交');
+    assert.deepStrictEqual([p.data.editing, p.data.fromScorer], [true, true]);
+    assert.deepStrictEqual(plain(p.data.init), [{ a: 4, b: 1 }]);
+    assert.ok(R.checkMatch(p.data.init, 1, c).ok);
+    // 提交：走原来的 recordEventMatch，成功后才清草稿
+    p.res = R.checkMatch(p.data.init, 1, c);
+    await p.submit();
+    assert.deepStrictEqual(calls.map((x) => x.action), ['recordEventMatch']);
+    assert.deepStrictEqual(plain(calls[0].data.sets), [{ a: 4, b: 1 }]);
+    assert.strictEqual(S.loadDraft(), null);
+    // 规则变了：不预填，提示按这一场的规则填
+    S.saveDraft(fin);
+    const q = scorePage(store, {}); q.p.cfg = { setGames: 6, noAd: true, bestOf: 1 };
+    q.p.applyScorer(fin.id);
+    assert.strictEqual(q.p.data.fromScorer, false); assert.match(q.modals[0].content, /规则/);
+    // 别的场次的草稿、没打完的：不预填
+    const r2 = scorePage(store); r2.p.key = 'g0-2'; r2.p.applyScorer(fin.id);
+    assert.strictEqual(r2.p.data.fromScorer, false);
+    S.saveDraft(Object.assign({}, fin, { points: 'aaa' }));
+    const r3 = scorePage(store); r3.p.applyScorer(fin.id);
+    assert.strictEqual(r3.p.data.fromScorer, false);
+    assert.ok(r3.toasts.length && modals.length === 0);
+    // 不能录这一场的人：不预填
+    S.saveDraft(fin);
+    const r4 = scorePage(store); r4.p.data.canEdit = false; r4.p.applyScorer(fin.id);
+    assert.strictEqual(r4.p.data.fromScorer, false);
+    // 提交失败：草稿保留
+    const r5 = scorePage(store); r5.p.applyScorer(fin.id);
+    r5.p.withImpact = async () => { throw new Error('网络'); };
+    r5.p.res = R.checkMatch(r5.p.data.init, 1, c);
+    await r5.p.submit();
+    assert.ok(S.loadDraft(), '提交失败不清草稿');
+  });
+});
+
+test('记分页（活动场次）：直接进入记分、显示双方名字；完赛后退回这一场的录分页（或重新打开它），不读写云端', async () => {
+  const store = {};
+  const navs = [];
+  let prev = null;
+  const wx = Object.assign(mockWx(store), {
+    showModal: (o) => o.success({ confirm: true }), setKeepScreenOn() {}, vibrateShort() {},
+    showActionSheet() { throw new Error('活动场次不用选自己在哪一方'); },
+    navigateTo: (o) => navs.push(o.url), navigateBack: () => navs.push('back'), redirectTo: (o) => navs.push('redirect ' + o.url),
+  });
+  const deps = {
+    '../../utils/member': { statusCached: async () => ({ status: 'active' }) },
+    '../../utils/db': new Proxy({}, { get: () => () => { throw new Error('记分页不应读写云端'); } }),
+  };
+  await withWx(store, async () => {
+    const s = S.start(cfg(4, false, 1), 1, { drawId: 'd1', key: 'g0-1' });
+    S.saveDraft(s);
+    S.setLabels(s.ev, { a: 'Alice', b: 'Bob', title: '分组循环' });
+    const p = load('pages/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/draw-view/draw-view' }, prev, {}].filter(Boolean) });
+    p.onLoad({ go: '1' }); await p.onShow();
+    assert.strictEqual(p.data.mode, 'live');
+    assert.deepStrictEqual(plain([p.data.ev, p.data.names, p.data.evTitle]), [true, { a: 'Alice', b: 'Bob' }, '分组循环']);
+    (games('aaa') + 'aaab').split('').forEach((side) => p.point(tap({ side }))); // 占先制 3:0，40:15
+    'bb'.split('').forEach((side) => p.point(tap({ side }))); // 40:40 → 平分
+    p.point(tap({ side: 'b' }));
+    assert.strictEqual(p.data.v.callText, 'Bob 占先');
+    'aaa'.split('').forEach((side) => p.point(tap({ side }))); // 回到平分、A 占先、拿下 → 4:0
+    assert.strictEqual(p.data.v.done, true);
+    assert.strictEqual(p.data.v.resultText, 'Alice 1:0 获胜');
+    // 从这一场的录分页进来：退回去并留标记
+    prev = { route: 'pages/score/score', drawId: 'd1', key: 'g0-1' };
+    p.handoff();
+    assert.deepStrictEqual(navs, ['back']);
+    assert.strictEqual(S.takePending('d1', 'g0-1'), s.id);
+    // 从战绩页的「场边记分」继续的：重新打开这一场的录分页
+    prev = { route: 'pages/index/index' };
+    p.handoff();
+    assert.strictEqual(navs[1], `redirect /pages/score/score?drawId=d1&key=g0-1&scorer=${s.id}`);
+    assert.ok(S.loadDraft(), '带入时不清草稿');
+    // 小程序重开后没有名字：显示 A 方 / B 方
+    const q = load('pages/scorer/scorer.js', wx, deps, { getCurrentPages: () => [] });
+    const saved = S.labelsOf;
+    S.labelsOf = () => null;
+    try { q.onLoad({}); await q.onShow(); } finally { S.labelsOf = saved; }
+    assert.deepStrictEqual(plain([q.data.mode, q.data.names, q.data.evTitle]), ['resume', { a: 'A 方', b: 'B 方' }, '活动场次']);
+  });
+});
+
+test('活动录分页：「场边记分」入口在录分卡片里，按钮用小号 .btn-line mini；带入后有提示', () => {
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/score/score.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{scorerOk\}\}"[\s\S]*class="btn-line mini"[^>]*bindtap="openScorer"/.test(xml));
+  assert.ok(/wx:if="\{\{fromScorer\}\}"[^>]*>已带入场边记分的局分，核对后点「提交比分」才会保存/.test(xml));
+  const sxml = fs.readFileSync(path.join(__dirname, '../pages/scorer/scorer.wxml'), 'utf8');
+  assert.ok(/带入这一场录分/.test(sxml));
+});
+
 module.exports = T;

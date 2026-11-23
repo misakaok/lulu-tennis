@@ -1,5 +1,8 @@
 // 活动录分：从签表 / 赛程点进来，双方和赛制都已确定，只填局分
+// 场边记分：还没录分的场次可以点「场边记分」逐分记（pages/scorer，只在本机、用这一场的规则），完赛后回到这里预填局分，
+//   仍由本人核对后点「提交比分」（recordEventMatch）；提交成功才清掉那份记分草稿
 const E = require('../../utils/event');
+const SC = require('../../utils/scorer');
 const R = require('../../utils/rules');
 const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
@@ -20,11 +23,13 @@ Page({
     check: { ok: false, msg: '' }, submitting: false,
     recordId: '', revocable: false,
     isOwner: false, outcomeText: '', retire: null, busy: false,
+    scorerOk: false, scorerResume: false, fromScorer: false,
   },
 
   onLoad(options) {
     this.drawId = options.drawId;
     this.key = options.key;
+    this.pendingScorer = options.scorer || ''; // 记分页 redirectTo 过来：加载完再预填
     const t = today();
     this.setData({ date: t, today: t });
     this.load();
@@ -80,10 +85,57 @@ Page({
         editing: !f.done && canEdit,
         init: [],
       });
+      this.refreshScorer();
+      if (this.pendingScorer) { const id = this.pendingScorer; this.pendingScorer = ''; this.applyScorer(id); }
     } catch (e) {
       console.error(e);
       this.setData({ loading: false, error: e.message || '加载失败，请稍后再试' });
     }
+  },
+
+  onShow() {
+    // 从场边记分「带入这一场录分」退回来：取走标记预填（还没加载完就等加载完）
+    const id = SC.takePending(this.drawId, this.key);
+    if (id) { if (this.f) this.applyScorer(id); else this.pendingScorer = id; }
+    else if (this.f) this.refreshScorer(); // 从记分页返回：按钮文字跟着草稿变（继续 / 开始）
+  },
+
+  /* ---------- 场边记分 ---------- */
+  // 只给能录这一场的人（球员、发起人），而且这一场还没有比分；规则就是这一场的规则
+  refreshScorer() {
+    const d = SC.loadDraft();
+    const mine = SC.sameEv(d, this.drawId, this.key) && SC.sameCfg(d.cfg, this.cfg);
+    this.setData({ scorerOk: !!this.data.canEdit && !this.f.done, scorerResume: mine && !!d.points });
+  },
+  openScorer() {
+    if (!this.data.scorerOk) return;
+    const f = this.f;
+    SC.setLabels({ drawId: this.drawId, key: this.key }, { a: f.a, b: f.b, title: f.stage });
+    const go = () => wx.navigateTo({ url: '/pages/scorer/scorer?go=1' });
+    const d = SC.loadDraft();
+    if (SC.sameEv(d, this.drawId, this.key) && SC.sameCfg(d.cfg, this.cfg)) { go(); return; } // 这一场已经在记：接着记
+    const fresh = () => { SC.saveDraft(SC.start(this.cfg, Date.now(), { drawId: this.drawId, key: this.key })); go(); };
+    if (!d || !d.points) { fresh(); return; }
+    wx.showModal({
+      title: '开始这一场的场边记分？',
+      content: '本机只保存一场记分，开始后会覆盖上一场' + (SC.resultOf(d) ? '（已完赛、还没带入录分）' : '（还没打完）') + '。',
+      confirmText: '覆盖', confirmColor: '#b34d4d',
+      success: (r) => { if (r.confirm) fresh(); },
+    });
+  },
+  // 预填场边记分的结果：只认这一场、已完赛、规则和这一场一样的草稿；不自动提交
+  applyScorer(id) {
+    const d = SC.loadDraft();
+    const r = d && d.id === id && SC.sameEv(d, this.drawId, this.key) ? SC.resultOf(d) : null;
+    if (!r) { wx.showToast({ title: '没找到这一场已完赛的场边记分', icon: 'none' }); return; }
+    if (!SC.sameCfg(d.cfg, this.cfg)) {
+      wx.showModal({ title: '规则不一样', content: `这一场的规则已改为「${E.ruleText(this.cfg)}」，和场边记分时不同，请按这一场的规则填写局分。`, showCancel: false });
+      return;
+    }
+    if (!this.data.canEdit) { wx.showToast({ title: this.data.reason || '你不能录这一场', icon: 'none' }); return; }
+    this.scorerId = id;
+    this.setData({ editing: true, init: r.sets, fromScorer: true, scorerOk: false });
+    wx.showToast({ title: '已填好局分，核对后提交', icon: 'none' });
   },
 
   onDate(e) { this.setData({ date: e.detail.value }); },
@@ -112,6 +164,7 @@ Page({
       // 活动比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）
       const res = await this.withImpact('recordEventMatch', { drawId: this.drawId, key: this.key, date: this.data.date, sets: r.sets });
       if (!res) return;
+      if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉场边记分草稿
       wx.showToast({ title: f.done ? '比分已更新' : '比分已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 700);
     } catch (e) {

@@ -68,7 +68,12 @@
           <view class="picker">{{date}} <text class="arrow">›</text></view>
         </picker>
       </view>
+      <view wx:if="{{scorerOk}}" class="sc-row">
+        <view class="sc-t">打球时可以用场边记分逐分记，打完自动填好局分</view>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="openScorer">{{scorerResume ? '继续场边记分' : '场边记分'}}</view>
+      </view>
       <view class="card-title top">局分<text class="sub">按本场规则自动设置：{{ruleText}}</text></view>
+      <view wx:if="{{fromScorer}}" class="sc-from">已带入场边记分的局分，核对后点「提交比分」才会保存</view>
       <score-sets set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" init="{{init}}" bind:change="onSets" />
       <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
     </view>
