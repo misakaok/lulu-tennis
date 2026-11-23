@@ -8,8 +8,24 @@ const R = require('../../utils/rating');
 const H = require('../../utils/highlight');
 const { colorOf, initialOf, outcomeOf } = require('../../utils/rules');
 
+// 「这场为什么涨分 / 掉分」：只给本人看自己参加的正式比赛（按统计身份认人，不看昵称）。
+//   数据来自这一场实际参与计算的值（R.computeRatings 的 explain，和排行榜同一套正式战绩、同一个起始水平），不按今天的等级倒推。
+//   弃权 / 退赛、没有局分的旧记录只说明能确认的状态；不在正式战绩里的（或战绩没读到的）不显示
+function whyView(all, ratings, m, myId) {
+  if (!myId) return null;
+  const rec = (all || []).find((x) => x._id === m._id);
+  if (!rec) return null;
+  const mine = (rec.aKeys || []).indexOf(myId) >= 0 || (rec.bKeys || []).indexOf(myId) >= 0;
+  if (!mine) return null;
+  const oc = outcomeOf(rec);
+  if (oc === 'walkover') return { none: '弃权的比赛不计入水平分，这场没有影响你的水平分' };
+  if (oc === 'retired') return { none: '中途退赛的比赛不计入水平分，这场没有影响你的水平分' };
+  const w = R.whyOf(ratings, m._id, myId);
+  return w || { none: '这场没有可用的局分记录，没有参与水平分计算' };
+}
+
 Page({
-  data: { loading: true, error: '', m: null, revocable: false, preset: null, changes: [], tags: [] },
+  data: { loading: true, error: '', m: null, revocable: false, preset: null, changes: [], tags: [], why: null, whyOpen: false },
   onLoad(o) { this.id = o.id; this.load(); },
   onShow() { if (this.shown) this.load(); this.shown = true; }, // 从改分页回来：比分和修改记录要刷新
 
@@ -49,10 +65,12 @@ Page({
       let big = ['-', '-'], bigLbl = oc === 'walkover' ? '弃权' : '';
       if (sets.length === 1) { big = [sets[0].a, sets[0].b]; bigLbl = oc === 'retired' ? '中途退赛' : '局分'; }
       else if (sets.length) { big = [sets.filter((s) => s.aw).length, sets.filter((s) => s.bw).length]; bigLbl = oc === 'retired' ? '中途退赛' : '盘分'; }
-      // 亮点标签（爆冷、逆转、终结连胜…）：和战绩列表同一套算法
-      const tags = H.matchTags(all || [], R.computeRatings(all || [], R.startLevelsFrom(players || [])))[m._id] || [];
+      // 亮点标签（爆冷、逆转、终结连胜…）：和战绩列表同一套算法；水平分只算一次，「为什么涨分 / 掉分」也用这一份
+      const ratings = R.computeRatings(all || [], R.startLevelsFrom(players || []));
+      const tags = H.matchTags(all || [], ratings)[m._id] || [];
+      const why = whyView(all, ratings, m, myId);
       this.setData({
-        loading: false, changes, tags,
+        loading: false, changes, tags, why,
         revocable,
         status, preset,
         m: {
@@ -70,6 +88,7 @@ Page({
       this.setData({ loading: false, error: e.message || '加载失败' });
     }
   },
+  toggleWhy() { this.setData({ whyOpen: !this.data.whyOpen }); },
   openEvent() { if (this.data.m.drawId) wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + this.data.m.drawId }); },
   onRevoked() { setTimeout(() => wx.navigateBack(), 600); },
 });

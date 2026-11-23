@@ -47,3 +47,23 @@
 .chg-from { text-decoration: line-through; }
 .chg-ar { margin: 0 12rpx; color: #BDBDCE; }
 .chg-s .b { color: #1E1E32; font-weight: 700; }
+
+/* 这场的水平分（只给本人看） */
+.why-none { font-size: 25rpx; color: #5C5C76; line-height: 1.6; }
+.why-head { display: flex; align-items: center; }
+.why-ar { font-size: 40rpx; font-weight: 800; color: #A5A5BA; margin-right: 12rpx; }
+.why-ar.up { color: #6E6EA3; }
+.why-ar.down { color: #b34d4d; }
+.why-t { font-size: 30rpx; font-weight: 800; color: #1E1E32; }
+.why-prov { margin-left: 14rpx; }
+.why-r { font-size: 26rpx; color: #33334D; line-height: 1.6; margin-top: 12rpx; }
+.why-tier { font-size: 24rpx; color: #6E6EA3; margin-top: 8rpx; }
+.why-note { font-size: 22rpx; color: #8686A0; line-height: 1.6; margin-top: 6rpx; }
+.why-more { display: flex; justify-content: flex-end; margin-top: 16rpx; }
+.why-d { margin-top: 16rpx; padding: 18rpx 20rpx; background: #F4F4F9; border-radius: 20rpx; }
+.why-row { display: flex; justify-content: space-between; align-items: center; font-size: 24rpx; padding: 8rpx 0; }
+.why-row + .why-row { border-top: 1rpx solid #EBEBF3; } /* 分隔线只画在两行之间（见 tests/review-surface.test.js） */
+.why-row:last-child { padding-bottom: 0; } /* 最后一行不再多出下边距 */
+.why-k { color: #5C5C76; }
+.why-v { color: #1E1E32; font-weight: 700; }
+.why-foot { font-size: 21rpx; color: #8686A0; line-height: 1.6; margin-top: 10rpx; }

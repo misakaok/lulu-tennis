@@ -38,6 +38,31 @@
       </view>
     </view>
 
+    <!-- 这场为什么涨分 / 掉分：只给本人看自己参加的正式比赛；等级按 0.5 档显示，涨跌只有箭头 -->
+    <view wx:if="{{why}}" class="card why">
+      <view class="card-title">这场的水平分<text class="sub">只有你自己能看到</text></view>
+      <view wx:if="{{why.none}}" class="why-none">{{why.none}}</view>
+      <block wx:else>
+        <view class="why-head">
+          <text class="why-ar {{why.dir}}">{{why.arrow || '—'}}</text>
+          <text class="why-t">{{why.title}}</text>
+          <text wx:if="{{why.prov}}" class="ui-tag why-prov">{{why.provText}}</text>
+        </view>
+        <view class="why-r">{{why.reason}}</view>
+        <view class="why-tier">{{why.tierText}}</view>
+        <view wx:for="{{why.notes}}" wx:key="*this" class="why-note">{{item}}</view>
+        <view class="why-more">
+          <view class="btn-line mini" hover-class="tap-on" bindtap="toggleWhy">{{whyOpen ? '收起' : '查看计算'}}</view>
+        </view>
+        <view wx:if="{{whyOpen}}" class="why-d">
+          <view class="why-row"><text class="why-k">实际得局率</text><text class="why-v">{{why.shareText}}</text></view>
+          <view class="why-row"><text class="why-k">赛前预期得局率</text><text class="why-v">{{why.expectedText}}</text></view>
+          <view class="why-row"><text class="why-k">{{why.double ? '赛前队伍水平（两人平均）' : '赛前水平'}}</text><text class="why-v">{{why.double ? '你们' : '你'}} {{why.mineLv}} · 对方 {{why.oppLv}}</text></view>
+          <view class="why-foot">实际得局率高于预期就上升，低于预期就下降。赛前水平按 0.5 档显示，预期按精确的水平分计算。{{why.provNote}}</view>
+        </view>
+      </block>
+    </view>
+
     <match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
 
     <view wx:if="{{changes.length}}" class="card">

@@ -51,11 +51,13 @@ function timeOf(m) {
  * matches: 全部比赛（带 aKeys / bKeys 统计身份，见 utils/ident.js；没有时按名字）
  * startLevels: { 统计身份或名字: 自评水平 }（startLevelsFrom）
  * 返回 { players: { 统计身份: { key, name, level, played, provisional, history } }, deltas: { 比赛id: { 统计身份: 变化 } },
- *        pre: { 比赛id: { a, b, prov } } 赛前双方的等级（双打是两人平均）、是否有人还在定级期，亮点标签「爆冷」用 }
+ *        pre: { 比赛id: { a, b, prov } } 赛前双方的等级（双打是两人平均）、是否有人还在定级期，亮点标签「爆冷」用，
+ *        explain: { 比赛id: { 统计身份: 这一场实际参与计算的数据 } }（比赛详情「这场为什么涨分 / 掉分」用，见 whyOf）}
+ * explain 只是把下面计算时用到的值原样记下来，不参与计算，不改变 players / deltas / pre 的结果
  */
 function computeRatings(matches, startLevels) {
   startLevels = startLevels || {};
-  const P = {}, deltas = {}, pre = {};
+  const P = {}, deltas = {}, pre = {}, explain = {};
   const startOf = (k, n) => {
     if (typeof startLevels[k] === 'number') return startLevels[k];
     // 账号（用户 ID）没有自评就用默认值，不按名字去借别人的；只有按名字统计的才按名字找
@@ -81,19 +83,27 @@ function computeRatings(matches, startLevels) {
     if (m._id) pre[m._id] = { a: round2(ra), b: round2(rb), prov: A.concat(B).some((p) => p.played < PROVISIONAL) };
     const S = ga / total, E = expectedShare(ra, rb);
     const weight = Math.min(1, total / 10); // 局数太少的比赛影响小一些
-    const d = {};
-    const update = (team, s, e, mine, opp, won) => team.forEach((p) => {
-      const K = p.played < PROVISIONAL ? K_NEW : K_EST;
-      let delta = K * (s - e) * weight;
+    const d = {}, x = {};
+    const update = (team, side, s, e, mine, opp, won, gMine, gOpp) => team.forEach((p) => {
+      const prov = p.played < PROVISIONAL;
+      const K = prov ? K_NEW : K_EST;
+      const raw = K * (s - e) * weight;
+      let delta = raw;
       if (won && mine - opp > NO_FARM_GAP) delta = Math.min(delta, 0); // 防炸鱼
+      const before = p.rating;
       p.rating = clamp(p.rating + delta);
+      x[p.key] = {
+        side, before, after: p.rating, raw, delta, K, weight, prov, playedBefore: p.played, size: team.length,
+        mine, opp, share: s, expected: e, games: gMine, oppGames: gOpp, won,
+        farm: delta !== raw, clamped: p.rating !== before + delta,
+      };
       p.played++;
       d[p.key] = round2(delta);
       p.history.push({ id: m._id, date: m.date, level: round2(p.rating), delta: round2(delta) });
     });
-    update(A, S, E, ra, rb, m.winner === 'a');
-    update(B, 1 - S, 1 - E, rb, ra, m.winner === 'b');
-    if (m._id) deltas[m._id] = d;
+    update(A, 'a', S, E, ra, rb, m.winner === 'a', ga, gb);
+    update(B, 'b', 1 - S, 1 - E, rb, ra, m.winner === 'b', gb, ga);
+    if (m._id) { deltas[m._id] = d; explain[m._id] = x; }
   });
 
   Object.keys(P).forEach((k) => {
@@ -101,7 +111,7 @@ function computeRatings(matches, startLevels) {
     p.level = round2(p.rating);
     p.provisional = p.played < PROVISIONAL;
   });
-  return { players: P, deltas, pre };
+  return { players: P, deltas, pre, explain };
 }
 
 // 从球员资料里取自评水平：有账号的按用户 ID，只有名字的球员按名字（同名的账号不按名字给）
@@ -147,7 +157,50 @@ function canChallenge(myLevel, targetLevel) {
 const fmt = (x) => (Math.round(x * 2) / 2).toFixed(1);
 const fmtDelta = (d) => (d > 0 ? '↑' : d < 0 ? '↓' : '');
 
+/**
+ * 「这场为什么涨分 / 掉分」：只用 computeRatings 记下的这一场实际计算数据（explain），不按今天的等级倒推。
+ * 方向和战绩列表的 ↑ / ↓ 一致（同一个 deltas 值）；只有计算结果支持的原因才写：
+ *   涨 / 跌看实际得局率和赛前预期谁高；赢球没涨是因为「赛前高出对手 0.5 以上不加分」时（本来会涨）才说这条规则；
+ *   到了上下限、局数少（不到 10 局按比例）、定级中、双打按两人平均，各自确有其事时才附上说明。
+ * 等级只经 fmt 按 0.5 档显示，不显示变化的数字。没有这场的计算数据返回 null（由页面说明不计分的原因）
+ */
+const pctOf = (x, digits) => (Math.round(x * Math.pow(10, 2 + digits)) / Math.pow(10, digits)).toFixed(digits) + '%';
+function whyOf(ratings, matchId, key) {
+  const x = ratings && ratings.explain && ratings.explain[matchId] && ratings.explain[matchId][key];
+  if (!x) return null;
+  const d = x.clamped ? round2(x.after - x.before) : round2(x.delta);
+  const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const dbl = x.size > 1;
+  const you = dbl ? '你们' : '你';
+  const result = x.won ? '这场赢了' : '这场输了';
+  let reason;
+  if (x.clamped && dir === 'flat') reason = `水平分已经到了${x.raw > 0 ? '上限 ' + MAX_LEVEL.toFixed(1) : '下限 ' + MIN_LEVEL.toFixed(1)}，这场没有再变化`;
+  else if (dir === 'up') reason = x.won ? `${result}，${you}的得局率也高于赛前预期，水平分上升了` : `${result}，但${you}的得局率高于赛前预期，水平分上升了`;
+  else if (dir === 'down') reason = x.won ? `${result}，但${you}拿到的局数低于赛前预期，水平分下降了` : `${result}，${you}的得局率低于赛前预期，水平分下降了`;
+  else if (x.farm) reason = `${result}，按得局率本来会上升，但赛前${you}的水平比对方高 ${NO_FARM_GAP} 以上，按「高出对手 ${NO_FARM_GAP} 以上赢球不加分」的规则，水平分没有上升`;
+  else reason = `${you}的得局率和赛前预期几乎一样，水平分基本没有变化`;
+  const t0 = fmt(x.before), t1 = fmt(x.after);
+  const tierText = t0 !== t1 ? `显示档位 ${t0} → ${t1}` : dir === 'flat' ? `显示档位仍为 ${t0}` : `本场水平分有变化，显示档位仍为 ${t0}`;
+  const total = x.games + x.oppGames;
+  const notes = [];
+  if (x.clamped && dir !== 'flat') notes.push(`水平分到了${x.after >= MAX_LEVEL ? '上限 ' + MAX_LEVEL.toFixed(1) : '下限 ' + MIN_LEVEL.toFixed(1)}，变化在这里停住`);
+  if (x.weight < 1) notes.push(`这场一共 ${total} 局（不到 10 局），变化幅度按 ${total}/10 计算`);
+  if (dbl) notes.push('双打按两人平均水平作为队伍水平，同队两人这场的变化相同');
+  // 两个得局率四舍五入成整数一样、实际不一样时多显示一位小数，让方向对得上
+  const digits = Math.round(x.share * 100) === Math.round(x.expected * 100) && x.share !== x.expected ? 1 : 0;
+  return {
+    dir, arrow: fmtDelta(d), title: dir === 'up' ? '水平分上升' : dir === 'down' ? '水平分下降' : '水平分没有变化',
+    reason, tierText, notes,
+    prov: x.prov, provText: x.prov ? `定级中 ${x.playedBefore + 1}/${PROVISIONAL}` : '',
+    provNote: x.prov ? `前 ${PROVISIONAL} 场是定级期，每场水平分变化更快` : '',
+    double: dbl,
+    shareText: `${x.games}/${total} 局 · ${pctOf(x.share, digits)}`,
+    expectedText: pctOf(x.expected, digits),
+    mineLv: fmt(x.mine), oppLv: fmt(x.opp),
+  };
+}
+
 module.exports = {
   DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, CHALLENGE_DOWN, SELF_LEVELS,
-  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta,
+  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta, whyOf,
 };
