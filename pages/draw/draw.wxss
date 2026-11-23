@@ -5,6 +5,16 @@
   color: #fff; padding: 40rpx 36rpx 44rpx; border-radius: 0 0 40rpx 40rpx;
 }
 .hero-in { width: 56%; }
+/* 轮播：hero-2 / hero-3 叠在固定的 hero-court 上面。on 淡入、off 淡出；hold = 上一张先垫着（新的一张淡入时不露出底图），gone = 直接藏起来 */
+.hero-slides { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; }
+.hero-slide { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; z-index: 1; }
+.hero-slide.on { opacity: 1; z-index: 2; transition: opacity 0.8s ease; }
+.hero-slide.off { opacity: 0; z-index: 2; transition: opacity 0.8s ease; }
+.hero-slide.hold { opacity: 1; z-index: 1; }
+.hero-dots { position: absolute; right: 18rpx; bottom: 10rpx; display: flex; }
+.hero-dot { padding: 14rpx 8rpx; }
+.hero-dot-i { width: 12rpx; height: 12rpx; border-radius: 50%; background: #fff; opacity: 0.45; transition: opacity 0.3s; }
+.hero-dot-i.on { opacity: 1; }
 .hero-title { font-size: 44rpx; font-weight: 800; text-shadow: 0 2rpx 8rpx rgba(40, 40, 80, 0.25); }
 .hero-sub { font-size: 24rpx; line-height: 1.6; opacity: 0.95; margin-top: 10rpx; }
 .hero-btn {

@@ -10,9 +10,18 @@
 </view>
 
 <block wx:else>
-<!-- 顶部：球场图只作背景（images/hero-court.jpg，固定图片），标题和按钮是页面组件，叠在左边一块纯色场地上 -->
+<!-- 顶部：球场图只作背景，标题和按钮是页面组件，叠在左边一块纯色场地上。
+     背景是 3 张轮播（2026-11-23 用户要求，「每页最多一张背景图」的唯一例外）：底下固定 hero-court.jpg，
+     hero-2 / hero-3 叠在上面按 slide 淡入淡出（只动 opacity）；文字和按钮不动。三张图都是左边 60% 干净场地 -->
 <view class="hero bg-host">
   <image class="bg-img" src="/images/hero-court.jpg" mode="aspectFill" />
+  <view class="hero-slides">
+    <image class="hero-slide {{slide === 1 ? 'on' : slide === 2 ? 'hold' : 'gone'}}" src="/images/hero-2.jpg" mode="aspectFill" />
+    <image class="hero-slide {{slide === 2 ? 'on' : slide === 0 ? 'off' : 'gone'}}" src="/images/hero-3.jpg" mode="aspectFill" />
+  </view>
+  <view class="hero-dots">
+    <view wx:for="{{[0, 1, 2]}}" wx:key="*this" class="hero-dot" data-i="{{item}}" catchtap="pickSlide"><view class="hero-dot-i {{slide === item ? 'on' : ''}}"></view></view>
+  </view>
   <view class="hero-in">
     <view class="hero-title">活动</view>
     <view class="hero-sub"><view>查看活动 → 报名参加</view><view>按场次录分 → 自动排名</view></view>

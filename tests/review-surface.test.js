@@ -48,6 +48,26 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   assert.ok(!fs.existsSync(path.join(root, 'components/rk-photo')), '球拍照片组件已删除');
 } });
 
+T.push({ name: '活动首页顶部轮播：只换背景（固定底图 + 2 张淡入淡出），文字按钮不动；只有活动首页有；切走页面停、朋友圈单页不转', fn() {
+  const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  app.pages.forEach((page) => {
+    const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
+    if (page !== 'pages/draw/draw') assert.ok(!/hero-slide/.test(xml), page + '：轮播只在活动首页（每页最多一张背景图的唯一例外）');
+  });
+  const xml = fs.readFileSync(path.join(root, 'pages/draw/draw.wxml'), 'utf8');
+  const hero = xml.slice(xml.indexOf('<view class="hero bg-host">'), xml.indexOf('<view class="hero-in">'));
+  assert.deepStrictEqual((hero.match(/src="([^"]+)"/g) || []), ['src="/images/hero-court.jpg"', 'src="/images/hero-2.jpg"', 'src="/images/hero-3.jpg"']);
+  assert.ok(!/<text|hero-title|hero-btn/.test(hero), '文字和按钮不在轮播里');
+  const css = fs.readFileSync(path.join(root, 'pages/draw/draw.wxss'), 'utf8');
+  (css.match(/\.hero-[\w-]+(?:\.[\w-]+)? \{[^}]*\}/g) || []).forEach((r) => {
+    const t = (r.match(/transition:\s*([^;]+)/) || [])[1];
+    if (t) assert.ok(/^opacity\b/.test(t.trim()), '轮播只动 opacity：' + r);
+  });
+  const js = fs.readFileSync(path.join(root, 'pages/draw/draw.js'), 'utf8');
+  assert.ok(/onHide\(\) \{ this\.heroStop\(\); \}/.test(js) && /onUnload\(\) \{ this\.heroStop\(\); \}/.test(js), '切走页面停');
+  assert.ok(/if \(this\.timeline\) return;\n\s*this\.heroStart\(\);/.test(js), '朋友圈单页模式不启动轮播');
+} });
+
 T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host 卡片里的 .bg-img），文件存在、压缩过；文字和按钮仍是页面组件', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   const used = {};
@@ -76,7 +96,7 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
     assert.ok(fs.existsSync(f), src + ' 不存在');
     assert.ok(fs.statSync(f).size < 80 * 1024, src + ' 太大');
   });
-  ['hero-court.jpg', 'bg-score.jpg', 'bg-mine.jpg', 'bg-event.jpg', 'bg-card.jpg', 'bg-gate.jpg', 'bg-growth.jpg', 'art-ball.png', 'art-net.png', 'art-basket.png', 'art-trophy.png']
+  ['hero-court.jpg', 'hero-2.jpg', 'hero-3.jpg', 'bg-score.jpg', 'bg-mine.jpg', 'bg-event.jpg', 'bg-card.jpg', 'bg-gate.jpg', 'bg-growth.jpg', 'art-ball.png', 'art-net.png', 'art-basket.png', 'art-trophy.png']
     .forEach((f) => assert.ok(used['/images/' + f], f + ' 没用上'));
   const draw = fs.readFileSync(path.join(root, 'pages/draw/draw.wxml'), 'utf8');
   assert.ok(/class="hero-title">活动</.test(draw) && /class="hero-btn"[^>]*bindtap="goNew"/.test(draw), '标题和按钮不放进图片里');

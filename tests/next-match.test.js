@@ -16,7 +16,7 @@ function load(file, wx, deps) {
   const filename = path.resolve(__dirname, '..', file);
   let def;
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    require: (id) => (deps && deps[id]) || createRequire(filename)(id), wx, Page: (d) => { def = d; }, setTimeout, clearTimeout, console,
+    require: (id) => (deps && deps[id]) || createRequire(filename)(id), wx, Page: (d) => { def = d; }, setTimeout, clearTimeout, setInterval: () => 1, clearInterval() {}, console,
   });
   return Object.assign({}, def, {
     data: plain(def.data),

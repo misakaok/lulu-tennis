@@ -58,8 +58,11 @@ function dayOf(date) {
   return { d: String(dd), m: `${mo}月`, w: '周' + WEEK[new Date(y, mo - 1, dd).getDay()] };
 }
 
+const HERO_SLIDES = 3; // 顶部背景轮播张数（hero-court + hero-2 + hero-3）
+const HERO_MS = 4000;
+
 Page({
-  data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false },
+  data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
@@ -67,10 +70,24 @@ Page({
   },
   onShow() {
     if (this.timeline) return;
+    this.heroStart();
     // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取
     const kept = db.withoutRemoved(this.draws);
     if (kept !== this.draws) { this.draws = kept; this.render(); }
     this.load();
+  },
+  onHide() { this.heroStop(); },
+  onUnload() { this.heroStop(); },
+  // 顶部背景轮播：3 张（0 = 底下固定的 hero-court），每 HERO_MS 换一张；切走页面就停，回来接着转；点小圆点直接切换并重新计时
+  heroStart() {
+    this.heroStop();
+    this.heroTimer = setInterval(() => this.setData({ slide: (this.data.slide + 1) % HERO_SLIDES }), HERO_MS);
+  },
+  heroStop() { if (this.heroTimer) { clearInterval(this.heroTimer); this.heroTimer = null; } },
+  pickSlide(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    if (i !== this.data.slide) this.setData({ slide: i });
+    this.heroStart();
   },
   onPullDownRefresh() { if (this.timeline) { wx.stopPullDownRefresh(); return; }
     require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
