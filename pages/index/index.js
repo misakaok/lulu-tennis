@@ -98,7 +98,7 @@ Page({
     // 「记一场」按钮只决定显示（录分页打开时实时校验身份，云函数也会校验）：身份用 60 秒缓存，和读数据同时进行，
     // 不在每次切到这页时都调一次云函数；查不到身份时收起按钮，不影响列表
     const showAdd = require('../../utils/member').statusCached()
-      .then((r) => r.status === 'active' && !!r.isAdmin, () => false)
+      .then((r) => r.status === 'active', () => false)
       .then((v) => { if (v !== this.data.canRecordDaily) this.setData({ canRecordDaily: v }); });
     try {
       // 共享数据（不复制，只读）：数据没变时是同一个数组，比较引用就知道要不要重算

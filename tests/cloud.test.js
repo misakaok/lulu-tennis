@@ -53,12 +53,17 @@ test('活动发布：只有云端配置的管理员可创建；伪造身份和�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
-test('日常比赛：普通用户不能新增，但参赛双方可直接改分；锁定后对方确认，无须管理员', async () => {
+test('日常比赛：普通成员可以记录自己参加的比赛（不用管理员），参赛双方可直接改分；锁定后对方确认，无须管理员', async () => {
   const env = setup();
   const payload = { op: 'add', coll: 'matches', isAdmin: true, openid: 'owner', data: { a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 2 }] } };
-  for (const uid of ['alice', 'bob']) no(await env.call(uid, 'data', payload), /管理员/);
+  // 不在这场里的人（客户端冒充身份字段也没用）不能录；不是正式成员不能录
+  no(await env.call('eve', 'data', payload), /自己参加/);
+  no(await env.call('stranger', 'data', payload));
   assert.strictEqual(Object.keys(env.coll('matches')).length, 0);
-  const id = ok(await adminCall(env, 'alice', 'data', payload))._id;
+  const id = ok(await env.call('alice', 'data', payload))._id;
+  const rec = env.coll('matches')[id];
+  assert.strictEqual(rec._openid, 'alice'); assert.ok(!rec.isAdmin && !rec.openid);
+  assert.ok(ok(await env.call('bob', 'dataset')).matches.some((m) => m._id === id)); // 录入即计入
   for (const uid of ['alice', 'bob']) assert.strictEqual(ok(await env.call(uid, 'matchState', { matchId: id })).canEdit, true);
   const before = JSON.stringify(env.coll('matches')[id]);
   assert.strictEqual(ok(await env.call('eve', 'matchState', { matchId: id })).canEdit, false);

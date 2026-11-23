@@ -1,6 +1,6 @@
 // 网球小程序云函数：成员准入、管理员发布活动、报名、对阵、录分、比分纠错和正式战绩。
 // 身份只来自 cloud.getWXContext().OPENID，所有权限在服务端校验。
-// 日常比赛新增仅管理员；参赛者可修改未锁定比分，已锁定比分经对方确认。
+// 日常比赛：正式成员可以记录自己参加的比赛（录入即生效）；参赛者可修改未锁定比分，已锁定比分经对方确认。
 // 评价、简介、关注、相册等内容功能接口已删除；旧数据仅由既有删除／清理流程处理。
 // 球员照片：本人上传，经微信异步图片检测（消息推送 wxa_media_check）明确通过后才公开。
 // 集合权限均为「仅管理端可读写」，客户端通过本云函数访问业务数据。
@@ -1906,7 +1906,6 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
   if (!(GW_OPS[coll] || {})[op]) deny('没有权限进行这个操作');
   if (op === 'add') {
     if (coll === 'players') deny('手动新增球员功能已停用，请使用本人资料');
-    if (coll === 'matches' && !isAdmin(uid)) deny('只有管理员可以录入日常比赛');
     const clean = cleanData(data);
     const only = GW_ADD_FIELDS[coll];
     if (only) Object.keys(clean).forEach((k) => { if (!only[k]) delete clean[k]; });

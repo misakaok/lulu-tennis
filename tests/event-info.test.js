@@ -72,11 +72,11 @@ test('活动列表：管理员入口随服务端身份（60 秒缓存）变化�
 });
 
 test('战绩页：「记一场」用缓存版身份显示，和读数据同时进行；查不到身份时收起按钮，列表照常显示', async () => {
-  let admin = true, fail = false, realtime = 0, rendered = 0;
+  let active = true, fail = false, realtime = 0, rendered = 0;
   const deps = {
     '../../utils/member': {
-      statusCached: async () => { if (fail) throw new Error('网络异常'); return { status: 'active', isAdmin: admin }; },
-      status: async () => { realtime++; return { status: 'active', isAdmin: admin }; },
+      statusCached: async () => { if (fail) throw new Error('网络异常'); return { status: active ? 'active' : 'removed', isAdmin: false }; },
+      status: async () => { realtime++; return { status: active ? 'active' : 'removed', isAdmin: false }; },
     },
     '../../utils/db': {
       cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null,
@@ -88,25 +88,25 @@ test('战绩页：「记一场」用缓存版身份显示，和读数据同时�
   p.sig = null;
   await p.load();
   assert.strictEqual(p.data.canRecordDaily, true);
-  admin = false; p.sig = null; await p.load();
+  active = false; p.sig = null; await p.load();
   assert.strictEqual(p.data.canRecordDaily, false);
-  admin = true; fail = true; p.sig = null; await p.load();
+  active = true; fail = true; p.sig = null; await p.load();
   assert.strictEqual(p.data.canRecordDaily, false);
   assert.strictEqual(rendered, 3); assert.strictEqual(p.data.loading, false);
   assert.strictEqual(realtime, 0);
 });
 
-test('普通用户无法经日常录分页提交；管理员入口经实时身份校验', async () => {
-  let admin = false, submitted = 0, loaded = 0;
-  const deps = { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: admin }) }, '../../utils/db': { addMatch() { submitted++; } } };
+test('日常录分页：正式成员（不必是管理员）可以录；不是正式成员不能提交，每次打开实时校验', async () => {
+  let status = 'pending', submitted = 0, loaded = 0;
+  const deps = { '../../utils/member': { status: async () => ({ status, isAdmin: false }) }, '../../utils/db': { addMatch() { submitted++; } } };
   const p = load('pages/add/add.js', {}, 'Page', deps);
   p.loadPlayers = async () => { loaded++; };
   await p.onShow(); await p.submit();
-  assert.strictEqual(p.data.canRecordDaily, false); assert.match(p.data.authError, /管理员/);
+  assert.strictEqual(p.data.canRecordDaily, false); assert.match(p.data.authError, /正式成员/);
   assert.strictEqual(submitted, 0); assert.strictEqual(loaded, 0);
-  admin = true; await p.onShow();
+  status = 'active'; await p.onShow();
   assert.strictEqual(p.data.canRecordDaily, true); assert.strictEqual(loaded, 1);
-  admin = false; await p.onShow();
+  status = 'removed'; await p.onShow();
   assert.strictEqual(p.data.canRecordDaily, false);
 });
 
