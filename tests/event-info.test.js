@@ -217,9 +217,9 @@ test('朋友圈单页模式（场景 1154）：活动首页只显示固定介绍
   const tl = (scene) => { const ctx = { module: { exports: {} }, wx: { getLaunchOptionsSync: () => ({ scene }) } };
     vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '..', 'utils/timeline.js'), 'utf8'), ctx); return ctx.module.exports.isTimeline(); };
   assert.strictEqual(tl(1154), true); assert.strictEqual(tl(1007), false); assert.strictEqual(tl(1001), false);
-  // app.onShow：单页模式直接返回，不调 member.check
+  // app.onShow：单页模式直接返回，不查隐私指引、不调 member.check（两者都在 return 之后）
   const appSrc = fs.readFileSync(path.resolve(__dirname, '..', 'app.js'), 'utf8');
-  assert.ok(/onShow\(\) \{\s*if \(require\('\.\/utils\/timeline'\)\.isTimeline\(\)\) return;[^\n]*\n\s*require\('\.\/utils\/member'\)\.check\(\);/.test(appSrc));
+  assert.ok(/onShow\(\) \{\s*if \(require\('\.\/utils\/timeline'\)\.isTimeline\(\)\) return;[^\n]*\n\s*require\('\.\/utils\/privacy'\)\.ensure\(\);\n\s*require\('\.\/utils\/member'\)\.check\(\);/.test(appSrc));
 });
 
 test('挑战书旧链接：不加载球员、不记录比分、不提供分享', () => {

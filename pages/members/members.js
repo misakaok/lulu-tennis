@@ -3,6 +3,7 @@
 //   历史球友：升级前设置过资料的账号，管理员确认后再导入，不自动成为成员   邀请：生成一次性邀请链接
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
+const { copyFail } = require('../../utils/privacy'); // 剪切板是隐私接口：没同意隐私指引就停止这次复制
 const SHARE_IMAGE = require('../../utils/share-card').FALLBACK; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 
 Page({
@@ -25,7 +26,7 @@ Page({
   // 复制用户 ID（openid）：设置管理员时粘贴到云函数环境变量 ADMIN_OPENIDS，避免手抄出错
   copyId(e) {
     const uid = e.currentTarget.dataset.uid;
-    wx.setClipboardData({ data: uid, success: () => wx.showToast({ title: '已复制用户 ID', icon: 'none' }) });
+    wx.setClipboardData({ data: uid, success: () => wx.showToast({ title: '已复制用户 ID', icon: 'none' }), fail: copyFail });
   },
   async run(action, data, ok) {
     if (this.busy) return;
@@ -74,7 +75,7 @@ Page({
     const r = await this.run('createInvite', { days: 7 }, '');
     if (r) { this.setData({ lastInvite: r.code, tab: 'invite' }); wx.showToast({ title: '已生成，点「发给球友」', icon: 'none' }); }
   },
-  copyCode(e) { wx.setClipboardData({ data: e.currentTarget.dataset.code, success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' }) }); },
+  copyCode(e) { wx.setClipboardData({ data: e.currentTarget.dataset.code, fail: copyFail, success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' }) }); },
   revoke(e) { this.run('revokeInvite', { code: e.currentTarget.dataset.code }, '已作废'); },
   onShareAppMessage(e) {
     const code = (e && e.target && e.target.dataset && e.target.dataset.code) || this.data.lastInvite;

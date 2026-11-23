@@ -37,7 +37,13 @@ function checkOnLaunch(status) {
   const cur = pages.length ? pages[pages.length - 1].route : '';
   if (cur === 'pages/profile/profile' || cur === 'pages/gate/gate') return; // 资料页上有勾选项，不重复问
   asked = true;
-  ask();
+  // 启动时微信隐私指引也要弹：先等它处理完（同意 / 拒绝都行），两个弹窗不叠在一起；隐私指引不会改 players.shown
+  require('./privacy').ready().then(() => {
+    const ps = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+    const now = ps.length ? ps[ps.length - 1].route : '';
+    if (now === 'pages/profile/profile' || now === 'pages/gate/gate') { asked = false; return; } // 等待期间进了资料页：那里有勾选项
+    ask();
+  });
 }
 
 module.exports = { TITLE, TEXT, ask, checkOnLaunch };

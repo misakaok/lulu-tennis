@@ -12,8 +12,10 @@ App({
     wx.cloud.init(ENV_ID ? { env: ENV_ID, traceUser: true } : { traceUser: true });
   },
   // 启动和每次回到前台都重新校验成员资格；不是正式成员就清缓存、去准入页（「私人网球活动管理」）
+  // 微信《用户隐私保护指引》：冷启动后首个页面显示时查一次，没同意过才弹官方窗口；同一次打开从后台切回不重复（见 utils/privacy.js）
   onShow() {
     if (require('./utils/timeline').isTimeline()) return; // 朋友圈单页模式：不校验、不跳转（见 utils/timeline.js）
+    require('./utils/privacy').ensure();
     require('./utils/member').check();
   },
 });

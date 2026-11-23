@@ -232,7 +232,8 @@ async function pick(source) {
     console.error('[照片] 选图失败', no, msg);
     // 112：后台「用户隐私保护指引」没声明这项（真机才会拦，模拟器不拦）；104：用户没同意隐私保护指引
     if (no === 112 || /not declared in the privacy/i.test(msg)) throw new Error(`小程序还没有声明使用${source === 'camera' ? '摄像头' : '相册照片'}，请联系管理员在后台「用户隐私保护指引」里补上`);
-    if (no === 104 || /privacy permission is not authorized/i.test(msg)) throw new Error('需要先同意隐私保护指引，才能选择照片');
+    // 104：微信弹了隐私保护指引、用户没同意 → 停止这次操作（轻提示，不再弹报错）
+    if (require('./privacy').isDenied(e)) { require('./privacy').stopped(); return ''; }
     if (/auth den|authorize/i.test(msg)) throw new Error(source === 'camera' ? '没有使用摄像头的权限，请点右上角「…」→ 设置，打开摄像头' : '没有访问相册的权限，请在手机设置里允许微信访问照片');
     throw new Error((source === 'camera' ? '无法打开相机' : '无法打开相册') + (msg ? '（' + msg.replace(/^chooseMedia:fail\s*/, '') + '）' : ''));
   }

@@ -5,6 +5,7 @@
 //   mode：code 用邀请码加入 / apply 提交申请 / wait 已申请、等审核
 const cloud = require('../../utils/cloud');
 const member = require('../../utils/member');
+const { copyFail } = require('../../utils/privacy'); // 剪切板是隐私接口：没同意隐私指引就停止这次复制
 const SHARE_IMAGE = require('../../utils/share-card').FALLBACK; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 
 const TITLE = { none: '私人网球活动管理', pending: '申请已提交，等待审核', rejected: '申请未通过', removed: '成员资格已取消', active: '你已是正式成员' };
@@ -48,7 +49,7 @@ Page({
   copyMyId() {
     const id = this.data.myId;
     if (!id) return;
-    wx.setClipboardData({ data: id, success: () => wx.showToast({ title: '已复制，发给管理员即可', icon: 'none' }) });
+    wx.setClipboardData({ data: id, success: () => wx.showToast({ title: '已复制，发给管理员即可', icon: 'none' }), fail: copyFail });
   },
   onName(e) { this.setData({ name: e.detail.value }); },
   // 手动输入邀请码：没有邀请链接时（例如管理员口头或文字给的邀请码）也能加入；校验和链接进来的一样，都在云函数 acceptInvite

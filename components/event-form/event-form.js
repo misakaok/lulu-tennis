@@ -56,6 +56,9 @@ Component({
         },
         fail: (e) => {
           if (/cancel/.test(e.errMsg || '')) return;
+          const PV = require('../../utils/privacy');
+          if (PV.isDenied(e)) { PV.stopped(); return; } // 微信隐私保护指引没同意：停止这次选点
+          if (PV.isUndeclared(e)) { wx.showModal({ title: '无法打开地图', content: '小程序还没有声明使用位置信息，请联系管理员在后台「用户隐私保护指引」里补上。', showCancel: false }); return; }
           wx.showModal({ title: '无法打开地图', content: '请在小程序设置里允许使用位置信息。', showCancel: false });
         },
       }));
