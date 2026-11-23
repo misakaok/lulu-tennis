@@ -11,6 +11,7 @@
     <image class="hero-art" src="/images/art-ball.png" mode="aspectFit" />
   </view>
   <view class="event-tip" hover-class="tap-on" bindtap="goEvents">提交后直接计入战绩，参加者可在比赛详情里修改。活动里的比赛请到「活动」按场次录分 ›</view>
+  <view wx:if="{{fromScorer}}" class="scorer-tip">已带入场边记分的规则和比分：选好搭档和对手、核对比分后再保存。返回不会保存，记分还留在本机</view>
   <view wx:if="{{noProfile}}" class="card np" hover-class="tap-on" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->
   <view class="card">
@@ -84,7 +85,7 @@
   <!-- 比分 -->
   <view class="card">
     <view class="card-title">比分</view>
-    <score-sets id="sets" set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" bind:change="onSets" />
+    <score-sets id="sets" init="{{initSets}}" set-games="{{setGames}}" no-ad="{{noAd}}" best-of="{{bestOf}}" a-label="{{aLabel}}" b-label="{{bLabel}}" bind:change="onSets" />
     <view class="result {{check.ok ? 'ok' : ''}}">{{check.msg}}</view>
   </view>
 

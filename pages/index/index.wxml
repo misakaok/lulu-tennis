@@ -83,5 +83,8 @@
   <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己参加的日常比赛</view>
 </view>
 
-<!-- 记录日常比赛（活动比赛在签表里录） -->
-<view wx:if="{{canRecordDaily}}" class="fab" hover-class="tap-on" bindtap="goAdd"><text class="fab-p">＋</text>记一场</view>
+<!-- 场边记分（逐分记、只存在本机，完赛后带入日常录分）；记录日常比赛（活动比赛在签表里录） -->
+<view wx:if="{{canRecordDaily}}" class="fabs">
+  <view class="fab-alt" hover-class="tap-on" bindtap="goScorer">场边记分</view>
+  <view class="fab" hover-class="tap-on" bindtap="goAdd"><text class="fab-p">＋</text>记一场</view>
+</view>

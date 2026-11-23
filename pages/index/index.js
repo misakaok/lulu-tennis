@@ -185,6 +185,7 @@ Page({
   },
   onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
   goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
+  goScorer() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/scorer/scorer' }); }, // 场边记分：只在本机，完赛后带入日常录分
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
 

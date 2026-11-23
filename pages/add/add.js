@@ -4,6 +4,7 @@
 const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const S = require('../../utils/stats');
+const SC = require('../../utils/scorer');
 const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = require('../../utils/db');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -17,9 +18,10 @@ Page({
     slotsA: [], slotsB: [], chips: [], me: '', noProfile: false,
     aLabel: 'A 方', bLabel: 'B 方',
     check: { ok: false, msg: '' }, submitting: false, rulesText: '', dayText: '',
+    fromScorer: false, initSets: [], // 从场边记分带过来的规则和盘分（只预填，仍要选球员、核对后提交）
   },
 
-  onLoad() {
+  onLoad(options) {
     const t = today();
     let last = {};
     try { last = wx.getStorageSync(CFG_KEY) || {}; } catch (e) {}
@@ -28,8 +30,22 @@ Page({
     this.slots = { a: ['', ''], b: ['', ''] };
     this.active = 'a0';
     this.res = { ok: false, msg: '请至少填写一盘' };
-    this.setData({ date: t, dayText: dayOf(t), today: t, setGames: cfg.setGames, noAd: cfg.noAd, bestOf: last.bestOf === 1 ? 1 : 3 });
+    const init = { date: t, dayText: dayOf(t), today: t, setGames: cfg.setGames, noAd: cfg.noAd, bestOf: last.bestOf === 1 ? 1 : 3 };
+    const sc = this.scorerPrefill(options || {});
+    if (sc) Object.assign(init, { setGames: sc.setGames, noAd: sc.noAd, bestOf: sc.bestOf, initSets: sc.sets, fromScorer: true }); // 不改「上次用的规则」
+    this.setData(init);
     this.refresh();
+  },
+
+  // 场边记分「带入日常录分」：只读本机草稿里已完赛的那一场（按 id 对上），预填规则和盘分；这里不自动提交，
+  // 正式提交成功后才清掉那份草稿，取消返回仍可回到记分页。side = 'b'：记分时自己在 B 方，比分对调（录分页里自己固定在 A 方）
+  scorerPrefill(options) {
+    if (!options.scorer) return null;
+    const d = SC.loadDraft();
+    const r = d && d.id === options.scorer ? SC.handoff(d, options.side === 'b' ? 'b' : 'a') : null;
+    if (!r) { wx.showToast({ title: '没找到已完赛的场边记分', icon: 'none' }); return null; }
+    this.scorerId = d.id;
+    return r;
   },
 
   async onShow() {
@@ -198,6 +214,7 @@ Page({
         sets: r.sets, winner: r.winner, setsWon: r.won,
       });
       wx.showToast({ title: '已记录，计入战绩', icon: 'success' });
+      if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉对应的场边记分草稿
       this.resetSets();
       // 去比赛详情：录错了可以在那里直接改
       setTimeout(() => wx.redirectTo({ url: '/pages/match/match?id=' + res._id }), 700);

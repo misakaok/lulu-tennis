@@ -3,6 +3,7 @@
     "pages/draw/draw",
     "pages/index/index",
     "pages/add/add",
+    "pages/scorer/scorer",
     "pages/rank/rank",
     "pages/me/me",
     "pages/draw-new/draw-new",
