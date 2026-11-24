@@ -25,10 +25,10 @@
 .chip.seedable { background: #fff; border: 2rpx solid #E3E3EF; }
 .chip.seeded { background: #6E6EA3; border-color: #6E6EA3; color: #fff; font-weight: 700; }
 .badge { width: 34rpx; height: 34rpx; line-height: 34rpx; border-radius: 50%; background: #fff; color: #6E6EA3; font-weight: 700; font-size: 20rpx; text-align: center; margin-right: 10rpx; }
-.muted { color: #A5A5BA; font-size: 24rpx; padding: 8rpx; }
+.muted { color: #84849E; font-size: 24rpx; padding: 8rpx; }
 .muted.small { font-size: 22rpx; margin-top: 10rpx; }
 
-.info { margin-top: 18rpx; padding: 16rpx 18rpx; border-radius: 14rpx; background: #F7F7FB; color: #8686A0; font-size: 24rpx; }
+.info { margin-top: 18rpx; padding: 16rpx 18rpx; border-radius: 14rpx; background: #F7F7FB; color: #70708C; font-size: 24rpx; }
 .info.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 600; }
 
 .seed-list { margin-top: 14rpx; background: #F1F1F8; border-radius: 16rpx; padding: 6rpx 20rpx; }
@@ -56,7 +56,7 @@
 .seed-av { width: 44rpx; height: 44rpx; border-radius: 50%; margin-right: 12rpx; }
 .seed-lv { font-size: 22rpx; color: #6E6EA3; font-weight: 700; margin-right: 12rpx; }
 .pills.locked { opacity: 0.6; }
-.card-title .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
+.card-title .sub { font-size: 22rpx; color: #70708C; font-weight: 400; margin-left: 12rpx; }
 .rules-tip { margin-top: 20rpx; font-size: 22rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 12rpx; padding: 12rpx 18rpx; }
 .team-no { font-size: 20rpx; background: #fff; color: #6E6EA3; border-radius: 16rpx; padding: 0 10rpx; margin: 0 10rpx 0 -10rpx; font-weight: 700; }
 .team-line { display: flex; align-items: center; height: 64rpx; }
@@ -70,13 +70,13 @@
 .round { margin-top: 18rpx; background: #F8F8FC; border-radius: 16rpx; padding: 14rpx 18rpx 16rpx; }
 .round-h { display: flex; align-items: center; }
 .round-n { font-size: 26rpx; font-weight: 700; width: 140rpx; flex: none; }
-.round-t { flex: 1; min-width: 0; font-size: 21rpx; color: #8686A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.round-t { flex: 1; min-width: 0; font-size: 21rpx; color: #70708C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .round-sw { transform: scale(0.75); margin-right: -14rpx; }
 .sum { margin-top: 26rpx; background: #F1F1F8; border-radius: 16rpx; padding: 16rpx 20rpx; }
 .sum-h { font-size: 22rpx; color: #6E6EA3; font-weight: 700; margin-bottom: 6rpx; }
 .sum-row { display: flex; font-size: 23rpx; line-height: 1.8; color: #4F4F7D; }
 .sum-row.hl { font-weight: 700; }
-.sum-k { width: 230rpx; flex: none; color: #8686A0; }
+.sum-k { width: 230rpx; flex: none; color: #70708C; }
 .sum-row.hl .sum-k { color: #6E6EA3; }
 .sum-v { flex: 1; }
 .seg-item.off { color: #B7B7CC; }
@@ -91,19 +91,19 @@
 .rot-pv-r + .rot-pv-r { border-top: 1rpx solid #ECECF5; }
 .rot-pv-r:last-child { padding-bottom: 0; }
 .rot-pv-n { flex: none; width: 120rpx; font-size: 26rpx; font-weight: 800; color: #6E6EA3; }
-.rot-pv-t { flex: 1; font-size: 28rpx; color: #1E1E32; }
+.rot-pv-t { flex: 1; font-size: 28rpx; color: #2E2E4A; }
 .cup-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* 开放报名时先加入的球友（选填）：标题和表单项一样大小，说明一行，右边小按钮 */
 .pre-card { padding-top: 26rpx; padding-bottom: 26rpx; }
 .pre-head { display: flex; align-items: center; }
 .pre-t { flex: 1; min-width: 0; margin-right: 20rpx; }
-.pre-h { font-size: 28rpx; font-weight: 600; color: #1E1E32; }
+.pre-h { font-size: 28rpx; font-weight: 600; color: #2E2E4A; }
 .pre-opt { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: 16rpx; background: #F1F1F8; color: #6E6EA3; font-size: 20rpx; font-weight: 500; vertical-align: 2rpx; }
-.pre-d { margin-top: 8rpx; font-size: 22rpx; line-height: 1.5; color: #A5A5BA; }
+.pre-d { margin-top: 8rpx; font-size: 22rpx; line-height: 1.5; color: #84849E; }
 .pre-list { margin-top: 18rpx; padding-top: 4rpx; border-top: 1rpx solid #F2F2F8; }
-.pre-row { display: flex; align-items: center; padding: 14rpx 0; font-size: 27rpx; color: #1E1E32; }
+.pre-row { display: flex; align-items: center; padding: 14rpx 0; font-size: 27rpx; color: #2E2E4A; }
 .pre-row + .pre-row { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间 */
 .pre-row:last-child { padding-bottom: 0; }
-.pre-no { width: 44rpx; flex: none; color: #A5A5BA; font-size: 22rpx; font-weight: 700; }
+.pre-no { width: 44rpx; flex: none; color: #84849E; font-size: 22rpx; font-weight: 700; }
 .pre-n { flex: 1; min-width: 0; }
-.pre-x { flex: none; padding: 8rpx 4rpx 8rpx 20rpx; font-size: 24rpx; color: #A5A5BA; }
+.pre-x { flex: none; padding: 8rpx 4rpx 8rpx 20rpx; font-size: 24rpx; color: #84849E; }

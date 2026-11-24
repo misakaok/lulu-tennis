@@ -4,6 +4,7 @@ const { colorOf, initialOf, isNormal } = require('../../utils/rules');
 const S = require('../../utils/stats');
 const H = require('../../utils/highlight');
 const Anim = require('../../utils/anim');
+const haptic = require('../../utils/haptic');
 
 const PAGE = 40;        // 列表每次显示多少场，滑到底再加载
 const SEARCH_MS = 300;  // 搜索防抖
@@ -179,7 +180,7 @@ Page({
   },
   goMe() { wx.switchTab({ url: '/pages/me/me' }); },
 
-  setFilter(e) { this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
+  setFilter(e) { if (e.currentTarget.dataset.v !== this.data.filter) haptic.light(); this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
   // 输入时只记下关键词，停顿 300ms 再过滤（不在每个字上重新渲染整个列表）
   onSearch(e) {
     this.who = e.detail.value;

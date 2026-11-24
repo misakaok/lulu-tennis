@@ -25,11 +25,11 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .row { display: flex; justify-content: space-between; align-items: center; }
 .count { font-size: 26rpx; color: #6E6EA3; font-weight: 700; }
 .su-card .count { padding-right: 32rpx; } /* = 名单行右边「›」的宽度 + 间距，人数和等级一列右对齐 */
-.muted { color: #A5A5BA; font-size: 24rpx; padding: 10rpx 0; }
+.muted { color: #84849E; font-size: 24rpx; padding: 10rpx 0; }
 .grid { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
 .su { width: 25%; display: flex; flex-direction: column; align-items: center; padding: 14rpx 0; }
 .su-av { width: 96rpx; height: 96rpx; border-radius: 50%; background: #f2f2f8; border: 4rpx solid #ececf6; }
-.su-av.init { display: flex; align-items: center; justify-content: center; font-size: 38rpx; font-weight: 800; color: #22223a; }
+.su-av.init { display: flex; align-items: center; justify-content: center; font-size: 38rpx; font-weight: 800; color: #2E2E4A; }
 .su-name { font-size: 24rpx; font-weight: 600; margin-top: 10rpx; max-width: 150rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .su-lv { font-size: 20rpx; color: #6E6EA3; font-weight: 700; }
 .joined { display: flex; align-items: center; padding: 22rpx 24rpx; background: #F4F4FA; border-radius: 24rpx; }
@@ -49,20 +49,20 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .center { text-align: center; padding: 60rpx 0; }
 
 /* 双打报名 */
-.tr-no { width: 44rpx; flex: none; color: #A5A5BA; font-weight: 700; font-size: 24rpx; }
+.tr-no { width: 44rpx; flex: none; color: #84849E; font-weight: 700; font-size: 24rpx; }
 .tr-p { flex: 1; min-width: 0; display: flex; align-items: center; }
 .tr-av { width: 64rpx; height: 64rpx; border-radius: 50%; background: #f2f2f8; flex: none; margin-right: 12rpx; }
-.tr-av.init { display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 800; color: #22223a; }
+.tr-av.init { display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 800; color: #2E2E4A; }
 .tr-txt { min-width: 0; }
 .tr-name { font-size: 26rpx; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tr-lv { font-size: 20rpx; color: #6E6EA3; font-weight: 700; }
-.tr-solo { flex: 1; font-size: 22rpx; color: #A5A5BA; }
+.tr-solo { flex: 1; font-size: 22rpx; color: #84849E; }
 
 /* 标签页 */
 .tabs { display: flex; background: #EFEFF6; border-radius: 20rpx; padding: 6rpx; margin-bottom: 20rpx; }
-.tab { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 16rpx; font-size: 28rpx; color: #5C5C76; }
+.tab { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 16rpx; font-size: 28rpx; color: #5C5C76; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .tab.on { background: #fff; color: #4F4F7D; font-weight: 700; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
-.dot { display: inline-block; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 15rpx; background: #e5484d; color: #fff; font-size: 20rpx; margin-left: 8rpx; padding: 0 6rpx; vertical-align: 2rpx; }
+.dot { display: inline-block; min-width: 30rpx; height: 30rpx; line-height: 30rpx; border-radius: 15rpx; background: #D45B5B; color: #fff; font-size: 20rpx; margin-left: 8rpx; padding: 0 6rpx; vertical-align: 2rpx; }
 
 /* 赛程 */
 .sch-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
@@ -73,24 +73,24 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch.tbd { opacity: 0.6; }
 .sch.focus { border-color: #A3A3CB; box-shadow: 0 0 0 4rpx rgba(163, 163, 203, 0.45); } /* 从「我的下一场」点进来定位的这一场 */
 .sch-top { display: flex; justify-content: space-between; font-size: 22rpx; margin-bottom: 8rpx; }
-.sch-stage { color: #8686A0; }
-.sch-st { color: #A5A5BA; }
-.sch.ready.mine .sch-st { color: #e5484d; font-weight: 700; }
+.sch-stage { color: #70708C; }
+.sch-st { color: #84849E; }
+.sch.ready.mine .sch-st { color: #6E6EA3; font-weight: 700; } /* 我的待录分：不是危险操作，不用红 */
 .sch.done .sch-st { color: #6E6EA3; }
 .sch-row { display: flex; align-items: center; height: 60rpx; font-size: 28rpx; color: #5C5C76; }
-.sch-row.w { color: #1E1E32; font-weight: 700; }
+.sch-row.w { color: #2E2E4A; font-weight: 700; }
 .sch-avs { display: flex; width: 76rpx; flex: none; }
 .sch-av { width: 44rpx; height: 44rpx; border-radius: 50%; background: #f2f2f8; flex: none; font-size: 20rpx; }
 .sch-av + .sch-av { margin-left: -14rpx; border: 2rpx solid #fff; }
-.sch-av.init { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #22223a; }
+.sch-av.init { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #2E2E4A; }
 .sch-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sch-win { font-size: 20rpx; color: #fff; background: #6E6EA3; border-radius: 8rpx; padding: 2rpx 10rpx; }
 .sch-score { margin-top: 6rpx; font-size: 26rpx; font-weight: 700; color: #4F4F7D; background: #F6F6FB; border-radius: 12rpx; padding: 8rpx 16rpx; }
 
 /* 时间地点 */
 .in-row { display: flex; padding: 12rpx 0; font-size: 27rpx; line-height: 1.5; }
-.in-k { width: 110rpx; flex: none; color: #8686A0; }
-.in-v { flex: 1; color: #1E1E32; word-break: break-all; }
+.in-k { width: 110rpx; flex: none; color: #70708C; }
+.in-v { flex: 1; color: #2E2E4A; word-break: break-all; }
 .nav-btn { margin-top: 12rpx; height: 76rpx; line-height: 76rpx; text-align: center; border-radius: 38rpx; background: #F1F1F8; color: #4F4F7D; font-weight: 700; font-size: 27rpx; }
 
 /* 报名名单（排名 / 场数 / 胜率 / 等级） */
@@ -102,20 +102,20 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .matchup-edit { margin-bottom: 20rpx; }
 .su-team:last-child { padding-bottom: 0; }
 .su-row { display: flex; align-items: center; padding: 12rpx 0; }
-.su-no { width: 40rpx; flex: none; color: #A5A5BA; font-size: 22rpx; font-weight: 700; }
+.su-no { width: 40rpx; flex: none; color: #84849E; font-size: 22rpx; font-weight: 700; }
 .su-av2 { width: 76rpx; height: 76rpx; border-radius: 50%; background: #f2f2f8; flex: none; margin-right: 16rpx; }
-.su-av2.init { display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 800; color: #22223a; }
+.su-av2.init { display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 800; color: #2E2E4A; }
 .su-main { flex: 1; min-width: 0; }
 .su-top { display: flex; align-items: center; }
 .su-nm { font-size: 28rpx; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .su-g { flex: none; margin-left: 10rpx; font-size: 20rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 8rpx; padding: 0 10rpx; }
-.su-stats { margin-top: 4rpx; font-size: 21rpx; color: #A5A5BA; }
+.su-stats { margin-top: 4rpx; font-size: 21rpx; color: #84849E; }
 .su-stats > text { margin-right: 18rpx; }
 .su-stats .v { color: #5C5C76; font-weight: 600; }
 .none { color: #C5C5DA !important; font-weight: 400 !important; }
 .su-lv2 { flex: none; min-width: 110rpx; text-align: right; font-size: 26rpx; font-weight: 800; color: #4F4F7D; }
 .su-lv2.none { font-size: 22rpx; }
-.su-solo { font-size: 22rpx; color: #A5A5BA; padding: 0 0 8rpx 132rpx; }
+.su-solo { font-size: 22rpx; color: #84849E; padding: 0 0 8rpx 132rpx; }
 
 .h-rules { margin-top: 14rpx; background: rgba(255,255,255,0.16); border-radius: 14rpx; padding: 12rpx 16rpx; }
 .hr-title { display: flex; align-items: center; justify-content: space-between; font-size: 22rpx; font-weight: 700; opacity: 0.95; margin-bottom: 4rpx; }
@@ -124,14 +124,14 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .hr-row.hl { font-weight: 800; }
 .hr-k { width: 220rpx; flex: none; opacity: 0.85; }
 .hr-v { flex: 1; }
-.sch-rule { margin-top: 8rpx; font-size: 21rpx; color: #A5A5BA; }
+.sch-rule { margin-top: 8rpx; font-size: 21rpx; color: #84849E; }
 .sch-rule.hl { color: #6E6EA3; font-weight: 700; }
 .su-go { flex: none; width: 24rpx; margin-left: 8rpx; text-align: right; color: #C5C5DA; font-size: 30rpx; } /* 固定宽度：标题右边的人数按它留出同样的位置，和「3.0 自评」右对齐 */
 .wd-row { display: flex; align-items: center; padding: 12rpx 0; font-size: 24rpx; }
 .wd-row + .wd-row { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
 .wd-row:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
-.wd-n { font-weight: 700; color: #1E1E32; margin-right: 12rpx; flex: none; }
-.wd-t { flex: 1; min-width: 0; color: #8686A0; font-size: 23rpx; }
+.wd-n { font-weight: 700; color: #2E2E4A; margin-right: 12rpx; flex: none; }
+.wd-t { flex: 1; min-width: 0; color: #70708C; font-size: 23rpx; }
 .wd-a { flex: none; margin-left: 10rpx; }
 .btn-line.wd-btn { margin-top: 16rpx; }
 
@@ -141,12 +141,12 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch-plan { flex: none; margin: 8rpx 0 0 16rpx; font-size: 22rpx; color: #6E6EA3; border: 2rpx solid #CFCFE6; border-radius: 20rpx; padding: 4rpx 18rpx; }
 .sheet-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(30, 30, 50, 0.45); z-index: 20; }
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); }
-.sheet-t { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
-.sheet-s { margin: 6rpx 0 16rpx; font-size: 24rpx; color: #8686A0; }
+.sheet-t { font-size: 32rpx; font-weight: 800; color: #2E2E4A; }
+.sheet-s { margin: 6rpx 0 16rpx; font-size: 24rpx; color: #70708C; }
 .sheet-row { display: flex; align-items: center; justify-content: space-between; height: 92rpx; border-top: 1rpx solid #F2F2F8; }
-.sheet-pick { font-size: 28rpx; color: #1E1E32; }
+.sheet-pick { font-size: 28rpx; color: #2E2E4A; }
 .sheet-pick.ph { color: #B7B7CC; }
-.sheet-note { margin-top: 12rpx; font-size: 22rpx; color: #A5A5BA; }
+.sheet-note { margin-top: 12rpx; font-size: 22rpx; color: #84849E; }
 .sheet-acts { display: flex; margin: 24rpx -8rpx 0; }
 .sheet-a { flex: 1; margin: 0 8rpx; height: 84rpx; border-radius: 42rpx; font-size: 28rpx; }
 .btn-primary.sheet-a { line-height: 84rpx; box-shadow: none; }
@@ -156,7 +156,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 /* 分享封面画布：放在屏幕外，不显示 */
 .share-cv { position: fixed; left: -2000px; top: 0; width: 1000px; height: 800px; }
 .in-place { font-weight: 600; }
-.in-addr { margin-top: 4rpx; font-size: 24rpx; line-height: 1.45; color: #8686A0; }
+.in-addr { margin-top: 4rpx; font-size: 24rpx; line-height: 1.45; color: #70708C; }
 
 /* 场次：全部 / 退赛／弃权 */
 .sch-seg { margin-bottom: 16rpx; }
@@ -164,38 +164,39 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .wdv-p + .wdv-p { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间（见 tests/review-surface.test.js） */
 .wdv-p:last-child { padding-bottom: 0; } /* 最后一行不再多出下边距 */
 .wdv-top { display: flex; align-items: center; flex-wrap: wrap; }
-.wdv-n { font-size: 27rpx; font-weight: 700; color: #1E1E32; margin-right: 12rpx; }
-.wdv-st { margin-left: 12rpx; font-size: 22rpx; color: #8686A0; }
+.wdv-n { font-size: 27rpx; font-weight: 700; color: #2E2E4A; margin-right: 12rpx; }
+.wdv-st { margin-left: 12rpx; font-size: 22rpx; color: #70708C; }
 .wdv-s { font-size: 23rpx; color: #5C5C76; line-height: 1.6; margin-top: 6rpx; }
 .wdv-vs { display: flex; align-items: center; flex-wrap: wrap; font-size: 27rpx; color: #5C5C76; margin-top: 10rpx; }
-.wdv-w { color: #1E1E32; font-weight: 800; }
-.wdv-x { margin: 0 14rpx; font-size: 22rpx; color: #A5A5BA; }
-.wdv-u { font-size: 21rpx; color: #8686A0; margin-top: 6rpx; }
+.wdv-w { color: #2E2E4A; font-weight: 800; }
+.wdv-x { margin: 0 14rpx; font-size: 22rpx; color: #84849E; }
+.wdv-u { font-size: 21rpx; color: #70708C; margin-top: 6rpx; }
 
 /* LULU 积分：头部标签 + 管理员结算卡 */
 .h-cup { margin-top: 14rpx; line-height: 1; display: flex; align-items: center; }
-/* 置顶（管理员）：在积分标签右边、靠右；没置顶是白底红字，已置顶是实心红 */
 /* 置顶（管理员）：在积分标签右边、靠右；和顶部的半透明白色一致，没置顶是半透明白底白字，已置顶是实心白底紫字 */
 .h-pin { margin-left: auto; flex: none; height: 48rpx; line-height: 44rpx; padding: 0 24rpx; border-radius: 24rpx; box-sizing: border-box;
   font-size: 23rpx; font-weight: 700; color: #fff; background: rgba(255, 255, 255, 0.16); border: 2rpx solid rgba(255, 255, 255, 0.6); }
 .h-pin.on { color: #6E6EA3; background: #fff; border-color: #fff; }
 .h-pin.busy { opacity: 0.5; }
+/* 积分标签能点和不能点一样高（不能点的没有 ›）：权限确认前后顶部卡片不跳 */
+.h-cup .ui-tag { display: inline-flex; align-items: center; min-height: 48rpx; box-sizing: border-box; }
 .h-cup-action { display: inline-flex; align-items: center; min-height: 48rpx; }
 .h-cup-edit { margin-left: 10rpx; font-size: 30rpx; line-height: 1; opacity: .85; }
-.cb-note { font-size: 24rpx; line-height: 1.5; color: #8686A0; }
+.cb-note { font-size: 24rpx; line-height: 1.5; color: #70708C; }
 .cb-note.warn { color: #b34d4d; font-weight: 600; }
 .cb-btn { margin-top: 20rpx; height: 80rpx; line-height: 76rpx; font-size: 28rpx; }
 
 /* 四人轮换双打：每轮一张卡（搭档 / 对手 / 状态） */
 .rot-r.mine { border: 2rpx solid #A3A3CB; }
 .rot-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
-.rot-n { font-size: 30rpx; font-weight: 800; color: #1E1E32; }
+.rot-n { font-size: 30rpx; font-weight: 800; color: #2E2E4A; }
 .rot-side { display: flex; align-items: center; }
 .rot-av { width: 48rpx; height: 48rpx; margin-right: 8rpx; border-radius: 50%; flex: none; font-size: 20rpx; }
 .rot-nm { flex: 1; min-width: 0; margin-left: 8rpx; font-size: 28rpx; color: #4F4F7D; }
-.rot-side.w .rot-nm { font-weight: 800; color: #1E1E32; }
+.rot-side.w .rot-nm { font-weight: 800; color: #2E2E4A; }
 .rot-win { font-size: 22rpx; font-weight: 700; color: #2E3600; background: #C9E33A; border-radius: 12rpx; padding: 0 12rpx; }
-.rot-vs { margin: 8rpx 0 8rpx 6rpx; font-size: 22rpx; color: #A5A5BA; }
+.rot-vs { margin: 8rpx 0 8rpx 6rpx; font-size: 22rpx; color: #84849E; }
 .rot-score { margin-top: 14rpx; font-size: 28rpx; font-weight: 800; color: #4F4F7D; }
 .rot-me { margin-top: 12rpx; font-size: 24rpx; color: #6E6EA3; }
 .rot-acts { margin-top: 16rpx; display: flex; justify-content: flex-end; }

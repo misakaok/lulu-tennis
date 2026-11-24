@@ -3,6 +3,7 @@ const E = require('../../utils/event');
 const C = require('../../utils/cup');
 const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
+const haptic = require('../../utils/haptic');
 const PAGE = 30; // 活动列表每次显示多少个，滑到底再加载（和战绩页、排行页一样）
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
@@ -145,7 +146,7 @@ Page({
     const limit = this.limit || PAGE;
     this.setData({ shown: all.slice(0, limit), more: all.length > limit });
   },
-  setTab(e) { this.limit = PAGE; this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
+  setTab(e) { if (e.currentTarget.dataset.v !== this.data.tab) haptic.light(); this.limit = PAGE; this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
   onReachBottom() {
     if (this.timeline || !this.data.more) return;
     this.limit = (this.limit || PAGE) + PAGE;
@@ -184,11 +185,18 @@ Page({
     await showNew;
   },
   goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
-  open(e) { wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + e.currentTarget.dataset.id }); },
+  // 点卡片先把活动详情请求发出去（页面切换动画期间并行读），详情页第一次读取直接接过来
+  open(e) {
+    const id = e.currentTarget.dataset.id;
+    db.prefetchDrawDetail(id);
+    wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + id });
+  },
   // 我的下一场 → 活动详情的「场次」页签，并定位到这一场（录分仍从那里的场次入口进）
   openNext() {
     const n = this.data.next;
-    if (n) wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
+    if (!n) return;
+    db.prefetchDrawDetail(n.drawId);
+    wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
   },
   // 右上角「转发给朋友」：只转发小程序首页，标题和封面固定（不带活动名称、人名等任何内容）；
   // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据

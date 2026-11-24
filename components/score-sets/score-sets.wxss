@@ -1,5 +1,5 @@
 .set-head, .set-row { display: flex; align-items: center; }
-.set-head { font-size: 22rpx; color: #8686A0; padding-bottom: 6rpx; }
+.set-head { font-size: 22rpx; color: #70708C; padding-bottom: 6rpx; }
 .set-name { width: 110rpx; flex: none; font-size: 26rpx; color: #5C5C76; }
 .col { flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8rpx; }
 .del-col { width: 48rpx; flex: none; text-align: right; }

@@ -137,6 +137,7 @@ function derived(name, load, compute, noCopy) {
 function forget() {
   require('./photo').clear(); generation++; kept = {}; drawsKept = null; lastDs = null;
   Object.keys(removedDraws).forEach((k) => delete removedDraws[k]); lastRemoved = null; // 刚删除的活动、「撤回」提示也是这个账号的
+  prefetched = {}; // 点卡片时预先发出的活动详情请求：换了账号不能再用
   memo.invalidate(DS_COLLS.concat('draws'));
 }
 
@@ -283,7 +284,25 @@ async function getMatch(id) {
 async function getDraw(id) { return publicDraw((await db().collection('draws').doc(id).get()).data); }
 // 活动详情页一次取齐：活动、报名名单、我的资料、退赛申请（云函数 drawDetail，1 次调用）。
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
-async function fetchDrawDetail(id) {
+// 点活动卡片时先发出去（利用页面切换动画的时间），活动详情 load 第一次读取时接过这个请求，不再另发。
+// 只接一次（之后的刷新、下拉照常发新请求）；期间有过写操作 / 清缓存（epoch 变了）或超过 PREFETCH_MS 没被接走的不用
+const PREFETCH_MS = 10 * 1000;
+let prefetched = {};
+function prefetchDrawDetail(id) {
+  if (!id) return;
+  const cur = prefetched[id];
+  if (cur && cur.epoch === memo.epoch() && Date.now() - cur.at < PREFETCH_MS) return; // 双击卡片：已经在读，不再发一次
+  const task = fetchDrawDetailNow(id);
+  task.catch(() => {}); // 失败不提示：详情页接过来时自己处理
+  prefetched[id] = { epoch: memo.epoch(), at: Date.now(), task };
+}
+function fetchDrawDetail(id) {
+  const p = prefetched[id];
+  delete prefetched[id];
+  if (p && p.epoch === memo.epoch() && Date.now() - p.at < PREFETCH_MS) return p.task;
+  return fetchDrawDetailNow(id);
+}
+async function fetchDrawDetailNow(id) {
   let r;
   const started = generation, since = memo.epoch();
   try { r = await require('./cloud').call('drawDetail', { drawId: id }); } catch (e) {
@@ -294,8 +313,24 @@ async function fetchDrawDetail(id) {
   if (since === memo.epoch()) cacheSet('my_profile', r.profile || ''); // 期间有过写操作（如刚改完资料）：不让旧结果盖掉本机资料
   r.draw = publicDraw(r.draw);
   // 录分页先用它画出来（只在内存、60 秒，任何写操作、下拉刷新都作废）；读的过程中有过写操作的不放，免得旧结果盖掉
-  memo.put(detailKey(id), memo.ANY, r, since);
+  if (memo.put(detailKey(id), memo.ANY, r, since)) keepSignups(id, r.signups);
   return memo.clone(r);
+}
+// 最近打开过的活动的报名名单（本机，受保护缓存：退出成员身份时清掉）：再打开活动详情时先显示上次的名单和人数，
+// 云端读完再更正；报名 / 取消这些按钮仍要等云端读完（ready）。最多记 SIGNUPS_KEEP 个活动
+const SIGNUPS_KEY = 'cache_draw_signups', SIGNUPS_KEEP = 10;
+function keepSignups(id, list) {
+  if (!id || !Array.isArray(list)) return;
+  const all = Object.assign({}, cacheGet(SIGNUPS_KEY, {}));
+  const n = Object.keys(all).reduce((m, k) => Math.max(m, (all[k] && all[k].n) || 0), 0) + 1; // 先后顺序（同一毫秒也分得清）
+  all[id] = { n, list };
+  const ids = Object.keys(all).sort((a, b) => ((all[b] && all[b].n) || 0) - ((all[a] && all[a].n) || 0));
+  ids.slice(SIGNUPS_KEEP).forEach((k) => delete all[k]);
+  cacheSetLater(SIGNUPS_KEY, all);
+}
+function cachedDrawSignups(id) {
+  const x = cacheGet(SIGNUPS_KEY, {})[id];
+  return x && Array.isArray(x.list) ? x.list : null;
 }
 const detailKey = (id) => 'drawDetail:' + id;
 // 活动详情最近一次读到的结果（复制版）：从活动详情点进录分页时先用它显示，云端读完再更正；没有 / 过期返回 null
@@ -351,7 +386,12 @@ function withoutRemoved(list) {
 function setFixtureSlot(id, key, slot) { return cloudCall('setFixtureSlot', { drawId: id, key, slot }); }
 
 /* ---------- 报名 ---------- */
-function fetchSignups(drawId) { return fetchAll('signups', [['createdAt', 'asc']], { drawId }); }
+async function fetchSignups(drawId) {
+  const since = memo.epoch();
+  const list = await fetchAll('signups', [['createdAt', 'asc']], { drawId });
+  if (since === memo.epoch()) keepSignups(drawId, list); // 报名 / 取消后重新读到的名单也记下来
+  return list;
+}
 
 // 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」用
 // 云函数 mySignups 1 次调用；云函数还是旧版本（未知操作）时分开读
@@ -384,6 +424,6 @@ module.exports = {
   fetchMatches, cachedMatches, cachedMatchesOrNull, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles,
   getMyProfile, cachedProfile, cachedOpenid, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, peekDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, prefetchDrawDetail, peekDrawDetail, cachedDrawSignups, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

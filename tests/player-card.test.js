@@ -103,7 +103,7 @@ test('名次口径：球员卡、报名名单、战绩页卡片都和排行榜�
     let def;
     vm.runInNewContext(read('pages/draw-view/draw-view.js'), {
       require: (id) => (id === '../../utils/db'
-        ? { fetchSignups: async () => [], mySignup: async () => null, fetchPlayersFull: async () => JSON.parse(JSON.stringify(players)), cachedPlayersFull: () => [], cachedMatches: () => ms, profilesOf: () => ({}), cachedProfiles: () => ({}) }
+        ? { fetchSignups: async () => [], mySignup: async () => null, playersShared: async () => { throw new Error('网络异常'); }, cachedPlayersFull: () => JSON.parse(JSON.stringify(players)), cachedMatches: () => ms, profilesOf: () => ({}), cachedProfiles: () => ({}) }
         : createRequire(filename)(id)),
       wx: {}, Page: (d) => { def = d; }, console, Date, setTimeout, clearTimeout,
     });
@@ -186,7 +186,7 @@ T.push({ name: '排行榜前三：金银铜奖牌图标 images/medal-1/2/3.png�
     assert.ok(fs.existsSync(f), f); assert.ok(fs.statSync(f).size <= 12 * 1024, f);
   }
   const xml = fs.readFileSync(path.join(__dirname, '../pages/rank/rank.wxml'), 'utf8');
-  assert.ok(/<image class="medal-img" src="\/images\/medal-\{\{item\.rank\}\}\.png" mode="aspectFit" \/>/.test(xml));
+  assert.ok(/<image class="medal-img[^"]*"[^>]* src="\/images\/medal-\{\{item\.rank\}\}\.png" mode="aspectFit" \/>/.test(xml));
 } });
 
 module.exports = T;

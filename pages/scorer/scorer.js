@@ -5,8 +5,13 @@
 // 活动场次：从活动录分页（pages/score）点「场边记分」进来（?go=1），规则是这一场的规则、不能改；完赛后「带入这一场录分」
 //   回到那一场的录分页预填局分，由本人核对后提交（录分页走原来的 recordEventMatch）。双方名字由录分页放在内存里（S.labelsOf）。
 const S = require('../../utils/scorer');
+const haptic = require('../../utils/haptic');
 
 const SIDES = ['我在 A 方', '我在 B 方'];
+
+// 这一分有没有拿下一局：各盘局数之和变多（盘打完时当前盘归 0、但打完的那盘多了一局），或刚好完赛
+const gamesOf = (v) => (v && v.cols ? v.cols.reduce((n, c) => n + (Number(c.a) || 0) + (Number(c.b) || 0), 0) : 0);
+const gameWon = (before, after) => !!after && ((after.done && !(before && before.done)) || gamesOf(after) > gamesOf(before));
 
 Page({
   data: {
@@ -101,10 +106,12 @@ Page({
     if (!this.state || this.data.authError) return;
     const next = S.addPoint(this.state, e.currentTarget.dataset.side);
     if (next === this.state) return; // 完赛后锁住
+    const before = this.data.v;
     this.state = next;
     S.saveDraft(next);
     this.render();
-    try { wx.vibrateShort({ type: 'light', fail() {} }); } catch (err) {}
+    // 普通一分轻震；这一分拿下一局（或一盘、完赛）重一点
+    if (gameWon(before, this.data.v)) haptic.medium(); else haptic.light();
   },
 
   undo() {
@@ -112,6 +119,7 @@ Page({
     this.state = S.undo(this.state);
     S.saveDraft(this.state);
     this.render();
+    haptic.light();
   },
 
   /* ---------- 带入日常录分 ---------- */

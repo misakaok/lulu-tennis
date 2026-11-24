@@ -1003,7 +1003,7 @@ test('活动顶部修改积分类别：取消保留原类别，确认后标签�
   });
   const page = {
     id: 'editTag', d: env.coll('draws').editTag, editCupKind: dv.editCupKind,
-    data: { cupTag: 'LULU 积分 · 周赛', canEditCup: false },
+    data: { cupTag: 'LULU 积分 · 周赛', canEditCup: false, ready: true },
     setData(data) { Object.assign(this.data, data); },
   };
   await page.editCupKind();

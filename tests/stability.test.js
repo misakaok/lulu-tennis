@@ -161,7 +161,7 @@ test('db.forget（clearProtected）连同刚删除的活动和「撤回」提示
 
 /* ---------- 活动详情：乱序和连点 ---------- */
 function drawView(over) {
-  const db = Object.assign({ matchesShared: async () => [], cachedMatches: () => [], myOpenid: async () => 'me', cachedProfile: () => ({ name: 'Me' }), getMyProfile: async () => ({ name: 'Me' }) }, over.db || {});
+  const db = Object.assign({ matchesShared: async () => [], cachedMatches: () => [], playersShared: async () => [], cachedPlayersFull: () => [], profilesOf: () => ({}), myOpenid: async () => 'me', cachedProfile: () => ({ name: 'Me' }), getMyProfile: async () => ({ name: 'Me' }) }, over.db || {});
   const wx = Object.assign({ showToast() {}, showModal() {}, setNavigationBarTitle() {}, stopPullDownRefresh() {} }, over.wx || {});
   const def = loadDef('pages/draw-view/draw-view.js', {
     '../../utils/db': db, '../../utils/cloud': over.cloud || { call: async () => ({}) }, '../../utils/pick': over.pick || {}, '../../utils/share-card': {},
@@ -203,17 +203,17 @@ test('活动详情 loadSignups 防乱序：旧 load 已进入 loadSignups，后�
           signups: k === 1 ? [{ _id: 's1', _openid: 'alice', name: 'Alice' }] : [{ _id: 's1', _openid: 'alice', name: 'Alice' }, { _id: 's2', _openid: 'bob', name: 'Bob' }],
         };
       },
-      fetchPlayersFull: () => { const g = deferred(); playerGates.push(g); return g.p; },
+      playersShared: () => { const g = deferred(); playerGates.push(g); return g.p; }, // 共享版球员在 load 里和 drawDetail 同时读
       cachedPlayersFull: () => [],
     },
   });
   p.makeCover = () => {};
   const first = p.load();
   await flush();
-  assert.strictEqual(playerGates.length, 1, '第一次 load 已进入 loadSignups 等球员列表');
+  assert.strictEqual(playerGates.length, 1, '第一次 load 在等球员列表（名单已先按本机球员画出）');
   const second = p.load();
   await flush();
-  assert.strictEqual(playerGates.length, 2, '第二次 load 也进入 loadSignups');
+  assert.strictEqual(playerGates.length, 2, '第二次 load 也在等球员列表');
   // 第二次先返回（2 人报名）
   playerGates[1].resolve([{ name: 'Alice', uid: 'alice', self: true }, { name: 'Bob', uid: 'bob', self: true }]);
   await second;

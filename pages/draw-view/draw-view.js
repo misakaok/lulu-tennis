@@ -11,6 +11,7 @@ const WV = require('../../utils/withdraw-view'); // 「退赛／弃权」筛选�
 const Card = require('../../utils/share-card'); // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 const COVER_DELAY_MS = 800; // 进页面后等一会儿再画封面；这期间分享会等它画完（微信最多等 3 秒）
 const S = require('../../utils/stats');
+const haptic = require('../../utils/haptic');
 const { colorOf, initialOf } = require('../../utils/rules');
 
 const NO_PARTNER = '暂时没有搭档（由发起人配对）';
@@ -38,20 +39,36 @@ Page({
     // 从活动首页「我的下一场」进来：打开「场次」并定位到这一场（只定位一次，返回本页刷新时不再跳）
     if (options.tab === 'schedule') { this.setData({ tab: 'schedule' }); this.focusKey = decodeURIComponent(options.key || ''); }
     this.preview();
+    // 进页面马上开始读（活动首页点卡片时已经预先发出，这里直接接过来），不等 onShow；紧接着的第一次 onShow 不再重复读
+    this.skipShow = true;
+    this.load();
   },
-  onShow() { this.load(); }, // 从录分页 / 资料页 / 抽签页回来时刷新
+  onShow() { // 从录分页 / 资料页 / 抽签页回来时刷新
+    if (this.skipShow) { this.skipShow = false; return; }
+    this.load();
+  },
   onUnload() { this.gone = true; clearTimeout(this.focusTimer); }, // 关闭后不再画分享封面
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
   // 先用本机已有的数据画出来（活动列表的本机缓存 + 本机战绩），云端 drawDetail 读完再更正（2026-11-24 用户嫌打开慢）。
   // 本机没有的（报名名单、退赛申请、积分结算）读完前不显示；报名 / 取消 / 生成对阵 / 删除这些按钮也等读完（ready）
+  //   报名中的活动：内存里 60 秒内读过的详情（db.peekDrawDetail）或本机记着的上次名单（db.cachedDrawSignups）先画出人数和名单（只是显示）
   preview() {
-    let d = null;
-    try { d = db.cachedDraws().find((x) => x && x._id === this.id) || null; } catch (e) { d = null; }
+    let d = null, signups = null, me = null;
+    try {
+      const peek = db.peekDrawDetail(this.id);
+      if (peek && peek.draw) { d = peek.draw; signups = peek.signups || null; me = peek.profile || null; }
+      if (!d) d = db.cachedDraws().find((x) => x && x._id === this.id) || null;
+      if (d && !signups) signups = db.cachedDrawSignups(this.id);
+    } catch (e) { d = null; }
     if (!d) return;
-    const me = db.cachedProfile();
-    try { this.show(d, db.cachedMatches(), me, db.cachedOpenid() || (me && me._openid) || '', null); } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
+    me = me || db.cachedProfile();
+    try {
+      const all = db.cachedMatches();
+      this.show(d, all, me, db.cachedOpenid() || (me && me._openid) || '', null);
+      if (d.status === 'signup' && Array.isArray(signups)) this.loadSignups(d, all, signups, { players: db.cachedPlayersFull() });
+    } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
   },
 
   // 防乱序：onShow、下拉刷新、处理退赛后都会调 load，几次请求先后回来时只用最后一次的结果（旧的晚到也不画）
@@ -59,12 +76,12 @@ Page({
     const seq = this.loadSeq = (this.loadSeq || 0) + 1;
     const stale = () => seq !== this.loadSeq || this.gone;
     try {
-      // 活动、报名名单、我的资料、退赛申请：云函数 drawDetail 一次取齐
-      const [bundle, all, myId] = await Promise.all([
-        db.fetchDrawDetail(this.id),
-        db.matchesShared().catch(() => db.cachedMatches()), // 共享版（只读，不复制）：这页只拿来算，不改动
-        db.myOpenid().catch(() => ''),
-      ]);
+      // 活动、报名名单、我的资料、退赛申请：云函数 drawDetail 一次取齐。比赛和球员用共享版（只读，不复制，
+      // 和排行榜、球员主页共用一次水平分计算）同时读；drawDetail 先回来就先用本机的比赛 / 球员画出人数和名单，不干等
+      const shared = { all: null, players: null };
+      const allP = db.matchesShared().catch(() => db.cachedMatches()).then((x) => (shared.all = x));
+      const playersP = db.playersShared().then((x) => (shared.players = { players: x, shared: true }), () => (shared.players = { players: db.cachedPlayersFull() }));
+      const [bundle, myId] = await Promise.all([db.fetchDrawDetail(this.id), db.myOpenid().catch(() => '')]);
       let d, me, signups;
       if (bundle) { d = bundle.draw; me = bundle.profile; signups = bundle.signups; }
       else { // 云函数还是旧版本：分开读取
@@ -75,7 +92,16 @@ Page({
         ]);
       }
       if (stale()) return;
-      await this.show(d, all, me, myId, { bundle, signups }, stale);
+      const fresh = { bundle, signups };
+      if (shared.all && shared.players) {
+        await this.show(d, shared.all, me, myId, Object.assign(fresh, { players: shared.players }), stale);
+      } else {
+        // 共享数据还在路上（比如战绩缓存刚过期、要重新读全部）：先用本机的画，回来后再按最新的整理一遍（排名、胜率、场次）
+        await this.show(d, db.cachedMatches(), me, myId, Object.assign({}, fresh, { players: { players: db.cachedPlayersFull() }, early: true }), stale);
+        const [all] = await Promise.all([allP, playersP]);
+        if (stale()) return;
+        await this.show(d, all, me, myId, Object.assign(fresh, { players: shared.players, again: true }), stale);
+      }
       if (stale()) return;
       this.loaded = true;
     } catch (e) {
@@ -103,37 +129,43 @@ Page({
     const seedRows = (Array.isArray(d.seeds) ? d.seeds : []).filter((s) => typeof s === 'string' && s).map((name, i) => ({ no: i + 1, name }));
     const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
     const matches = all.filter((m) => m.drawId === this.id);
-    this.setData({
-      draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
-      formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
-    });
     // 随机生成仍由发起人操作；管理员也可手动排对阵。
     const isAdmin = require('../../utils/member').isAdminLocal();
     const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
     const canEditMatchups = isAdmin && !signing && !E.isRotation(d) && !matches.length &&
       !Object.keys(d.results || {}).length && !(d.withdrawals || []).length;
-    this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups });
-    this.setData({ info: this.infoOf(d) });
+    // 积分标签能不能点（管理员更正类别）：报名中一定还没结算，第一帧就定下来；已生成对阵的由 loadCupBox 按云端结果更正，
+    // 这里不先清成 false（否则每次回到这页标签都会先变样再变回来）。顶部所有内容一次 setData，不分几帧蹦出来
+    const cupOn = isAdmin && !!C.drawCupOf(d);
+    const top = {
+      draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
+      formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
+      isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups, info: this.infoOf(d),
+    };
+    if (signing) { top.canEditCup = cupOn; top.cupBox = null; this.cupSeq = (this.cupSeq || 0) + 1; } // 报名中：取消还在路上的结算查询
+    else if (!cupOn) top.canEditCup = false;
+    this.setData(top);
     if (!fresh) { // 预览：报名名单等云端；对阵和场次用本机战绩先画
       if (!signing) this.renderSchedule(true);
       return;
     }
     if (signing) {
-      this.cupSeq = (this.cupSeq || 0) + 1;
-      this.setData({ canEditCup: isAdmin && !!C.drawCupOf(d), cupBox: null });
-      await this.loadSignups(d, all, fresh.bundle ? signups : null);
+      await this.loadSignups(d, all, fresh.bundle ? signups : null, fresh.players);
       if (stale && stale()) return;
       // 管理员：顺手预读成员列表（内存里 60 秒），点「＋ 添加报名」时选人弹层马上出来
       if (isAdmin && !this.membersAsked) { this.membersAsked = true; cloud.cached('listMembers').catch(() => {}); }
     } else {
       this.signupSeq = (this.signupSeq || 0) + 1; // 已出签表：取消此前还在路上的报名名单刷新
-      if (this.data.canEditCup) this.setData({ canEditCup: false });
       this.shareCounts = { entrants: n, unit };
       this.makeCover();
       this.renderSchedule();
-      this.loadCupBox(isAdmin);
-      if (!fresh.bundle) this.loadRequests();
-      else if (fresh.bundle.requests) { this.reqSeq = (this.reqSeq || 0) + 1; this.applyRequests(fresh.bundle.requests); }
+      // 退赛申请随 drawDetail 一起回来，不靠战绩：每一遍都直接用（和 ready 同时出来）。
+      // 先用本机战绩画的那一遍（early）不查积分结算、不单独读申请（旧版云函数）：等最新战绩回来的那一遍再查，免得调两次云函数
+      if (fresh.bundle && fresh.bundle.requests) { this.reqSeq = (this.reqSeq || 0) + 1; this.applyRequests(fresh.bundle.requests); }
+      if (!fresh.early) {
+        this.loadCupBox(isAdmin);
+        if (!fresh.bundle) this.loadRequests();
+      }
     }
     if (stale && stale()) return;
     if (!this.data.ready) this.setData({ ready: true });
@@ -168,7 +200,7 @@ Page({
   },
   openCupSettle() { wx.navigateTo({ url: '/pages/cup-edit/cup-edit?drawId=' + encodeURIComponent(this.id) }); },
   async editCupKind() {
-    if (!this.data.canEditCup || this.data.cupKindBusy) return;
+    if (!this.data.ready || !this.data.canEditCup || this.data.cupKindBusy) return; // 只画了本机缓存时先不让改
     const cup = C.drawCupOf(this.d);
     if (!cup) return;
     const choices = C.kindsForVersion(cup.scoreVersion).filter((k) => k.value !== cup.kind && !C.drawCupError(this.d, k.value));
@@ -313,19 +345,21 @@ Page({
 
   /* ---------- 报名 ---------- */
   // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
-  async loadSignups(d, matches, preloaded) {
+  // pl：{ players, shared }（load 已经读到的球员；shared = db.playersShared 的共享数组）。不传就自己读共享版
+  async loadSignups(d, matches, preloaded, pl) {
     const seq = this.signupSeq = (this.signupSeq || 0) + 1;
-    const [list, mineDoc, players] = await Promise.all([
+    const [list, mineDoc, got] = await Promise.all([
       preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
-      db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
+      pl || db.playersShared().then((players) => ({ players, shared: true }), () => ({ players: db.cachedPlayersFull() })),
     ]);
     if (seq !== this.signupSeq || this.gone) return; // 后发的新刷新已经开始 / 页面已关：不让旧名单盖掉新的
+    const players = got.players || [];
     this.signupRows = list;
     const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
     // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
-    // 名次和排行榜一致：只在同意公开展示的人里排。授权直接看球员列表里的 shown——这里的 players 是复制版，
-    // db.profilesOf 认不出来会退回本机缓存（第一次打开时是空的，所有人都会变成「未公开」），所以不传 profiles
-    const stats = S.playerStats(matches || db.cachedMatches(), players);
+    // 名次和排行榜一致：只在同意公开展示的人里排。共享版球员（只读，不复制）带上 db.profilesOf，和排行榜、球员主页命中
+    // 同一份统计缓存；本机缓存的复制版 db.profilesOf 认不出来，不传 profiles，授权直接看球员列表里的 shown
+    const stats = S.playerStats(matches || db.cachedMatches(), players, got.shared ? db.profilesOf(players) : undefined);
     const profOf = {};
     players.forEach((p) => { profOf[p.name] = p; });
     // 报名名单按账号显示「当前」昵称：改名后报名照样有效，显示也跟着更新
@@ -449,6 +483,7 @@ Page({
         partner = { name: pick.name, uid: pick.uid };
       }
       const res = await db.signUp(this.id, partner);
+      haptic.medium();
       wx.showToast(res && res.waiting ? { title: '名额已满，已排进候补', icon: 'none' } : { title: '报名成功', icon: 'success' });
       await this.loadSignups(this.d, this.allMatches);
     } catch (e) {

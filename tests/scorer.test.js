@@ -250,6 +250,19 @@ test('记分页：选规则开始，逐分记分自动存本机；重开显示�
     assert.deepStrictEqual(Object.keys(store.scorer_draft).sort(), ['cfg', 'createdAt', 'id', 'points', 'updatedAt', 'v']); // 没有姓名、身份
     p.undo();
     assert.strictEqual(S.loadDraft().points, 'aaa');
+    // 触觉反馈：普通一分轻震，拿下一局重一点，撤销轻震（4 局制、一盘：A 方连得 4 分拿下第一局）
+    const buzz = [];
+    const h = load('pages/scorer/scorer.js', wx, Object.assign({ '../../utils/haptic': { light: () => buzz.push('l'), medium: () => buzz.push('m') } }, deps));
+    h.onLoad(); await h.onShow(); h.resume();
+    h.point(tap({ side: 'a' }));
+    assert.deepStrictEqual(buzz, ['m'], '第 4 分拿下一局');
+    h.point(tap({ side: 'b' }));
+    h.undo();
+    assert.deepStrictEqual(buzz, ['m', 'l', 'l']);
+    'aaaa'.split('').concat('aaaa'.split(''), 'aaaa'.split('')).forEach((side) => h.point(tap({ side })));
+    assert.strictEqual(h.data.v.done, true);
+    assert.strictEqual(buzz[buzz.length - 1], 'm', '完赛那一分重一点');
+    S.saveDraft(Object.assign({}, S.loadDraft(), { points: 'aaa' }));
 
     // 小程序重开：有草稿先问继续还是新一场
     const q = load('pages/scorer/scorer.js', wx, deps);

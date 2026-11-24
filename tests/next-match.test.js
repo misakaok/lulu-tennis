@@ -164,6 +164,7 @@ function homePage(state) {
       cachedDraws: () => [], cachedMatches: () => state.cachedMatches || [], withoutRemoved: (x) => x, recentRemoved: () => null,
       drawsShared: fail('draws', () => state.draws), matchesShared: fail('matches', () => state.matches),
       myOpenid: fail('me', () => 'me'), fetchMySignups: fail('signups', () => state.signups || []),
+      prefetchDrawDetail: (id) => { state.prefetched = id; },
     },
   });
   return p;
@@ -182,6 +183,7 @@ test('活动首页：三个选项卡「全部活动 / 我的活动 / 我的下�
   tap('all'); assert.strictEqual(p.data.shown.length, 2);
   p.openNext();
   assert.strictEqual(state.nav, '/pages/draw-view/draw-view?id=s1&tab=schedule&key=0-0');
+  assert.strictEqual(state.prefetched, 's1', '跳转前先把活动详情请求发出去');
 
   const xml = fs.readFileSync(path.join(__dirname, '../pages/draw/draw.wxml'), 'utf8');
   const tabs = [...xml.matchAll(/class="seg-item[^"]*" data-v="(\w+)"[^>]*>([^<{]+)/g)].map((m) => [m[1], m[2]]);
@@ -220,7 +222,7 @@ test('活动详情：从「我的下一场」进来打开「场次」页签并�
   const scrolled = [];
   const d = single();
   const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {}, pageScrollTo(o) { scrolled.push(o.selector); } }, {
-    '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: { name: '小明' }, signups: [] }), matchesShared: async () => [rec('s1', '0-0', '小明', '阿杰', 'a')], myOpenid: async () => 'me', cachedPlayersFull: () => [] },
+    '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: { name: '小明' }, signups: [] }), matchesShared: async () => [rec('s1', '0-0', '小明', '阿杰', 'a')], myOpenid: async () => 'me', cachedPlayersFull: () => [], playersShared: async () => [], peekDrawDetail: () => null, cachedDrawSignups: () => null, cachedDraws: () => [], cachedMatches: () => [], cachedProfile: () => null, cachedOpenid: () => '' },
     '../../utils/member': { isAdminLocal: () => false },
   });
   v.onLoad({ id: 's1', tab: 'schedule', key: '1-0' });

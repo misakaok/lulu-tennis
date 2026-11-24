@@ -5,8 +5,8 @@
 .hd-img { display: block; width: 52rpx; height: 52rpx; }
 .hd-img.full { width: 76rpx; height: 76rpx; } /* 击掌章牌本身是圆的，铺满 */
 .hd-m { flex: 1; min-width: 0; margin-left: 20rpx; }
-.hd-t { display: flex; align-items: center; font-size: 30rpx; line-height: 1.3; font-weight: 800; color: #1E1E32; }
-.hd-s { margin-top: 6rpx; font-size: 22rpx; line-height: 1.3; color: #8686A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hd-t { display: flex; align-items: center; font-size: 30rpx; line-height: 1.3; font-weight: 800; color: #2E2E4A; }
+.hd-s { margin-top: 6rpx; font-size: 22rpx; line-height: 1.3; color: #70708C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hd-s.warn { color: #b34d4d; font-weight: 600; }
 .me-go { flex: none; margin-left: 12rpx; font-size: 36rpx; line-height: 1; color: #C5C5DA; }
 
@@ -16,24 +16,24 @@
 .gn + .gn { border-left: 1rpx solid #E9E9F2; }
 .gn-n { height: 56rpx; line-height: 56rpx; font-size: 40rpx; font-weight: 900; color: #4F4F7D; }
 .gn-u { font-size: 24rpx; font-weight: 700; margin-left: 2rpx; }
-.gn-l { margin-top: 4rpx; font-size: 21rpx; color: #8686A0; }
+.gn-l { margin-top: 4rpx; font-size: 21rpx; color: #70708C; }
 .gw-chart { display: flex; margin-top: 22rpx; }
 .gc { flex: 1; display: flex; flex-direction: column; align-items: center; }
 .gc-box { width: 100%; height: 88rpx; display: flex; align-items: flex-end; justify-content: center; border-bottom: 2rpx solid #ECECF5; }
 .gc-bar { width: 28rpx; min-height: 6rpx; border-radius: 6rpx 6rpx 0 0; background: #D6D6E8; }
 .gc-bar.now { background: #A3A3CB; }
-.gc-l { margin-top: 8rpx; font-size: 20rpx; color: #A5A5BA; }
+.gc-l { margin-top: 8rpx; font-size: 20rpx; color: #84849E; }
 .gc-l.now { color: #6E6EA3; font-weight: 700; }
-.gw-empty { margin-top: 22rpx; font-size: 24rpx; color: #8686A0; }
+.gw-empty { margin-top: 22rpx; font-size: 24rpx; color: #70708C; }
 .gw-add { margin-top: 20rpx; height: 72rpx; line-height: 68rpx; font-size: 26rpx; }
 
 /* 我的 LULU 积分（数字格沿用成长档案的 .gw-nums） */
-.cup-last { margin-top: 18rpx; font-size: 23rpx; color: #8686A0; }
+.cup-last { margin-top: 18rpx; font-size: 23rpx; color: #70708C; }
 .cup-pts { font-weight: 800; color: #4F4F7D; }
 
 /* 成员管理 */
 .adm-only { margin-left: 12rpx; font-size: 20rpx; }
-.adm-n { flex: none; min-width: 40rpx; height: 40rpx; line-height: 40rpx; box-sizing: border-box; padding: 0 12rpx; border-radius: 20rpx; text-align: center; font-size: 22rpx; font-weight: 800; color: #fff; background: #e5484d; }
+.adm-n { flex: none; min-width: 40rpx; height: 40rpx; line-height: 40rpx; box-sizing: border-box; padding: 0 12rpx; border-radius: 20rpx; text-align: center; font-size: 22rpx; font-weight: 800; color: #fff; background: #D45B5B; }
 
 
 /* 页面底部：最后一张卡片自带 24rpx 下边距，再加 4rpx，和左右边距（28rpx）一致 */

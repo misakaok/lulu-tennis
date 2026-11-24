@@ -1,7 +1,7 @@
-.state { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }
+.state { text-align: center; color: #84849E; font-size: 26rpx; padding: 120rpx 0; }
 .state-card { text-align: center; padding: 50rpx 30rpx; }
 .state-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
-.state-s { font-size: 24rpx; color: #8686A0; margin: 12rpx 0 28rpx; }
+.state-s { font-size: 24rpx; color: #70708C; margin: 12rpx 0 28rpx; }
 .retry { width: 240rpx; margin: 0 auto; }
 
 .hero { position: relative; overflow: hidden; display: flex; align-items: center; border-radius: 36rpx; padding: 30rpx 0 24rpx 24rpx; margin-bottom: 24rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
@@ -17,21 +17,21 @@
 
 .empty-card { text-align: center; padding: 50rpx 30rpx; }
 .ec-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
-.ec-s { font-size: 24rpx; color: #8686A0; margin-top: 10rpx; line-height: 1.6; }
+.ec-s { font-size: 24rpx; color: #70708C; margin-top: 10rpx; line-height: 1.6; }
 
 .rk.off { opacity: 0.6; }
 .rk-top { display: flex; align-items: center; }
 .rk-no { font-size: 24rpx; font-weight: 800; color: #6E6EA3; background: #EFEFF6; border-radius: 12rpx; padding: 2rpx 12rpx; flex: none; }
 .rk-name { flex: 1; min-width: 0; margin: 0 12rpx; font-size: 30rpx; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-mid { display: flex; align-items: baseline; margin-top: 10rpx; }
-.rk-n { font-size: 40rpx; font-weight: 800; color: #1E1E32; }
-.rk-u { font-size: 22rpx; color: #8686A0; margin: 0 28rpx 0 6rpx; }
+.rk-n { font-size: 40rpx; font-weight: 800; color: #2E2E4A; }
+.rk-u { font-size: 22rpx; color: #70708C; margin: 0 28rpx 0 6rpx; }
 .rk-last { font-size: 23rpx; color: #5C5C76; margin-top: 6rpx; }
 .rk-alerts { display: flex; flex-wrap: wrap; margin-top: 12rpx; }
 .rk-a { margin: 0 10rpx 8rpx 0; }
 
 .danger-zone { margin-top: 30rpx; text-align: center; }
-.dz-t { font-size: 22rpx; color: #A5A5BA; line-height: 1.6; margin-bottom: 18rpx; }
+.dz-t { font-size: 22rpx; color: #84849E; line-height: 1.6; margin-bottom: 18rpx; }
 .rk-main { display: flex; align-items: center; }
 .rk-ph { width: 140rpx; height: 140rpx; border-radius: 24rpx; font-size: 34rpx; margin-right: 22rpx; }
 .rk-body { flex: 1; min-width: 0; }

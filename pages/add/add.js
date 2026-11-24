@@ -5,6 +5,7 @@ const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const S = require('../../utils/stats');
 const SC = require('../../utils/scorer');
+const haptic = require('../../utils/haptic');
 const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = require('../../utils/db');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -221,6 +222,7 @@ Page({
         a: r.a, b: r.b, aIds, bIds,
         sets: r.sets, winner: r.winner, setsWon: r.won,
       });
+      haptic.medium();
       wx.showToast({ title: '已记录，计入战绩', icon: 'success' });
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉对应的场边记分草稿
       this.resetSets();

@@ -704,7 +704,7 @@ test('调整活动对阵：保留现有签位和双打搭档，手动交换后�
 test('旧活动的种子名单：活动详情按「N 号种子」显示，单打叫种子选手、双打叫种子队伍；活动列表显示种子数', async () => {
   const show = async (d) => {
     const deps = {
-      '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: null, signups: [] }), matchesShared: async () => [], myOpenid: async () => 'x' },
+      '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: null, signups: [] }), matchesShared: async () => [], playersShared: async () => [], myOpenid: async () => 'x' },
       '../../utils/member': { isAdminLocal: () => false },
     };
     const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {} }, 'Page', deps);
@@ -839,7 +839,7 @@ test('活动详情和列表：显示建议水平和报名情况（还差 / 已�
     const deps = {
       '../../utils/db': {
         fetchDrawDetail: async () => ({ draw: d, profile: null, signups }), matchesShared: async () => [], myOpenid: async () => 'x',
-        fetchPlayersFull: async () => [], cachedPlayersFull: () => [], cachedMatches: () => [], profilesOf: () => ({}),
+        fetchPlayersFull: async () => [], playersShared: async () => [], cachedPlayersFull: () => [], cachedMatches: () => [], profilesOf: () => ({}),
       },
       '../../utils/member': { isAdminLocal: () => false },
     };

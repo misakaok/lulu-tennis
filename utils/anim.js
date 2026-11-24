@@ -5,9 +5,9 @@
 // tab 页切走再回来（页面实例不会重建）想再播一次：onHide 调 leave，onShow 把 enter 的返回值并进 setData；
 // 页面上的入场动画类写成 {{play ? 'ani-in' : 'ani-wait'}}（进度条 ani-grow-x / ani-wait-x），data 里 play 默认 true。
 const MS = 750;   // 总时长
-const STEP = 32;  // 每帧间隔（逻辑层没有 requestAnimationFrame）
+const STEP = 28;  // 每帧间隔（逻辑层没有 requestAnimationFrame）；28ms 兼顾 iOS 顺滑和中低端安卓 setData 的通信开销
 
-const ease = (t) => 1 - Math.pow(1 - t, 3); // 先快后慢
+const ease = (t) => 1 - Math.pow(1 - t, 4); // 快起慢刹（4 次方减速）
 
 // 把文字里的每个数字按进度 t（0～1）缩小，小数位数不变：'12胜 5负' → '6胜 3负'，'3.52' → '1.76'
 function rollText(v, t) {
@@ -76,4 +76,4 @@ function enter(ctx) {
   return Object.assign({ play: true }, roll(ctx, ctx._rollValues));
 }
 
-module.exports = { roll, stop, leave, enter, rollText, MS };
+module.exports = { roll, stop, leave, enter, rollText, MS, ease };

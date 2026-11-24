@@ -2,74 +2,77 @@
 .page.with-fab { padding-bottom: 150rpx; }
 .top { padding: 8rpx 4rpx 22rpx; }
 .top-t { font-size: 44rpx; font-weight: 800; }
-.top-s { margin-top: 4rpx; font-size: 24rpx; color: #8686A0; }
+.top-s { margin-top: 4rpx; font-size: 24rpx; color: #70708C; }
 
 /* 我的战绩卡 */
-.mine { padding: 34rpx 32rpx 64rpx; border-radius: 40rpx; color: #fff; background: #9190BD; box-shadow: 0 16rpx 36rpx rgba(110, 110, 163, 0.3); margin-bottom: 30rpx; } /* 底部多留一点，给图里的球网 */
+.mine { padding: 34rpx 32rpx 64rpx; border-radius: 40rpx; color: #fff; background: #9190BD; box-shadow: 0 16rpx 36rpx rgba(110, 110, 163, 0.3); margin-bottom: 30rpx; transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease; } /* 底部多留一点，给图里的球网 */
+/* 顶部 1rpx 内高光（背景图盖住了卡片自己的 inset 阴影，所以用 ::before 画；::after 留给 .ani-sheen） */
+.mine::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1rpx; background: rgba(255, 255, 255, 0.35); pointer-events: none; z-index: 1; }
+
 .mine.club { padding: 26rpx 24rpx; }
 .mine-h { display: flex; align-items: center; }
-.mine-av { flex: none; width: 96rpx; height: 96rpx; border-radius: 50%; border: 5rpx solid rgba(255, 255, 255, 0.9); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 40rpx; font-weight: 800; color: #22223A; }
+.mine-av { flex: none; width: 96rpx; height: 96rpx; border-radius: 50%; border: 5rpx solid rgba(255, 255, 255, 0.9); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 40rpx; font-weight: 800; color: #2E2E4A; }
 .mine-who { flex: 1; min-width: 0; margin-left: 22rpx; }
 .mine-n { font-size: 34rpx; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mine-r { margin-top: 4rpx; font-size: 23rpx; color: rgba(255, 255, 255, 0.88); }
 .mine-lv { flex: none; text-align: right; }
-.mine-lvn { font-size: 64rpx; font-weight: 800; line-height: 1; }
+.mine-lvn { font-size: 64rpx; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
 .mine-lvl { margin-top: 8rpx; font-size: 22rpx; color: rgba(255, 255, 255, 0.88); }
 .mine-stats { display: flex; margin: 28rpx -8rpx 0; }
 .mine.club .mine-stats { margin-top: 0; }
-.ms { flex: 1; margin: 0 8rpx; padding: 18rpx 0; border-radius: 24rpx; background: rgba(255, 255, 255, 0.16); text-align: center; }
+.ms { flex: 1; margin: 0 8rpx; padding: 18rpx 0; border-radius: 24rpx; background: rgba(255, 255, 255, 0.16); text-align: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1rpx solid rgba(255, 255, 255, 0.24); }
 .ms-n { font-size: 38rpx; font-weight: 800; line-height: 1.2; }
 .ms-l { font-size: 22rpx; color: rgba(255, 255, 255, 0.88); }
 .mine-form { display: flex; align-items: center; margin-top: 26rpx; }
 .mf-l { margin-right: 14rpx; font-size: 22rpx; color: rgba(255, 255, 255, 0.88); }
 .mf { width: 42rpx; height: 42rpx; margin-right: 10rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20rpx; font-weight: 700; color: #fff; background: rgba(255, 255, 255, 0.2); }
-.mf.w { color: #2E3600; background: #C9E33A; font-weight: 800; }
+.mf.w { color: #2E3600; background: #C9E33A; font-weight: 800; box-shadow: 0 0 0 4rpx rgba(201, 227, 58, 0.26); }
 
 /* 筛选 */
 .filters { display: flex; align-items: center; }
 .chips { display: flex; flex: none; }
-.fc { margin-right: 12rpx; padding: 12rpx 26rpx; border-radius: 30rpx; font-size: 25rpx; color: #5C5C76; background: #EFEFF6; }
+.fc { margin-right: 12rpx; padding: 12rpx 26rpx; border-radius: 30rpx; font-size: 25rpx; color: #5C5C76; background: #EFEFF6; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .fc.on { color: #fff; background: #6E6EA3; font-weight: 600; }
 /* 搜索框：和左边的筛选按钮同高、同底色，文字居中，不再是一大块白色 */
 .search { flex: 1; min-width: 0; height: 54rpx; margin-left: 4rpx; padding: 0 20rpx; border-radius: 27rpx; background: #EFEFF6; font-size: 25rpx; color: #3a3a52; text-align: center; }
-.search-ph { color: #A5A5BA; }
+.search-ph { color: #84849E; }
 
-.date { margin: 34rpx 8rpx 14rpx; font-size: 24rpx; font-weight: 700; color: #8686A0; }
+.date { margin: 34rpx 8rpx 14rpx; font-size: 24rpx; font-weight: 700; color: #70708C; }
 
 /* 每场一张小记分牌 */
-.mc { margin-bottom: 18rpx; padding: 22rpx 26rpx 26rpx; border-radius: 32rpx; background: #fff; box-shadow: 0 4rpx 16rpx rgba(80, 80, 140, 0.05); }
-.mc-meta { display: flex; align-items: center; font-size: 22rpx; color: #8686A0; }
+.mc { margin-bottom: 18rpx; padding: 22rpx 26rpx 26rpx; border-radius: 32rpx; background: #fff; border: 1rpx solid rgba(132, 132, 182, 0.10); box-shadow: 0 2rpx 8rpx rgba(80, 80, 140, 0.04), 0 12rpx 32rpx rgba(80, 80, 140, 0.06); transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease; }
+.mc-meta { display: flex; align-items: center; font-size: 22rpx; color: #70708C; }
 .mc-type { flex: none; margin-right: 12rpx; }
 .mc-ev { flex: 1; min-width: 0; color: #6E6EA3; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc-ev.daily { color: #A5A5BA; font-weight: 400; }
+.mc-ev.daily { color: #84849E; font-weight: 400; }
 .mc-pend { flex: none; margin-left: 10rpx; }
 .mc-tag { flex: none; margin-left: 8rpx; padding: 0 12rpx; font-size: 20rpx; }
 .mc-body { display: flex; align-items: flex-start; margin-top: 18rpx; }
 /* 每一方：头像在上、名字在下（居中），名字能用满这一侧的宽度；单打最多两行，双打每人一行 */
-.sd { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; color: #8686A0; }
+.sd { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; color: #70708C; }
 .sd-avs { flex: none; display: flex; }
-.sd-av { width: 68rpx; height: 68rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; color: #22223A; }
+.sd-av { width: 68rpx; height: 68rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28rpx; font-weight: 700; color: #2E2E4A; }
 .sd-av + .sd-av { margin-left: -22rpx; border: 4rpx solid #fff; box-sizing: border-box; }
 .sd.r .sd-avs { flex-direction: row-reverse; }
 .sd.r .sd-av + .sd-av { margin-left: 0; margin-right: -22rpx; }
 .sd-ns { align-self: stretch; min-width: 0; margin-top: 12rpx; }
 .sd-n { font-size: 26rpx; line-height: 1.35; word-break: break-all; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .sd-ns.two .sd-n { -webkit-line-clamp: 1; }
-.sd.w { color: #1E1E32; }
+.sd.w { color: #2E2E4A; }
 .sd.w .sd-n { font-weight: 700; }
-.sd.w .sd-n:first-child::after { content: ''; display: inline-block; width: 14rpx; height: 14rpx; margin-left: 8rpx; border-radius: 50%; background: #B4CF22; vertical-align: 4rpx; }
+.sd.w .sd-n:first-child::after { content: ''; display: inline-block; width: 14rpx; height: 14rpx; margin-left: 8rpx; border-radius: 50%; background: #B4CF22; vertical-align: 4rpx; box-shadow: 0 0 0 4rpx rgba(201, 227, 58, 0.26); }
 .sd.r.w .sd-n:first-child::after { display: none; }
-.sd.r.w .sd-n:first-child::before { content: ''; display: inline-block; width: 14rpx; height: 14rpx; margin-right: 8rpx; border-radius: 50%; background: #B4CF22; vertical-align: 4rpx; }
+.sd.r.w .sd-n:first-child::before { content: ''; display: inline-block; width: 14rpx; height: 14rpx; margin-right: 8rpx; border-radius: 50%; background: #B4CF22; vertical-align: 4rpx; box-shadow: 0 0 0 4rpx rgba(201, 227, 58, 0.26); }
 .dl { display: inline-block; margin-top: 4rpx; padding: 0 10rpx; border-radius: 8rpx; font-size: 20rpx; font-weight: 700; }
 .dl.up { color: #2f8a52; background: #e9f6ee; }
 .dl.down { color: #b34d4d; background: #F7E9E9; }
 .sc { flex: none; min-width: 120rpx; padding: 0 8rpx; margin-top: 8rpx; text-align: center; }
-.sc-big { font-size: 50rpx; font-weight: 800; line-height: 1.1; color: #1E1E32; }
-.sc-big .dim { color: #A5A5BA; }
+.sc-big { font-size: 50rpx; font-weight: 800; line-height: 1.1; color: #2E2E4A; letter-spacing: -0.03em; }
+.sc-big .dim { color: #84849E; }
 .sc-c { margin: 0 8rpx; color: #B9B9CE; }
-.sc-sets { margin-top: 6rpx; font-size: 20rpx; color: #A5A5BA; white-space: nowrap; }
+.sc-sets { margin-top: 6rpx; font-size: 20rpx; color: #84849E; white-space: nowrap; }
 
-.foot { text-align: center; color: #A5A5BA; font-size: 22rpx; margin-top: 30rpx; }
+.foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 30rpx; }
 
 /* 场边记分 + 记一场：浮在右下角 */
 .fabs { position: fixed; right: 32rpx; bottom: 40rpx; z-index: 10; display: flex; align-items: center; }

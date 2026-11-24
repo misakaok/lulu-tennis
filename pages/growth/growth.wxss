@@ -1,7 +1,7 @@
-.state { text-align: center; color: #A5A5BA; font-size: 26rpx; padding: 120rpx 0; }
+.state { text-align: center; color: #84849E; font-size: 26rpx; padding: 120rpx 0; }
 .state-card { text-align: center; padding: 50rpx 30rpx; }
 .state-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
-.state-s { font-size: 24rpx; color: #8686A0; margin: 12rpx 0 28rpx; }
+.state-s { font-size: 24rpx; color: #70708C; margin: 12rpx 0 28rpx; }
 .retry { width: 240rpx; margin: 0 auto; }
 
 /* 总览：重点淡紫渐变 */
@@ -26,7 +26,7 @@
 
 .empty-card { text-align: center; padding: 50rpx 30rpx; }
 .ec-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
-.ec-s { font-size: 24rpx; color: #8686A0; margin-top: 10rpx; line-height: 1.6; }
+.ec-s { font-size: 24rpx; color: #70708C; margin-top: 10rpx; line-height: 1.6; }
 .add { margin-bottom: 24rpx; }
 
 /* 柱状图 */
@@ -37,40 +37,40 @@
 .bar { width: 100%; background: #B9B9DA; border-radius: 12rpx; }
 .bar.now { background: #8484B6; }
 .bar-l { font-size: 21rpx; color: #5C5C76; margin-top: 8rpx; }
-.bar-r { font-size: 20rpx; color: #A5A5BA; }
-.bars-note { font-size: 20rpx; color: #A5A5BA; text-align: center; margin-top: 10rpx; }
+.bar-r { font-size: 20rpx; color: #84849E; }
+.bars-note { font-size: 20rpx; color: #84849E; text-align: center; margin-top: 10rpx; }
 .mini { display: flex; flex-wrap: wrap; margin-top: 20rpx; border-top: 1rpx solid #F2F2F8; padding-top: 12rpx; }
 .mi { width: 50%; display: flex; justify-content: space-between; padding: 8rpx 12rpx 8rpx 0; box-sizing: border-box; font-size: 24rpx; }
 .mi:nth-child(2n) { padding: 8rpx 0 8rpx 12rpx; }
-.mi-l { color: #8686A0; }
-.mi-v { color: #1E1E32; font-weight: 700; }
+.mi-l { color: #70708C; }
+.mi-v { color: #2E2E4A; font-weight: 700; }
 .recent { display: flex; align-items: center; flex-wrap: wrap; margin-top: 14rpx; }
-.rc-l { font-size: 22rpx; color: #8686A0; margin-right: 10rpx; }
+.rc-l { font-size: 22rpx; color: #70708C; margin-right: 10rpx; }
 .rc { width: 40rpx; height: 40rpx; line-height: 40rpx; text-align: center; border-radius: 10rpx; font-size: 20rpx; font-weight: 800; margin: 0 6rpx 6rpx 0; }
 .rc.w { background: #C9E33A; color: #2E3600; }
-.rc.l { background: #F1F1F8; color: #8686A0; }
+.rc.l { background: #F1F1F8; color: #70708C; }
 
 /* 记录列表 */
 .g-head { display: flex; align-items: baseline; margin-bottom: 6rpx; }
 .g-t { font-size: 28rpx; font-weight: 800; }
-.g-s { margin-left: auto; font-size: 22rpx; color: #8686A0; }
+.g-s { margin-left: auto; font-size: 22rpx; color: #70708C; }
 .gr { display: flex; align-items: center; padding: 18rpx 0; border-top: 1rpx solid #F2F2F8; }
 .gr:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
-.gr-date { width: 92rpx; flex: none; font-size: 24rpx; color: #8686A0; font-weight: 600; }
+.gr-date { width: 92rpx; flex: none; font-size: 24rpx; color: #70708C; font-weight: 600; }
 .gr-m { flex: 1; min-width: 0; }
 .gr-k { margin-left: 8rpx; }
 .gr-tags { display: flex; flex-wrap: wrap; margin-top: 6rpx; }
-.gr-tag { font-size: 20rpx; color: #8686A0; margin-right: 12rpx; }
+.gr-tag { font-size: 20rpx; color: #70708C; margin-right: 12rpx; }
 .gr-r { flex: none; display: flex; align-items: center; margin-left: 12rpx; }
 .gr-res { font-size: 20rpx; font-weight: 800; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 10rpx; }
 .gr-res.w { background: #C9E33A; color: #2E3600; }
-.gr-res.l { background: #F1F1F8; color: #8686A0; }
+.gr-res.l { background: #F1F1F8; color: #70708C; }
 .gr-sc { font-size: 25rpx; color: #4F4F7D; font-weight: 700; }
 
 /* 正式战绩摘要 */
 .off-row { display: flex; }
 .oc { flex: 1; text-align: center; }
-.oc-s { font-size: 22rpx; font-weight: 400; color: #8686A0; margin-left: 6rpx; }
+.oc-s { font-size: 22rpx; font-weight: 400; color: #70708C; margin-left: 6rpx; }
 .oc-s.mid { margin-right: 18rpx; } /* 「胜」和后面的负场数字分开 */
 .off-sd { display: flex; justify-content: space-around; font-size: 23rpx; color: #5C5C76; margin-top: 18rpx; }
 .off-go { margin-top: 24rpx; }

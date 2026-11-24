@@ -6,29 +6,29 @@
 
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
   <!-- 背景：俯拍球网横在卡片底边，网球停在网带上（images/bg-mine.jpg） -->
-  <view wx:if="{{me}}" class="mine bg-host" hover-class="tap-on" bindtap="goMe">
+  <view wx:if="{{me}}" class="mine bg-host {{play ? 'ani-sheen' : ''}}" hover-class="tap-on" bindtap="goMe">
     <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-h">
       <pl-av class="mine-av" uid="{{me.uid}}" name="{{me.name}}" />
       <view class="mine-who"><view class="mine-n">{{me.name}}</view><view class="mine-r">{{me.rankText}}</view></view>
-      <view class="mine-lv"><view class="mine-lvn">{{me.level}}</view><view class="mine-lvl">{{me.levelLbl}}</view></view>
+      <view class="mine-lv"><view class="mine-lvn num">{{me.level}}</view><view class="mine-lvl">{{me.levelLbl}}</view></view>
     </view>
     <view class="mine-stats">
-      <view class="ms"><view class="ms-n">{{me.played}}</view><view class="ms-l">场次</view></view>
-      <view class="ms"><view class="ms-n">{{me.win}} - {{me.lose}}</view><view class="ms-l">胜负</view></view>
-      <view class="ms"><view class="ms-n">{{me.rate}}%</view><view class="ms-l">胜率</view></view>
+      <view class="ms"><view class="ms-n num">{{me.played}}</view><view class="ms-l">场次</view></view>
+      <view class="ms"><view class="ms-n num">{{me.win}} - {{me.lose}}</view><view class="ms-l">胜负</view></view>
+      <view class="ms"><view class="ms-n num">{{me.rate}}%</view><view class="ms-l">胜率</view></view>
     </view>
     <view wx:if="{{me.recent.length}}" class="mine-form">
       <text class="mf-l">最近 {{me.recent.length}} 场</text>
-      <view wx:for="{{me.recent}}" wx:key="i" class="mf {{item.w ? 'w' : ''}}">{{item.w ? '胜' : '负'}}</view>
+      <view wx:for="{{me.recent}}" wx:key="i" class="mf {{item.w ? 'w' : ''}} {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{200 + index * 45}}ms">{{item.w ? '胜' : '负'}}</view>
     </view>
   </view>
   <view wx:else class="mine club bg-host">
     <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-stats">
-      <view class="ms"><view class="ms-n">{{stat.total}}</view><view class="ms-l">总场次</view></view>
-      <view class="ms"><view class="ms-n">{{stat.month}}</view><view class="ms-l">本月</view></view>
-      <view class="ms"><view class="ms-n">{{stat.players}}</view><view class="ms-l">球员</view></view>
+      <view class="ms"><view class="ms-n num">{{stat.total}}</view><view class="ms-l">总场次</view></view>
+      <view class="ms"><view class="ms-n num">{{stat.month}}</view><view class="ms-l">本月</view></view>
+      <view class="ms"><view class="ms-n num">{{stat.players}}</view><view class="ms-l">球员</view></view>
     </view>
   </view>
 
@@ -65,7 +65,7 @@
           </view>
         </view>
         <view class="sc">
-          <view class="sc-big"><text class="{{item.winner === 'a' ? '' : 'dim'}}">{{item.bigA}}</text><text class="sc-c">:</text><text class="{{item.winner === 'b' ? '' : 'dim'}}">{{item.bigB}}</text></view>
+          <view class="sc-big num"><text class="{{item.winner === 'a' ? '' : 'dim'}}">{{item.bigA}}</text><text class="sc-c">:</text><text class="{{item.winner === 'b' ? '' : 'dim'}}">{{item.bigB}}</text></view>
           <view wx:if="{{item.setText}}" class="sc-sets">{{item.setText}}</view>
         </view>
         <view class="sd r {{item.winner === 'b' ? 'w' : ''}}">

@@ -76,9 +76,87 @@ test('页面接入：战绩、排行的入场动画类都随 play 切换，并�
   ['index', 'rank'].forEach((n) => {
     const base = path.join(__dirname, '..', 'pages', n, n);
     const wxml = fs.readFileSync(base + '.wxml', 'utf8'), js = fs.readFileSync(base + '.js', 'utf8');
-    assert.ok(!/'ani-(in|grow-x)'\s*:\s*''|class="[^"]*\bani-(in|grow-x)\b[^{"]*"/.test(wxml.replace(/play \? 'ani-(in|grow-x)'/g, '')), n + ' 有不随 play 切换的动画类');
+    // 入场动画类（含弹出、柱子升起、高光）都只能写成 play ? 'ani-xx' : …，切 tab 回来才能重播
+    const ANI = /'ani-(in|grow-[xy]|pop|score|sheen)'\s*:\s*''|class="[^"]*\bani-(in|grow-[xy]|pop|score|sheen)\b[^{"]*"/;
+    assert.ok(!ANI.test(wxml.replace(/play \? 'ani-(in|grow-[xy]|pop|score|sheen)'/g, '')), n + ' 有不随 play 切换的动画类');
+    // 等待态和动画起点一一对应
+    (wxml.match(/play \? 'ani-[a-z-]+' : '[a-z-]*'/g) || []).forEach((x) => {
+      const [, on, off] = x.match(/'(ani-[a-z-]+)' : '([a-z-]*)'/);
+      const want = { 'ani-in': 'ani-wait', 'ani-grow-x': 'ani-wait-x', 'ani-grow-y': 'ani-wait-y', 'ani-pop': 'ani-wait-pop', 'ani-sheen': '' }[on];
+      assert.strictEqual(off, want, n + ' ' + x);
+    });
     assert.ok(/onHide\(\)\s*\{\s*Anim\.leave\(this\)/.test(js) && /Anim\.enter\(this\)/.test(js), n + ' 没有接入 leave / enter');
   });
+});
+
+test('缓动：4 次方减速（快起慢刹），两端是 0 和 1、全程单调不回头；滚动约 28ms 一帧', async () => {
+  assert.strictEqual(Anim.ease(0), 0);
+  assert.strictEqual(Anim.ease(1), 1);
+  assert.ok(Math.abs(Anim.ease(0.5) - (1 - Math.pow(0.5, 4))) < 1e-12);
+  assert.ok(Anim.ease(0.25) > 0.68, '前四分之一就走完大半');
+  let prev = 0;
+  for (let i = 1; i <= 100; i++) { const v = Anim.ease(i / 100); assert.ok(v >= prev && v <= 1); prev = v; }
+  const p = page({ n: 0 });
+  Anim.roll(p, { n: 40 });
+  await wait(Anim.MS + 100);
+  assert.strictEqual(p.data.n, 40);
+  assert.ok(p.frames >= Math.floor(Anim.MS / 28) - 2 && p.frames <= Math.ceil(Anim.MS / 28) + 2, '帧数按 28ms 一帧');
+});
+
+test('全局动效类：弹出 / 记分 / 高光 / 升起都有等待态；高光用 ::after、只播一次停在看不见；排行领奖台按名次错峰（第 3 → 2 → 1）', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'app.wxss'), 'utf8');
+  ['ani-pop', 'ani-score', 'ani-sheen'].forEach((k) => assert.ok(new RegExp('@keyframes ' + k + ' ').test(css), k));
+  ['.ani-wait-pop', '.ani-wait-y'].forEach((k) => assert.ok(css.indexOf(k + ' {') >= 0, k));
+  const sheen = css.match(/\.ani-sheen::after \{([^}]*)\}/)[1];
+  assert.ok(/pointer-events: none/.test(sheen) && /opacity: 0/.test(sheen) && /\bboth;/.test(sheen) && !/infinite/.test(sheen));
+  assert.ok(/100% \{ opacity: 0;/.test(css.match(/@keyframes ani-sheen [^\n]*/)[0]), '最后停在看不见');
+  assert.ok(/\.ani-in \{ animation: ani-in [^;]*cubic-bezier\(0\.22, 1, 0\.36, 1\)/.test(css));
+  assert.match(css, /\.num \{ font-family: "DIN Alternate", "Avenir Next Condensed", "Roboto Condensed", -apple-system, Roboto, sans-serif;/);
+  // 毛玻璃块：半透明底不低于 0.16（不支持模糊的老机型照样看得清），入场 / 按压都不缩放
+  [['pages/match/match.wxss', ['hset', 'hero-tag']], ['pages/index/index.wxss', ['ms']], ['components/player-home/player-home.wxss', ['pc-stats']]].forEach(([f, ks]) => {
+    const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    ks.forEach((k) => {
+      const rule = x.match(new RegExp('\\n\\.' + k + ' \\{([^}]*)\\}'))[1];
+      assert.ok(/backdrop-filter: blur/.test(rule), k);
+      assert.ok(Number(rule.match(/background: rgba\(255, ?255, ?255, ?([\d.]+)\)/)[1]) >= 0.16, k);
+    });
+  });
+  assert.ok(!/scale/.test(fs.readFileSync(path.join(__dirname, '..', 'pages/match/match.wxss'), 'utf8').match(/@keyframes hset-in [^\n]*/)[0]));
+  // 动画只动 transform / opacity
+  (css.match(/@keyframes [^\n]*/g) || []).forEach((k) => {
+    const props = (k.match(/[{;]\s*([a-z-]+):/g) || []).map((x) => x.replace(/[{;\s:]/g, ''));
+    props.forEach((x) => assert.ok(x === 'transform' || x === 'opacity', k));
+  });
+  const rank = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
+  assert.match(rank, /class="pod r\{\{item\.rank\}\} [^"]*" style="animation-delay:\{\{item\.rank === 1 \? 260 : item\.rank === 2 \? 150 : 60\}\}ms"/);
+  assert.match(rank, /class="pod-base \{\{play \? 'ani-grow-y' : 'ani-wait-y'\}\}"/);
+  // .bg-host 卡片的第一个子元素仍是 .bg-img（高光不插子元素）
+  ['pages/index/index.wxml', 'pages/match/match.wxml', 'components/player-home/player-home.wxml'].forEach((f) => {
+    const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    const re = /<view [^>]*class="[^"]*\bbg-host\b[^"]*"[^>]*>\s*(<[^>]*>)/g;
+    let m, n = 0;
+    while ((m = re.exec(x))) { n++; assert.ok(/^<image class="bg-img"/.test(m[1]), f + '：' + m[1]); }
+    assert.ok(n > 0, f);
+  });
+});
+
+test('触觉反馈 utils/haptic.js：没有 wx、没有 vibrateShort、调用抛错都不报错；有就按轻 / 中震', () => {
+  const H = require('../utils/haptic');
+  const had = Object.prototype.hasOwnProperty.call(global, 'wx'), old = global.wx;
+  try {
+    delete global.wx;
+    H.light(); H.medium();
+    global.wx = {};
+    H.light(); H.medium();
+    global.wx = { vibrateShort() { throw new Error('不支持'); } };
+    H.light(); H.medium();
+    const got = [];
+    global.wx = { vibrateShort: (o) => { got.push(o.type); assert.strictEqual(typeof o.fail, 'function'); } };
+    H.light(); H.medium();
+    assert.deepStrictEqual(got, ['light', 'medium']);
+  } finally { if (had) global.wx = old; else delete global.wx; }
 });
 
 module.exports = T;

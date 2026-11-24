@@ -9,6 +9,7 @@ const db = require('../../utils/db');
 const cloud = require('../../utils/cloud');
 const pick = require('../../utils/pick');
 const ID = require('../../utils/ident');
+const haptic = require('../../utils/haptic');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -204,6 +205,7 @@ Page({
       });
       if (!res) return;
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉场边记分草稿
+      haptic.medium();
       wx.showToast({ title: f.done ? '比分已更新' : '比分已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 700);
     } catch (e) {

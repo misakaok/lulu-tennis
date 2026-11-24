@@ -5,6 +5,7 @@ const { computeRank, colorOf, initialOf } = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const SE = require('../../utils/season');
 const Anim = require('../../utils/anim');
+const haptic = require('../../utils/haptic');
 
 const PAGE = 50; // 榜单每次显示多少名，滑到底再加载
 
@@ -37,7 +38,7 @@ Page({
     if (this.data.view === 'cup') { this.cupPulling = true; this.setData({ cupTick: this.data.cupTick + 1 }); return; }
     this.load().then(() => wx.stopPullDownRefresh()); },
   onCupLoaded() { if (this.cupPulling) { this.cupPulling = false; wx.stopPullDownRefresh(); } },
-  setView(e) { const v = e.currentTarget.dataset.v === 'cup' ? 'cup' : 'level'; if (v !== this.data.view) this.setData({ view: v }); },
+  setView(e) { const v = e.currentTarget.dataset.v === 'cup' ? 'cup' : 'level'; if (v !== this.data.view) { haptic.light(); this.setData({ view: v }); } },
   onReachBottom() {
     if (this.data.view !== 'level' || !this.data.more) return;
     this.limit += PAGE;
@@ -73,10 +74,12 @@ Page({
     return true;
   },
 
-  setFilter(e) { this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
-  setSort(e) { this.limit = PAGE; this.setData({ sort: e.currentTarget.dataset.v }); this.render(); },
-  setGender(e) { this.limit = PAGE; this.setData({ gender: e.currentTarget.dataset.v }); this.render(); },
-  setSeason(e) { this.limit = PAGE; this.setData({ season: e.currentTarget.dataset.v }); this.render(); },
+  // 筛选 / 排序切换：换了才轻震一下
+  pick(key, e) { const v = e.currentTarget.dataset.v; if (v !== this.data[key]) haptic.light(); this.limit = PAGE; this.setData({ [key]: v }); this.render(); },
+  setFilter(e) { this.pick('filter', e); },
+  setSort(e) { this.pick('sort', e); },
+  setGender(e) { this.pick('gender', e); },
+  setSeason(e) { this.pick('season', e); },
 
   render() {
     // 性别读个人资料：有账号按用户 ID 找，没有账号的按名字；没填（不公开）就不显示

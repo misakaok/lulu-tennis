@@ -1,6 +1,6 @@
 .line { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20rpx; border-bottom: 1rpx solid #EFEFF6; }
 .picker { font-size: 30rpx; font-weight: 600; color: #4F4F7D; }
-.arrow { color: #A5A5BA; margin-left: 6rpx; }
+.arrow { color: #84849E; margin-left: 6rpx; }
 .field { margin-top: 24rpx; }
 .field .label { display: block; margin-bottom: 14rpx; }
 
@@ -10,13 +10,13 @@
 .vs { width: 76rpx; text-align: center; font-weight: 900; font-style: italic; color: #6E6EA3; font-size: 32rpx; }
 .slot {
   display: flex; align-items: center; justify-content: center;
-  height: 84rpx; border-radius: 20rpx; border: 2rpx dashed #D8D8E7; color: #A5A5BA; font-size: 26rpx;
+  height: 84rpx; border-radius: 20rpx; border: 2rpx dashed #D8D8E7; color: #84849E; font-size: 26rpx;
   margin-bottom: 14rpx; padding: 0 14rpx;
 }
 .slot:last-child { margin-bottom: 0; }
 .slot .avatar { margin-right: 12rpx; }
 .slot-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.slot.filled { border-style: solid; color: #1E1E32; font-weight: 600; font-size: 28rpx; }
+.slot.filled { border-style: solid; color: #2E2E4A; font-weight: 600; font-size: 28rpx; }
 .slot.a.filled { background: #F4F4FA; border-color: #D9D9EC; }
 .slot.b.filled { background: #edf6ff; border-color: #b8dbff; }
 .slot.active { border: 3rpx solid #6E6EA3; box-shadow: 0 0 0 6rpx rgba(133, 133, 184, 0.12); color: #6E6EA3; }
@@ -24,14 +24,14 @@
 .chips { display: flex; flex-wrap: wrap; margin: 26rpx -8rpx 0; }
 .chip { padding: 12rpx 26rpx; margin: 8rpx; border-radius: 30rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; }
 .chip.used { background: #7A7AAE; color: #fff; }
-.chips-empty { color: #A5A5BA; font-size: 24rpx; padding: 8rpx; }
+.chips-empty { color: #84849E; font-size: 24rpx; padding: 8rpx; }
 .new-player { display: flex; margin-top: 18rpx; }
 .np-input { flex: 1; height: 72rpx; background: #F7F7FB; border-radius: 18rpx; padding: 0 22rpx; font-size: 26rpx; }
 .np-btn { width: 120rpx; height: 72rpx; line-height: 72rpx; text-align: center; margin-left: 16rpx; border-radius: 18rpx; background: #ECECF6; color: #6E6EA3; font-weight: 600; font-size: 26rpx; }
 
 .rules-tip { margin-top: 20rpx; font-size: 22rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 12rpx; padding: 12rpx 18rpx; }
 
-.result { margin-top: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #F7F7FB; color: #8686A0; font-size: 26rpx; text-align: center; }
+.result { margin-top: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #F7F7FB; color: #70708C; font-size: 26rpx; text-align: center; }
 .result:empty { display: none; }
 .result.ok { background: #F1F1F8; color: #6E6EA3; font-weight: 700; }
 
@@ -47,7 +47,7 @@
 .card.np { color: #6E6EA3; font-weight: 700; font-size: 27rpx; text-align: center; }
 .chip { display: flex; align-items: center; }
 .chip-av { width: 36rpx; height: 36rpx; border-radius: 50%; margin: 0 8rpx 0 -12rpx; background: #fff; }
-.chips-note { font-size: 21rpx; color: #A5A5BA; margin-top: 12rpx; }
+.chips-note { font-size: 21rpx; color: #84849E; margin-top: 12rpx; }
 
 .chip-g { margin-left: 12rpx; font-size: 20rpx; opacity: 0.65; }
 .scorer-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #fff; border: 2rpx solid #D9D9EC; color: #4F4F7D; font-size: 24rpx; line-height: 1.6; }

@@ -52,7 +52,7 @@
         <text class="nx-stage">{{next.stage}}</text>
       </view>
       <view class="nx-when">
-        <text class="nx-time {{next.time ? '' : 'tbd'}}">{{next.time || '待定'}}</text>
+        <text class="nx-time num {{next.time ? '' : 'tbd'}}">{{next.time || '待定'}}</text>
         <view class="nx-wd">
           <text class="nx-date">{{next.dateText}}</text>
           <text class="nx-court">{{next.court}}</text>
@@ -83,11 +83,11 @@
     <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 
-  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
+  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
     <!-- 左：日期块；右：名称 + 状态 / 形式一行 / 我的关系和进度 -->
     <view class="d-date {{item.st}} {{item.day.m ? '' : 'tbd'}}">
       <text class="d-band">{{item.day.m || '日期'}}</text>
-      <text class="d-day">{{item.day.d}}</text>
+      <text class="d-day num">{{item.day.d}}</text>
       <text class="d-mw">{{item.day.w}}</text>
     </view>
     <view class="d-body">

@@ -1,12 +1,12 @@
 /* 场边记分：选规则时顶部概要是重点色块；记分时记分牌是重点色块（同一时间只有一块） */
-.muted { color: #8686A0; text-align: center; padding-top: 120rpx; }
+.muted { color: #70708C; text-align: center; padding-top: 120rpx; }
 .field + .field { margin-top: 24rpx; }
 .field .label { display: block; margin-bottom: 14rpx; }
 .rules-tip { margin-top: 20rpx; font-size: 22rpx; color: #6E6EA3; background: #F1F1F8; border-radius: 12rpx; padding: 12rpx 18rpx; line-height: 1.6; }
-.note { margin-top: 20rpx; text-align: center; font-size: 22rpx; color: #A5A5BA; }
+.note { margin-top: 20rpx; text-align: center; font-size: 22rpx; color: #84849E; }
 .gap { margin-top: 20rpx; }
 
-.hero { display: flex; align-items: center; margin-bottom: 20rpx; padding: 28rpx 0 28rpx 32rpx; border-radius: 36rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); overflow: hidden; }
+.hero { display: flex; align-items: center; margin-bottom: 20rpx; padding: 28rpx 0 28rpx 32rpx; border-radius: 36rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3), inset 0 1rpx 0 rgba(255, 255, 255, 0.35); overflow: hidden; }
 .hero-main { flex: 1; min-width: 0; }
 .hero-k { font-size: 22rpx; opacity: 0.85; }
 .hero-t { margin-top: 8rpx; font-size: 36rpx; font-weight: 800; }
@@ -18,7 +18,7 @@
 .draft-t { font-size: 27rpx; font-weight: 700; color: #6E6EA3; }
 
 /* 记分牌 */
-.sb { margin-bottom: 24rpx; padding: 26rpx 28rpx 28rpx; border-radius: 36rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
+.sb { margin-bottom: 24rpx; padding: 26rpx 28rpx 28rpx; border-radius: 36rpx; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3), inset 0 1rpx 0 rgba(255, 255, 255, 0.35); }
 .sb-k { font-size: 22rpx; opacity: 0.88; margin-bottom: 14rpx; }
 .bd-row { display: flex; align-items: center; height: 92rpx; }
 .bd-row.bd-head { height: 36rpx; font-size: 20rpx; opacity: 0.8; }
@@ -30,7 +30,7 @@
 .bd-g.w, .bd-g.cur { opacity: 1; font-weight: 900; }
 .bd-tb { position: absolute; top: 4rpx; margin-left: 2rpx; font-size: 20rpx; font-weight: 600; }
 .bd-p { flex: 1; text-align: right; }
-.bd-p.num { font-size: 60rpx; font-weight: 900; color: #fff; }
+.bd-p.num { font-size: 60rpx; font-weight: 900; color: #fff; letter-spacing: -0.03em; }
 .bd-head .bd-p { font-size: 20rpx; }
 .sb-call, .sb-res { margin-top: 16rpx; text-align: center; font-size: 28rpx; font-weight: 700; }
 .sb-pt { display: inline-block; margin-left: 16rpx; padding: 2rpx 16rpx; border-radius: 16rpx; font-size: 23rpx; color: #2E3600; background: #C9E33A; }
@@ -40,14 +40,16 @@
 .pts { display: flex; margin: 0 -10rpx 24rpx; }
 .pt { flex: 1; margin: 0 10rpx; height: 300rpx; border-radius: 36rpx; background: #fff; border: 3rpx solid #D9D9EC; box-shadow: 0 4rpx 16rpx rgba(80, 80, 140, 0.06); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .pt.b { background: #F4F4FA; }
+/* 两个大得分键：按下缩小、松手回弹都有过渡 */
+.pt { transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease, box-shadow 0.16s ease; }
 .pt.dis { opacity: 0.45; }
 .pt-k { font-size: 30rpx; font-weight: 700; color: #4F4F7D; }
-.pt-n { margin-top: 12rpx; font-size: 76rpx; font-weight: 900; color: #6E6EA3; }
+.pt-n { margin-top: 12rpx; font-size: 76rpx; font-weight: 900; color: #6E6EA3; letter-spacing: -0.03em; }
 
 .fin { text-align: center; }
 .fin-t { font-size: 34rpx; font-weight: 800; color: #4F4F7D; }
-.fin-s { margin: 8rpx 0 24rpx; font-size: 26rpx; color: #8686A0; }
-.fin-n { margin-top: 18rpx; font-size: 22rpx; line-height: 1.6; color: #A5A5BA; text-align: left; }
+.fin-s { margin: 8rpx 0 24rpx; font-size: 26rpx; color: #70708C; }
+.fin-n { margin-top: 18rpx; font-size: 22rpx; line-height: 1.6; color: #84849E; text-align: left; }
 
 .ops { display: flex; margin: 0 -10rpx; }
 .op { flex: 1; margin: 0 10rpx; }

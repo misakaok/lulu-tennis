@@ -1,7 +1,7 @@
-.ms-muted { font-size: 24rpx; color: #A5A5BA; padding: 6rpx 0; }
+.ms-muted { font-size: 24rpx; color: #84849E; padding: 6rpx 0; }
 .ms-btn { margin-top: 20rpx; }
 .ms-t2 { margin-top: 30rpx; }
-.ms-t2 .sub { font-size: 22rpx; color: #8686A0; font-weight: 400; margin-left: 12rpx; }
+.ms-t2 .sub { font-size: 22rpx; color: #70708C; font-weight: 400; margin-left: 12rpx; }
 .ms-opp { display: flex; align-items: center; height: 80rpx; border-top: 1rpx solid #F2F2F8; }
 .ms-name { flex: 1; font-size: 28rpx; font-weight: 600; }
 .ms-done { font-size: 24rpx; color: #6E6EA3; }
@@ -12,7 +12,7 @@
 .ms-req-s { margin-top: 8rpx; font-size: 26rpx; color: #4F4F7D; }
 .ms-req-s .b { font-weight: 800; }
 .ms-req-r { margin-top: 6rpx; font-size: 23rpx; color: #5C5C76; }
-.ms-req-n { margin-top: 6rpx; font-size: 21rpx; color: #A5A5BA; }
+.ms-req-n { margin-top: 6rpx; font-size: 21rpx; color: #84849E; }
 .ms-req-acts { display: flex; flex-wrap: wrap; margin-top: 14rpx; }
 .ms-a { padding: 10rpx 22rpx; margin: 0 12rpx 10rpx 0; border-radius: 28rpx; font-size: 24rpx; font-weight: 700; color: #6E6EA3; background: #fff; border: 2rpx solid #CFCFE6; }
 .ms-a.main { color: #fff; background: #6E6EA3; border-color: #6E6EA3; }
@@ -24,12 +24,12 @@
 .ms-banner.ok .ms-ic { background: linear-gradient(135deg, #A3A3CB, #8484B6); }
 .ms-bt { flex: 1; min-width: 0; }
 .ms-b1 { font-size: 28rpx; font-weight: 700; color: #4F4F7D; }
-.ms-b2 { margin-top: 4rpx; font-size: 22rpx; color: #8686A0; line-height: 1.5; }
+.ms-b2 { margin-top: 4rpx; font-size: 22rpx; color: #70708C; line-height: 1.5; }
 .ms-sides { display: flex; margin: 16rpx -8rpx 0; }
 .ms-side { flex: 1; min-width: 0; margin: 0 8rpx; padding: 14rpx 18rpx; border-radius: 16rpx; border: 2rpx dashed #DCDCEA; box-sizing: border-box; }
 .ms-side.ok { border: 2rpx solid #CFCFE6; background: #FAFAFD; }
-.ms-sl { font-size: 20rpx; color: #A5A5BA; }
-.ms-sv { margin-top: 2rpx; font-size: 24rpx; color: #A5A5BA; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-sl { font-size: 20rpx; color: #84849E; }
+.ms-sv { margin-top: 2rpx; font-size: 24rpx; color: #84849E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ms-side.ok .ms-sv { color: #4F4F7D; font-weight: 600; }
 /* 操作按钮 */
 .ms-acts { display: flex; flex-wrap: wrap; margin: 12rpx -8rpx 0; }

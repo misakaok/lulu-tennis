@@ -6,6 +6,7 @@
 const cloud = require('../../utils/cloud');
 const db = require('../../utils/db');
 const C = require('../../utils/cup');
+const haptic = require('../../utils/haptic');
 const member = require('../../utils/member');
 const S = require('../../utils/stats');
 
@@ -79,8 +80,8 @@ Component({
       const me = this.prof[this.myId];
       this.setData({ rows, stops, drafts, meHidden: meIn && !!me && me.shown !== true });
     },
-    setWhich(e) { this.setData({ which: e.currentTarget.dataset.v, open: '', openStop: '' }); this.render(); },
-    setYear(e) { this.setData({ year: Number(e.currentTarget.dataset.v), open: '', openStop: '' }); this.render(); },
+    setWhich(e) { if (e.currentTarget.dataset.v !== this.data.which) haptic.light(); this.setData({ which: e.currentTarget.dataset.v, open: '', openStop: '' }); this.render(); },
+    setYear(e) { if (Number(e.currentTarget.dataset.v) !== this.data.year) haptic.light(); this.setData({ year: Number(e.currentTarget.dataset.v), open: '', openStop: '' }); this.render(); },
     toggleRow(e) { const k = e.currentTarget.dataset.key; this.setData({ open: this.data.open === k ? '' : k }); },
     toggleStop(e) { const k = e.currentTarget.dataset.id; this.setData({ openStop: this.data.openStop === k ? '' : k }); },
     // 来源场次 → 展开那一站的名次

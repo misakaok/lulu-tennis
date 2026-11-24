@@ -1,9 +1,9 @@
 .cup-seg { margin-bottom: 16rpx; }
 .cup-years { white-space: nowrap; margin-bottom: 16rpx; }
-.cup-y { display: inline-block; margin-right: 14rpx; padding: 8rpx 22rpx; border-radius: 24rpx; font-size: 24rpx; color: #5C5C76; background: #fff; border: 2rpx solid #E3E3EF; }
+.cup-y { display: inline-block; margin-right: 14rpx; padding: 8rpx 22rpx; border-radius: 24rpx; font-size: 24rpx; color: #5C5C76; background: #fff; border: 2rpx solid #E3E3EF; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .cup-y.on { background: #6E6EA3; color: #fff; border-color: #6E6EA3; }
 .cup-adm { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; padding: 18rpx 24rpx; border-radius: 20rpx; background: #fff; }
-.cup-adm-t { font-size: 26rpx; font-weight: 700; color: #1E1E32; }
+.cup-adm-t { font-size: 26rpx; font-weight: 700; color: #2E2E4A; }
 .cup-adm-tag { margin-left: 10rpx; }
 .cup-hide { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; padding: 16rpx 24rpx; border-radius: 20rpx; background: #F3F3FA; font-size: 24rpx; color: #5C5C76; }
 .cup-hide-b { color: #6E6EA3; font-weight: 700; }
@@ -12,36 +12,36 @@
 .cup-main { display: flex; align-items: center; padding: 18rpx 0; }
 .cup-r:last-child .cup-main { padding-bottom: 0; }
 .cup-r:last-child { padding-bottom: 0; } /* 卡片最后一行不再多出下边距 */
-.cup-rank { width: 56rpx; flex: none; font-size: 28rpx; font-weight: 800; color: #8686A0; }
+.cup-rank { width: 56rpx; flex: none; font-size: 28rpx; font-weight: 800; color: #70708C; }
 .cup-rank.top { color: #6E6EA3; }
 .cup-avs { display: flex; flex: none; margin-right: 14rpx; }
 .cup-av { width: 56rpx; height: 56rpx; margin-right: -10rpx; border-radius: 50%; border: 3rpx solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24rpx; font-weight: 700; flex: none; }
-.cup-nm { flex: 1; min-width: 0; padding-left: 10rpx; font-size: 27rpx; font-weight: 600; color: #1E1E32; line-height: 1.4; }
+.cup-nm { flex: 1; min-width: 0; padding-left: 10rpx; font-size: 27rpx; font-weight: 600; color: #2E2E4A; line-height: 1.4; }
 .cup-pt { flex: none; display: flex; flex-direction: column; align-items: flex-end; }
-.cup-pt-v { font-size: 34rpx; font-weight: 800; color: #1E1E32; }
-.cup-pt-l { font-size: 21rpx; color: #8686A0; }
+.cup-pt-v { font-size: 34rpx; font-weight: 800; color: #2E2E4A; }
+.cup-pt-l { font-size: 21rpx; color: #70708C; }
 .cup-r.me .cup-nm { color: #6E6EA3; }
 .cup-src { margin: 4rpx 0 12rpx 56rpx; padding: 6rpx 20rpx 18rpx; border-radius: 16rpx; background: #F6F6FB; }
 .cup-s { display: flex; align-items: center; flex-wrap: wrap; padding: 12rpx 0; font-size: 23rpx; color: #5C5C76; }
 .cup-s + .cup-s { border-top: 1rpx solid #ECECF5; } /* 分隔线只画在两行之间 */
 .cup-s:last-child { padding-bottom: 0; } /* 最后一行不再多出下边距（底部留白由外框的内边距给） */
 .cup-s-d { margin-right: 12rpx; }
-.cup-s-t { margin-right: 12rpx; font-weight: 700; color: #1E1E32; }
+.cup-s-t { margin-right: 12rpx; font-weight: 700; color: #2E2E4A; }
 .cup-s-p { margin-left: auto; }
 
 .cup-st + .cup-st { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间 */
 .cup-st-h { display: flex; align-items: center; padding: 18rpx 0; }
 .cup-st:last-child .cup-st-h { padding-bottom: 0; }
 .cup-st:last-child { padding-bottom: 0; } /* 卡片最后一行不再多出下边距 */
-.cup-st-d { font-size: 26rpx; font-weight: 700; color: #1E1E32; margin-right: 14rpx; }
+.cup-st-d { font-size: 26rpx; font-weight: 700; color: #2E2E4A; margin-right: 14rpx; }
 .cup-st-k { flex: 1; font-size: 24rpx; color: #5C5C76; }
-.cup-go { margin-left: 12rpx; font-size: 24rpx; color: #A5A5BA; }
+.cup-go { margin-left: 12rpx; font-size: 24rpx; color: #84849E; }
 .cup-st-b { margin-top: 12rpx; padding: 6rpx 20rpx 18rpx; border-radius: 16rpx; background: #F6F6FB; }
 .cup-l { display: flex; align-items: center; padding: 12rpx 0; font-size: 24rpx; }
 .cup-l + .cup-l { border-top: 1rpx solid #ECECF5; } /* 分隔线只画在两行之间 */
 .cup-l:last-child { padding-bottom: 0; }
 .cup-l-t { width: 120rpx; flex: none; color: #6E6EA3; font-weight: 700; }
-.cup-l-n { flex: 1; min-width: 0; color: #1E1E32; }
+.cup-l-n { flex: 1; min-width: 0; color: #2E2E4A; }
 .cup-l-p { flex: none; color: #5C5C76; margin-left: 12rpx; }
 .cup-fix { display: flex; justify-content: flex-end; padding: 8rpx 0 14rpx; }
-.cup-foot { margin: 20rpx 0 8rpx; text-align: center; font-size: 21rpx; color: #A5A5BA; line-height: 1.6; }
+.cup-foot { margin: 20rpx 0 8rpx; text-align: center; font-size: 21rpx; color: #84849E; line-height: 1.6; }

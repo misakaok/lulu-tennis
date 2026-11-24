@@ -1,5 +1,5 @@
 <!-- 球员卡（卡面不写标题）：头像 / 首字圆、昵称、比赛等级最突出；下方排名、场数、胜率。全部由正式战绩自动计算，只在小程序里展示 -->
-<view class="pcard bg-host {{view.profile ? '' : 'pcard-empty'}}">
+<view class="pcard bg-host ani-sheen {{view.profile ? '' : 'pcard-empty'}}">
   <image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
@@ -31,7 +31,7 @@
     <view class="pc-level">
       <view>
         <view class="pc-lv-lbl">比赛等级</view>
-        <view class="pc-lv {{view.level.match === '待定级' ? 'none' : ''}}">{{view.level.match}}</view>
+        <view class="pc-lv num {{view.level.match === '待定级' ? 'none' : ''}}">{{view.level.match}}</view>
       </view>
       <view class="pc-lv-side">
         <view class="pc-self">自评等级 <text class="b {{view.level.self === '待定级' ? 'none' : ''}}">{{view.level.self}}</text></view>
@@ -40,9 +40,9 @@
       </view>
     </view>
     <view class="pc-stats">
-      <view class="pcs"><text class="n {{view.stats.rank === '暂无' || view.stats.rank === '未公开' ? 'none' : ''}}">{{view.stats.rank}}</text><text class="l">排名</text></view>
-      <view class="pcs"><text class="n {{view.stats.matches === '暂无' ? 'none' : ''}}">{{view.stats.matches}}</text><text class="l">场数</text></view>
-      <view class="pcs"><text class="n {{view.stats.rate === '暂无' ? 'none' : ''}}">{{view.stats.rate}}</text><text class="l">胜率</text></view>
+      <view class="pcs"><text class="n num {{view.stats.rank === '暂无' || view.stats.rank === '未公开' ? 'none' : ''}}">{{view.stats.rank}}</text><text class="l">排名</text></view>
+      <view class="pcs"><text class="n num {{view.stats.matches === '暂无' ? 'none' : ''}}">{{view.stats.matches}}</text><text class="l">场数</text></view>
+      <view class="pcs"><text class="n num {{view.stats.rate === '暂无' ? 'none' : ''}}">{{view.stats.rate}}</text><text class="l">胜率</text></view>
     </view>
   </block>
   <view wx:elif="{{isSelf}}" class="pc-cta">完善球员资料 ›</view>
@@ -137,13 +137,13 @@
     <view class="cr-prog"><view class="cr-prog-in ani-grow-x" style="width:{{view.career.pct}}%"></view></view>
 
     <view class="cr-nums">
-      <view wx:for="{{view.career.cells}}" wx:key="l" class="cn {{item.cls}}"><text class="n {{item.n === '暂无' ? 'none' : ''}}">{{item.n}}</text><text class="l">{{item.l}}</text></view>
+      <view wx:for="{{view.career.cells}}" wx:key="l" class="cn {{item.cls}}"><text class="n num {{item.n === '暂无' ? 'none' : ''}}">{{item.n}}</text><text class="l">{{item.l}}</text></view>
     </view>
 
     <view class="cr-sec"><text>徽章</text><text class="more" bindtap="toggleBadges">{{allBadges ? '只看已达成' : '全部 ' + view.career.total + ' 个'}} ›</text></view>
     <view class="bd-grid">
       <block wx:for="{{view.career.badges}}" wx:key="id">
-        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got' : 'off'}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
+        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got ani-in' : 'off'}}" style="{{item.got ? 'animation-delay:' + (index < 8 ? index * 30 : 240) + 'ms' : ''}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
           <view class="bd-in">
             <view class="bd-ic"><image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" /></view>
             <text class="bd-n">{{item.name}}</text>

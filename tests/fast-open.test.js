@@ -38,6 +38,7 @@ const drawnDraw = () => ({
 test('活动详情：先用活动列表的本机缓存画出标题、规则、时间地点；报名名单和报名 / 删除 / 生成对阵按钮等云端读完', async () => {
   const detail = later();
   const db = {
+    peekDrawDetail: () => null, cachedDrawSignups: () => null, playersShared: async () => [], profilesOf: () => ({}),
     cachedDraws: () => [signupDraw()], cachedMatches: () => [], cachedProfile: () => ({ name: '小明' }), cachedOpenid: () => 'me', cachedPlayersFull: () => [],
     fetchDrawDetail: () => detail.p, matchesShared: async () => [], myOpenid: async () => 'me', fetchPlayersFull: async () => [],
   };
@@ -54,13 +55,14 @@ test('活动详情：先用活动列表的本机缓存画出标题、规则、�
   assert.strictEqual(v.data.signups.length, 1);
   // 页面：名单读完前写「正在读取报名名单…」，报名、取消、添加报名、生成对阵、删除、手动调整对阵都要 ready
   const xml = read('pages/draw-view/draw-view.wxml');
-  assert.ok(/wx:if="\{\{!ready\}\}" class="muted">正在读取报名名单…/.test(xml));
-  ['ready && signing && !joined', 'canEdit && ready', 'ready && canEdit && (!isRot || canPublish)', 'ready && canManage', 'ready && canEditMatchups']
+  assert.ok(/wx:if="\{\{!ready && !signups.length\}\}" class="muted">正在读取报名名单…/.test(xml));
+  assert.ok(/wx:elif="\{\{ready && !signups.length\}\}" class="muted">还没有人报名/.test(xml), '读完前不说「还没有人报名」');
+  ['ready && joined', 'ready && signing && !joined', 'canEdit && ready', 'ready && canEdit && (!isRot || canPublish)', 'ready && canManage', 'ready && canEditMatchups']
     .forEach((c) => assert.ok(xml.indexOf(`wx:if="{{${c}}}"`) >= 0, c));
 });
 
 test('活动详情：本机缓存没有这个活动照常等云端；只画过缓存、云端读不到时不留着缓存的内容', async () => {
-  const base = { cachedMatches: () => [], cachedProfile: () => null, cachedOpenid: () => '', cachedPlayersFull: () => [], matchesShared: async () => [], myOpenid: async () => '' };
+  const base = { peekDrawDetail: () => null, cachedDrawSignups: () => null, playersShared: async () => [], profilesOf: () => ({}), cachedMatches: () => [], cachedProfile: () => null, cachedOpenid: () => '', cachedPlayersFull: () => [], matchesShared: async () => [], myOpenid: async () => '' };
   const none = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {} }, { '../../utils/db': Object.assign({ cachedDraws: () => [] }, base), '../../utils/member': { isAdminLocal: () => false } });
   none.onLoad({ id: 'd1' });
   assert.strictEqual(none.data.draw, null);
@@ -77,6 +79,7 @@ test('活动详情：本机缓存没有这个活动照常等云端；只画过�
 test('活动详情：已生成对阵的活动先用本机战绩画出场次；「我的下一场」定位等找到这一场才算数', async () => {
   const detail = later();
   const db = {
+    peekDrawDetail: () => null, cachedDrawSignups: () => null, playersShared: async () => [], profilesOf: () => ({}),
     cachedDraws: () => [drawnDraw()], cachedMatches: () => [], cachedProfile: () => ({ name: '小明' }), cachedOpenid: () => 'me', cachedPlayersFull: () => [],
     fetchDrawDetail: () => detail.p, matchesShared: async () => [], myOpenid: async () => 'me',
   };
@@ -201,6 +204,7 @@ test('成员管理：60 秒内读到过成员列表（活动详情 / 创建页�
 test('活动详情：管理员打开报名中的活动顺手预读成员列表（一次），「＋ 添加报名」直接用；读的时候按钮写「读取成员…」', async () => {
   const asked = [];
   const db = {
+    peekDrawDetail: () => null, cachedDrawSignups: () => null, playersShared: async () => [], profilesOf: () => ({}),
     cachedDraws: () => [], fetchDrawDetail: async () => ({ draw: signupDraw(), profile: null, signups: [] }),
     matchesShared: async () => [], myOpenid: async () => 'me', fetchPlayersFull: async () => [], cachedMatches: () => [],
   };
@@ -261,6 +265,181 @@ test('修改活动规则：先用活动详情刚读到的活动填好；云端�
   b.p.setData({ limit: 12 });
   await b.done();
   assert.deepStrictEqual([b.p.data.limit, b.p.settingsVersion], [6, 4]);
+});
+
+/* ---------- 活动详情秒开与去闪烁（2026-11-24） ---------- */
+// 活动详情页：db 只给出用到的；cloud.call 可控
+function viewPage(dbOver, opt) {
+  opt = opt || {};
+  const calls = [];
+  const db = Object.assign({
+    peekDrawDetail: () => null, cachedDrawSignups: () => null, cachedDraws: () => [], cachedMatches: () => [], cachedPlayersFull: () => [],
+    cachedProfile: () => ({ name: '小明' }), cachedOpenid: () => 'me', profilesOf: () => ({}),
+    matchesShared: async () => [], playersShared: async () => [], myOpenid: async () => 'me',
+  }, dbOver);
+  const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {}, pageScrollTo() {} }, {
+    '../../utils/db': db,
+    '../../utils/member': { isAdminLocal: () => opt.admin !== false },
+    '../../utils/cloud': { call: (a, d) => { calls.push(a); return opt.call ? opt.call(a, d) : Promise.resolve({}); }, cached: async () => ({ active: [] }) },
+  });
+  const raw = v.setData;
+  v.payloads = [];
+  v.setData = function (p) { this.payloads.push(Object.keys(p)); return raw.call(this, p); };
+  v.makeCover = () => {};
+  v.calls = calls;
+  return v;
+}
+const cupSignup = () => Object.assign(signupDraw(), { cup: { kind: 'weekly', pointGroup: 'open', scoreVersion: 2 } });
+const cupDrawn = () => Object.assign(drawnDraw(), { cup: { kind: 'weekly', pointGroup: 'open', scoreVersion: 2 } });
+
+test('积分标签不闪：报名中的积分活动第一帧（本机缓存）就能点；顶部内容一次 setData；已生成对阵的回到本页不先收起再出现', async () => {
+  const detail = later();
+  const v = viewPage({ cachedDraws: () => [cupSignup()], fetchDrawDetail: () => detail.p });
+  v.onLoad({ id: 'd1' });
+  assert.deepStrictEqual([v.data.cupTag, v.data.canEditCup, v.data.ready], ['LULU 积分 · 周赛', true, false], '本机缓存那一帧就定下来');
+  const top = v.payloads.find((k) => k.includes('cupTag'));
+  ['draw', 'canEditCup', 'isOwner', 'canEdit', 'canManage', 'info', 'rulesSum'].forEach((k) => assert.ok(top.includes(k), k + ' 和标签同一次 setData'));
+  await v.editCupKind();
+  assert.deepStrictEqual(v.calls, [], '没读完（ready 为假）点了不处理');
+  detail.ok({ draw: cupSignup(), profile: { name: '小明' }, signups: [] });
+  await tick(); await tick(); await tick();
+  assert.strictEqual(v.data.ready, true);
+  assert.ok(!v.payloads.some((k, i) => i > 0 && k.length === 1 && k[0] === 'canEditCup'), '没有单独改 canEditCup 的一帧');
+  // 不是管理员：一直是不能点的标签
+  const u = viewPage({ cachedDraws: () => [cupSignup()], fetchDrawDetail: () => new Promise(() => {}) }, { admin: false });
+  u.onLoad({ id: 'd1' });
+  assert.deepStrictEqual([u.data.cupTag, u.data.canEditCup], ['LULU 积分 · 周赛', false]);
+
+  // 已生成对阵：canEditCup 由云端结算情况决定；回到本页（onShow → load）时保持原样，等 cupFromDraw 回来再更正
+  let gate = null;
+  const w = viewPage({ cachedDraws: () => [cupDrawn()], fetchDrawDetail: async () => ({ draw: cupDrawn(), profile: { name: '小明' }, signups: [], requests: { list: [], owner: false, myEntrants: [], withdrawals: [] } }) },
+    { call: (a) => (a === 'cupFromDraw' ? (gate ? gate.p : Promise.resolve({ stop: null })) : Promise.resolve({})) });
+  w.onLoad({ id: 'd2' });
+  assert.strictEqual(w.data.canEditCup, false, '还不知道有没有结算：先按不能点');
+  for (let i = 0; i < 6; i++) await tick();
+  assert.strictEqual(w.data.canEditCup, true, '云端说还没结算：能点');
+  gate = later();
+  w.onShow(); // 紧接着 onLoad 的第一次 onShow：不重复读
+  assert.strictEqual(w.calls.filter((a) => a === 'cupFromDraw').length, 1);
+  w.onShow(); // 从子页面回来
+  for (let i = 0; i < 6; i++) await tick();
+  assert.strictEqual(w.data.canEditCup, true, '结算情况还在读：不先收起');
+  gate.ok({ stop: { status: 'published' } });
+  for (let i = 0; i < 4; i++) await tick();
+  assert.strictEqual(w.data.canEditCup, false, '已经结算过：按云端收起');
+  const css = read('pages/draw-view/draw-view.wxss');
+  assert.ok(/\.h-cup \.ui-tag \{[^}]*min-height: 48rpx/.test(css), '能点、不能点的标签一样高');
+});
+
+test('报名名单秒出：本机记着上次的名单（或 60 秒内读过的详情）就先显示人数和名单，ready 仍为假、报名 / 取消等按钮不显示', async () => {
+  const detail = later();
+  const old = [{ _id: 's1', name: '小明', _openid: 'me', createdAt: 1 }, { _id: 's2', name: '阿杰', _openid: 'jie', createdAt: 2 }];
+  const v = viewPage({ cachedDraws: () => [signupDraw()], cachedDrawSignups: (id) => (id === 'd1' ? old : null), fetchDrawDetail: () => detail.p });
+  v.onLoad({ id: 'd1' });
+  await tick();
+  assert.deepStrictEqual([v.data.signups.length, v.data.signCount, v.data.ready], [2, '2 人', false]);
+  assert.ok(v.data.signText, '报名情况文字也先显示');
+  const xml = read('pages/draw-view/draw-view.wxml');
+  ['ready && joined', 'ready && signing && !joined', 'canEdit && ready'].forEach((c) => assert.ok(xml.indexOf(`wx:if="{{${c}}}"`) >= 0, c + '：预览时不显示'));
+  // 云端读完按最新的更正（阿杰取消了）
+  detail.ok({ draw: signupDraw(), profile: { name: '小明' }, signups: old.slice(0, 1) });
+  for (let i = 0; i < 4; i++) await tick();
+  assert.deepStrictEqual([v.data.signups.length, v.data.signCount, v.data.ready, v.data.joined], [1, '1 人', true, true]);
+  // 60 秒内读过（内存里的详情）：优先用它
+  const peek = { draw: signupDraw(), profile: { name: '小明' }, signups: old };
+  const p = viewPage({ peekDrawDetail: () => peek, cachedDrawSignups: () => [], fetchDrawDetail: () => new Promise(() => {}) });
+  p.onLoad({ id: 'd1' });
+  await tick();
+  assert.deepStrictEqual([p.data.draw.title, p.data.signups.length, p.data.ready], ['周六约球', 2, false]);
+  // 本机什么都没有：照旧「正在读取报名名单…」
+  const q = viewPage({ cachedDraws: () => [signupDraw()], fetchDrawDetail: () => new Promise(() => {}) });
+  q.onLoad({ id: 'd1' });
+  await tick();
+  assert.deepStrictEqual([q.data.signups.length, q.data.signCount], [0, '']);
+});
+
+test('报名名单不等全部战绩：drawDetail 先回来就先用本机的比赛 / 球员画出人数和名单，共享数据回来后再更新排名', async () => {
+  const ms = later(), ps = later();
+  const su = [{ _id: 's1', name: '小明', _openid: 'me', createdAt: 1 }];
+  const v = viewPage({
+    cachedDraws: () => [], fetchDrawDetail: async () => ({ draw: signupDraw(), profile: { name: '小明' }, signups: su }),
+    matchesShared: () => ms.p, playersShared: () => ps.p,
+    cachedPlayersFull: () => [{ name: '小明', uid: 'me', self: true, shown: true }],
+  });
+  v.onLoad({ id: 'd1' });
+  for (let i = 0; i < 4; i++) await tick();
+  assert.deepStrictEqual([v.data.signCount, v.data.signups.length, v.data.ready, v.data.joined], ['1 人', 1, true, true], '全部战绩还在读，名单已经出来');
+  assert.strictEqual(v.data.signups[0].played, '暂无');
+  // 全部战绩和球员回来：按最新的重算场数
+  const rec = { _id: 'm1', date: '2026-11-01', a: ['小明'], b: ['阿杰'], aIds: ['me'], bIds: ['jie'], aKeys: ['me'], bKeys: ['jie'], winner: 'a', sets: [{ a: 6, b: 2 }], type: 'single' };
+  ms.ok([rec]); ps.ok([{ name: '小明', uid: 'me', self: true, shown: true }, { name: '阿杰', uid: 'jie', self: true, shown: true }]);
+  for (let i = 0; i < 6; i++) await tick();
+  assert.strictEqual(v.data.signups[0].played, '1 场');
+  assert.strictEqual(v.calls.length, 0, '没有多调云函数');
+  // 已生成对阵的活动：退赛申请随 drawDetail 回来，战绩还在读时就和 ready 一起出来；积分结算等战绩回来再查（只查一次）
+  const ms2 = later();
+  const w = viewPage({
+    cachedDraws: () => [], matchesShared: () => ms2.p,
+    fetchDrawDetail: async () => ({ draw: cupDrawn(), profile: { name: '小明' }, signups: [], requests: { list: [], owner: false, myEntrants: ['小明'], withdrawals: [] } }),
+  }, { call: () => Promise.resolve({ stop: null }) });
+  w.loadRequests = () => { throw new Error('不该单独读申请'); };
+  w.onLoad({ id: 'd2' });
+  for (let i = 0; i < 4; i++) await tick();
+  assert.deepStrictEqual([w.data.ready, w.data.canWithdraw], [true, true], '战绩还在读，退赛申请已经出来');
+  assert.strictEqual(w.calls.filter((a) => a === 'cupFromDraw').length, 0);
+  ms2.ok([]);
+  for (let i = 0; i < 6; i++) await tick();
+  assert.strictEqual(w.calls.filter((a) => a === 'cupFromDraw').length, 1);
+  assert.strictEqual(w.data.canWithdraw, true);
+});
+
+// 真实的 utils（db / memo / cloud / member），云函数由测试控制
+function realClient(handler) {
+  const storage = { member_ok_at: Date.now(), my_openid: 'me' };
+  const calls = [];
+  global.wx = {
+    getStorageSync: (k) => storage[k], setStorageSync: (k, v) => { storage[k] = plain(v); }, setStorage: ({ key, data, success }) => { storage[key] = plain(data); if (success) success(); },
+    removeStorageSync: (k) => { delete storage[k]; }, getStorageInfoSync: () => ({ keys: Object.keys(storage) }), reLaunch() {}, showToast() {},
+    cloud: { callFunction: async ({ data }) => { calls.push(data.action); return { result: await handler(data) }; } },
+  };
+  global.getCurrentPages = () => [];
+  Object.keys(require.cache).forEach((k) => { if (k.startsWith(path.join(ROOT, 'utils'))) delete require.cache[k]; });
+  const req = (m) => require(path.join(ROOT, 'utils', m + '.js'));
+  return { db: req('db'), memo: req('memo'), member: req('member'), storage, calls };
+}
+test('点卡片预取活动详情：详情页第一次读取接过这个请求（只调 1 次云函数），只接一次；期间有写操作 / 清缓存就不用', async () => {
+  let n = 0;
+  const c = realClient(async (d) => (d.action === 'drawDetail' ? { ok: true, draw: { _id: d.drawId, title: 'T' + (++n), status: 'signup' }, profile: null, signups: [{ _id: 's' + n }] } : { ok: true }));
+  c.db.prefetchDrawDetail('d1');
+  const r = await c.db.fetchDrawDetail('d1');
+  assert.deepStrictEqual([r.draw.title, c.calls.filter((a) => a === 'drawDetail').length], ['T1', 1], '接过预取的请求');
+  assert.strictEqual((await c.db.fetchDrawDetail('d1')).draw.title, 'T2', '只接一次：刷新照常发新请求');
+  // 预取之后有写操作（缓存作废）：不用旧的
+  c.db.prefetchDrawDetail('d1');
+  await new Promise((res) => setTimeout(res, 0));
+  c.memo.invalidate();
+  assert.strictEqual((await c.db.fetchDrawDetail('d1')).draw.title, 'T4');
+  // 退出成员身份：预取的作废
+  c.db.prefetchDrawDetail('d1');
+  c.member.clearProtected();
+  c.storage.member_ok_at = Date.now();
+  assert.strictEqual((await c.db.fetchDrawDetail('d1')).draw.title, 'T6');
+  // 双击卡片：同一个活动只发一次
+  const before = c.calls.filter((a) => a === 'drawDetail').length;
+  c.db.prefetchDrawDetail('d1'); c.db.prefetchDrawDetail('d1');
+  assert.strictEqual(c.calls.filter((a) => a === 'drawDetail').length, before + 1, '连点两次只发一次');
+  assert.strictEqual((await c.db.fetchDrawDetail('d1')).draw.title, 'T7');
+  // 别的活动的预取不影响
+  c.db.prefetchDrawDetail('d9');
+  assert.strictEqual((await c.db.fetchDrawDetail('d1')).draw.title, 'T9');
+  // 报名名单记在本机（受保护缓存），最多 10 个活动；退出成员身份时清掉
+  assert.deepStrictEqual(c.db.cachedDrawSignups('d1'), [{ _id: 's9' }]);
+  for (let i = 0; i < 12; i++) await c.db.fetchDrawDetail('x' + i);
+  assert.strictEqual(Object.keys(c.storage.cache_draw_signups).length, 10);
+  assert.ok(c.db.cachedDrawSignups('x11') && !c.db.cachedDrawSignups('x0'));
+  c.member.clearProtected();
+  assert.strictEqual(c.storage.cache_draw_signups, undefined);
+  delete global.wx;
 });
 
 module.exports = T;
