@@ -9,6 +9,31 @@ const C = require('../../utils/cup');
 const haptic = require('../../utils/haptic');
 const member = require('../../utils/member');
 const S = require('../../utils/stats');
+const memo = require('../../utils/memo');
+
+// 先显示、后更正（2026-11-25 用户要求，切到「LULU 积分」不再先空一块）：每次读到 cupList，本机存一份上次的结果
+//   { uid, r }（只认同一账号；普通成员拿到的本来就是匿名过的，管理员的带草稿）。打开先用它画，云端读完再更正；
+//   退出成员身份时随 clearProtected 清掉（不在保留名单里）。只是显示，补录 / 更正照旧在补录页读云端
+const BOARD_KEY = 'cache_cup_board';
+let savedJson = ''; // 上次写进本机的内容：没变就不再写
+function keepBoard(uid, r, since) {
+  if (!uid || !r || since !== memo.epoch()) return; // 不知道是谁，或读的期间有过作废（写操作、下拉刷新、清除受保护缓存）
+  const data = { uid, r };
+  const json = JSON.stringify(data);
+  if (json === savedJson) return;
+  savedJson = json;
+  try {
+    if (typeof wx.setStorage === 'function') wx.setStorage({ key: BOARD_KEY, data, success: () => { if (since !== memo.epoch()) { savedJson = ''; try { wx.removeStorageSync(BOARD_KEY); } catch (e) {} } }, fail: () => { savedJson = ''; } });
+    else wx.setStorageSync(BOARD_KEY, data);
+  } catch (e) { savedJson = ''; }
+}
+// 60 秒内读过的内存结果最新，先用它；没有就用本机存的上次结果（只认同一账号）
+function cachedBoard(uid) {
+  const v = cloud.peek('cupList');
+  if (v) return v;
+  try { const c = wx.getStorageSync(BOARD_KEY); if (uid && c && c.uid === uid && c.r && Array.isArray(c.r.list)) return c.r; } catch (e) {}
+  return null;
+}
 
 Component({
   options: { addGlobalClass: true }, // 用 app.wxss 的 .card / .seg / .ui-tag / .btn-line 等全局样式
@@ -21,30 +46,46 @@ Component({
   },
   lifetimes: {
     // 「补录一站」等管理员按钮先按本机记得的身份显示（24 小时内确认过的管理员），不等积分读完；读完按云端结果更正
-    attached() { this.ready = true; if (member.knownActive() && member.isAdminLocal()) this.setData({ admin: true }); this.load(); },
+    attached() {
+      this.ready = true;
+      if (member.knownActive() && member.isAdminLocal()) this.setData({ admin: true });
+      // 先显示上次的积分榜（本机 / 内存），不再先空着；下面照常读云端再更正
+      const myId = db.cachedOpenid();
+      const c = cachedBoard(myId);
+      if (c) { this.fromCache = true; this.use(c, db.cachedPlayersFull(), myId); this.setData({ loading: false }); }
+      this.load();
+    },
   },
   methods: {
     async load() {
       const seq = this.seq = (this.seq || 0) + 1; // 连续刷新时只认最后一次（旧的结果晚回来也不覆盖新的）
+      const since = memo.epoch();
       try {
         const [r, players, myId] = await Promise.all([cloud.cached('cupList'), db.playersShared(), db.myOpenid().catch(() => '')]);
         if (seq !== this.seq) return;
-        this.list = (r && r.list) || [];
-        this.prof = db.profilesOf(players || []);
-        this.myId = myId || '';
-        const years = C.years(this.list);
-        const y = years.indexOf(this.data.year) >= 0 ? this.data.year : years[0] || C.thisYear();
-        // 云端明确给了 admin（true / false）就以云端为准：管理员被撤销后按钮马上收起；旧版云函数没带这个字段才看本机记的身份
-        const admin = r && typeof r.admin === 'boolean' ? r.admin : member.isAdminLocal();
-        this.setData({ admin, years, year: y, error: '' });
-        this.render();
+        this.fromCache = false;
+        this.use(r, players, myId);
+        keepBoard(myId, r, since);
       } catch (e) {
         if (seq !== this.seq) return;
         console.warn(e.message);
-        this.setData({ error: '积分没有读取成功，下拉刷新再试一次' });
+        // 已经画了上次的积分榜：保留着，只轻提示；没有可显示的才写读取失败
+        if (this.fromCache) wx.showToast({ title: '网络异常，显示的是上次的积分', icon: 'none' });
+        else this.setData({ error: '积分没有读取成功，下拉刷新再试一次' });
       }
       if (this.data.loading) this.setData({ loading: false });
       if (this.triggerEvent) this.triggerEvent('loaded'); // 排行页据此停下拉刷新
+    },
+    use(r, players, myId) {
+      this.list = (r && r.list) || [];
+      this.prof = db.profilesOf(players || []);
+      this.myId = myId || '';
+      const years = C.years(this.list);
+      const y = years.indexOf(this.data.year) >= 0 ? this.data.year : years[0] || C.thisYear();
+      // 云端明确给了 admin（true / false）就以云端为准：管理员被撤销后按钮马上收起；旧版云函数没带这个字段才看本机记的身份
+      const admin = r && typeof r.admin === 'boolean' ? r.admin : member.isAdminLocal();
+      this.setData({ admin, years, year: y, error: '' });
+      this.render();
     },
     // 能不能显示这个人：同意了公开展示，或者是自己
     open(id) { return id === this.myId || (!!this.prof[id] && this.prof[id].shown === true); },

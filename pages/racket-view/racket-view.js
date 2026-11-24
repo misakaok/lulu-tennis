@@ -36,6 +36,10 @@ Page({
   onLoad(o) {
     wx.hideShareMenu();
     this.setData({ id: decodeURIComponent((o && o.id) || ''), today: today() });
+    // 先显示：本机记着的球拍列表（或 60 秒内刚读过的）里有这支拍就直接画出来，不再先闪「正在读取…」；onShow 照常读云端再更正。
+    // 只是显示，记录、修改、删除照旧由云端核对
+    const c = API.cachedList();
+    if (c && c.rackets.some((x) => x.id === this.data.id)) { this.fromCache = true; this.show(c); }
   },
   onShow() { this.load(); }, // 编辑、记录后回来刷新
   onPullDownRefresh() {
@@ -45,25 +49,31 @@ Page({
 
   async load() {
     try {
-      const { rackets, logs } = await API.load();
-      const r = rackets.find((x) => x.id === this.data.id);
-      if (!r) { this.setData({ loading: false, error: '球拍不存在，可能已被删除' }); return; }
-      const s = K.summary(r, logs, today());
-      wx.setNavigationBarTitle({ title: K.racketTitle(r) });
-      this.rows = s.timeline.map(rowOf);
-      const reminders = s.reminders.map((x) => Object.assign({}, x, {
-        detail: [x.due ? '下次 ' + x.due : '', x.hours ? `已打 ${x.played} / ${x.hours} 小时` : ''].filter(Boolean).join(' · '),
-      }));
-      this.setData({
-        loading: false, error: '',
-        r: { no: r.no, brand: r.brand, model: r.model, title: K.racketTitle(r), name: K.racketName(r), status: K.STATUS[r.status], retired: r.status === 'retired', bought: r.bought, tags: r.tags || [] },
-        s: { stringCount: s.stringCount, maintCount: s.maintCount, last: s.lastString, cost: s.cost ? money(s.cost) : '', reminders, hasRemind: Object.keys(r.remind || {}).length > 0 },
-        p: playView(r, s),
-      });
-      this.apply();
+      const d = await API.load();
+      this.fromCache = false;
+      this.show(d);
     } catch (e) {
-      this.setData({ loading: false, error: e.message || '读取失败' });
+      // 已经画了上次的记录：保留着，只轻提示；没有可显示的才整页显示读取失败
+      if (this.fromCache) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
+      else this.setData({ loading: false, error: e.message || '读取失败' });
     }
+  },
+  show({ rackets, logs }) {
+    const r = rackets.find((x) => x.id === this.data.id);
+    if (!r) { this.setData({ loading: false, error: '球拍不存在，可能已被删除' }); return; }
+    const s = K.summary(r, logs, today());
+    wx.setNavigationBarTitle({ title: K.racketTitle(r) });
+    this.rows = s.timeline.map(rowOf);
+    const reminders = s.reminders.map((x) => Object.assign({}, x, {
+      detail: [x.due ? '下次 ' + x.due : '', x.hours ? `已打 ${x.played} / ${x.hours} 小时` : ''].filter(Boolean).join(' · '),
+    }));
+    this.setData({
+      loading: false, error: '',
+      r: { no: r.no, brand: r.brand, model: r.model, title: K.racketTitle(r), name: K.racketName(r), status: K.STATUS[r.status], retired: r.status === 'retired', bought: r.bought, tags: r.tags || [] },
+      s: { stringCount: s.stringCount, maintCount: s.maintCount, last: s.lastString, cost: s.cost ? money(s.cost) : '', reminders, hasRemind: Object.keys(r.remind || {}).length > 0 },
+      p: playView(r, s),
+    });
+    this.apply();
   },
   setFilter(e) { this.setData({ filter: e.currentTarget.dataset.v }); this.apply(); },
   apply() {

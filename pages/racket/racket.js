@@ -20,7 +20,12 @@ function cardOf(r, logs, t) {
 Page({
   data: { loading: true, error: '', cards: [], o: null, clearing: false, play: true }, // play：入场动画（切换 tab 回来时重播）
 
-  onLoad() { wx.hideShareMenu(); }, // 私人数据不能分享
+  onLoad() {
+    wx.hideShareMenu(); // 私人数据不能分享
+    // 先显示：本机存的上次结果（或 60 秒内刚读过的）直接画出来，不再先闪「正在读取…」；onShow 里照常读云端再更正
+    const c = API.cachedList();
+    if (c) { this.fromCache = true; this.show(c); }
+  },
   onShow() {
     const replay = Anim.enter(this); // 切换 tab 回来：重播入场动画
     if (Object.keys(replay).length) this.setData(replay);
@@ -35,14 +40,20 @@ Page({
   async load() {
     try {
       const { rackets, logs } = await API.load();
-      const t = today();
-      // 在用的排前面，已退役的放最后
-      const list = rackets.slice().sort((a, b) => (a.status === 'retired') - (b.status === 'retired') || a.no - b.no);
-      this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
+      this.fromCache = false;
+      this.show({ rackets, logs });
       API.applyBadge(rackets, logs);
     } catch (e) {
-      this.setData({ loading: false, error: e.message || '读取失败' });
+      // 已经画了上次的记录：保留着，只轻提示；没有可显示的才整页显示读取失败
+      if (this.fromCache) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
+      else this.setData({ loading: false, error: e.message || '读取失败' });
     }
+  },
+  show({ rackets, logs }) {
+    const t = today();
+    // 在用的排前面，已退役的放最后
+    const list = rackets.slice().sort((a, b) => (a.status === 'retired') - (b.status === 'retired') || a.no - b.no);
+    this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
   add() { wx.navigateTo({ url: '/pages/racket-edit/racket-edit' }); },
@@ -56,7 +67,7 @@ Page({
       success: (r) => {
         if (!r.confirm) return;
         this.setData({ clearing: true });
-        API.clear().then(() => { wx.showToast({ title: '已清除', icon: 'none' }); return this.load(); })
+        API.clear().then(() => { wx.showToast({ title: '已清除', icon: 'none' }); this.fromCache = false; return this.load(); })
           .catch((e) => wx.showToast({ title: e.message || '清除失败', icon: 'none' }))
           .then(() => this.setData({ clearing: false }));
       },

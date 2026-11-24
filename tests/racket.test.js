@@ -352,4 +352,145 @@ test('底部 tab：「球拍」和「我的」的下标与红点 / 数字设置�
   }
 });
 
+/* ---------- 列表页先显示、后更正：本机存一份上次的球拍列表 ---------- */
+function rackKit(opts) {
+  const fs = require('fs');
+  const path = require('path');
+  const vm = require('vm');
+  const { createRequire } = require('module');
+  const o = opts || {};
+  const store = Object.assign({}, o.store || {});
+  const sets = [];
+  const toasts = [];
+  const wx = {
+    getStorageSync: (k) => (k in store ? store[k] : ''),
+    setStorageSync: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
+    setStorage: (x) => { sets.push(x.key); store[x.key] = JSON.parse(JSON.stringify(x.data)); if (x.success) x.success(); },
+    removeStorageSync: (k) => { delete store[k]; },
+    showToast: (t) => toasts.push(t.title), hideShareMenu() {}, setTabBarBadge() {}, removeTabBarBadge() {}, setNavigationBarTitle() {},
+  };
+  const state = { epoch: 0, peek: undefined, reply: null, fail: null, onCall: null };
+  const cloud = {
+    cached: async () => { if (state.onCall) state.onCall(); if (state.fail) throw state.fail; return JSON.parse(JSON.stringify(state.reply)); },
+    peek: () => state.peek, call: async () => ({ ok: true }),
+  };
+  const memo = { epoch: () => state.epoch, invalidate() { state.epoch++; } };
+  const ROOT = path.resolve(__dirname, '..');
+  const load = (file, deps) => {
+    const filename = path.join(ROOT, file);
+    const mod = { exports: {} };
+    let def;
+    vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
+      require: (id) => (deps[id] !== undefined ? deps[id] : createRequire(filename)(id)), module: mod, exports: mod.exports,
+      wx, console, setTimeout: () => 0, clearTimeout() {}, Page: (d) => { def = d; }, getCurrentPages: () => [],
+    });
+    return def || mod.exports;
+  };
+  const API = load('utils/rackets.js', { './cloud': cloud, './memo': memo });
+  const page = (file) => {
+    const def = load(file || 'pages/racket/racket.js', { '../../utils/rackets': API, '../../utils/memo': memo });
+    return Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(x) { (this.sets = this.sets || []).push(x); Object.assign(this.data, x); } });
+  };
+  return { API, store, sets, toasts, state, page };
+}
+const R1 = { id: 'r1', no: 1, brand: 'wilson', model: 'Blade', status: 'active', remind: {} };
+const R2 = { id: 'r2', no: 2, brand: 'wilson', model: 'Blade', status: 'active', remind: {} };
+const tickR = () => new Promise((r) => setImmediate(r));
+const plainR = (x) => JSON.parse(JSON.stringify(x));
+
+test('球拍列表本机缓存：读到云端结果后存 { uid, rackets, logs }，只认同一账号；内容没变不重复写；读的期间有过作废不写；清除全部时删掉；退出成员身份时清掉', async () => {
+  const k = rackKit({ store: { my_openid: 'alice' } });
+  k.state.reply = { rackets: [R1], logs: [] };
+  assert.strictEqual(k.API.cachedList(), null, '没读过：没有可先显示的');
+  await k.API.load();
+  assert.deepStrictEqual(plainR(k.store[k.API.KEY]), { uid: 'alice', rackets: [R1], logs: [] });
+  await k.API.load();
+  assert.strictEqual(k.sets.filter((x) => x === k.API.KEY).length, 1, '内容没变不再写');
+  assert.deepStrictEqual(plainR(k.API.cachedList()), { rackets: [R1], logs: [] });
+  // 60 秒内刚读过的内存结果更新：先用它
+  k.state.peek = { rackets: [R1, R2], logs: [] };
+  assert.strictEqual(k.API.cachedList().rackets.length, 2);
+  k.state.peek = undefined;
+  // 换了账号：不用别人的
+  k.store.my_openid = 'bob';
+  assert.strictEqual(k.API.cachedList(), null);
+  k.store.my_openid = 'alice';
+  // 读的期间有过作废（写操作 / 清除受保护缓存）：结果照常返回，但不写进本机
+  k.state.reply = { rackets: [R1, R2], logs: [] };
+  k.state.onCall = () => { k.state.epoch++; };
+  assert.strictEqual((await k.API.load()).rackets.length, 2);
+  assert.strictEqual(k.store[k.API.KEY].rackets.length, 1);
+  k.state.onCall = null;
+  // 不知道是谁（没有 my_openid）：不写
+  const k2 = rackKit();
+  k2.state.reply = { rackets: [R1], logs: [] };
+  await k2.API.load();
+  assert.ok(!(k2.API.KEY in k2.store));
+  // 清除全部：本机那份马上删
+  await k.API.clear();
+  assert.ok(!(k.API.KEY in k.store));
+  assert.strictEqual(k.API.cachedList(), null);
+  // 退出成员身份（clearProtected）会清掉：不在保留名单里
+  const member = require('fs').readFileSync(require('path').join(__dirname, '../utils/member.js'), 'utf8');
+  assert.ok(!new RegExp(k.API.KEY).test(member.match(/const KEEP = \{[^}]*\}/)[0]));
+});
+
+test('球拍列表页：有上次的记录就直接画出来（不显示「正在读取…」），云端读完再更正；读取失败时保留上次的记录只轻提示，没有记录才整页显示读取失败', async () => {
+  const k = rackKit({ store: { my_openid: 'alice' } });
+  k.store[k.API.KEY] = { uid: 'alice', rackets: [R1], logs: [] };
+  k.state.reply = { rackets: [R1, R2], logs: [] };
+  const p = k.page();
+  p.onLoad();
+  assert.deepStrictEqual([p.data.loading, p.data.cards.length], [false, 1], '第一帧就有上次的球拍');
+  p.onShow();
+  await tickR();
+  assert.deepStrictEqual([p.data.loading, p.data.error, p.data.cards.length], [false, '', 2], '云端读完更正');
+  assert.strictEqual(k.store[k.API.KEY].rackets.length, 2);
+  // 读取失败：保留着
+  const q = k.page();
+  q.onLoad();
+  k.state.fail = new Error('网络异常');
+  q.onShow();
+  await tickR();
+  assert.deepStrictEqual([q.data.error, q.data.cards.length], ['', 2]);
+  assert.deepStrictEqual(k.toasts, ['网络异常，显示的是上次的记录']);
+  // 没有可先显示的：照旧先「正在读取…」，失败整页提示
+  const k3 = rackKit({ store: { my_openid: 'alice' } });
+  k3.state.fail = new Error('网络异常');
+  const r = k3.page();
+  r.onLoad();
+  assert.strictEqual(r.data.loading, true);
+  r.onShow();
+  await tickR();
+  assert.deepStrictEqual([r.data.loading, r.data.error], [false, '网络异常']);
+});
+
+test('球拍详情：本机记着的球拍列表里有这支拍就直接画出来，云端读完再更正；读取失败保留上次的只轻提示；本机没有这支拍照旧等云端', async () => {
+  const k = rackKit({ store: { my_openid: 'alice' } });
+  const L1 = { id: 'l1', racketId: 'r1', kind: 'maint', date: '2026-11-01', item: 'overgrip', cost: 15 };
+  const L2 = { id: 'l2', racketId: 'r1', kind: 'maint', date: '2026-11-10', item: 'overgrip', cost: 15 };
+  k.store[k.API.KEY] = { uid: 'alice', rackets: [R1, R2], logs: [L1] };
+  k.state.reply = { rackets: [R1, R2], logs: [L1, L2] };
+  const p = k.page('pages/racket-view/racket-view.js');
+  p.onLoad({ id: 'r1' });
+  assert.deepStrictEqual([p.data.loading, p.data.r && p.data.r.no, p.data.shown.length], [false, 1, 1], '第一帧就有这支拍和上次的记录');
+  p.onShow();
+  await tickR();
+  assert.strictEqual(p.data.shown.length, 2, '云端读完更正');
+  k.state.fail = new Error('网络异常');
+  const q = k.page('pages/racket-view/racket-view.js');
+  q.onLoad({ id: 'r1' });
+  q.onShow();
+  await tickR();
+  assert.deepStrictEqual([q.data.error, q.data.loading], ['', false]);
+  assert.deepStrictEqual(k.toasts, ['网络异常，显示的是上次的记录']);
+  // 本机没有这支拍（别的手机上刚加的）：照旧「正在读取…」，失败整页提示
+  const r = k.page('pages/racket-view/racket-view.js');
+  r.onLoad({ id: 'r9' });
+  assert.strictEqual(r.data.loading, true);
+  r.onShow();
+  await tickR();
+  assert.deepStrictEqual([r.data.loading, r.data.error], [false, '网络异常']);
+});
+
 module.exports = T;

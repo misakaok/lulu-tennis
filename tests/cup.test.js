@@ -412,6 +412,62 @@ test('界面：排行页顶部「水平排行 / LULU 积分」；补录页只给
 });
 
 // 页面 / 组件在 vm 里跑（假的 wx、云函数）：补录页的预览、提交参数，积分组件的年度榜和公开展示过滤
+test('LULU 积分榜先显示、后更正：本机记着上次的积分（只认同一账号）就先画出来，云端读完更正并存一份；读的期间有过作废不存；读取失败保留上次的只轻提示；没有记录照旧', async () => {
+  const P = (x) => JSON.parse(JSON.stringify(x));
+  const kit = (store, reply) => {
+    const st = { epoch: 0, fail: null, onCall: null };
+    const toasts = [];
+    const wx = {
+      getStorageSync: (k) => (k in store ? store[k] : ''), removeStorageSync: (k) => { delete store[k]; },
+      setStorage: (o) => { store[o.key] = P(o.data); if (o.success) o.success(); }, showToast: (t) => toasts.push(t.title),
+    };
+    const def = loadDef('components/cup-board/cup-board.js', {
+      '../../utils/cloud': { cached: async () => { if (st.onCall) st.onCall(); if (st.fail) throw st.fail; return P(reply()); }, peek: () => undefined },
+      '../../utils/db': { playersShared: async () => [], cachedPlayersFull: () => [], profilesOf: () => ({}), myOpenid: async () => 'me', cachedOpenid: () => store.my_openid || '' },
+      '../../utils/member': { isAdminLocal: () => false, knownActive: () => true },
+      '../../utils/memo': { epoch: () => st.epoch },
+    }, wx);
+    const c = Object.assign({}, def.methods, { data: P(def.data), setData(o) { Object.assign(this.data, o); }, triggerEvent() {} });
+    c.attach = () => def.lifetimes.attached.call(c);
+    return { c, st, toasts };
+  };
+  const year = new Date().getFullYear();
+  const board = (date) => ({ admin: false, list: [{ id: 's-' + date, date, year, kind: 'weekly', format: 'single', status: 'published', places: {}, results: [{ tier: 'champion', ids: ['me'], key: 'me', base: 10, bonus: 0, total: 10 }] }] });
+  const day = (d) => year + '-01-' + d;
+  const store = { my_openid: 'me', cache_cup_board: { uid: 'me', r: board(day('10')) } };
+  let reply = board(day('17'));
+  const a = kit(store, () => reply);
+  a.c.attach();
+  assert.deepStrictEqual([a.c.data.loading, a.c.data.stops.length, a.c.data.stops[0].date], [false, 1, day('10')], '第一帧就是上次的积分');
+  await new Promise((r) => setImmediate(r));
+  assert.strictEqual(a.c.data.stops[0].date, day('17'), '云端读完更正');
+  assert.strictEqual(store.cache_cup_board.r.list[0].date, day('17'), '存了最新的一份');
+  // 读的期间有过作废：照常显示，不存
+  reply = board(day('24'));
+  a.st.onCall = () => { a.st.epoch++; };
+  await a.c.load();
+  assert.strictEqual(a.c.data.stops[0].date, day('24'));
+  assert.strictEqual(store.cache_cup_board.r.list[0].date, day('17'));
+  a.st.onCall = null;
+  // 读取失败：保留上次的，只轻提示
+  const b = kit(store, () => reply);
+  b.st.fail = new Error('网络异常');
+  b.c.attach();
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual([b.c.data.error, b.c.data.stops.length], ['', 1]);
+  assert.deepStrictEqual(b.toasts, ['网络异常，显示的是上次的积分']);
+  // 换了账号：不用别人的；没有可显示的照旧等云端，失败写读取失败
+  const other = { my_openid: 'bob', cache_cup_board: store.cache_cup_board };
+  const d = kit(other, () => reply);
+  d.st.fail = new Error('网络异常');
+  d.c.attach();
+  assert.deepStrictEqual([d.c.data.loading, d.c.data.stops.length], [true, 0]);
+  await new Promise((r) => setImmediate(r));
+  assert.ok(/没有读取成功/.test(d.c.data.error));
+  // 退出成员身份（clearProtected）会清掉：不在保留名单里
+  assert.ok(!/cache_cup_board/.test(fs.readFileSync(path.join(__dirname, '../utils/member.js'), 'utf8').match(/const KEEP = \{[^}]*\}/)[0]));
+});
+
 function loadDef(file, deps, wx) {
   const vm = require('vm');
   const { createRequire } = require('module');
