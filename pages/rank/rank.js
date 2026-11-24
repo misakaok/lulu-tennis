@@ -66,7 +66,7 @@ Page({
     this.srcRef = { m: matches, p: players, id: myId || '' };
     this.all = matches || []; this.players = players || []; this.myId = myId || '';
     // 水平分始终用全部比赛（单打 + 双打）计算
-    this.ratings = R.computeRatings(this.all, R.startLevelsFrom(this.players));
+    this.ratings = R.ratingsOf(this.all, this.players); // 和球员主页、报名名单共用同一次计算（共享数据，只读）
     // 赛季（自然年）：胜负、胜率只看这个赛季的比赛；水平分不分赛季
     const seasons = [{ label: '生涯', value: SE.ALL }].concat(SE.seasonsIn(this.all).map((s) => ({ label: s, value: s })));
     if (JSON.stringify(seasons) !== JSON.stringify(this.data.seasons)) this.setData({ seasons });

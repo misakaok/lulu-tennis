@@ -290,7 +290,7 @@ test('写入后缓存作废：新录的日常比赛马上能看到', async () =>
   const old = process.env.ADMIN_OPENIDS;
   process.env.ADMIN_OPENIDS = 'alice';
   try {
-  await c.db.addMatch({ a: ['Alice'], b: ['Carl'], aIds: ['alice'], bIds: ['carl'], winner: 'a', sets: [{ a: 4, b: 0 }], date: '2026-11-05' });
+  await c.db.addMatch({ type: 'single', a: ['Alice'], b: ['Carl'], aIds: ['alice'], bIds: ['carl'], winner: 'a', sets: [{ a: 4, b: 0 }], date: '2026-11-05' });
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
   assert.strictEqual((await c.db.fetchMatchesAll()).length, before + 1);
 });

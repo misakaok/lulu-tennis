@@ -22,8 +22,12 @@ module.exports = function createEnv() {
   const applyData = (doc, data) => {
     Object.keys(data).forEach((k) => {
       const v = data[k];
-      if (v && v[REMOVE]) delete doc[k];
-      else doc[k] = v === SD ? ++env.clock : v && v.__set ? clone(v.v) : clone(v === undefined ? null : v);
+      // 'a.b' 和真实数据库一样只改嵌套字段（中间没有对象时建一个）
+      const ks = k.split('.'); let t = doc;
+      ks.slice(0, -1).forEach((x) => { if (!t[x] || typeof t[x] !== 'object') t[x] = {}; t = t[x]; });
+      const last = ks[ks.length - 1];
+      if (v && v[REMOVE]) delete t[last];
+      else t[last] = v === SD ? ++env.clock : v && v.__set ? clone(v.v) : clone(v === undefined ? null : v);
     });
     return doc;
   };

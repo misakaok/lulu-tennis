@@ -35,6 +35,7 @@
       { "type": "folder", "value": "scripts" },
       { "type": "folder", "value": "docs" },
       { "type": "folder", "value": ".githooks" },
+      { "type": "folder", "value": ".claude" },
       { "type": "suffix", "value": ".md" }
     ],
     "include": []

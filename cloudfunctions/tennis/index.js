@@ -352,9 +352,9 @@ async function revokeMatch({ matchId, reason, confirmImpact }, uid) {
   const player = daily && !!sideOf(ids, uid); // 日常比赛的参加者
   if (!owner && !recorder && !player && !admin) deny(daily ? '只有录入人、这场比赛的参加者或管理员可以撤销' : '只有录入人、活动发起人或管理员可以撤销');
   const pend = await getDoc('requests', 'sc_' + m._id);
-  const open = !!pend && (pend.status === 'pending' || pend.status === 'processing');
+  const open = isOpenReq(pend);
   if (open && !admin) deny('这场有待处理的改分申请，处理完之前不能撤销');
-  if (open && pend.status === 'processing') deny('这场的改分申请正在处理中，请稍后再试');
+  if (isBusyClaim(pend)) deny('这场的改分申请正在处理中，请稍后再试');
   // 管理员撤销时，待处理的改分申请一并失效（原子领取，避免和对方同时处理）
   const closeReq = async () => { if (open) await finish(pend._id, { status: 'stale', handledBy: uid, handleNote: '管理员已撤销这场比赛' }); };
   const normal = (m.outcome || 'normal') === 'normal' && !m.walkover;
@@ -464,7 +464,7 @@ async function signUp({ drawId, partnerId }, uid, addedBy, attempts = 0) {
   try {
     added = await db.runTransaction(async (tx) => {
       const drawRef = tx.collection('draws').doc(drawId);
-      const current = (await drawRef.get()).data;
+      const current = await readOptionalDoc(drawRef);
       if (!current || current.deleted || (current.status && current.status !== 'signup')) deny('报名已截止');
       if ((current.settingsVersion || 0) !== (draw.settingsVersion || 0)) deny('活动规则刚有更新，请刷新后再试');
       if ((current.rosterVersion || 0) !== (draw.rosterVersion || 0)) {
@@ -508,7 +508,7 @@ async function cancelSignup({ drawId }, uid) {
   }
   await db.runTransaction(async (tx) => {
     const ref = tx.collection('draws').doc(drawId);
-    const current = (await ref.get()).data;
+    const current = await readOptionalDoc(ref);
     if (!current || current.deleted || (current.status && current.status !== 'signup')) deny('对阵表已经生成，不能直接取消报名；请在活动页提交退赛申请');
     // 只删自己的报名、递增名单版本（让手动排对阵发现名单变了）；不要求版本没变，别人同时报名不影响取消
     for (const s of mine) await tx.collection('signups').doc(s._id).remove();
@@ -665,7 +665,7 @@ async function fillThumb(p) {
   if (!id) { thumbFailed.add(p.photo); return ''; }
   const kept = await photoTransaction(async (tx) => {
     const ref = tx.collection('players').doc(p._id);
-    const cur = (await ref.get()).data;
+    const cur = await readOptionalDoc(ref);
     if (!cur || cur.photo !== p.photo) return false;
     if (cur.photoThumb !== id) await ref.update({ data: { photoThumb: id } });
     return true;
@@ -680,9 +680,9 @@ async function photoTransaction(fn) {
   return result;
 }
 async function replacePending(tx, p) {
-  if (!p.photoTrace) return [];
+  if (!p || !p.photoTrace) return [];
   const ref = tx.collection('avatar_checks').doc(p.photoTrace);
-  const c = (await ref.get()).data;
+  const c = await readOptionalDoc(ref);
   if (!c || c.status !== 'checking') return [];
   await ref.update({ data: { status: 'replaced', checkedAt: db.serverDate() } });
   return [c.fileID, c.thumb];
@@ -690,7 +690,8 @@ async function replacePending(tx, p) {
 async function clearPhoto(p, actor) {
   const result = await photoTransaction(async (tx) => {
     const ref = tx.collection('players').doc(p._id);
-    const current = (await ref.get()).data;
+    const current = await readOptionalDoc(ref);
+    if (!current) return { files: [], removed: false }; // 资料已经不在了：没有照片可清
     const files = await replacePending(tx, current);
     await ref.update({ data: { photo: '', photoThumb: '', photoRequest: crypto.randomBytes(16).toString('hex'), photoTrace: '', updatedAt: db.serverDate() } });
     if (actor) {
@@ -729,7 +730,8 @@ async function setPhoto({ fileID }, uid) {
   const request = crypto.randomBytes(16).toString('hex');
   const oldFiles = await photoTransaction(async (tx) => {
     const ref = tx.collection('players').doc(me._id);
-    const p = (await ref.get()).data;
+    const p = await readOptionalDoc(ref);
+    if (!p) deny('请先设置昵称和性别，再上传照片');
     const attempts = (p.photoAttempts || []).filter((x) => x.at > Date.now() - 24 * 3600 * 1000);
     if (attempts.some((x) => x.fileID === fileID)) deny('这张照片已经提交过了');
     if (attempts.length >= PHOTO_DAY_MAX) deny('今天换照片的次数太多了，明天再试');
@@ -754,8 +756,8 @@ async function setPhoto({ fileID }, uid) {
     if (!trace) throw new Error('media check unavailable');
     const active = await photoTransaction(async (tx) => {
       const ref = tx.collection('players').doc(me._id);
-      const p = (await ref.get()).data;
-      const current = p.photoRequest === request;
+      const p = await readOptionalDoc(ref);
+      const current = !!p && p.photoRequest === request;
       await tx.collection('avatar_checks').doc(trace).set({ data: {
         uid, playerId: me._id, sourceID: fileID, fileID: snapshot, thumb, request,
         status: current ? 'checking' : 'replaced', at: Date.now(), createdAt: db.serverDate(),
@@ -792,10 +794,10 @@ async function getPhotoCheck(trace) {
 async function settleCheck(trace, status, label) {
   const files = await photoTransaction(async (tx) => {
     const check = tx.collection('avatar_checks').doc(trace);
-    const c = (await check.get()).data;
+    const c = await readOptionalDoc(check);
     if (!c || c.status !== 'checking') return [];
     const ref = tx.collection('players').doc(c.playerId);
-    const p = (await ref.get()).data;
+    const p = await readOptionalDoc(ref);
     const current = p && p.self && p._openid === c.uid && p.photoRequest === c.request && p.photoTrace === trace;
     const publish = current && status === 'pass' && photoPathOk(c.fileID, c.uid, 'player-photos', true);
     console.log('[照片检测处理]', JSON.stringify({ trace, status, current: !!current, publish: !!publish }));
@@ -830,11 +832,11 @@ async function onMediaCheck(ev) {
 async function expireCheck(c) {
   const files = await photoTransaction(async (tx) => {
     const check = tx.collection('avatar_checks').doc(c._id);
-    const cur = (await check.get()).data;
+    const cur = await readOptionalDoc(check);
     if (!cur || cur.status !== 'checking') return [];
     await check.update({ data: { status: 'error', timedOut: true, checkedAt: db.serverDate() } });
     const ref = tx.collection('players').doc(cur.playerId);
-    const p = (await ref.get()).data;
+    const p = await readOptionalDoc(ref);
     if (p && p.photoTrace === c._id) await ref.update({ data: { photoTrace: '', updatedAt: db.serverDate() } });
     return [cur.fileID, cur.thumb];
   });
@@ -1026,10 +1028,10 @@ async function manageDraw(drawId, uid) {
 async function createDraw({ draw }, uid) {
   const p = plainObj(draw) ? draw : {};
   const settings = cleanSettings(p);
-  const doc = Object.assign({}, settings, cleanInfo(p), { results: {} });
+  const doc = Object.assign({}, settings, cleanInfo(p), { results: {}, slots: {} });
   const level = cleanLevel(p.level);
   if (level) doc.level = level;
-  // 计入 LULU 积分（默认不计）：类别要和活动形式对得上（周赛、月赛单淘汰 8 签）
+  // 计入 LULU 积分（默认不计）：活动形式要有最后一轮（循环＋淘汰或单淘汰，签数不限），见 CUP.drawCupError
   if (p.cup !== undefined && p.cup !== null && p.cup !== false) {
     const kind = plainObj(p.cup) ? p.cup.kind : '';
     const err = CUP.drawCupError(settings, kind);
@@ -1081,7 +1083,7 @@ async function generateDraw({ drawId, draw, manual }, uid) {
   if (s.groups) { data.groups = _.set(s.groups); data.lines = _.remove(); } else if (s.lines) { data.lines = _.set(s.lines); data.groups = _.remove(); } else { data.lines = _.remove(); data.groups = _.remove(); } // 四人轮换：没有签位和分组
   await db.runTransaction(async (tx) => {
     const ref = tx.collection('draws').doc(drawId);
-    const current = (await ref.get()).data;
+    const current = await readOptionalDoc(ref);
     if (!current || current.deleted || current.status !== d.status || (current.settingsVersion || 0) !== version ||
         (current.rosterVersion || 0) !== rosterVersion || (current.drawVersion || 0) !== (d.drawVersion || 0) ||
         (current.fixtureVersion || 0) !== (d.fixtureVersion || 0) || (current.withdrawals || []).length) {
@@ -1100,7 +1102,7 @@ async function updateDrawSettings({ drawId, settings, settingsVersion }, uid) {
   const input = plainObj(settings) ? settings : {};
   await db.runTransaction(async (tx) => {
     const ref = tx.collection('draws').doc(drawId);
-    const d = (await ref.get()).data;
+    const d = await readOptionalDoc(ref);
     if (!d || d.deleted || d.status !== 'signup') deny('对阵生成后不能修改活动规则');
     const version = d.settingsVersion || 0;
     if (settingsVersion !== version) deny('活动规则已有更新，请重新打开页面后修改');
@@ -1148,12 +1150,14 @@ async function setFixtureSlot({ drawId, key, slot }, uid) {
   if (d.status === 'signup') deny('对阵表生成后才能安排比赛');
   if (typeof key !== 'string' || !key) deny('缺少比赛');
   if (!E.findFixture(d, await officialEventMatches(drawId), key)) deny('找不到这场比赛，对阵表可能已经重新生成');
+  if (!/^[\w-]{1,40}$/.test(key)) deny('找不到这场比赛，对阵表可能已经重新生成'); // 只用作 slots 下的字段名
   const s = plainObj(slot) ? slot : {};
   const clean = { date: isDate(s.date) ? s.date : '', time: typeof s.time === 'string' && /^\d{2}:\d{2}$/.test(s.time) ? s.time : '', court: E.courtOf(s.court) };
-  const slots = Object.assign({}, plainObj(d.slots) ? d.slots : {});
-  if (clean.date || clean.time || clean.court) slots[key] = clean; else delete slots[key];
-  await db.collection('draws').doc(drawId).update({ data: { slots: _.set(slots) } });
-  return { slot: slots[key] || null };
+  const has = !!(clean.date || clean.time || clean.court);
+  // 只改这一场（slots.<key>），不覆盖整个 slots：两人同时排不同场次不会互相冲掉（旧活动缺少 slots 字段也一样走点路径，仅当 slots 为非对象异常值时整体重写）
+  const data = d.slots === undefined || plainObj(d.slots) ? { ['slots.' + key]: has ? _.set(clean) : _.remove() } : { slots: _.set(has ? { [key]: clean } : {}) };
+  await db.collection('draws').doc(drawId).update({ data });
+  return { slot: has ? clean : null };
 }
 
 // 删除活动：软删除（签表从所有列表消失，已录比分照常保留在战绩里，参赛名 → ID 的对应也还在，确认不受影响）。
@@ -1208,21 +1212,46 @@ const cleanReason = (r, need) => {
 async function logAction(data, store = db) {
   await store.collection('requests').add({ data: Object.assign({ status: 'done', createdAt: db.serverDate(), handledAt: db.serverDate() }, data) });
 }
-// 领取一条待处理的申请：只有一个人能领到（where + update 是原子的），重复点击 / 两人同时处理都只生效一次
+// 领取一条待处理的申请：只有一个人能领到（where + update 是原子的），重复点击 / 两人同时处理都只生效一次。
+// 领取后云函数超时 / 崩溃，申请会一直停在 processing：领取时间（claimedMs）超过 CLAIM_STALE_MS 就算上次执行已中断，
+// 可以重新领取（云函数最长只跑 60 秒，到这个时间上一次一定已经结束）。重新领取按上一次的领取标记比对，两人同时回收也只有一个成功。
+// 以前领取的（没有 claimedMs）一律当作已中断。
+const CLAIM_STALE_MS = 60 * 1000;
+const isStaleClaim = (r) => !!r && r.status === 'processing' && !(typeof r.claimedMs === 'number' && r.claimedMs > Date.now() - CLAIM_STALE_MS);
+const isBusyClaim = (r) => !!r && r.status === 'processing' && !isStaleClaim(r); // 正在被别人处理（还没超时）
+const isOpenReq = (r) => !!r && (r.status === 'pending' || r.status === 'processing'); // 还没处理完（包括处理中断的）
 async function claim(id, uid) {
-  const r = await db.collection('requests').where({ _id: id, status: 'pending' }).update({ data: { status: 'processing', claimedBy: uid, claimedAt: db.serverDate() } });
-  return !!(r && r.stats && r.stats.updated);
+  const data = () => ({ status: 'processing', claimedBy: uid, claimedAt: db.serverDate(), claimedMs: Date.now() });
+  const col = db.collection('requests');
+  const r = await col.where({ _id: id, status: 'pending' }).update({ data: data() });
+  if (r && r.stats && r.stats.updated) return true;
+  const cur = await getDoc('requests', id);
+  if (!isStaleClaim(cur)) return false;
+  const w = { _id: id, status: 'processing' };
+  if (typeof cur.claimedMs === 'number') w.claimedMs = cur.claimedMs; else if (cur.claimedAt !== undefined) w.claimedAt = cur.claimedAt;
+  const r2 = await col.where(w).update({ data: data() });
+  const ok = !!(r2 && r2.stats && r2.stats.updated);
+  if (ok) console.warn('[申请重新领取]', JSON.stringify({ id, from: cur.claimedBy || '', to: uid }));
+  return ok;
 }
-const release = (id) => db.collection('requests').doc(id).update({ data: { status: 'pending', claimedBy: '' } });
+const release = (id) => db.collection('requests').doc(id).update({ data: { status: 'pending', claimedBy: '', claimedMs: 0 } });
 const finish = (id, data) => db.collection('requests').doc(id).update({ data: Object.assign({ handledAt: db.serverDate() }, data) });
-// 同一个锁 id 上一次的申请已经处理完：先归档，再给新申请用
+// 同一个锁 id 上一次的申请已经处理完：先归档，再给新申请用。读、归档、删除在同一个事务里：
+// 两人同时提交不会重复归档；读完到删除之间别人刚放进来的新申请也不会被误删（事务冲突时整体失败）。
+// 归档编号由原记录内容算出，同一条记录只会归档成一份
 async function freeLock(id) {
-  const old = await getDoc('requests', id);
-  if (!old) return;
-  if (old.status === 'pending' || old.status === 'processing') deny('已经有一条待处理的申请，请等对方处理');
-  const copy = Object.assign({}, old); delete copy._id;
-  await db.collection('requests').add({ data: Object.assign(copy, { archivedFrom: id }) });
-  await db.collection('requests').doc(id).remove();
+  await db.runTransaction(async (tx) => {
+    const ref = tx.collection('requests').doc(id);
+    const old = await readOptionalDoc(ref);
+    if (!old) return;
+    if (isOpenReq(old)) deny('已经有一条待处理的申请，请等对方处理');
+    const copy = Object.assign({}, old); delete copy._id;
+    const archiveId = id + '_ar_' + md5(JSON.stringify(copy)).slice(0, 16);
+    if (!(await readOptionalDoc(tx.collection('requests').doc(archiveId)))) {
+      await tx.collection('requests').doc(archiveId).set({ data: Object.assign(copy, { archivedFrom: id }) });
+    }
+    await ref.remove();
+  });
 }
 
 // 受影响的后续比赛记录：删除（连同确认和快照），快照写进处理记录里留底
@@ -1297,7 +1326,7 @@ async function writeFixture({ draw, list, f }, data, opts) {
   const old = list.find((m) => m.drawKey === f.key) || null;
   await db.runTransaction(async (tx) => {
     const ref = tx.collection('draws').doc(draw._id);
-    const current = (await ref.get()).data;
+    const current = await readOptionalDoc(ref);
     // 只核对对阵版本：手动调整对阵后，旧页面不能按原来的双方录分。fixtureVersion 只递增、不在这里核对——
     // 它给手动调整对阵用（发现期间有人录了分就拒绝），录分之间互不影响，几块场地同时提交不会互相顶掉
     if (!current || current.deleted || (current.drawVersion || 0) !== (draw.drawVersion || 0)) deny('对阵已更新，请重新打开场次录分');
@@ -1358,9 +1387,14 @@ async function resolveFixture({ drawId, key, kind, loser, reason, sets, date, co
   const rule = E.ruleFor(draw, key);
   let played = [];
   if (kind === 'retired') {
-    played = parseSets(sets || [], true).map((x) => {
+    const tb = (v) => (v === undefined || v === null || v === '' ? '' : v);
+    played = parseSets((Array.isArray(sets) ? sets : []).map((x) => Object.assign({}, x, { tbA: tb(x && x.tbA), tbB: tb(x && x.tbB) })), true).map((x) => {
       const o = { a: x.a, b: x.b };
-      if (x.tbA !== '' && x.tbB !== '') { o.tbA = int(x.tbA); o.tbB = int(x.tbB); }
+      if (x.tbA !== '' || x.tbB !== '') { // 抢七小分：两边都要填，而且是 0～99 的整数（不能是小数、负数、文字）
+        const ta = /^\d{1,2}$/.test(x.tbA) ? Number(x.tbA) : NaN, tbB = /^\d{1,2}$/.test(x.tbB) ? Number(x.tbB) : NaN;
+        if (!Number.isInteger(ta) || !Number.isInteger(tbB)) deny('抢七小分不对');
+        o.tbA = ta; o.tbB = tbB;
+      }
       return o;
     });
     if (!played.length) deny('中途退赛请填写实际已打的局分');
@@ -1412,7 +1446,7 @@ async function adminFixScore({ matchId, sets, reason, confirmImpact }, uid) {
   const ctx = event ? await loadFixture(m.drawId, m.drawKey) : null;
   const reqId = 'sc_' + m._id;
   const pend = await getDoc('requests', reqId);
-  const open = !!pend && (pend.status === 'pending' || pend.status === 'processing');
+  const open = isOpenReq(pend);
   if (open && !(await claim(reqId, uid))) deny('这场的改分申请正在处理中，请稍后再试');
   let newId = m._id, voided = [];
   try {
@@ -1499,7 +1533,8 @@ async function addConfirms(m, sig, ids, uids) {
 async function loadRequest(requestId, type) {
   const req = typeof requestId === 'string' && requestId ? await getDoc('requests', requestId) : null;
   if (!req || req.type !== type) deny('申请不存在');
-  if (req.status !== 'pending') deny('这条申请已经处理过了');
+  if (isBusyClaim(req)) deny('这条申请正在处理中，请稍后再试');
+  if (req.status !== 'pending' && !isStaleClaim(req)) deny('这条申请已经处理过了'); // 处理中断（超时）的可以重新处理
   return req;
 }
 // 比分在申请之后又变了：申请失效（避免拿旧申请覆盖新比分）
@@ -1667,11 +1702,14 @@ async function handleWithdraw({ drawId, entrant, requestId, approve, policy, rea
 }
 
 // 活动详情：待处理的退赛申请（发起人看全部，球员看自己的）和处理记录
+const DRAW_REQUEST_TYPES = ['withdraw', 'score'];
 async function drawRequests({ drawId }, uid) {
   const draw = await loadDraw(drawId);
   const owner = draw._openid === uid;
-  const r = await db.collection('requests').where({ drawId }).limit(200).get();
-  const rows = r.data.sort((p, q) => tsOf(q) - tsOf(p)).filter((x) => owner || x.requesterId === uid);
+  // 只查申请类记录（退赛 / 改分；发起人直接登记退赛的留档也是 withdraw），并分页读全：活动的审计留档（录分、改分、调整对阵…）
+  // 也存在 requests 里，以前不排序取 200 条，留档多了会把新的退赛申请挤掉。普通成员只查自己发起的
+  const w = Object.assign({ drawId, type: _.in(DRAW_REQUEST_TYPES) }, owner ? {} : { requesterId: uid });
+  const rows = (await allDocs('requests', w)).sort((p, q) => tsOf(q) - tsOf(p));
   // 申请人昵称一次查齐（每个账号取最早的本人资料，和 profileOf 一致）
   const names = {};
   (await byIds('players', rows.map((x) => x.requesterId), '_openid')).filter((p) => p.self)
@@ -1719,7 +1757,7 @@ async function mySignups(_d, uid) {
   return { list: own.concat(asPartner) };
 }
 
-const ping = async () => ({}); // 小程序启动时调用一次：触发旧记录迁移
+const ping = async () => ({}); // 现在的小程序不再调用；保留给旧版本（不保留会报「未知操作」），只校验成员资格、顺带触发旧记录迁移
 
 // 一次返回前端统计要用的全部数据（只读）：比赛记录（已在服务端判定 official / pending，不认可的 invalid 不返回）+ 球员资料。
 // 前端原来要分别 count + 分页读三个集合（约 9 次调用），现在 1 次。
@@ -1885,7 +1923,9 @@ async function listMembers() {
   const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', gender: genderOf[m._id] || '', hasPhoto: !!photoOf[m._id], note: '', status: m.status, reason: E.reasonOf(m.reason), source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));
   // 管理员一律算正式成员（和 memberOf 一致）：即使以前申请过、被拒绝或移除过，也显示在「成员」里，不出现在待审核 / 已移除中
-  const invites = (await db.collection('invites').limit(200).get()).data.filter((x) => !x.usedBy && !x.revoked && x.expiresAt > Date.now()).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
+  // 有效邀请在数据库里先筛（和 acceptInvite 同一条件），再分页读全：不能先无条件取 200 条再筛，发满 200 条邀请后新邀请会看不到
+  const invites = (await allDocs('invites', { usedBy: '', revoked: false, expiresAt: _.gt(Date.now()) }))
+    .sort((a, b) => b.expiresAt - a.expiresAt).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
   return {
     pending: all.filter((m) => m.status === 'pending' && !isAdmin(m._id)).map(row),
     active: all.filter((m) => m.status === 'active' || isAdmin(m._id)).map((m) => Object.assign(row(m), { status: 'active' }))
@@ -2011,31 +2051,10 @@ async function importMembers({ uids }, uid) {
 const GW_READ = { matches: 1, players: 1, draws: 1, signups: 1, verified: 1 };
 // 可写集合按操作分开：signups 只能经 signUp / cancelSignup；matches 只能新增日常比赛，
 // 修改走 editMatchScore / 改分申请，删除走 revokeMatch（否则会绕过确认、审计和对后续场次的影响检查）
-// players 只能新增「只有名字」的球员（发起人手动加的参赛名），本人资料走 saveProfile；draws 走 createDraw / generateDraw / updateDrawInfo / removeDraw
-const GW_WRITE = { matches: 1, players: 1 };
-const GW_OPS = { matches: { add: 1 }, players: { add: 1 } };
-const GW_ADD_FIELDS = { players: { name: 1, createdAt: 1 } }; // 没列出的集合不限字段
+// players 不能经网关写（手动新增球员已停用，旧客户端会收到明确提示），本人资料走 saveProfile；draws 走 createDraw / generateDraw / updateDrawInfo / removeDraw
+const GW_WRITE = { matches: 1 };
+const GW_OPS = { matches: { add: 1 } };
 const isPlain = (v) => v === null || ['string', 'number', 'boolean'].indexOf(typeof v) >= 0;
-function decode(v) {
-  if (Array.isArray(v)) return v.map(decode);
-  if (v && typeof v === 'object') {
-    if (v.__serverDate) return db.serverDate();
-    const out = {};
-    Object.keys(v).forEach((k) => { out[k] = decode(v[k]); });
-    return out;
-  }
-  return v;
-}
-function cleanData(data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) deny('数据格式不对');
-  const out = {};
-  Object.keys(data).forEach((k) => {
-    if (k === '_id' || k === '_openid') return; // 不能自己指定 ID 和创建者
-    const v = data[k];
-    out[k] = v && v.__cmd === 'set' ? _.set(decode(v.v)) : decode(v);
-  });
-  return out;
-}
 function publicPlayer(d) {
   const out = Object.assign({}, d);
   ['photoRequest', 'photoTrace', 'photoAttempts', 'photoThumb'].forEach((k) => delete out[k]);
@@ -2062,37 +2081,48 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
     if (!d || (coll === 'draws' && d.deleted)) deny('内容不存在，可能已被删除');
     return { data: visible(d) };
   }
+  if (coll === 'players') deny('手动新增球员功能已停用，请使用本人资料');
   if (!GW_WRITE[coll]) deny('没有权限修改这些内容');
   if (!(GW_OPS[coll] || {})[op]) deny('没有权限进行这个操作');
-  if (op === 'add') {
-    if (coll === 'players') deny('手动新增球员功能已停用，请使用本人资料');
-    const clean = cleanData(data);
-    const only = GW_ADD_FIELDS[coll];
-    if (only) Object.keys(clean).forEach((k) => { if (!only[k]) delete clean[k]; });
-    if (coll === 'players') {
-      if (typeof clean.name !== 'string' || !clean.name.trim() || clean.name.length > 20 || /[\u0000-\u001f\u007f]/.test(clean.name)) deny('名字不对');
-      clean.name = clean.name.trim();
-      await requireSafeText(clean.name, uid, '球员名字');
-    }
-    // 日常比赛录入即生效，所以只有参赛者本人能录（按用户 ID，不看名字）
-    if (coll === 'matches') {
-      const mine = (k) => Array.isArray(clean[k]) && clean[k].indexOf(uid) >= 0;
-      if (!mine('aIds') && !mine('bIds')) deny('只能记录自己参加的比赛');
-      const names = [].concat(Array.isArray(clean.a) ? clean.a : [], Array.isArray(clean.b) ? clean.b : []);
-      if (names.some((n) => typeof n !== 'string' || !n.trim() || n.length > 50)) deny('参加的球员名字不对');
-      await requireSafeText(names.join('\n'), uid, '参加的球员');
-    }
-    const r = await col.add({ data: Object.assign(clean, { _openid: uid }) });
-    return { _id: r._id };
-  }
-  if (op === 'update' || op === 'remove') {
-    const d = typeof id === 'string' ? await getDoc(coll, id) : null;
-    if (!d || d._openid !== uid) return { stats: op === 'update' ? { updated: 0 } : { removed: 0 } }; // 不是自己创建的：和原来的权限一样，改不了
-    if (op === 'update') { await col.doc(id).update({ data: cleanData(data) }); return { stats: { updated: 1 } }; }
-    await col.doc(id).remove();
-    return { stats: { removed: 1 } };
-  }
-  deny('不支持的操作');
+  // 网关只剩「新增日常比赛」一种写入：录入即生效，所以只有参赛者本人能录（按用户 ID，不看名字）
+  const clean = cleanDailyMatch(data, uid);
+  const allIds = clean.aIds.concat(clean.bIds);
+  const registered = new Set((await byIds('players', allIds, '_openid')).filter((p) => p.self && p.name).map((p) => p._openid));
+  if (allIds.some((x) => !registered.has(x))) deny('双方都要是已注册球员');
+  await requireSafeText(clean.a.concat(clean.b).join('\n'), uid, '参加的球员');
+  const r = await col.add({ data: Object.assign(clean, { _openid: uid, createdAt: db.serverDate() }) });
+  return { _id: r._id };
+}
+// 网关新增日常比赛：只收这些字段（其余一律丢掉，不能夹带 rulingSig / verified 之类的内部字段或超大垃圾字段）；
+// 规则、双方、比分都在服务端重新校验，胜负和盘数由服务端按局分算出，不信任客户端传来的 winner / setsWon；createdAt 用服务器时间
+const isDay = (s) => { if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false; const t = new Date(s + 'T00:00:00Z'); return !isNaN(t) && t.toISOString().slice(0, 10) === s; };
+function cleanDailyMatch(data, uid) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) deny('数据格式不对');
+  if (data.drawId !== undefined || data.drawKey !== undefined) deny('活动比赛请在对阵表 / 场次里录分');
+  const mine = (k) => Array.isArray(data[k]) && data[k].indexOf(uid) >= 0;
+  if (!mine('aIds') && !mine('bIds')) deny('只能记录自己参加的比赛'); // 先认人（按用户 ID，不看名字），再校验其他字段
+  const date = data.date;
+  if (!isDay(date)) deny('比赛日期不对');
+  if (date > today()) deny('比赛日期不能晚于今天');
+  const type = data.type;
+  if (type !== 'single' && type !== 'double') deny('请选择单打或双打');
+  const per = type === 'double' ? 2 : 1;
+  const side = (k) => {
+    const names = data[k], ids = data[k + 'Ids'];
+    if (!Array.isArray(names) || !Array.isArray(ids) || names.length !== per || ids.length !== per) deny(type === 'double' ? '双打每方要有 2 位球员' : '单打每方要有 1 位球员');
+    if (names.some((n) => typeof n !== 'string' || !n.trim() || n.length > 50 || /[\u0000-\u001f\u007f]/.test(n))) deny('参加的球员名字不对');
+    if (ids.some((x) => typeof x !== 'string' || !x.trim() || x.length > 64)) deny('双方都要是已注册球员');
+    return { names: names.map((n) => n.trim()), ids: ids.slice() };
+  };
+  const A = side('a'), B = side('b');
+  const all = A.ids.concat(B.ids);
+  if (new Set(all).size !== all.length) deny('同一位球员不能重复出现');
+  if (data.bestOf !== undefined && data.bestOf !== 1 && data.bestOf !== 3) deny('规则不对');
+  if (data.setGames !== undefined && data.setGames !== 4 && data.setGames !== 6) deny('规则不对');
+  if (data.noAd !== undefined && typeof data.noAd !== 'boolean') deny('规则不对');
+  const rule = { bestOf: data.bestOf === 3 ? 3 : 1, setGames: data.setGames === 6 ? 6 : 4, noAd: data.noAd !== false }; // 和 ruleOfMatch 的默认值一致
+  const res = checkedScore(data.sets, rule);
+  return { date, type, bestOf: rule.bestOf, setGames: rule.setGames, noAd: rule.noAd, a: A.names, b: B.names, aIds: A.ids, bIds: B.ids, sets: res.sets, winner: res.winner, setsWon: res.won };
 }
 
 /* ---------- 成长档案：私人比赛记录（只有本人可见） ----------
@@ -2305,6 +2335,9 @@ const cupCanon = (d) => {
 };
 const cupSummary = (d) => (d ? { date: d.date, kind: d.kind, format: d.format, pointGroup: d.pointGroup || '', scoreVersion: d.scoreVersion || 0, places: d.places, results: (d.results || []).map((r) => ({ tier: r.tier, ids: r.ids, total: r.total })) } : null);
 
+// 读到的那一份（old）在写入前有没有被别人改过：状态、更正次数、名次和结算结果任何一项变了都算
+const cupChanged = (saved, old) => Boolean(saved) !== Boolean(old) ||
+  (!!saved && (!!saved.deleted !== !!old.deleted || saved.status !== old.status || (saved.fixes || 0) !== (old.fixes || 0) || cupCanon(saved) !== cupCanon(old)));
 async function writeLinkedCup(linked, key, old, data) {
   await db.runTransaction(async (tx) => {
     const d = await readOptionalDoc(tx.collection('draws').doc(linked.drawId));
@@ -2317,26 +2350,47 @@ async function writeLinkedCup(linked, key, old, data) {
     const ref = stops.doc(key);
     const saved = await readOptionalDoc(ref);
     if (saved && saved.deleted) deny('这个活动的积分已经撤下，不能再结算；需要的话请补录一站');
-    if (Boolean(saved) !== Boolean(old) || (saved && (saved.status !== old.status || saved.fixes !== old.fixes || cupCanon(saved) !== cupCanon(old)))) {
-      deny('这个活动的积分刚刚已由另一位管理员更新，请返回后重新打开');
-    }
+    if (cupChanged(saved, old)) deny('这个活动的积分刚刚已由另一位管理员更新，请返回后重新打开');
     if (saved) await ref.update({ data: Object.assign({}, data, { places: _.set(data.places), results: _.set(data.results) }) });
     else await stops.add({ data: Object.assign({ _id: key }, data, { createdBy: data.updatedBy, createdAt: db.serverDate(), fixes: 0 }) });
   });
 }
+// 手动补录的站更新（草稿再保存、发布、更正）：和活动结算一样在事务里核对，两位管理员同时改，后提交的不会把先提交的整条覆盖
+async function updateManualCup(key, old, data) {
+  await db.runTransaction(async (tx) => {
+    const ref = tx.collection(CUP_STOPS).doc(key);
+    const saved = await readOptionalDoc(ref);
+    if (saved && saved.deleted) deny('这一站已经撤下，要重新录请补录一站');
+    if (cupChanged(saved, old)) deny('这一站刚刚已由另一位管理员更新，请返回积分页刷新后再试');
+    await ref.update({ data: Object.assign({}, data, { places: _.set(data.places), results: _.set(data.results) }) });
+  });
+}
 
 // 录入的人：都必须是正式成员（管理员默认是成员），而且设置过资料；性别取本人资料（女生夺冠奖励用）
-async function cupPeople(ids) {
+// keep：更正已发布的站时，这一站原来就有的人（后来被移出成员、资料没了也照样保留，不能因为 TA 挡住更正其他名次）；
+// 这些人的性别优先取现在的资料，没有资料时按原来的结算结果（拿过女生奖励就算女生），保证更正不会凭空改掉 TA 的分。
+// 返回 { 用户 ID: { gender } }
+async function cupPeople(ids, keep) {
   const prof = {};
   (await byIds('players', ids, '_openid')).filter((p) => p.self).sort((a, b) => tsOf(a) - tsOf(b))
     .forEach((p) => { if (!(p._openid in prof)) prof[p._openid] = p; });
   const mem = {};
   (await byIds('members', ids)).forEach((m) => { mem[m._id] = m; });
+  const kept = keep || {};
   for (const id of ids) {
+    if (kept[id]) { if (!prof[id]) prof[id] = { gender: kept[id] === 'f' ? 'f' : '' }; continue; }
     const ok = isAdmin(id) || (mem[id] && mem[id].status === 'active');
     if (!prof[id] || !ok) deny(`${prof[id] ? prof[id].name : '有一位球员'}不是正式成员，不能录入积分`);
   }
   return prof;
+}
+// 已发布的站原来有哪些人：{ 用户 ID: 'f' | true }
+function cupKeep(old) {
+  if (!old || old.status !== 'published') return {};
+  const p = old.places || {}, out = {};
+  [].concat(p.champion || [], p.runnerUp || [], ...(p.semis || []), ...(p.floor || [])).forEach((id) => { if (typeof id === 'string' && id) out[id] = true; });
+  (old.results || []).forEach((r) => { if (/女生/.test(r.bonusText || '')) (r.ids || [r.key]).forEach((id) => { if (out[id]) out[id] = 'f'; }); });
+  return out;
 }
 
 // key：这一站的编号（新建时由补录页生成，更正时就是原来那一站的编号）；同一个编号重复提交只会更新这一站。
@@ -2378,7 +2432,7 @@ async function cupSave({ key, stop, publish, drawId }, uid) {
     deny('参加保底只给有实际打球记录的球员或队伍，请核对名单');
   }
   const ids = [].concat(p.champion, p.runnerUp, ...p.semis, ...p.floor);
-  const prof = await cupPeople(ids);
+  const prof = await cupPeople(ids, cupKeep(old));
   rec.results = CUP.results(rec, (id) => (prof[id] && prof[id].gender) || '');
   // 同一天、同类别、同形式、同组别只能有一站；历史无组别按不分组检查重复。
   const dup = (await db.collection(CUP_STOPS).where({ date: rec.date, kind: rec.kind, format: rec.format }).get()).data.find((d) =>
@@ -2393,7 +2447,7 @@ async function cupSave({ key, stop, publish, drawId }, uid) {
   if (how === 'fix') data.fixes = (old.fixes || 0) + 1;
   if (status === 'published' && !wasPub) data.publishedAt = db.serverDate();
   if (linked) await writeLinkedCup(linked, key, old, data);
-  else if (old) await db.collection(CUP_STOPS).doc(key).update({ data: Object.assign({}, data, { places: _.set(rec.places), results: _.set(rec.results) }) });
+  else if (old) await updateManualCup(key, old, data);
   else {
     // 新建：add 带编号，编号已存在就失败（getDoc 读取出错也返回 null，不能用 set，否则会把已有的站整条覆盖、清掉更正次数）
     try { await db.collection(CUP_STOPS).add({ data: Object.assign({ _id: key }, data, { createdBy: uid, createdAt: db.serverDate(), fixes: 0 }) }); }

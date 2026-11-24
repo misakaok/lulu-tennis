@@ -206,7 +206,7 @@ Page({
             try {
               const res = await db.removeMatch(id);
               // 需要填原因 / 确认对后续场次的影响：到比赛详情里撤销
-              if (res.needReason) { wx.navigateTo({ url: '/pages/match/match?id=' + id }); return; }
+              if (res && (res.needReason || res.needConfirm)) { wx.navigateTo({ url: '/pages/match/match?id=' + id }); return; }
               wx.showToast({ title: '已删除' });
               this.load(); // 删除会作废缓存（utils/cloud.js），这里拿到的是新数据
             } catch (err) {

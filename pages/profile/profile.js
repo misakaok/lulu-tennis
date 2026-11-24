@@ -53,17 +53,26 @@ Page({
   photoLoaded() { if (!this.data.photoReady) this.setData({ photoReady: true }); },
   baseErr() { this.setData({ photoBase: '' }); },
 
+  // 本机缓存先填一次、云端资料读完再填一次。云端结果晚到时，用户已经动过的项（昵称、性别、水平、公开展示）不覆盖
   fill(p) {
     this.avatar = p.avatar || ''; // 以前传过的旧照片（没经过检测）：不显示，保存时原样带回
-    const name = p.name || '';
-    this.setData({ name, gender: p.gender || '', level: typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL, isNew: false, initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE', shown: p.shown === true });
+    const ed = this.edited || {};
+    const d = { isNew: false };
+    if (!ed.name) d.name = p.name || '';
+    if (!ed.gender) d.gender = p.gender || '';
+    if (!ed.level) d.level = typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL;
+    if (!ed.shown) d.shown = p.shown === true;
+    const name = d.name !== undefined ? d.name : this.data.name;
+    Object.assign(d, { initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE' });
+    this.setData(d);
   },
+  touch(k) { (this.edited = this.edited || {})[k] = true; },
 
   // 第一次设置资料：昵称预填准入页填的昵称，可以改；保存时照常过内容检测和重名检查，保存后云端同步到成员名单（members.name）
   prefill() {
     require('../../utils/member').statusCached().then((r) => {
       const name = String((r && r.name) || '').trim();
-      if (!name || !this.data.isNew || this.data.name) return; // 已经有资料或自己已经开始填了，不覆盖
+      if (!name || !this.data.isNew || this.data.name || (this.edited && this.edited.name)) return; // 已经有资料或自己已经改过了，不覆盖
       this.setData({ name, initial: RU.initialOf(name), color: RU.colorOf(name) });
     }).catch(() => {});
   },
@@ -169,6 +178,9 @@ Page({
     const yes = await new Promise((done) => wx.showModal({ title: title || C.TITLE, content: C.TEXT, confirmText: '同意', cancelText: '取消', success: (x) => done(x.confirm), fail: () => done(false) }));
     if (!yes) return false;
     if (!this.data.isNew && !(await this.applyShown(true))) return false;
+    // 还没拿到云端资料（isNew 为真）时只在本地勾了、没发云端：如果随后 fill 把 isNew 改成了 false，点保存仍要带上这次勾选
+    this.shownPending = this.data.isNew;
+    this.touch('shown');
     this.setData({ shown: true });
     return true;
   },
@@ -188,16 +200,16 @@ Page({
   async toggleShown() {
     if (this.data.saving) return;
     if (!this.data.shown) { await this.agree(); return; }
-    if (this.data.isNew) { this.setData({ shown: false }); return; }
+    if (this.data.isNew) { this.shownPending = true; this.touch('shown'); this.setData({ shown: false }); return; }
     const off = await new Promise((done) => wx.showModal({ title: '关闭公开展示', content: '关闭后，其他成员看不到你的照片，排行榜里也不显示你；你的照片会保留，重新开启后恢复显示。', confirmText: '关闭', cancelText: '取消', success: (x) => done(x.confirm), fail: () => done(false) }));
-    if (off && (await this.applyShown(false))) { this.setData({ shown: false }); wx.showToast({ title: '已关闭', icon: 'success' }); }
+    if (off && (await this.applyShown(false))) { this.shownPending = false; this.touch('shown'); this.setData({ shown: false }); wx.showToast({ title: '已关闭', icon: 'success' }); }
   },
 
   /* ---------- 文字 ---------- */
   // type="nickname" 的输入框：键盘上方会出现「用微信昵称」
-  onName(e) { this.setData({ name: e.detail.value }); },
-  pickGender(e) { this.setData({ gender: e.currentTarget.dataset.v }); },
-  pickLevel(e) { this.setData({ level: Number(e.currentTarget.dataset.v) }); },
+  onName(e) { this.touch('name'); this.setData({ name: e.detail.value }); },
+  pickGender(e) { this.touch('gender'); this.setData({ gender: e.currentTarget.dataset.v }); },
+  pickLevel(e) { this.touch('level'); this.setData({ level: Number(e.currentTarget.dataset.v) }); },
 
   // 刚加入时：设置完（或稍后再设置）回到加入前要去的页面（例如分享的活动），没有就去活动 tab；和准入页 enter 一样
   goOn() {
@@ -219,7 +231,11 @@ Page({
     let step = '资料';
     try {
       // 先保存资料（第一次设置时要先有资料才能传照片），再上传照片提交检测
-      await db.saveMyProfile({ name, avatar: this.avatar, level: this.data.level, gender: this.data.gender, shown: this.data.isNew ? !!this.data.shown : undefined }); // 第一次设置资料：带上勾选结果（不勾就是不同意，不强制）；已有资料的授权在勾选时已经单独保存，这里不带，免得旧缓存覆盖
+      const sendShown = this.data.isNew || !!this.shownPending;
+      await db.saveMyProfile({ name, avatar: this.avatar, level: this.data.level, gender: this.data.gender, shown: sendShown ? !!this.data.shown : undefined }); // 第一次设置资料（或进页还没读完时就点了勾选）：带上勾选结果（不勾就是不同意，不强制）；已有资料的授权在勾选时已经单独保存，这里不带，免得旧缓存覆盖
+      // 资料已经建好：之后（例如照片没传上去再点保存重试、单独换照片）都按「已有资料」处理，不再当第一次设置
+      this.shownPending = false;
+      if (this.data.isNew) this.setData({ isNew: false });
       const withPhoto = !!this.photoTemp;
       if (withPhoto) { step = '照片'; wx.showLoading({ title: '上传照片', mask: true }); await this.uploadPhoto(); }
       wx.hideLoading();

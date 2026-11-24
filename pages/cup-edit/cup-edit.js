@@ -183,7 +183,6 @@ Page({
     this.render();
   },
   closePick() { this.setData({ sheet: null }); },
-  noop() {},
   clearCell(e) {
     const { slot, i, j } = e.currentTarget.dataset;
     const row = slot === 'semis' || slot === 'floor' ? this.places[slot][Number(i)] : this.places[slot];
@@ -299,7 +298,9 @@ Page({
     try {
       const r = await cloud.call('cupSave', Object.assign({ key: this.key, stop: s, publish }, this.drawId ? { drawId: this.drawId } : {}));
       if (r.id) this.key = r.id; // 活动结算的编号由云端定
-      this.setData({ editing: true, published: r.status === 'published', 'from.stale': false });
+      const up = { editing: true, published: r.status === 'published' };
+      if (this.data.from) up['from.stale'] = false; // 手动补录（from 为空）不能写成 { stale: false }：会凭空出现「来自活动」卡片并锁定类别 / 形式 / 组别
+      this.setData(up);
       wx.showToast({ title: r.same ? '没有变化' : r.status === 'published' ? (r.how === 'fix' ? '已更正' : '已发布') : '已保存草稿', icon: r.same ? 'none' : 'success' });
       if (r.status === 'published') setTimeout(() => wx.navigateBack({ fail() {} }), 700);
     } catch (e) {

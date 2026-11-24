@@ -216,8 +216,11 @@
       </block>
       <block wx:else>
         <view wx:if="{{myWd && myWd.status === 'pending'}}" class="wd-t">你的退赛申请等待发起人处理</view>
-        <view wx:elif="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请{{myWd.note ? '：' + myWd.note : ''}}</view>
-        <view wx:elif="{{canWithdraw}}" class="btn-line wd-btn" hover-class="tap-on" bindtap="requestWithdraw">申请退赛</view>
+        <block wx:else>
+          <!-- 被拒绝后保留提示，仍可再次申请（等待处理时不显示按钮） -->
+          <view wx:if="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请{{myWd.note ? '：' + myWd.note : ''}}</view>
+          <view wx:if="{{canWithdraw}}" class="btn-line wd-btn" hover-class="tap-on" bindtap="requestWithdraw">申请退赛</view>
+        </block>
       </block>
     </view>
 

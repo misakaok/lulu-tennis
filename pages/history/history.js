@@ -13,8 +13,9 @@ Page({
     this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     try {
-      const [players, matches] = await Promise.all([db.fetchPlayersFull(), db.fetchMatches()]);
-      this.render(db.cachedProfiles(), players, matches);
+      // 共享版（只读，不复制），资料跟着这次拿到的球员列表走：本机缓存是异步写的，这时同步读 cachedProfiles / cachedMatches 可能还是空的
+      const [players, matches] = await Promise.all([db.playersShared(), db.matchesShared()]);
+      this.render(db.profilesOf(players), players, matches);
     } catch (e) { console.error(e); }
     this.setData({ loading: false });
   },

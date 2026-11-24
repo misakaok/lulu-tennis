@@ -93,3 +93,6 @@
 .undo-t { flex: 1; min-width: 0; font-size: 26rpx; line-height: 1.4; color: #1E1E32; overflow-wrap: break-word; }
 .undo-bar .btn-line.mini { flex: none; margin-left: 16rpx; }
 .undo-x { flex: none; width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center; margin-left: 4rpx; font-size: 26rpx; color: #8686A0; }
+
+/* 列表底部「上滑加载更多」（和战绩页一样） */
+.d-more { text-align: center; color: #A5A5BA; font-size: 22rpx; margin-top: 30rpx; }

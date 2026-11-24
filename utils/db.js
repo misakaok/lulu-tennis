@@ -60,10 +60,6 @@ async function fetchAllRaw(name, orders, where) {
   return all;
 }
 
-// 当前用户的 openid。
-// 不用 '{openid}' 占位符：它只在「自定义安全规则」下会被替换，
-// 在「所有用户可读，仅创建者可读写」这种基础权限下查不到任何东西。
-// 做法：写一条临时记录，读回它的 _openid（系统自动写入的创建者），再删掉；结果缓存在本机。
 // 当前用户 ID：云函数从微信登录态拿到的 openid（不能伪造），缓存在本机
 let openidTask = null;
 function myOpenid() {
@@ -97,7 +93,9 @@ const DS_COLLS = ['matches', 'players', 'verified'];
 const ORD_MATCHES = [['date', 'desc'], ['createdAt', 'desc']];
 const ORD_PLAYERS = [['createdAt', 'asc']];
 const cleared = () => Object.assign(new Error('缓存已清除'), { code: 'CACHE_CLEARED' });
-const datasetFallback = (e) => { if (e.code === 'CACHE_CLEARED') throw e; return null; };
+// 只有云函数是旧版本（未知操作）才退回分页读取（数据太大 tooLarge 在 datasetRaw 里直接返回 null）；
+// 网络异常、不是成员（NOT_MEMBER）、缓存已清除都照常报错，不能悄悄改成分页再读一遍
+const datasetFallback = (e) => { if (e && e.code !== 'CACHE_CLEARED' && /未知操作/.test(e.message || '')) return null; throw e; };
 let generation = 0; // 清除受保护缓存后，不接受此前请求的整理结果
 let lastDs = null; // 上一次取到的数据集（只在内存里）：{ hash, matches, players }
 function datasetRaw() {
@@ -136,7 +134,11 @@ function derived(name, load, compute, noCopy) {
   }, DEP_KEYS);
 }
 // 本机缓存被清空时（utils/member.js 的 clearProtected）调用：忘掉沿用的结果，下次重新整理并写回本机
-function forget() { require('./photo').clear(); generation++; kept = {}; drawsKept = null; lastDs = null; memo.invalidate(DS_COLLS.concat('draws')); }
+function forget() {
+  require('./photo').clear(); generation++; kept = {}; drawsKept = null; lastDs = null;
+  Object.keys(removedDraws).forEach((k) => delete removedDraws[k]); lastRemoved = null; // 刚删除的活动、「撤回」提示也是这个账号的
+  memo.invalidate(DS_COLLS.concat('draws'));
+}
 
 // 读全部比赛记录并标出状态：official 正式 / pending 日常比赛待对手确认 / invalid 不认可（见 utils/official.js）
 async function loadMatches() {
@@ -221,22 +223,12 @@ function buildPlayers(list) {
   });
   const arr = order.map((n) => map[n]);
   cacheSetLater('cache_players_full', arr);
-  cacheSetLater('cache_players', order);
   profilesByList.set(arr, byUid);
   require('./photo').setPlayers(arr, byUid); // 头像组件按用户 ID / 名字找照片
   return arr;
 }
 const cachedPlayersFull = () => cacheGet('cache_players_full', []);
 const cachedProfiles = () => cacheGet('cache_profiles', {});
-
-async function fetchPlayers() { return (await fetchPlayersFull()).map((p) => p.name); }
-const cachedPlayers = () => cacheGet('cache_players', []);
-
-async function addPlayer(name) {
-  const col = db().collection('players');
-  const { total } = await col.where({ name }).count();
-  if (total === 0) await col.add({ data: { name, createdAt: db().serverDate() } });
-}
 
 // 我的资料记录（正常只有一条；万一因为网络重试多出几条，取最早的那条）
 async function myProfileDocs() {
@@ -293,13 +285,16 @@ async function getDraw(id) { return publicDraw((await db().collection('draws').d
 // 云函数还是旧版本（未知操作）时返回 null，页面改用原来的分开读取
 async function fetchDrawDetail(id) {
   let r;
+  const started = generation, since = memo.epoch();
   try { r = await require('./cloud').call('drawDetail', { drawId: id }); } catch (e) {
     if (/未知操作/.test((e && e.message) || '')) return null;
     throw e;
   }
-  cacheSet('my_profile', r.profile || '');
+  if (started !== generation) throw cleared(); // 读的时候退出了成员身份：不把资料写回本机
+  if (since === memo.epoch()) cacheSet('my_profile', r.profile || ''); // 期间有过写操作（如刚改完资料）：不让旧结果盖掉本机资料
   r.draw = publicDraw(r.draw);
-  memo.put(detailKey(id), memo.ANY, r); // 录分页先用它画出来（只在内存、60 秒，任何写操作、下拉刷新都作废）
+  // 录分页先用它画出来（只在内存、60 秒，任何写操作、下拉刷新都作废）；读的过程中有过写操作的不放，免得旧结果盖掉
+  memo.put(detailKey(id), memo.ANY, r, since);
   return memo.clone(r);
 }
 const detailKey = (id) => 'drawDetail:' + id;
@@ -387,7 +382,7 @@ async function cancelSignup(drawId) {
 module.exports = {
   myOpenid,
   fetchMatches, cachedMatches, cachedMatchesOrNull, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
-  fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
+  fetchPlayersFull, cachedPlayersFull, cachedProfiles,
   getMyProfile, cachedProfile, cachedOpenid, saveMyProfile, setShown,
   fetchDraws, cachedDraws, getDraw, fetchDrawDetail, peekDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,

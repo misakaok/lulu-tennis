@@ -19,7 +19,8 @@ Page({
       if (!raw) throw new Error('比赛记录不存在');
       const m = ID.normalizeMatches([raw], players)[0];
       let rule = { setGames: m.setGames === 6 ? 6 : 4, noAd: m.noAd !== false, bestOf: m.bestOf === 3 ? 3 : 1 };
-      if (m.drawId && m.drawKey) { const d = await db.getDraw(m.drawId); d._id = m.drawId; rule = E.ruleFor(d, m.drawKey); }
+      // 活动已删除（软删除，网关读不到）时沿用比赛记录自带的规则，和云端 ruleOfMatch 找不到活动时一样
+      if (m.drawId && m.drawKey) { const d = await db.getDraw(m.drawId).catch(() => null); if (d) { d._id = m.drawId; rule = E.ruleFor(d, m.drawKey); } }
       this.m = m;
       this.setData({
         loading: false, aLabel: m.a.join(' / '), bLabel: m.b.join(' / '), current: E.scoreText(m.sets),

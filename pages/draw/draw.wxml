@@ -108,5 +108,6 @@
       </view>
     </view>
   </view>
+  <view wx:if="{{more && tab !== 'next'}}" class="d-more">上滑加载更多</view>
 </view>
 </block>

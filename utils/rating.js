@@ -22,7 +22,6 @@ const K_NEW = 1.2;            // 定级期
 const K_EST = 0.6;            // 定级后
 const PROVISIONAL = 5;        // 前 5 场为定级期
 const NO_FARM_GAP = 0.5;      // 防炸鱼：高出 0.5 以上赢球不加分
-const CHALLENGE_DOWN = 0.3;   // 不能挑战比自己低 0.3 以上的人
 
 const SELF_LEVELS = [
   { v: 1.5, t: '1.5 刚开始学，还不太能回球' },
@@ -39,8 +38,6 @@ const clamp = (x) => Math.max(MIN_LEVEL, Math.min(MAX_LEVEL, x));
 const avg = (arr) => arr.reduce((s, x) => s + x, 0) / arr.length;
 
 function expectedShare(ra, rb) { return 1 / (1 + Math.pow(10, -(ra - rb) / SCALE)); }
-// 赢下整场的概率（只用于显示）
-function winChance(ra, rb) { return 1 / (1 + Math.pow(10, -(ra - rb) / 0.8)); }
 
 function timeOf(m) {
   const t = m.createdAt ? new Date(m.createdAt).getTime() : 0;
@@ -147,11 +144,6 @@ function tierOf(level) {
   return '精英';
 }
 
-// 能不能发起挑战：对方不能比自己低 0.3 以上
-function canChallenge(myLevel, targetLevel) {
-  return targetLevel >= round2(myLevel - CHALLENGE_DOWN);
-}
-
 // 显示：等级四舍五入到 0.5 一档（3.03 → 3.0、3.27 → 3.5，2026-11-18 用户要求）；排序、比较、计算一律用精确值。
 // 涨跌只显示方向箭头，不显示数字（一场通常只动零点零几，和 0.5 一档的等级对不上）；没变化显示空
 const fmt = (x) => (Math.round(x * 2) / 2).toFixed(1);
@@ -210,7 +202,20 @@ const UNRATED = {
 };
 const unratedOf = (kind) => (UNRATED[kind] ? { title: '本场未计入水平分', text: UNRATED[kind] } : null);
 
+// 同一份比赛 + 球员数组只算一次水平分：排行榜、球员主页、活动报名名单都传共享数据（db.matchesShared / playersShared，
+// 只读、没变时是同一个数组），切页面不再各算一遍。按数组引用认（WeakMap，临时数组用完就回收），
+// 再核对长度防止有人往同一个数组里加了记录。结果是共享的：调用方只能读，不能改（tests/client.test.js 检查）
+const ratingsMemo = new WeakMap();
+function ratingsOf(matches, players) {
+  matches = matches || []; players = players || [];
+  const c = ratingsMemo.get(matches);
+  if (c && c.p === players && c.mn === matches.length && c.pn === players.length) return c.r;
+  const r = computeRatings(matches, startLevelsFrom(players));
+  ratingsMemo.set(matches, { p: players, mn: matches.length, pn: players.length, r });
+  return r;
+}
+
 module.exports = {
-  DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, CHALLENGE_DOWN, SELF_LEVELS,
-  expectedShare, winChance, computeRatings, startLevelsFrom, ratingOf, levelOf, tierOf, canChallenge, fmt, fmtDelta, whyOf, unratedOf,
+  DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, SELF_LEVELS,
+  expectedShare, computeRatings, ratingsOf, startLevelsFrom, ratingOf, levelOf, tierOf, fmt, fmtDelta, whyOf, unratedOf,
 };

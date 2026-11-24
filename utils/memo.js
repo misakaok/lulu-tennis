@@ -5,6 +5,10 @@
 // 只放内存，不写本机存储（本机存储另有受成员资格保护的缓存，见 utils/db.js）
 const TTL_MS = 60 * 1000;
 const store = {}; // key → { at, value, task, coll }
+// 代际：每次作废（写操作、下拉刷新、清除受保护缓存）加一。请求发出前记下 epoch()，结果回来时代际变了就说明
+// 期间有过写入 / 清除，这份结果可能是旧的，put 不再放进缓存（避免晚到的读请求把旧数据写回去）
+let epochNo = 0;
+const epoch = () => epochNo;
 
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))); // 调用方改了数据也不会污染缓存
 
@@ -37,6 +41,7 @@ const ANY = '*'; // coll 传 ANY：任何集合变了都作废（云函数只读
 
 // 作废某些集合（不传就全部作废）。一条缓存可以依赖多个集合（coll 传数组），任一集合变了就作废
 function invalidate(colls) {
+  epochNo++;
   const set = colls ? [].concat(colls) : null;
   Object.keys(store).forEach((k) => {
     if (!set || [].concat(store[k].coll).some((c) => c === ANY || set.indexOf(c) >= 0)) delete store[k];
@@ -48,7 +53,12 @@ function peek(key) {
   const e = store[key];
   return e && !e.task && Date.now() - e.at < TTL_MS ? e.value : undefined;
 }
-// 直接放进一条结果（已经从云端拿到的，不用再读）：之后 raw / get / peek 在有效期内都用它
-function put(key, coll, value) { store[key] = { coll, at: Date.now(), value, task: null }; }
+// 直接放进一条结果（已经从云端拿到的，不用再读）：之后 raw / get / peek 在有效期内都用它。
+// since：发请求前的 epoch()；期间有过作废就不放（返回 false），调用方照常用这份结果显示，只是不进缓存
+function put(key, coll, value, since) {
+  if (since !== undefined && since !== epochNo) return false;
+  store[key] = { coll, at: Date.now(), value, task: null };
+  return true;
+}
 
-module.exports = { get, raw, peek, put, invalidate, clone, TTL_MS, ANY };
+module.exports = { get, raw, peek, put, invalidate, clone, epoch, TTL_MS, ANY };

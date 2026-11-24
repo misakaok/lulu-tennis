@@ -31,8 +31,9 @@ function groupByMonth(list) {
 const diffText = (a, b) => (a === b ? '和上月持平' : a > b ? `比上月多 ${a - b} 场` : `比上月少 ${b - a} 场`);
 
 // 正式战绩摘要（只读，和球员主页一致）
-function officialOf(myId, t) {
-  const v = PV.playerView(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches(), myId);
+// 用这次读到的内存结果（共享版，只读）：本机缓存是异步写的，读完马上同步读 cachedProfiles / cachedPlayersFull / cachedMatches 可能还是空的
+function officialOf(myId, t, players, matches) {
+  const v = PV.playerView(db.profilesOf(players), players, matches, myId);
   if (!v.profile) return null;
   const c = v.career, ym = t.slice(0, 7);
   const month = v.rows.filter((r) => r.outcome === 'normal' && r.date.slice(0, 7) === ym).length;
@@ -56,8 +57,8 @@ Page({
   async load() {
     const t = today();
     // 正式战绩只是附带的摘要：失败不影响私人记录
-    const official = Promise.all([db.myOpenid(), db.fetchPlayersFull(), db.fetchMatches()])
-      .then(([myId]) => this.setData({ official: officialOf(myId, t) }))
+    const official = Promise.all([db.myOpenid(), db.playersShared(), db.matchesShared()])
+      .then(([myId, players, matches]) => this.setData({ official: officialOf(myId, t, players, matches) }))
       .catch((e) => console.warn('正式战绩读取失败', e.message));
     try {
       const list = (await A.list()).filter((r) => G.validDate(r.date)).sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);

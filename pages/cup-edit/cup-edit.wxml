@@ -42,7 +42,7 @@
       </view>
       <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">{{size === 1 ? '＋ 选择参加保底（可多选）' : '＋ 添加参加保底'}}</view></view>
       <view wx:if="{{showPointGroup}}" class="ce-note">参加保底只给实际打过球、未取得以上名次的球友。</view>
-      <view wx:else class="ce-note">月赛没有参加保底分</view>
+      <view wx:elif="{{!hasFloor}}" class="ce-note">月赛没有参加保底分</view>
     </view>
 
     <view class="card">

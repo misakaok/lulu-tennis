@@ -9,7 +9,11 @@ const vm = require('vm');
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
 const root = path.resolve(__dirname, '..');
-const later = (ms) => new Promise((r) => setTimeout(r, ms));
+// 虚拟时间（tests/fake-clock.js）：等页面出现、弹窗、轮询都按原来的先后顺序走，只是不用真的等。
+// 这个文件里的 setTimeout / clearTimeout / Date（假的微信接口、传给 app.js 的上下文）都用它
+const clock = require('./fake-clock')();
+const { setTimeout, clearTimeout, Date } = clock;
+const later = clock.wait;
 
 /**
  * 一次「冷启动」：新的模块实例（privacy 的状态从零开始）。o.need：后台指引是否还要用户同意；o.answer：官方弹窗里点 agree / deny；

@@ -63,8 +63,9 @@ function peek(action, data) {
 async function fresh(action, data) {
   if (!READ_ONLY[action]) throw new Error('只有只读操作可以缓存：' + action);
   const memo = require('./memo');
+  const since = memo.epoch(); // 读的过程中有写操作 / 清除缓存：这份结果可能是旧的，不留给别的页面
   const r = await call(action, data);
-  memo.put(keyOf(action, data), memo.ANY, r);
+  memo.put(keyOf(action, data), memo.ANY, r, since);
   return memo.clone(r);
 }
 

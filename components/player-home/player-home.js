@@ -53,9 +53,11 @@ Component({
       const me = this.myId && this.myId !== uid && profiles ? profiles[this.myId] : null;
       // 球员卡上的比赛等级、场数、胜率第一次显示时从 0 滚到实际值（排名不滚）
       const nums = v.profile ? { 'view.level.match': v.level.match, 'view.stats.matches': v.stats.matches, 'view.stats.rate': v.stats.rate } : {};
+      // 渲染层只要最近 RECENT 场和总场数：全部比赛（v.rows）留在逻辑层的 this.view，不随 view 传过去（比赛多了 setData 很大）
+      const shown = Object.assign({}, v); delete shown.rows;
       this.setData(Object.assign({
         h2h: me && v.profile ? PV.h2hView(matches, this.myId, me.name, uid, v.profile.name, tagsOf) : null,
-        view: v, isSelf: !!this.myId && this.myId === uid,
+        view: shown, isSelf: !!this.myId && this.myId === uid,
         recent: v.rows.slice(0, RECENT), total: v.rows.length,
       }, Anim.roll(this, nums)));
     },

@@ -218,6 +218,57 @@ test('更正名次：更新原站结算，年度榜总分跟着变；记更正�
   assert.strictEqual(ok(await save(env, 'stop20261122w', stop(), false)).status, 'published');
 });
 
+test('更正已发布的站：原来就有的人后来被移出成员、资料也没了，照样保留（性别奖励不变），能更正其他名次；新加进来的仍须是正式成员', async () => {
+  const env = setup();
+  ok(await save(env, 'stop20261122w', stop()));
+  const before = (await listOf(env)).find((x) => x.id === 'stop20261122w');
+  const aliceBefore = before.results.find((r) => r.key === 'alice');
+  assert.strictEqual(aliceBefore.total, 40, '女生夺冠 30 + 10');
+  // Alice 被移出成员、资料删掉；Eve 被移出但资料还在
+  env.coll('members').alice.status = 'removed';
+  delete env.coll('players').p_alice;
+  env.coll('members').eve.status = 'removed';
+  // 更正：亚军 / 四强对调，Alice、Eve 原地保留
+  const fix = ok(await save(env, 'stop20261122w', stop({}, { runnerUp: ['carl'], semis: [['bob'], ['dora']] })));
+  assert.strictEqual(fix.how, 'fix');
+  const st = env.coll('cup_stops').stop20261122w;
+  assert.deepStrictEqual(st.places.champion, ['alice']);
+  assert.strictEqual(st.results.find((r) => r.key === 'alice').total, 40, '没有资料也按原来的结算认女生，奖励不变');
+  assert.strictEqual(st.results.find((r) => r.key === 'carl').tier, 'runnerUp');
+  assert.ok(st.results.some((r) => r.key === 'eve'));
+  // 把一位已移出、原来不在这一站的人加进来：拒绝
+  env.coll('members').gus.status = 'removed';
+  no(await save(env, 'stop20261122w', stop({}, { runnerUp: ['carl'], semis: [['bob'], ['dora']], floor: [['eve'], ['gus']] })), /不是正式成员/);
+  // 草稿不算「原来就有」：草稿里有已移出的人，保存 / 发布都拒绝
+  ok(await save(env, 'stop20261101w', stop({ date: '2026-11-01' }, { champion: ['hal'], runnerUp: ['bob'], floor: [] }), false));
+  env.coll('members').hal.status = 'removed';
+  no(await save(env, 'stop20261101w', stop({ date: '2026-11-01' }, { champion: ['hal'], runnerUp: ['fay'], floor: [] }), true), /不是正式成员/);
+});
+test('手动补录的站：读到之后、写入之前被另一位管理员改了，后提交的拒绝，不整条覆盖', async () => {
+  const env = setup();
+  ok(await save(env, 'stop20261122w', stop()));
+  let reads = 0;
+  env.beforeDocGet = (c, id) => {
+    if (c !== 'cup_stops' || id !== 'stop20261122w') return;
+    if (++reads === 2) { // cupSave 先读一次（getDoc），事务里再读一次：中间另一位管理员把亚军改成了 Carl
+      const d = env.coll('cup_stops').stop20261122w;
+      d.places.runnerUp = ['carl']; d.fixes = 1;
+    }
+  };
+  no(await save(env, 'stop20261122w', stop({}, { champion: ['bob'], runnerUp: ['alice'] })), /另一位管理员/);
+  env.beforeDocGet = null;
+  // （内存数据库的事务失败会整体回滚，连同上面模拟的「另一位管理员」的改动；这里只核对这次提交没有写进去）
+  assert.deepStrictEqual(env.coll('cup_stops').stop20261122w.places.champion, ['alice'], '没有把这次的名次写进去');
+  assert.ok(!Object.values(env.coll('requests')).some((x) => x.type === 'cup' && x.how === 'fix'), '没写入就不留档');
+  // 草稿同样核对
+  ok(await save(env, 'stop20261101w', stop({ date: '2026-11-01' }), false));
+  reads = 0;
+  env.beforeDocGet = (c, id) => { if (c === 'cup_stops' && id === 'stop20261101w' && ++reads === 2) env.coll('cup_stops').stop20261101w.places.champion = ['carl']; };
+  no(await save(env, 'stop20261101w', stop({ date: '2026-11-01' }, { champion: ['bob'], runnerUp: ['alice'] }), false), /另一位管理员/);
+  env.beforeDocGet = null;
+  ok(await save(env, 'stop20261101w', stop({ date: '2026-11-01' }, { champion: ['bob'], runnerUp: ['alice'] }), false));
+});
+
 test('单双打分别累计、遭遇赛不进年终榜、按实际日期归入年度；双打搭档顺序互换仍算同一队', async () => {
   const env = setup();
   ok(await save(env, 'stopsingle01', stop()));
@@ -469,6 +520,57 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   assert.strictEqual(q.data.ok, false); assert.strictEqual(q.data.authError, '只有管理员可以补录积分');
 });
 
+test('补录页：手动补录保存草稿后不会凭空出现「来自活动」卡片；参加保底的提示和按钮不同时出现', async () => {
+  // setData 按小程序的路径写法（'from.stale'）更新，才能看出把 null 写成 { stale: false } 的问题
+  const setPath = function (o) {
+    Object.keys(o).forEach((k) => {
+      const ks = k.split('.'); let t = this.data;
+      ks.slice(0, -1).forEach((x) => { if (!t[x] || typeof t[x] !== 'object') t[x] = {}; t = t[x]; });
+      t[ks[ks.length - 1]] = o[k];
+    });
+  };
+  const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {}, showModal: (o) => o.success && o.success({ confirm: true }) };
+  const def = loadDef('pages/cup-edit/cup-edit.js', {
+    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
+    '../../utils/cloud': viaCall({ call: async (action) => (action === 'listMembers' ? { active: [{ uid: 'alice', nickname: 'Alice' }, { uid: 'bob', nickname: 'Bob' }] } : { status: 'draft', id: 'stopX' }) }),
+  }, wx);
+  const p = Object.assign({}, def, { data: plain(def.data), setData: setPath });
+  await p.onLoad({});
+  assert.strictEqual(p.data.from, null);
+  p.places.champion = ['alice']; p.places.runnerUp = ['bob']; p.render();
+  await p.submit(false);
+  assert.strictEqual(p.data.editing, true);
+  assert.strictEqual(p.data.from, null, '手动补录保存草稿后 from 仍为空（不出现「来自活动」、不锁定类别 / 形式 / 组别）');
+  // 从活动结算的：保存后照旧把 stale 清掉
+  p.setData({ from: { title: '周赛', notes: [], stale: true } });
+  await p.submit(false);
+  assert.deepStrictEqual(plain(p.data.from), { title: '周赛', notes: [], stale: false });
+
+  // 模板：「参加保底」那一块按 showPointGroup / hasFloor 各种组合，按钮和「月赛没有参加保底分」不同时出现
+  const wxml = read('pages/cup-edit/cup-edit.wxml');
+  const i = wxml.indexOf('bindtap="addFloor"');
+  const block = wxml.slice(wxml.lastIndexOf('<view wx:if="{{hasFloor}}"', i), wxml.indexOf('月赛没有参加保底分', i) + 40);
+  const nodes = [...block.matchAll(/<view (wx:if|wx:elif|wx:else)(?:="\{\{([^}]*)\}\}")?[^>]*>/g)].map((m) => ({ kind: m[1], cond: m[2], idx: m.index }));
+  assert.strictEqual(nodes.length, 3, block);
+  const evalIn = (st, c) => Function('hasFloor', 'showPointGroup', 'return (' + c + ');')(st.hasFloor, st.showPointGroup);
+  for (const hasFloor of [true, false]) {
+    for (const showPointGroup of [true, false]) {
+      const st = { hasFloor, showPointGroup };
+      const shown = []; let chain = false;
+      nodes.forEach((n) => {
+        if (n.kind === 'wx:if') { chain = evalIn(st, n.cond); if (chain) shown.push(n.idx); }
+        else if (n.kind === 'wx:elif') { if (!chain && evalIn(st, n.cond)) { chain = true; shown.push(n.idx); } }
+        else if (!chain) { chain = true; shown.push(n.idx); }
+      });
+      const text = shown.map((x) => block.slice(x, block.indexOf('</view>', x)));
+      const btn = text.some((t) => /addFloor/.test(t)), none = text.some((t) => /月赛没有参加保底分/.test(t));
+      assert.ok(!(btn && none), `hasFloor=${hasFloor} showPointGroup=${showPointGroup}：不能同时出现「添加参加保底」和「月赛没有参加保底分」`);
+      assert.strictEqual(btn, hasFloor);
+      if (!hasFloor && !showPointGroup) assert.ok(none, '没有保底的旧月赛照旧提示');
+    }
+  }
+});
+
 test('补录页撤下：已发布的站「撤下这一站」、草稿「删除这份草稿」；先选固定原因再确认，取消任何一步都不调用云函数', async () => {
   const calls = [];
   let answer = '录错了这一站', confirm = true;
@@ -704,7 +806,7 @@ function cupDraw(env, id, o) {
 const schOf = (env, id) => E.scheduleOf(Object.assign({}, env.coll('draws')[id]), Object.values(env.coll('matches')).filter((m) => m.drawId === id));
 // 按名字先后定胜负（名字靠前的赢），打完所有能打的场次
 async function playAll(env, id, upTo) {
-  for (let k = 0; k < 20; k++) {
+  for (let k = 0; k < 60; k++) { // 8 人一组循环有 28 场
     const x = schOf(env, id).find((y) => y.ready && !y.done && (!upTo || upTo(y)));
     if (!x) return;
     ok(await env.call(ADMIN, 'recordEventMatch', { drawId: id, key: x.key, sets: [x.a < x.b ? { a: 4, b: 1 } : { a: 1, b: 4 }] }));
@@ -715,7 +817,7 @@ const settleDraw = (env, id, fresh, o) => asAdmin(env, 'cupSave', Object.assign(
 const stopsOf = (env, id) => Object.values(env.coll('cup_stops')).filter((x) => x.drawId === id);
 const uidsOf = (names) => names.map((n) => n.toLowerCase());
 
-test('积分活动：创建时默认不计；周赛、月赛只能单淘汰 8 签，遭遇赛要有最后一轮；只有管理员能建；普通活动编辑不接受积分设置', async () => {
+test('积分活动：创建时默认不计；周赛、月赛、遭遇赛都可以循环＋淘汰或单淘汰（签数不限），只有分组循环不行；只有管理员能建；普通活动编辑不接受积分设置', async () => {
   const env = setup();
   const mk = (draw) => asAdmin(env, 'createDraw', { draw: Object.assign({ title: '周末内部赛', mode: 'bracket', size: 8, date: YESTERDAY }, draw) });
   const plainId = ok(await mk({})).id;
@@ -726,9 +828,16 @@ test('积分活动：创建时默认不计；周赛、月赛只能单淘汰 8 �
   const quarterId = ok(await mk({ size: 16, cup: { kind: 'quarterly', pointGroup: '3.5', scoreVersion: C.SCORE_VERSION } })).id;
   assert.deepStrictEqual(E.publicDraw(env.coll('draws')[quarterId]).cup, { kind: 'quarterly', pointGroup: '3.5', scoreVersion: C.SCORE_VERSION });
   no(await mk({ cup: { kind: 'encounter', scoreVersion: C.SCORE_VERSION } }), /请选择当前的积分类别/);
-  no(await mk({ cup: { kind: 'weekly' }, size: 16 }), /周赛要用单淘汰 8 签/);
-  no(await mk({ cup: { kind: 'monthly' }, mode: 'groups', groupCount: 2 }), /月赛要用单淘汰 8 签/);
-  no(await mk({ cup: { kind: 'monthly' }, mode: 'groups_ko', groupCount: 2 }), /单淘汰 8 签/);
+  // 周赛（2026-11-24 用户要求放开）：单淘汰不限 8 签，也可以循环＋淘汰；只有分组循环（没有最后一轮）不行
+  ok(await mk({ cup: { kind: 'weekly' }, size: 16 }));
+  ok(await mk({ cup: { kind: 'weekly' }, size: 12 }));
+  ok(await mk({ cup: { kind: 'weekly' }, mode: 'groups_ko', groupCount: 2, advance: 2 }));
+  no(await mk({ cup: { kind: 'weekly' }, mode: 'groups', groupCount: 2 }), /周赛要有最后一轮，请把活动形式改成「循环＋淘汰」或「单淘汰」/);
+  // 月赛（2026-11-24 用户要求放开）：单淘汰几签都行，也可以循环＋淘汰；只有分组循环（没有最后一轮）不行
+  no(await mk({ cup: { kind: 'monthly' }, mode: 'groups', groupCount: 2 }), /月赛要有最后一轮/);
+  ok(await mk({ cup: { kind: 'monthly' }, size: 16 }));
+  ok(await mk({ cup: { kind: 'monthly' }, size: 4 }));
+  ok(await mk({ cup: { kind: 'monthly' }, mode: 'groups_ko', groupCount: 2, advance: 2 }));
   no(await mk({ cup: { kind: 'encounter' }, mode: 'groups', groupCount: 2 }), /最后一轮/);
   ok(await mk({ cup: { kind: 'encounter' }, mode: 'groups_ko', groupCount: 2, advance: 2 }));
   ok(await mk({ cup: { kind: 'encounter' }, size: 16 }));
@@ -778,7 +887,83 @@ test('管理员可从活动详情更正积分类别，保留报名、对阵、�
   ok(await asAdmin(env, 'updateDrawCupKind', { drawId: 'legacyEdit', fromKind: 'weekly', kind: 'encounter' }));
   assert.deepStrictEqual(env.coll('draws').legacyEdit.cup, { kind: 'encounter' });
   env.coll('draws').legacyEdit.size = 16;
-  no(await asAdmin(env, 'updateDrawCupKind', { drawId: 'legacyEdit', fromKind: 'encounter', kind: 'monthly' }), /月赛要用单淘汰 8 签/);
+  ok(await asAdmin(env, 'updateDrawCupKind', { drawId: 'legacyEdit', fromKind: 'encounter', kind: 'weekly' }), '16 签单淘汰也能改成周赛');
+  assert.deepStrictEqual([env.coll('draws').legacyEdit.mode, env.coll('draws').legacyEdit.size], ['bracket', 16], '更正类别不改活动形式');
+  env.coll('draws').legacyEdit.mode = 'groups';
+  no(await asAdmin(env, 'updateDrawCupKind', { drawId: 'legacyEdit', fromKind: 'weekly', kind: 'monthly' }), /月赛要有最后一轮/);
+});
+
+// 真实流程：管理员创建积分活动 → 8 位成员报名 → 生成对阵 → 打完 → 按对阵预填名次 → 发布
+async function cupFlow(env, kind, draw, makeDraw) {
+  const id = ok(await asAdmin(env, 'createDraw', { draw: Object.assign({ title: '周末内部赛', date: YESTERDAY, cup: { kind, scoreVersion: C.SCORE_VERSION } }, draw) })).id;
+  for (const n of NAMES) ok(await env.call(n.toLowerCase(), 'signUp', { drawId: id }));
+  const d = env.coll('draws')[id];
+  ok(await asAdmin(env, 'generateDraw', { drawId: id, draw: Object.assign({ entrants: NAMES, settingsVersion: d.settingsVersion || 0, rosterVersion: d.rosterVersion || 0 }, makeDraw()) }));
+  return id;
+}
+test('积分活动「循环＋淘汰」：周赛、月赛各打一场，小组前 2 名进入淘汰阶段，完赛后从淘汰阶段预填冠军、亚军、四强并结算', async () => {
+  for (const kind of ['weekly', 'monthly']) {
+    const env = setup();
+    const id = await cupFlow(env, kind, { mode: 'groups_ko', groupCount: 2, advance: 2 }, () => ({ groups: D.makeGroups(NAMES, [], 2) }));
+    const d = () => env.coll('draws')[id];
+    assert.deepStrictEqual([d().mode, d().groupCount, d().advance, d().cup.kind], ['groups_ko', 2, 2, kind], kind + '：活动形式按管理员选的保存');
+    const ms = () => Object.values(env.coll('matches')).filter((m) => m.drawId === id);
+    // 先打完小组赛：淘汰阶段的对阵由各组前 2 名填上
+    assert.ok(schOf(env, id).filter((x) => x.key[0] === 'k').every((x) => !x.ready), '小组赛没打完，淘汰阶段还不能打');
+    await playAll(env, id, (x) => x.key[0] === 'g');
+    const tops = E.groupsFor(d(), ms()).map((g) => g.table.slice(0, 2).map((r) => r.name));
+    const ko = schOf(env, id).filter((x) => x.key[0] === 'k');
+    const first = ko.filter((x) => x.ready);
+    assert.strictEqual(first.length, 2, '4 强那一轮两场都能打了');
+    assert.deepStrictEqual(first.map((x) => [x.a, x.b]).flat().sort(), tops.flat().sort(), '进入淘汰阶段的是各组前 2 名');
+    first.forEach((x) => assert.ok(!tops.some((t) => t.includes(x.a) && t.includes(x.b)), '同组的两人第一轮不碰'));
+    assert.ok(!C.fromDraw(d(), ms(), {}).done, '淘汰阶段没打完不能结算');
+    await playAll(env, id);
+    // 名次从淘汰阶段带入
+    const f = (await fromDrawOf(env, id)).fresh;
+    assert.ok(f.done);
+    const view = E.knockoutFor(d(), ms());
+    const fin = view.rounds[view.rounds.length - 1].matches[0];
+    const semis = view.rounds[view.rounds.length - 2].matches.map((m) => (m.a.win ? m.b.name : m.a.name));
+    assert.deepStrictEqual(f.places.champion, uidsOf([view.champion.name]));
+    assert.deepStrictEqual(f.places.runnerUp, uidsOf([fin.a.win ? fin.b.name : fin.a.name]));
+    assert.deepStrictEqual(f.places.semis.map((x) => x[0]).sort(), uidsOf(semis).sort());
+    const outInGroups = NAMES.filter((n) => !tops.flat().includes(n));
+    assert.ok(C.hasFloor(kind, 'open', C.SCORE_VERSION), '现行规则周赛、月赛都有参加保底');
+    assert.deepStrictEqual(f.places.floor.map((x) => x[0]).sort(), uidsOf(outInGroups).sort(), '小组没出线、实际打过球的 4 位带入参加保底');
+    // 管理员核对后发布：分值照现行规则
+    ok(await settleDraw(env, id, f));
+    const [st] = stopsOf(env, id);
+    assert.strictEqual(st.status, 'published');
+    // 分值和补录同一套（现行规则冠军 10、亚军 8、四强 6、保底 2），不因活动形式改变
+    const base = (tier) => st.results.filter((r) => r.tier === tier).map((r) => r.base);
+    assert.deepStrictEqual([base('champion'), base('runnerUp'), base('semi'), base('floor')], [[10], [8], [6, 6], [2, 2, 2, 2]]);
+  }
+});
+test('积分活动「循环＋淘汰」只分 1 组（前 2 名直接打最后一轮）：冠军、亚军照常带入，提示没有 4 强那一轮', async () => {
+  const env = setup();
+  const id = await cupFlow(env, 'weekly', { mode: 'groups_ko', groupCount: 1, advance: 2 }, () => ({ groups: D.makeGroups(NAMES.slice(0, 8), [], 1) }));
+  await playAll(env, id);
+  const f = (await fromDrawOf(env, id)).fresh;
+  assert.ok(f.done);
+  assert.deepStrictEqual([f.places.champion, f.places.runnerUp, f.places.semis], [['alice'], ['bob'], []]);
+  assert.ok(f.notes.some((x) => /没有 4 强那一轮/.test(x)), JSON.stringify(f.notes));
+});
+test('积分周赛不再固定 8 签：单淘汰 16 签创建、生成对阵、完赛预填名次；切换积分类别不改签数', async () => {
+  const env = setup();
+  const id = await cupFlow(env, 'weekly', { mode: 'bracket', size: 16 }, () => ({ lines: D.makeBracket(NAMES, [], 16) }));
+  const d = env.coll('draws')[id];
+  assert.deepStrictEqual([d.mode, d.size, d.cup.kind], ['bracket', 16, 'weekly']);
+  await playAll(env, id);
+  const f = (await fromDrawOf(env, id)).fresh;
+  assert.ok(f.done);
+  assert.deepStrictEqual([f.places.champion, f.places.runnerUp.length, f.places.semis.length], [['alice'], 1, 2], '按名字先后定胜负：Alice 冠军');
+  ok(await settleDraw(env, id, f));
+  // 报名中的 12 签周赛：管理员把类别更正成月赛再改回周赛，签数、形式都不变
+  const id2 = ok(await asAdmin(env, 'createDraw', { draw: { title: '周末内部赛', date: YESTERDAY, mode: 'bracket', size: 12, cup: { kind: 'weekly', scoreVersion: C.SCORE_VERSION } } })).id;
+  ok(await asAdmin(env, 'updateDrawCupKind', { drawId: id2, fromKind: 'weekly', kind: 'monthly' }));
+  ok(await asAdmin(env, 'updateDrawCupKind', { drawId: id2, fromKind: 'monthly', kind: 'weekly' }));
+  assert.deepStrictEqual([env.coll('draws')[id2].mode, env.coll('draws')[id2].size, env.coll('draws')[id2].cup.kind], ['bracket', 12, 'weekly']);
 });
 
 test('积分类别更正与发布结算同时发生，活动和积分站的类别仍然一致', async () => {
@@ -969,7 +1154,7 @@ test('积分活动：双打两人平分进双打榜、单打榜不受影响；�
   assert.deepStrictEqual([m.single.total, m.double.total], [40, 30]);
 });
 
-test('积分活动页面：创建页默认不计、周赛月赛自动切 8 签、不匹配不能创建；详情页只给管理员结算入口；结算页按活动预填、类别锁定、发布用云端编号', async () => {
+test('积分活动页面：创建页默认不计、开启 / 换类别不改已选的活动形式（推不出名次只提示）、不匹配不能创建；详情页只给管理员结算入口；结算页按活动预填、类别锁定、发布用云端编号', async () => {
   const env = setup();
   // 创建页
   const nj = read('pages/draw-new/draw-new.js'), nw = read('pages/draw-new/draw-new.wxml');
@@ -978,18 +1163,34 @@ test('积分活动页面：创建页默认不计、周赛月赛自动切 8 签�
   let toast = '';
   const dn = loadDef('pages/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { showToast: (o) => { toast = o.title; } });
   const pg = { data: { mode: 'groups', size: 16, cupOn: false, cupKind: 'weekly', fromSignup: false, cupErr: '', cupNote: '' }, setData(o) { Object.assign(this.data, o); }, changed(o) { Object.assign(this.data, o); this.checkCup(); }, refresh() { this.checkCup(); } };
-  ['setCup', 'setCupKind', 'fitCup', 'checkCup', 'cupOk'].forEach((k) => { pg[k] = dn[k]; });
+  ['setCup', 'setCupKind', 'checkCup', 'cupOk'].forEach((k) => { pg[k] = dn[k]; });
+  assert.ok(!('fitCup' in dn), '不再自动改活动形式');
   const tap = (v) => ({ currentTarget: { dataset: { v } } });
+  const form = () => [pg.data.mode, pg.data.size, pg.data.groupCount, pg.data.advance];
+  // 分组循环推不出名次：开启积分只提示，不改成单淘汰
+  Object.assign(pg.data, { groupCount: 3, advance: 1 });
   pg.setCup(tap('1'));
-  assert.deepStrictEqual([pg.data.cupOn, pg.data.mode, pg.data.size, pg.data.cupErr], [true, 'bracket', 8, ''], '开启周赛：切成单淘汰 8 签');
-  pg.changed({ size: 16 });
-  assert.match(pg.data.cupErr, /周赛要用单淘汰 8 签/);
+  assert.deepStrictEqual(form(), ['groups', 16, 3, 1], '开启周赛：已选的形式、签数、组数、进入下一轮的人数都不动');
+  assert.match(pg.data.cupErr, /周赛要有最后一轮，请把活动形式改成「循环＋淘汰」或「单淘汰」/);
   assert.strictEqual(pg.cupOk(), false);
-  assert.match(toast, /单淘汰 8 签/);
+  assert.match(toast, /循环＋淘汰/);
+  pg.setCupKind(tap('monthly'));
+  assert.deepStrictEqual(form(), ['groups', 16, 3, 1], '换类别也不动');
+  assert.match(pg.data.cupErr, /月赛要有最后一轮/);
+  // 管理员自己改成循环＋淘汰：周赛、月赛都可以
+  pg.changed({ mode: 'groups_ko' });
+  assert.deepStrictEqual([pg.data.cupErr, pg.cupOk()], ['', true]);
+  assert.match(pg.data.cupNote, /月赛：循环＋淘汰或单淘汰.*名次从淘汰阶段带入/);
+  pg.setCupKind(tap('weekly'));
+  assert.deepStrictEqual([form(), pg.data.cupErr], [['groups_ko', 16, 3, 1], ''], '换回周赛：循环＋淘汰保留');
+  // 单淘汰：签数照选的（不再固定 8 签）
+  pg.changed({ mode: 'bracket', size: 12 });
+  pg.setCupKind(tap('monthly')); pg.setCupKind(tap('weekly'));
+  assert.deepStrictEqual([form(), pg.data.cupErr], [['bracket', 12, 3, 1], ''], '周赛单淘汰 12 签');
   pg.setCupKind(tap('encounter'));
-  assert.deepStrictEqual([pg.data.cupErr, pg.data.size], ['', 16], '遭遇赛：单淘汰几签都行');
+  assert.deepStrictEqual([pg.data.cupErr, pg.data.size], ['', 12]);
   pg.setCup(tap('0'));
-  assert.deepStrictEqual([pg.data.cupOn, pg.data.cupErr], [false, '']);
+  assert.deepStrictEqual([pg.data.cupOn, pg.data.cupErr, form()], [false, '', ['bracket', 12, 3, 1]]);
 
   // 详情页：只有管理员看到结算卡
   cupDraw(env, 'dw5');

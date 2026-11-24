@@ -3,6 +3,7 @@ const E = require('../../utils/event');
 const C = require('../../utils/cup');
 const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
+const PAGE = 30; // 活动列表每次显示多少个，滑到底再加载（和战绩页、排行页一样）
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
 function roleOf(d, myId, signed) {
@@ -65,7 +66,7 @@ const HERO_SLIDES = 3; // 顶部背景轮播张数（hero-court + hero-2 + hero-
 const HERO_MS = 3000; // 每张停 3 秒（2026-11-23 用户嫌 4 秒慢）
 
 Page({
-  data: { list: [], shown: [], loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
+  data: { list: [], shown: [], more: false, loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
@@ -137,11 +138,19 @@ Page({
     this.setData({ mineCount: list.filter((x) => x.mine).length, next: NX.nextMatch(this.draws, this.matches, this.myId, this.signups, this.today) });
     this.apply();
   },
+  // 只把前 limit 个交给渲染层：数据刷新（录分、报名后回来）保持已经加载的个数，切换选项卡从头开始
   apply() {
     const tab = this.data.tab;
-    this.setData({ shown: tab === 'all' ? this.list : tab === 'mine' ? this.list.filter((x) => x.mine) : [] });
+    const all = tab === 'all' ? this.list : tab === 'mine' ? this.list.filter((x) => x.mine) : [];
+    const limit = this.limit || PAGE;
+    this.setData({ shown: all.slice(0, limit), more: all.length > limit });
   },
-  setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
+  setTab(e) { this.limit = PAGE; this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
+  onReachBottom() {
+    if (this.timeline || !this.data.more) return;
+    this.limit = (this.limit || PAGE) + PAGE;
+    this.apply();
+  },
 
   async load() {
     // 「我的下一场」要靠最新的战绩、我的身份和我的报名算：其中任何一项没读到（用了缓存或空值），算出来的就可能不对，

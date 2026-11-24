@@ -69,7 +69,4 @@ function copyFail(e) {
   try { wx.showToast({ title: '没有复制成功，请重试', icon: 'none' }); } catch (x) {}
 }
 
-// 只给测试用：模拟冷启动
-function _reset() { task = null; }
-
-module.exports = { ensure, ready, isDenied, isUndeclared, stopped, copyFail, _reset, WAIT_PAGE_MS };
+module.exports = { ensure, ready, isDenied, isUndeclared, stopped, copyFail, WAIT_PAGE_MS };

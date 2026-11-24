@@ -93,7 +93,14 @@
 .rot-pv-n { flex: none; width: 120rpx; font-size: 26rpx; font-weight: 800; color: #6E6EA3; }
 .rot-pv-t { flex: 1; font-size: 28rpx; color: #1E1E32; }
 .cup-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* 开放报名时先加入的球友 */
+/* 开放报名时先加入的球友（选填）：标题和表单项一样大小，说明一行，右边小按钮 */
+.pre-card { padding-top: 26rpx; padding-bottom: 26rpx; }
+.pre-head { display: flex; align-items: center; }
+.pre-t { flex: 1; min-width: 0; margin-right: 20rpx; }
+.pre-h { font-size: 28rpx; font-weight: 600; color: #1E1E32; }
+.pre-opt { margin-left: 12rpx; padding: 2rpx 12rpx; border-radius: 16rpx; background: #F1F1F8; color: #6E6EA3; font-size: 20rpx; font-weight: 500; vertical-align: 2rpx; }
+.pre-d { margin-top: 8rpx; font-size: 22rpx; line-height: 1.5; color: #A5A5BA; }
+.pre-list { margin-top: 18rpx; padding-top: 4rpx; border-top: 1rpx solid #F2F2F8; }
 .pre-row { display: flex; align-items: center; padding: 14rpx 0; font-size: 27rpx; color: #1E1E32; }
 .pre-row + .pre-row { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间 */
 .pre-row:last-child { padding-bottom: 0; }

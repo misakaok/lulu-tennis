@@ -54,7 +54,10 @@ Page({
     try { this.show(d, db.cachedMatches(), me, db.cachedOpenid() || (me && me._openid) || '', null); } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
   },
 
+  // 防乱序：onShow、下拉刷新、处理退赛后都会调 load，几次请求先后回来时只用最后一次的结果（旧的晚到也不画）
   async load() {
+    const seq = this.loadSeq = (this.loadSeq || 0) + 1;
+    const stale = () => seq !== this.loadSeq || this.gone;
     try {
       // 活动、报名名单、我的资料、退赛申请：云函数 drawDetail 一次取齐
       const [bundle, all, myId] = await Promise.all([
@@ -71,9 +74,12 @@ Page({
           db.fetchSignups(this.id).catch(() => []),
         ]);
       }
-      await this.show(d, all, me, myId, { bundle, signups });
+      if (stale()) return;
+      await this.show(d, all, me, myId, { bundle, signups }, stale);
+      if (stale()) return;
       this.loaded = true;
     } catch (e) {
+      if (stale()) return;
       console.error(e);
       // 只画过本机缓存、云端没读到：不留着缓存的内容（可能已被删除）
       this.setData(this.loaded ? { error: '活动加载失败，可能已被删除' } : { error: '活动加载失败，可能已被删除', draw: null, ready: false });
@@ -81,7 +87,7 @@ Page({
   },
 
   // fresh：云端结果 { bundle, signups }；null 表示只是本机缓存的预览
-  async show(d, all, me, myId, fresh) {
+  async show(d, all, me, myId, fresh, stale) {
     const signups = fresh ? fresh.signups : [];
     this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
     d._id = d._id || this.id;
@@ -116,17 +122,20 @@ Page({
       this.cupSeq = (this.cupSeq || 0) + 1;
       this.setData({ canEditCup: isAdmin && !!C.drawCupOf(d), cupBox: null });
       await this.loadSignups(d, all, fresh.bundle ? signups : null);
+      if (stale && stale()) return;
       // 管理员：顺手预读成员列表（内存里 60 秒），点「＋ 添加报名」时选人弹层马上出来
       if (isAdmin && !this.membersAsked) { this.membersAsked = true; cloud.cached('listMembers').catch(() => {}); }
     } else {
+      this.signupSeq = (this.signupSeq || 0) + 1; // 已出签表：取消此前还在路上的报名名单刷新
       if (this.data.canEditCup) this.setData({ canEditCup: false });
       this.shareCounts = { entrants: n, unit };
       this.makeCover();
       this.renderSchedule();
       this.loadCupBox(isAdmin);
       if (!fresh.bundle) this.loadRequests();
-      else if (fresh.bundle.requests) this.applyRequests(fresh.bundle.requests);
+      else if (fresh.bundle.requests) { this.reqSeq = (this.reqSeq || 0) + 1; this.applyRequests(fresh.bundle.requests); }
     }
+    if (stale && stale()) return;
     if (!this.data.ready) this.setData({ ready: true });
   },
 
@@ -203,7 +212,12 @@ Page({
 
   /* ---------- 退赛（签表生成后）：球员申请，发起人处理；发起人也可以直接登记 ---------- */
   async loadRequests() {
-    try { this.applyRequests(await cloud.call('drawRequests', { drawId: this.id })); } catch (e) { console.warn(e.message); }
+    const seq = this.reqSeq = (this.reqSeq || 0) + 1;
+    try {
+      const r = await cloud.call('drawRequests', { drawId: this.id });
+      if (seq !== this.reqSeq || this.gone) return;
+      this.applyRequests(r);
+    } catch (e) { console.warn(e.message); }
   },
   applyRequests(r) {
     {
@@ -219,11 +233,20 @@ Page({
       });
     }
   },
-  async requestWithdraw() {
-    const reason = await pick.reason('withdraw', '退赛原因（发起人会看到）');
-    if (!reason) return;
-    try { await cloud.call('requestWithdraw', { drawId: this.id, reason }); wx.showToast({ title: '已提交，等发起人处理', icon: 'none' }); this.loadRequests(); }
-    catch (e) { wx.showModal({ title: '提交失败', content: e.message, showCancel: false }); }
+  // 防连点：选原因、确认、提交、刷新整个过程只走一次；结束（成功、失败、取消）后才能再点
+  once(name, fn) {
+    if (this[name]) return undefined; // 正在进行：直接忽略（不返回 Promise）
+    this[name] = true;
+    const done = () => { this[name] = false; };
+    return Promise.resolve().then(fn).then((v) => { done(); return v; }, (e) => { done(); throw e; });
+  },
+  requestWithdraw() {
+    return this.once('wdLock', async () => {
+      const reason = await pick.reason('withdraw', '退赛原因（发起人会看到）');
+      if (!reason) return;
+      try { await cloud.call('requestWithdraw', { drawId: this.id, reason }); wx.showToast({ title: '已提交，等发起人处理', icon: 'none' }); await this.loadRequests(); }
+      catch (e) { wx.showModal({ title: '提交失败', content: e.message, showCancel: false }); }
+    });
   },
   // 小组赛还有没打完的场次：必须由发起人明确选择处理方式（没有默认）
   needPolicy() {
@@ -237,7 +260,8 @@ Page({
       success: (r) => resolve(r.tapIndex === 0 ? 'walkover' : 'void'), fail: () => resolve(null),
     }));
   },
-  async doWithdraw(base) {
+  doWithdraw(base) { return this.once('wdLock', () => this.doWithdrawNow(base)); },
+  async doWithdrawNow(base) {
     let policy;
     if (this.needPolicy()) { policy = await this.pickPolicy(base.entrant); if (!policy) return; }
     const reason = await pick.reason('withdraw', '退赛原因（会留档）');
@@ -252,18 +276,21 @@ Page({
         r = await cloud.call('handleWithdraw', Object.assign(data, { confirmImpact: true }));
       }
       wx.showToast({ title: '已处理退赛', icon: 'success' });
-      this.load();
+      await this.load();
     } catch (e) { wx.showModal({ title: '处理失败', content: e.message, showCancel: false }); }
   },
-  approveWithdraw(e) { const x = this.data.wdPending[e.currentTarget.dataset.i]; this.doWithdraw({ requestId: x.id, entrant: x.entrant }); },
-  async rejectWithdraw(e) {
+  approveWithdraw(e) { const x = this.data.wdPending[e.currentTarget.dataset.i]; return x ? this.doWithdraw({ requestId: x.id, entrant: x.entrant }) : undefined; },
+  rejectWithdraw(e) {
     const x = this.data.wdPending[e.currentTarget.dataset.i];
-    const reason = await pick.reason('keep', '拒绝退赛申请的原因');
-    if (!reason) return;
-    try { await cloud.call('handleWithdraw', { drawId: this.id, requestId: x.id, approve: false, reason }); wx.showToast({ title: '已拒绝', icon: 'none' }); this.loadRequests(); }
-    catch (err) { wx.showModal({ title: '处理失败', content: err.message, showCancel: false }); }
+    if (!x) return undefined;
+    return this.once('wdLock', async () => {
+      const reason = await pick.reason('keep', '拒绝退赛申请的原因');
+      if (!reason) return;
+      try { await cloud.call('handleWithdraw', { drawId: this.id, requestId: x.id, approve: false, reason }); wx.showToast({ title: '已拒绝', icon: 'none' }); await this.loadRequests(); }
+      catch (err) { wx.showModal({ title: '处理失败', content: err.message, showCancel: false }); }
+    });
   },
-  ownerWithdraw(e) { const entrant = this.data.wdCandidates[Number(e.detail.value)]; if (entrant) this.doWithdraw({ entrant }); },
+  ownerWithdraw(e) { const entrant = this.data.wdCandidates[Number(e.detail.value)]; return entrant ? this.doWithdraw({ entrant }) : undefined; },
 
   openMap() {
     const d = this.d, loc = d.location;
@@ -287,10 +314,12 @@ Page({
   /* ---------- 报名 ---------- */
   // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
   async loadSignups(d, matches, preloaded) {
+    const seq = this.signupSeq = (this.signupSeq || 0) + 1;
     const [list, mineDoc, players] = await Promise.all([
       preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
       db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
     ]);
+    if (seq !== this.signupSeq || this.gone) return; // 后发的新刷新已经开始 / 页面已关：不让旧名单盖掉新的
     this.signupRows = list;
     const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
     // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
@@ -391,8 +420,12 @@ Page({
     this.join(i > 0 ? this.partnerPool[i - 1] : null);
   },
 
-  async join(partnerPick) {
-    if (this.data.busy) return;
+  // 在第一个 await 之前就上锁：读资料的那一下连点两次也只报一次名（busy 要等读完资料才设）
+  join(partnerPick) {
+    if (this.data.busy) return undefined;
+    return this.once('joinLock', () => this.joinNow(partnerPick));
+  },
+  async joinNow(partnerPick) {
     const pick = partnerPick && partnerPick.uid ? partnerPick : null;
     let me = db.cachedProfile();
     try { me = await db.getMyProfile(); } catch (e) {}
@@ -424,20 +457,25 @@ Page({
     } finally { this.setData({ busy: false }); }
   },
 
+  // 防连点：确认框弹出到取消完成（或点了「取消」）之间再点不会再弹一次、不会重复提交
   quit() {
-    wx.showModal({
-      title: '取消报名？',
-      content: this.data.isDouble && !this.data.isRot ? '会连同你的搭档一起取消' : '',
-      success: async (r) => {
-        if (!r.confirm) return;
-        try {
-          const mine = await db.mySignup(this.id);
-          if (!mine) { wx.showToast({ title: '是搭档帮你报的名，请让 TA 取消', icon: 'none' }); return; }
-          await db.cancelSignup(this.id);
-          await this.loadSignups(this.d, this.allMatches);
-          wx.showToast({ title: '已取消' });
-        } catch (e) { wx.showModal({ title: '取消失败', content: e.message || '请稍后再试', showCancel: false }); }
-      },
+    if (this.data.busy) return undefined;
+    return this.once('quitLock', async () => {
+      const ok = await new Promise((resolve) => wx.showModal({
+        title: '取消报名？',
+        content: this.data.isDouble && !this.data.isRot ? '会连同你的搭档一起取消' : '',
+        success: (r) => resolve(!!r.confirm), fail: () => resolve(false),
+      }));
+      if (!ok) return;
+      this.setData({ busy: true });
+      try {
+        const mine = await db.mySignup(this.id);
+        if (!mine) { wx.showToast({ title: '是搭档帮你报的名，请让 TA 取消', icon: 'none' }); return; }
+        await db.cancelSignup(this.id);
+        await this.loadSignups(this.d, this.allMatches);
+        wx.showToast({ title: '已取消' });
+      } catch (e) { wx.showModal({ title: '取消失败', content: e.message || '请稍后再试', showCancel: false }); }
+      finally { this.setData({ busy: false }); }
     });
   },
 

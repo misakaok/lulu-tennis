@@ -361,22 +361,18 @@ Page({
     if (err) wx.showToast({ title: err, icon: 'none' });
     return !err;
   },
-  // LULU 积分：周赛、月赛选上时直接切成单淘汰 8 签；之后改了形式 / 签数就提示不匹配，不能创建
+  // LULU 积分：开启、切换类别都不改已选的活动形式、组数、进入下一轮的人数和签数（2026-11-24 用户要求）；
+  // 形式推不出名次（分组循环）时只提示，由管理员自己改成「循环＋淘汰」或「单淘汰」，改好之前不能创建
   setCup(e) {
     const on = e.currentTarget.dataset.v === '1';
     if (on === this.data.cupOn) return;
     this.setData({ cupOn: on });
-    if (on) this.fitCup(this.data.cupKind); else this.refresh();
+    this.refresh();
   },
-  setCupKind(e) { this.setData({ cupKind: e.currentTarget.dataset.v }); this.fitCup(e.currentTarget.dataset.v); },
+  setCupKind(e) { this.setData({ cupKind: e.currentTarget.dataset.v }); this.refresh(); },
   setCupPointGroup(e) {
     const group = C.pointGroupOf(this.data.cupKind, e.currentTarget.dataset.v);
     if (group) this.changed({ cupPointGroup: group });
-  },
-  fitCup(kind) {
-    if ((kind === 'weekly' || kind === 'monthly') && C.drawCupError(this.data, kind)) this.changed({ mode: 'bracket', size: C.DRAW_SIZE });
-    else if (C.drawCupError(this.data, kind)) this.changed({ mode: 'bracket' });
-    else this.refresh();
   },
   checkCup() {
     const { cupOn, cupKind } = this.data;

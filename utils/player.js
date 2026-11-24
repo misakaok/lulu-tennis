@@ -98,35 +98,6 @@ function partnersView(matches, key, name) {
   return { list: all.slice(0, PARTNER_ROWS), total: all.length, best, min: PARTNER_MIN };
 }
 
-// 赛季总结（pages/summary）：某个赛季（自然年，或 'all' = 生涯）的一页汇总。
-// 场数、胜负、连胜、冠军都直接用 career()，只是先按赛季筛选比赛，和排行榜、球员主页同一个口径
-function seasonSummary(matches, key, name, season, history) {
-  const ms = SE.inSeason(matches || [], season);
-  const hs = (history || []).filter((h) => !season || season === SE.ALL || String(h.date || '').slice(0, 4) === season);
-  const c = CA.career(ms, key, name, hs);
-  const months = [];
-  for (let i = 1; i <= 12; i++) months.push({ m: i, n: 0 });
-  ms.filter((m) => isNormal(m) && sideOf(m, key, name)).forEach((m) => { const i = Number(String(m.date || '').slice(5, 7)); if (i >= 1 && i <= 12) months[i - 1].n++; });
-  const top = Math.max.apply(null, months.map((x) => x.n));
-  months.forEach((x) => { x.h = top ? Math.round((x.n / top) * 100) : 0; });
-  const busy = top ? months.filter((x) => x.n === top)[0] : null;
-  const from = hs.length ? hs[0].level - hs[0].delta : null, to = hs.length ? hs[hs.length - 1].level : null;
-  const pv = partnersView(ms, key, name);
-  return {
-    season, label: SE.label(season), has: c.played > 0,
-    played: c.played, win: c.win, lose: c.lose, rate: c.rate + '%',
-    single: `${c.single.win}胜 ${c.single.played - c.single.win}负`, double: `${c.double.win}胜 ${c.double.played - c.double.win}负`,
-    singlePlayed: c.single.played, doublePlayed: c.double.played,
-    bestStreak: c.bestStreak, events: c.events, finals: c.finals, titles: c.titles.map((t) => ({ title: t.title, date: t.date })),
-    bagels: c.bagels, comebacks: c.comebacks,
-    rival: c.rival ? `${c.rival.name}（${c.rival.played} 场，${c.rival.win} 胜 ${c.rival.lose} 负）` : '',
-    partner: pv && pv.best ? `${pv.best.name}（${pv.best.played} 场，胜率 ${pv.best.rate}%）` : '',
-    partnerMost: pv ? `${pv.list[0].name}（${pv.list[0].played} 场）` : '',
-    level: from === null ? null : { from: R.fmt(from), to: R.fmt(to), delta: R.fmtDelta(Math.round((to - from) * 100) / 100), up: to > from, down: to < from, peak: c.peak === null ? '' : R.fmt(c.peak) },
-    months, busy: busy ? `${busy.m} 月（${busy.n} 场）` : '',
-  };
-}
-
 /**
  * profiles: { uid: 本人资料 }（db.cachedProfiles）；players: db.fetchPlayersFull；matches: 正式战绩
  * 返回 { profile, ambiguous, level, stats, rows, career }，没有这个人时 profile 为 null
@@ -142,6 +113,9 @@ function careerView(matches, uid, name, history, pre) {
   if (c.first) lines.push({ k: '首场比赛', v: c.first });
   return {
     has: c.played > 0 || c.finals > 0,
+    // 原始数字（成长档案的正式战绩摘要用；和 computeRank 同一口径）
+    played: c.played, win: c.win, lose: c.lose, rate: c.rate,
+    single: { played: c.single.played, win: c.single.win }, double: { played: c.double.played, win: c.double.win },
     // 3 × 2 的数字格；cls 给格子画分隔线（bl 左边线、bt 上边线），拿过冠军的格子高亮（hot）
     cells: [
       { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '最后一轮' }, { n: String(c.events), l: '参加活动' },
@@ -216,4 +190,4 @@ function playerView(profiles, players, matches, uid) {
   };
 }
 
-module.exports = { playerView, matchRow, sideOf, careerView, trendView, h2hView, partnersView, relationsView, seasonSummary, NONE };
+module.exports = { playerView, matchRow, sideOf, careerView, trendView, h2hView, partnersView, relationsView, NONE };

@@ -33,7 +33,9 @@ Component({
         this.myId = myId || '';
         const years = C.years(this.list);
         const y = years.indexOf(this.data.year) >= 0 ? this.data.year : years[0] || C.thisYear();
-        this.setData({ admin: !!(r && r.admin) || member.isAdminLocal(), years, year: y, error: '' });
+        // 云端明确给了 admin（true / false）就以云端为准：管理员被撤销后按钮马上收起；旧版云函数没带这个字段才看本机记的身份
+        const admin = r && typeof r.admin === 'boolean' ? r.admin : member.isAdminLocal();
+        this.setData({ admin, years, year: y, error: '' });
         this.render();
       } catch (e) {
         if (seq !== this.seq) return;

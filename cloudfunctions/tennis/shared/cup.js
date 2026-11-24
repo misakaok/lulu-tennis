@@ -253,9 +253,9 @@ function latestOf(stops, uid) {
 
 /* ---------- 积分活动（2026-11-23 用户要求：创建 LULU 积分活动 → 完赛后结算） ---------- */
 // draws.cup = { kind, pointGroup? }：管理员创建活动时设定，组别在活动发布后固定。
-// 周赛、月赛沿用 8 签；其他积分活动要有最后一轮，名次才能从对阵推出来。
+// 所有积分类别（含周赛、月赛，2026-11-24 用户要求放开）都由管理员选形式：循环＋淘汰（各组前几名进入淘汰阶段）或单淘汰（签数按实际人数选），
+// 要有最后一轮，名次才能从对阵推出来；只有分组循环、四人轮换不行。创建、报名中改规则、更正积分类别都用 drawCupError 这一套。
 // 单打 / 双打跟着活动走。结算仍是补录页那一套：预填名次 → 管理员核对 → 发布（cupSave，一个活动只对应一站）
-const DRAW_SIZE = 8;
 function drawCupOf(d) {
   const cup = d && d.cup;
   if (!cup || !kindText(cup.kind)) return null;
@@ -276,13 +276,11 @@ const drawCupText = (d) => {
 function drawCupError(s, kind) {
   s = s || {};
   if (!kindText(kind)) return '请选择有效积分类别';
-  if (kind === 'weekly' || kind === 'monthly') return s.mode === 'bracket' && Number(s.size) === DRAW_SIZE ? '' : `${kindText(kind)}要用单淘汰 ${DRAW_SIZE} 签`;
-  return s.mode === 'bracket' || s.mode === 'groups_ko' ? '' : `${kindText(kind)}要有最后一轮（单淘汰或循环＋淘汰）`;
+  return s.mode === 'bracket' || s.mode === 'groups_ko' ? '' : `${kindText(kind)}要有最后一轮，请把活动形式改成「循环＋淘汰」或「单淘汰」`;
 }
 const drawCupNote = (kind) => {
-  const mode = kind === 'weekly' || kind === 'monthly' ? `单淘汰 ${DRAW_SIZE} 签` : '单淘汰或循环＋淘汰';
   const bonus = eventBonusOf(kind);
-  return `${kindText(kind)}：${mode}${bonus ? ` · 每人每站额外加 ${bonus} 分` : ''} · 结束后由管理员结算`;
+  return `${kindText(kind)}：循环＋淘汰或单淘汰${bonus ? ` · 每人每站额外加 ${bonus} 分` : ''} · 名次从淘汰阶段带入，结束后由管理员结算`;
 };
 
 /**
@@ -330,7 +328,7 @@ function fromDraw(d, matches, uidOf) {
       out.places.semis.push(take(m.a.win ? m.b.name : m.a.name));
     });
     if (out.places.semis.length < MAX_SEMI) notes.push(`4 强那一轮有轮空，四强只带入 ${out.places.semis.length} 个`);
-  }
+  } else if (fin) notes.push('淘汰阶段没有 4 强那一轮，四强请按实际结果选择（没有可以留空）');
   const wd = E.withdrawalsOf(d);
   if (hasFloor(c.kind, c.pointGroup, c.scoreVersion)) {
     const played = new Set();
@@ -376,5 +374,5 @@ module.exports = {
   KINDS, ACTIVE_KINDS, SCORE_VERSION, FORMATS, TIERS, POINTS, POINT_GROUPS, BOARDS, MAX_SEMI, MAX_FLOOR, kindsForVersion,
   usesPointGroup, pointGroupOf, pointGroupText, pointsOf, stopKindText, eventBonusOf,
   kindText, formatText, tierText, sizeOf, hasFloor, teamKey, cleanStop, results, boardOfStop, board, years, mine, myYears, latestOf, pointsText, basePointsText, numText, thisYear,
-  DRAW_SIZE, drawCupOf, drawCupText, drawCupError, drawCupNote, fromDraw, placesDiffer,
+  drawCupOf, drawCupText, drawCupError, drawCupNote, fromDraw, placesDiffer,
 };

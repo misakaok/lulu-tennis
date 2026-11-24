@@ -141,17 +141,6 @@ test('搭档统计：按搭档累计场数和胜率；最佳搭档从打满 3 �
   assert.strictEqual(pv.best.name, 'Cat'); // Dan 只打了 1 场，不参选
   assert.strictEqual(PV.partnersView(ms, 'eli', 'Eli').best, null);
   assert.strictEqual(PV.partnersView(ID.normalizeMatches([raw[8]], players), 'ann', 'Ann'), null);
-  // 赛季总结：和 computeRank 同一个口径
-  const hist = R.computeRatings(ms, R.startLevelsFrom(players)).players.ann.history;
-  const s = PV.seasonSummary(ms, 'ann', 'Ann', '2026', hist);
-  const rk = computeRank(ms, 'all').find((x) => x.key === 'ann');
-  assert.deepStrictEqual([s.played, s.win, s.lose], [rk.played, rk.win, rk.lose]);
-  assert.strictEqual(s.months[2].n, 4); assert.strictEqual(s.months[3].n, 3); assert.strictEqual(s.months[4].n, 2);
-  assert.strictEqual(s.busy, '3 月（4 场）');
-  assert.ok(/^Cat/.test(s.partner) && /^Bob/.test(s.partnerMost));
-  assert.strictEqual(s.level.to, R.fmt(hist[hist.length - 1].level));
-  assert.strictEqual(s.level.from, R.fmt(hist[0].level - hist[0].delta));
-  assert.ok(!PV.seasonSummary(ms, 'ann', 'Ann', '2025', hist).has);
 });
 test('趣味榜单：本月活跃、当前连胜、本月进步；只算正常完赛，按单双打筛选', () => {
   const players = [{ name: 'Ann', uid: 'ann', self: true, level: 3 }, { name: 'Bob', uid: 'bob', self: true, level: 3 }, { name: 'Cat', uid: 'cat', self: true, level: 3 }];

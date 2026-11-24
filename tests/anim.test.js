@@ -3,8 +3,9 @@ const assert = require('assert');
 const Anim = require('../utils/anim');
 
 const T = [];
-const test = (name, fn) => T.push({ name, fn });
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const clock = require('./fake-clock')(); // 虚拟时间：动画照常一帧帧走，不用真的等它放完
+const test = (name, fn) => T.push({ name, fn: () => clock.run(fn) });
+const wait = clock.wait;
 // 模拟页面：setData 支持 'a.b' 路径
 const page = (data) => ({
   data, frames: 0,

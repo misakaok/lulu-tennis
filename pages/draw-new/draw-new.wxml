@@ -56,7 +56,7 @@
       </view>
       <view class="muted small">{{koInfo}}</view>
     </view>
-    <!-- LULU 积分（默认不计）：开启后选类别；周赛、月赛固定单淘汰 8 签 -->
+    <!-- LULU 积分（默认不计）：开启后选类别；活动形式由管理员选（循环＋淘汰或单淘汰），开启 / 换类别不改已选的形式 -->
     <view wx:if="{{!fromSignup && !editingSettings && mode !== 'rotation'}}" class="field">
       <text class="label">计入 LULU 积分</text>
       <view class="seg">
@@ -247,16 +247,21 @@
 
   <block wx:else>
     <!-- 开放报名时先加入的球友（可选）：已经确定参加的，创建后由管理员代报名，其余名额照常开放 -->
-    <view class="card">
-      <view class="card-title row">
-        <text>先加入的球友<text class="sub">可选，其余名额开放报名</text></text>
+    <!-- 选填项：不用大号卡片标题，做成和表单项一样大小的一行（2026-11-24 用户嫌标题太大） -->
+    <view class="card pre-card">
+      <view class="pre-head">
+        <view class="pre-t">
+          <view class="pre-h">先加入的球友<text class="pre-opt">{{pre.length ? '已选 ' + pre.length + (type === 'double' && mode !== 'rotation' ? ' 队' : ' 人') : '选填'}}</text></view>
+          <view class="pre-d">{{pre.length ? '创建后按顺序加进报名名单，其余名额开放报名' : '已确定参加的可以先加上，创建后在活动详情里也能加'}}</view>
+        </view>
         <view class="btn-line mini" hover-class="tap-on" bindtap="openPre">＋ 添加</view>
       </view>
-      <view wx:if="{{!pre.length}}" class="muted small">已经确定参加的可以先加进报名名单（会留档）；不加也行，创建后在活动详情里也能加</view>
+      <view wx:if="{{pre.length}}" class="pre-list">
       <view wx:for="{{pre}}" wx:key="key" class="pre-row">
         <text class="pre-no">{{index + 1}}</text>
         <text class="pre-n">{{type === 'double' && mode !== 'rotation' ? item.text : item.names}}</text>
         <text class="pre-x" data-i="{{index}}" bindtap="removePre">✕</text>
+      </view>
       </view>
     </view>
     <member-sheet wx:if="{{preSheet}}" title="{{preSheet.title}}" sub="{{preSheet.sub}}" list="{{preSheet.list}}" extra="{{preSheet.extra}}" bind:pick="prePick" bind:extra="preSolo" bind:close="closePre" />

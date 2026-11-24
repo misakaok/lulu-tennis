@@ -103,19 +103,6 @@ Page({
   },
   goProfile() { wx.navigateTo({ url: '/pages/profile/profile' }); },
 
-  // 从「挑战」页过来时，自动填好对手（只填已注册球员）
-  applyPrefill() {
-    let pre = null;
-    try { pre = wx.getStorageSync('prefill_match'); wx.removeStorageSync('prefill_match'); } catch (e) {}
-    if (!pre || !pre.b) return;
-    const ok = (n) => (n && this.players.indexOf(n) >= 0 ? n : '');
-    this.setData({ type: pre.b.length > 1 ? 'double' : 'single' });
-    this.slots = { a: [this.slots.a[0], ok((pre.a || [])[1])], b: [ok(pre.b[0]), ok(pre.b[1])] };
-    this.active = this.order().find((k) => !this.slots[k[0]][+k[1]]) || null;
-    this.resetSets();
-    this.refresh();
-  },
-
   resetSets() { const c = this.selectComponent('#sets'); if (c) c.reset(); },
   // 局分组件每次修改都会把校验结果传过来
   onSets(e) { this.res = e.detail; this.refresh(); },

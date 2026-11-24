@@ -14,8 +14,18 @@ function rankOrder(list) {
 //   只在同意公开展示的账号里排，没同意的 / 没有账号的旧名字是 0（界面显示「未公开」）。
 //   界面上显示名次一律用 boardRank（球员卡、报名名单、战绩页我的卡片）。
 //   profiles（db.profilesOf(players)，按用户 ID）可选：不传时用 players 里的 uid / shown
+//   同一组（比赛、球员、资料）数组引用只算一次（见 R.ratingsOf），结果共享、只读
+const statsMemo = new WeakMap();
 function playerStats(matches, players, profiles) {
-  const ratings = R.computeRatings(matches || [], R.startLevelsFrom(players || []));
+  if (!matches || !players) return computeStats(matches, players, profiles);
+  const c = statsMemo.get(matches);
+  if (c && c.p === players && c.pf === profiles && c.mn === matches.length && c.pn === players.length) return c.r;
+  const r = computeStats(matches, players, profiles);
+  statsMemo.set(matches, { p: players, pf: profiles, mn: matches.length, pn: players.length, r });
+  return r;
+}
+function computeStats(matches, players, profiles) {
+  const ratings = R.ratingsOf(matches || [], players || []);
   const rows = computeRank(matches || [], 'all').map((p) => {
     const r = ratings.players[p.key];
     return Object.assign(p, { level: r ? r.level : R.DEFAULT_LEVEL, provisional: !r || r.provisional });

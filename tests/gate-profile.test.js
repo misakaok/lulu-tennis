@@ -7,7 +7,10 @@ const { createRequire } = require('module');
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
 const plain = (v) => JSON.parse(JSON.stringify(v));
-const tick = (ms) => new Promise((r) => setTimeout(r, ms || 0));
+// 虚拟时间（tests/fake-clock.js）：保存后延时返回等不用真的等；页面上下文里的 setTimeout 也用它
+const clock = require('./fake-clock')();
+const { setTimeout, clearTimeout } = clock;
+const tick = (ms) => clock.wait(ms || 0);
 
 function load(file, wx, deps, globals) {
   const filename = path.resolve(__dirname, '..', file);
