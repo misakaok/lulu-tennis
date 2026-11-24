@@ -206,6 +206,15 @@ T.push({ name: '界面：卡片里带分隔线的列表行，第一行上面不�
   assert.deepStrictEqual(firstOfType, []);
 } });
 
+T.push({ name: '只有活动首页能分享：战绩、排行、球拍、我的这 4 个 tab 页不能转发、不能分享到朋友圈（配置关掉、onLoad 隐藏菜单、没有分享处理函数）', fn() {
+  for (const n of ['index', 'rank', 'racket', 'me']) {
+    const cfg = JSON.parse(fs.readFileSync(path.join(root, `pages/${n}/${n}.json`), 'utf8'));
+    const js = fs.readFileSync(path.join(root, `pages/${n}/${n}.js`), 'utf8');
+    assert.strictEqual(cfg.enableShareAppMessage, false, n); assert.strictEqual(cfg.enableShareTimeline, false, n);
+    assert.ok(/wx\.hideShareMenu\(/.test(js) && !/onShareAppMessage|onShareTimeline/.test(js), n);
+  }
+} });
+
 module.exports = T;
 
 T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {

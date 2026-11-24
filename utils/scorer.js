@@ -219,6 +219,11 @@ function takePending(drawId, key) {
   return p.id;
 }
 
+// 日常比赛：从「记一场」页进来的，「带入日常录分」时退回那一页预填（不叠一层新的录分页），只在内存里带 id 和自己在哪一方
+let dailyPending = null;
+function setDailyPending(id, side) { dailyPending = id ? { id, side: side === 'b' ? 'b' : 'a' } : null; }
+function takeDailyPending() { const p = dailyPending; dailyPending = null; return p; }
+
 // 活动场次双方的名字：由录分页打开记分器时放在内存里（不写进草稿，草稿里没有姓名）；小程序重开后没有就显示 A 方 / B 方
 const labels = {};
 const evKey = (e) => e.drawId + '/' + e.key;
@@ -230,5 +235,5 @@ function labelsOf(ev) { const e = evOf(ev); return (e && labels[evKey(e)]) || nu
 
 module.exports = {
   DRAFT_KEY, cfgOf, replay, callOf, resultOf, flipSets, handoff, start, addPoint, undo, view, setText,
-  restore, loadDraft, saveDraft, clearDraft, evOf, sameEv, sameCfg, setPending, takePending, setLabels, labelsOf,
+  restore, loadDraft, saveDraft, clearDraft, evOf, sameEv, sameCfg, setPending, takePending, setDailyPending, takeDailyPending, setLabels, labelsOf,
 };

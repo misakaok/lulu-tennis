@@ -132,7 +132,7 @@
   <view wx:if="{{view.career.has}}" class="card cr">
     <view class="cr-head">
       <text class="cr-title">生涯成就</text>
-      <text class="cr-cnt">徽章 <text class="b">{{view.career.got}}</text> / {{view.career.total}}</text>
+      <view class="cr-cnt"><text class="l">徽章</text><text class="b">{{view.career.got}}</text><text class="t">/ {{view.career.total}}</text></view>
     </view>
     <view class="cr-prog"><view class="cr-prog-in ani-grow-x" style="width:{{view.career.pct}}%"></view></view>
 
@@ -166,7 +166,7 @@
   <view wx:if="{{mine && loaded && !view.career.has}}" class="card cr">
     <view class="cr-head">
       <text class="cr-title">生涯成就</text>
-      <text class="cr-cnt">徽章 <text class="b">0</text> / {{view.career.total}}</text>
+      <view class="cr-cnt"><text class="l">徽章</text><text class="b">0</text><text class="t">/ {{view.career.total}}</text></view>
     </view>
     <view class="cr-tip">打完第一场正式比赛，就能拿到「初登场」</view>
     <view class="bd-grid cr-first">

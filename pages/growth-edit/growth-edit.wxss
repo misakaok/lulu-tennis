@@ -6,6 +6,12 @@
 .arrow { color: #A5A5BA; margin-left: 6rpx; }
 .field { margin-top: 24rpx; }
 .field .label { display: block; margin-bottom: 14rpx; }
+.points-row { display: flex; gap: 24rpx; }
+.points-cell { flex: 1; text-align: center; font-size: 24rpx; color: #5C5C76; }
+.points-input {
+  margin-top: 8rpx; height: 76rpx; border-radius: 14rpx; background: #F4F4F9;
+  color: #4F4F7D; font-size: 34rpx; font-weight: 700; text-align: center;
+}
 .result { margin-top: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #F7F7FB; color: #8686A0; font-size: 26rpx; text-align: center; }
 .result:empty { display: none; }
 .result.win { background: #C9E33A; color: #2E3600; font-weight: 700; }

@@ -15,16 +15,11 @@ const PREVIEW = { none: 1, pending: 1, rejected: 1, removed: 1 };
 function previewOf(o) {
   try { return wx.getAccountInfoSync().miniProgram.envVersion === 'develop' && PREVIEW[o.preview] ? o.preview : ''; } catch (e) { return ''; }
 }
-function descOf(status, mode, invite) {
-  if (status === 'active') return '欢迎回来！';
-  if (mode === 'wait') return '管理员审核通过后就能使用，可以下拉刷新查看最新状态。有邀请码可以直接加入，不用等审核。';
-  if (mode === 'apply') return status === 'none' ? '没有邀请码也可以提交加入申请，管理员审核通过后就能使用。' : '可以重新提交申请，管理员审核通过后就能使用。';
-  const head = status === 'removed' ? '你已不能查看和使用内部数据。' : (status === 'rejected' ? '如有疑问可以联系管理员。' : '');
-  return head + (invite ? '你收到了球友邀请，填写昵称就能直接加入。' : '填写管理员给的邀请码和你的昵称，就能直接加入。');
-}
+// 标题下的说明：2026-11-23 用户要求精简，邀请码、申请、等待审核、被拒绝、被移除都不写说明（标题和输入框已经说明），也不显示拒绝 / 移除原因
+function descOf(status) { return status === 'active' ? '欢迎回来！' : ''; }
 
 Page({
-  data: { loading: true, status: 'none', title: '', desc: '', reason: '', invite: '', mode: '', code: '', name: '', busy: false, myId: '', myIdTail: '' },
+  data: { loading: true, status: 'none', title: '', desc: '', invite: '', mode: '', code: '', name: '', busy: false, myId: '', myIdTail: '' },
   onLoad(o) {
     this.preview = previewOf(o);
     this.setData({ invite: o.invite || '' });
@@ -35,12 +30,12 @@ Page({
     this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
     try {
-      const r = this.preview ? { status: this.preview, reason: '', name: '', uid: '' } : await member.status();
+      const r = this.preview ? { status: this.preview, name: '', uid: '' } : await member.status();
       this.hasProfile = !!r.hasProfile;
       const status = TITLE[r.status] ? r.status : 'none';
       // 第一次加载（或状态变了）时选默认方式：有邀请链接或没申请过 → 邀请码；已申请 → 等审核。用户自己切换过的保留
       const mode = this.data.mode && this.data.status === status ? this.data.mode : (status === 'pending' && !this.data.invite ? 'wait' : 'code');
-      this.setData({ loading: false, status, mode, title: TITLE[status], desc: descOf(status, mode, this.data.invite), reason: r.reason || '', name: this.data.name || r.name || '', myId: r.uid || '', myIdTail: String(r.uid || '').slice(-6) });
+      this.setData({ loading: false, status, mode, title: TITLE[status], desc: descOf(status), name: this.data.name || r.name || '', myId: r.uid || '', myIdTail: String(r.uid || '').slice(-6) });
     } catch (e) {
       this.setData({ loading: false, mode: this.data.mode || 'code', title: '网络异常', desc: e.message || '请稍后下拉刷新' });
     }
@@ -54,7 +49,7 @@ Page({
   onName(e) { this.setData({ name: e.detail.value }); },
   // 手动输入邀请码：没有邀请链接时（例如管理员口头或文字给的邀请码）也能加入；校验和链接进来的一样，都在云函数 acceptInvite
   onCode(e) { this.setData({ code: e.detail.value }); },
-  switchMode(e) { const mode = e.currentTarget.dataset.mode; this.setData({ mode, desc: descOf(this.data.status, mode, this.data.invite) }); },
+  switchMode(e) { const mode = e.currentTarget.dataset.mode; this.setData({ mode }); },
   async apply() {
     if (this.data.busy) return;
     if (this.preview) { wx.showToast({ title: '预览模式，不会提交', icon: 'none' }); return; }

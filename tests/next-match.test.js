@@ -161,7 +161,7 @@ function homePage(state) {
   const p = load('pages/draw/draw.js', { showToast() {}, navigateTo(o) { state.nav = o.url; }, stopPullDownRefresh() {} }, {
     '../../utils/member': { statusCached: async () => ({ status: 'active', isAdmin: false }) },
     '../../utils/db': {
-      cachedDraws: () => [], cachedMatches: () => state.cachedMatches || [], withoutRemoved: (x) => x,
+      cachedDraws: () => [], cachedMatches: () => state.cachedMatches || [], withoutRemoved: (x) => x, recentRemoved: () => null,
       drawsShared: fail('draws', () => state.draws), matchesShared: fail('matches', () => state.matches),
       myOpenid: fail('me', () => 'me'), fetchMySignups: fail('signups', () => state.signups || []),
     },

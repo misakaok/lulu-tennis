@@ -382,6 +382,12 @@ test('删除活动：返回列表先去掉刚删的活动；只重新读活动�
   assert.strictEqual(c.calls(), n, '战绩、球员不用重新拉');
   assert.ok(!(await c.db.drawsShared()).some((d) => d._id === 'd1'), '活动列表重新读取');
   assert.ok(c.calls() > n);
+  // 撤回删除：首页提示条的数据、撤回后列表重新出现、提示条消失
+  assert.strictEqual(c.db.recentRemoved().id, 'd1');
+  await c.db.restoreDraw('d1');
+  assert.strictEqual(c.db.recentRemoved(), null);
+  assert.strictEqual(c.db.withoutRemoved(draws), draws, '撤回后不再从列表里去掉');
+  assert.ok((await c.db.drawsShared()).some((d) => d._id === 'd1'), '撤回后活动列表重新读到');
 });
 test('新增只读接口不清缓存；cached 拒绝写操作，避免把写入结果缓存', async () => {
   const env = createEnv(); env.load(); seed(env);

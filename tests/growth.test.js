@@ -98,6 +98,27 @@ test('云函数：不是正式成员不能使用成长档案；私人记录不�
   assert.strictEqual(Object.keys(env.coll('matches')).length, 0);
 });
 
+test('抢11分练习赛（先到 11 分直接赢）：校验完赛比分、保存读取、改记按局时清除旧的计分标记', async () => {
+  const env = setup();
+  const record = rec({ type: 'double', points11: true, sets: [{ a: 11, b: 9 }] });
+  const id = ok(await env.call('alice', 'growthSave', { record })).id;
+  let saved = ok(await env.call('alice', 'growthList')).list[0];
+  assert.deepStrictEqual([saved.id, saved.points11, saved.type, saved.result, G.scoreText(saved)], [id, true, 'double', 'win', '11-9']);
+  for (const sets of [[{ a: 11, b: 11 }], [{ a: 12, b: 10 }], [{ a: 13, b: 11 }], [{ a: 12, b: 9 }], [{ a: 9, b: 7 }], [{ a: '11', b: 8 }], [{ a: 11, b: 8 }, { a: 11, b: 9 }]]) {
+    no(await env.call('alice', 'growthSave', { id, record: { ...record, sets } }));
+  }
+  no(await env.call('alice', 'growthSave', { id, record: { ...record, kind: 'formal' } }), /只用于练习赛/);
+  ok(await env.call('alice', 'growthSave', { id, record: { ...record, sets: [{ a: 11, b: 10 }] } }));
+  saved = ok(await env.call('alice', 'growthList')).list[0];
+  assert.deepStrictEqual([saved.result, G.scoreText(saved)], ['win', '11-10']);
+  ok(await env.call('alice', 'growthSave', { id, record: { ...record, sets: [{ a: 10, b: 11 }] } }));
+  saved = ok(await env.call('alice', 'growthList')).list[0];
+  assert.deepStrictEqual([saved.result, G.scoreText(saved)], ['lose', '10-11']);
+  ok(await env.call('alice', 'growthSave', { id, record: rec() }));
+  saved = ok(await env.call('alice', 'growthList')).list[0];
+  assert.deepStrictEqual([saved.points11, saved.result, G.scoreText(saved)], [undefined, 'win', '4-2']);
+});
+
 test('页面：成长档案和编辑页不能分享、没有文字输入，只经 utils/archive.js 读写', () => {
   const fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
   for (const p of ['pages/growth/growth', 'pages/growth-edit/growth-edit']) {
@@ -106,7 +127,8 @@ test('页面：成长档案和编辑页不能分享、没有文字输入，只�
     const cfg = JSON.parse(fs.readFileSync(path.join(root, p + '.json'), 'utf8'));
     assert.ok(!/onShareAppMessage|onShareTimeline/.test(js) && /wx\.hideShareMenu\(\)/.test(js), p);
     assert.strictEqual(cfg.enableShareAppMessage, false); assert.strictEqual(cfg.enableShareTimeline, false);
-    assert.ok(!/<input\b|<textarea\b/.test(xml), p + ' 不能有文字输入');
+    const inputs = xml.match(/<input\b[^>]*>/g) || [];
+    assert.ok(!/<textarea\b/.test(xml) && inputs.every((tag) => /\btype="number"/.test(tag)), p + ' 只允许数字输入');
     assert.ok(!/wx\.cloud\.database|getStorageSync\(['"]growth_list/.test(js), p);
   }
   const cloud = fs.readFileSync(path.join(root, 'utils/cloud.js'), 'utf8');

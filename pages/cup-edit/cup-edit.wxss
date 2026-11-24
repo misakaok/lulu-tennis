@@ -29,3 +29,5 @@
 .ce-a { flex: 1; }
 .ce-a + .ce-a { margin-left: 20rpx; }
 .ce-del { margin: 0 0 48rpx; }
+.seg.locked { opacity: 0.6; } /* 从活动结算：类别、单打 / 双打跟活动走 */
+.cup-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }

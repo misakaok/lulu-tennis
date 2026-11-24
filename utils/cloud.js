@@ -27,12 +27,15 @@ async function call(action, data) {
 const READ_ONLY = {
   memberStatus: 1, ping: 1, matchState: 1,
   drawRequests: 1, listMembers: 1, auditSignups: 1, dataset: 1, drawDetail: 1, mySignups: 1,
-  myPhoto: 1, photoUrls: 1, growthList: 1, racketList: 1, cupList: 1,
+  myPhoto: 1, photoUrls: 1, growthList: 1, racketList: 1, cupList: 1, cupFromDraw: 1,
 };
 const GW_WRITE_OPS = { add: 1, update: 1, remove: 1 };
 // 明确只改动这些集合的写操作：只作废相关缓存（ANY 的只读结果照样作废），战绩、球员不用重新拉
 const WRITES = {
+  updateDrawSettings: ['draws', 'requests'],
+  updateDrawCupKind: ['draws', 'requests'],
   removeDraw: ['draws', 'signups', 'requests'], // 软删除活动、作废申请；比分照常保留在战绩里
+  restoreDraw: ['draws', 'signups', 'requests'], // 撤回删除：活动和被作废的申请恢复
 };
 function invalidateAfter(action, data) {
   const memo = require('./memo');

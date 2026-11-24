@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "LULU网球",
   "enablePullDownRefresh": true,
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false,
   "usingComponents": {
     "player-home": "/components/player-home/player-home"
   }

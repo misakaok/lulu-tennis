@@ -74,5 +74,4 @@
 /* 场边记分 + 记一场：浮在右下角 */
 .fabs { position: fixed; right: 32rpx; bottom: 40rpx; z-index: 10; display: flex; align-items: center; }
 .fab { height: 100rpx; padding: 0 40rpx; border-radius: 50rpx; display: flex; align-items: center; color: #fff; font-size: 30rpx; font-weight: 700; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 14rpx 32rpx rgba(133, 133, 184, 0.4); }
-.fab-alt { height: 100rpx; box-sizing: border-box; margin-right: 18rpx; padding: 0 32rpx; border-radius: 50rpx; display: flex; align-items: center; color: #6E6EA3; font-size: 28rpx; font-weight: 700; background: #fff; border: 3rpx solid #B9B9DA; box-shadow: 0 10rpx 24rpx rgba(133, 133, 184, 0.22); }
 .fab-p { margin-right: 8rpx; font-size: 36rpx; font-weight: 800; }

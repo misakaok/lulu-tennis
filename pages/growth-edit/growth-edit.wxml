@@ -22,16 +22,35 @@
         <view class="seg-item {{kind === 'formal' ? 'on' : ''}}" data-v="formal" bindtap="setKind">正式比赛</view>
       </view>
     </view>
+    <view wx:if="{{kind === 'practice'}}" class="field">
+      <text class="label">计分方式</text>
+      <view class="seg">
+        <view class="seg-item {{!points11 ? 'on' : ''}}" data-v="games" bindtap="setPointsMode">按局</view>
+        <view class="seg-item {{points11 ? 'on' : ''}}" data-v="points" bindtap="setPointsMode">抢11分</view>
+      </view>
+    </view>
   </view>
 
-  <view class="card">
+  <view class="card" hidden="{{points11}}">
     <view class="card-title">规则</view>
     <rule-picker value="{{rule}}" bind:change="onRule" />
   </view>
 
   <view class="card">
-    <view class="card-title">比分<text class="sub">左边是我（双打就是我方）</text></view>
-    <score-sets id="sets" set-games="{{rule.setGames}}" no-ad="{{rule.noAd}}" best-of="{{rule.bestOf}}" a-label="我" b-label="对手" init="{{init}}" bind:change="onSets" />
+    <view class="card-title">比分<text class="sub">{{points11 ? '抢11分：先到 11 分直接获胜' : '左边是我（双打就是我方）'}}</text></view>
+    <view hidden="{{points11}}">
+      <score-sets id="sets" set-games="{{rule.setGames}}" no-ad="{{rule.noAd}}" best-of="{{rule.bestOf}}" a-label="我" b-label="对手" init="{{init}}" bind:change="onSets" />
+    </view>
+    <view wx:if="{{points11}}" class="points-row">
+      <view class="points-cell">
+        <text>我方</text>
+        <input class="points-input" type="number" placeholder="分数" value="{{points.a}}" data-side="a" bindinput="onPoints" />
+      </view>
+      <view class="points-cell">
+        <text>对方</text>
+        <input class="points-input" type="number" placeholder="分数" value="{{points.b}}" data-side="b" bindinput="onPoints" />
+      </view>
+    </view>
     <view class="result {{check.ok ? (check.win ? 'win' : 'lose') : ''}}">{{check.msg}}</view>
   </view>
 

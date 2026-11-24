@@ -1,0 +1,21 @@
+/* 我的 LULU 积分：年份胶囊 → 单打 / 双打 / 遭遇赛 → 总分大字 → 每站明细（行之间分隔线） */
+.cm-years { display: flex; flex-wrap: wrap; margin-bottom: 16rpx; }
+.cm-year { margin: 0 14rpx 10rpx 0; padding: 6rpx 22rpx; border-radius: 999rpx; font-size: 24rpx; color: #6E6EA3; background: #EFEFF6; }
+.cm-year.on { color: #fff; background: #6E6EA3; font-weight: 700; }
+.cm-seg { margin-bottom: 20rpx; }
+.cm-sum { display: flex; flex-direction: column; align-items: center; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); }
+.cm-sum-l { font-size: 24rpx; opacity: 0.92; }
+.cm-sum-n { margin-top: 6rpx; font-size: 76rpx; line-height: 1.1; font-weight: 900; font-variant-numeric: tabular-nums; }
+.cm-sum-s { margin-top: 6rpx; font-size: 22rpx; opacity: 0.9; }
+.cm-hint { margin: -4rpx 4rpx 20rpx; font-size: 22rpx; line-height: 1.5; color: #8686A0; }
+.cm-err { font-size: 26rpx; color: #8686A0; text-align: center; }
+.cm-row { padding: 22rpx 0; }
+.cm-row + .cm-row { border-top: 1rpx solid #EEEEF5; }
+.cm-row:first-child { padding-top: 0; }
+.cm-row:last-child { padding-bottom: 0; }
+.cm-top { display: flex; align-items: center; }
+.cm-date { font-size: 28rpx; font-weight: 800; color: #1E1E32; font-variant-numeric: tabular-nums; }
+.cm-kind { flex: 1; min-width: 0; margin: 0 14rpx; font-size: 24rpx; color: #6E6EA3; }
+.cm-total { margin-left: 16rpx; font-size: 32rpx; font-weight: 900; color: #4F4F7D; font-variant-numeric: tabular-nums; }
+.cm-sub { margin-top: 8rpx; font-size: 23rpx; color: #6E6EA3; }
+.cm-pts { margin-top: 8rpx; font-size: 22rpx; color: #8686A0; }

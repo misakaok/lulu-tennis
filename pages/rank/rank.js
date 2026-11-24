@@ -20,6 +20,7 @@ Page({
   },
 
   onLoad() {
+    wx.hideShareMenu({ fail() {} }); // 战绩、排行、我的（带昵称和战绩）不能转发，菜单里不显示转发；只有活动首页能分享
     this.limit = PAGE;
     this.setSource(db.cachedMatches(), db.cachedPlayersFull(), (db.cachedProfile() || {})._openid || '');
     this.render();

@@ -31,6 +31,7 @@ Page({
     this.drawId = options.drawId;
     this.key = options.key;
     this.pendingScorer = options.scorer || ''; // 记分页 redirectTo 过来：加载完再预填
+    this.autoScorer = options.start === 'scorer'; // 从活动详情的「场边记分」进来：加载完直接打开记分器（只打开一次）
     const t = today();
     this.setData({ date: t, today: t });
     this.load();
@@ -63,14 +64,16 @@ Page({
       this.d = d; this.f = f; this.cfg = cfg;
       this.res = { ok: false, msg: '' };
       let revocable = false;
+      const scheduled = (f.slot && f.slot.date) || d.date;
+      let date = scheduled && scheduled <= this.data.today ? scheduled : this.data.date;
       if (f.done && f.recordId) {
         const rec = matches.find((m) => m._id === f.recordId);
-        if (rec && rec.date) this.setData({ date: rec.date });
+        if (rec && rec.date) date = rec.date;
         revocable = owner || (!!rec && !!myId && (rec._openid || rec.recordedBy) === myId); // 只是显示按钮，云函数会再校验
       }
       wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
       this.setData({
-        loading: false, error: '',
+        loading: false, error: '', date,
         title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '', formatText: E.formatText(cfg),
         ruleStage: cfg.stage, ruleText: E.ruleText(cfg), ruleCustom: !!cfg.custom, typeText: cfg.type === 'double' ? '双打' : '单打',
         setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
@@ -88,6 +91,7 @@ Page({
         init: [],
       });
       this.refreshScorer();
+      if (this.autoScorer) { this.autoScorer = false; if (this.data.scorerOk && !this.pendingScorer) this.openScorer(); }
       if (this.pendingScorer) { const id = this.pendingScorer; this.pendingScorer = ''; this.applyScorer(id); }
     } catch (e) {
       console.error(e);

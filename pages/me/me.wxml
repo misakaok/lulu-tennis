@@ -1,6 +1,25 @@
 <view class="page me-page">
   <player-home id="home" uid="{{myId}}" mine />
 
+  <!-- 我的 LULU 积分：今年的单打 / 双打积分 + 最近一站；只有本人看得到（没开公开展示也一样），点进个人明细 -->
+  <view wx:if="{{cup}}" class="card cup" hover-class="tap-on" bindtap="openCup">
+    <view class="hd">
+      <view class="hd-ic"><image class="hd-img" src="/images/art-trophy.png" mode="aspectFit" /></view>
+      <view class="hd-m">
+        <view class="hd-t">我的 LULU 积分</view>
+        <view class="hd-s">{{cup.year}} 年</view>
+      </view>
+      <text class="me-go">›</text>
+    </view>
+    <view wx:if="{{cup.any}}" class="gw-nums">
+      <view class="gn"><text class="gn-n">{{cup.single}}</text><text class="gn-l">单打积分</text></view>
+      <view class="gn"><text class="gn-n">{{cup.double}}</text><text class="gn-l">双打积分</text></view>
+      <view wx:if="{{cup.encounter}}" class="gn"><text class="gn-n">{{cup.encounter}}</text><text class="gn-l">遭遇赛</text></view>
+    </view>
+    <view wx:else class="gw-empty">今年暂无积分</view>
+    <view wx:if="{{cup.last}}" class="cup-last">最近一站 · {{cup.last.date}} {{cup.last.kind}}{{cup.last.format}} · {{cup.last.tier}} <text class="cup-pts">+{{cup.last.total}}</text></view>
+  </view>
+
   <!-- 成长档案：只有自己看得到的私人记录，和正式战绩分开统计 -->
   <view class="card gw" hover-class="tap-on" bindtap="openGrowth">
     <view class="hd">

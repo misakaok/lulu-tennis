@@ -19,7 +19,8 @@ Component({
     rows: [], stops: [], drafts: [], open: '', openStop: '', meHidden: false,
   },
   lifetimes: {
-    attached() { this.ready = true; this.load(); },
+    // 「补录一站」等管理员按钮先按本机记得的身份显示（24 小时内确认过的管理员），不等积分读完；读完按云端结果更正
+    attached() { this.ready = true; if (member.knownActive() && member.isAdminLocal()) this.setData({ admin: true }); this.load(); },
   },
   methods: {
     async load() {
@@ -31,7 +32,7 @@ Component({
         this.prof = db.profilesOf(players || []);
         this.myId = myId || '';
         const years = C.years(this.list);
-        const y = years.indexOf(this.data.year) >= 0 ? this.data.year : years[0] || new Date().getFullYear();
+        const y = years.indexOf(this.data.year) >= 0 ? this.data.year : years[0] || C.thisYear();
         this.setData({ admin: !!(r && r.admin) || member.isAdminLocal(), years, year: y, error: '' });
         this.render();
       } catch (e) {
@@ -53,16 +54,17 @@ Component({
       const all = C.board(list, year, which);
       const rows = all.map((r) => ({
         key: r.key, rank: r.rank, total: r.total, stops: r.stops, champions: r.champions,
+        pointGroup: which !== 'encounter' && r.pointGroup !== 'open' ? C.pointGroupText(r.pointGroup) : '',
         people: this.people(r.ids), mine: r.ids.indexOf(this.myId) >= 0,
         sources: r.sources.map((s, i) => ({
-          i, stopId: s.stopId, date: s.date.slice(5), kind: C.kindText(s.kind), tier: C.tierText(s.tier),
+          i, stopId: s.stopId, date: s.date.slice(5), kind: C.stopKindText(s), tier: C.tierText(s.tier),
           points: C.pointsText(s), total: s.total, bonusText: s.bonusText,
           partner: s.team ? s.team.filter((id) => r.ids.indexOf(id) < 0).map((id) => this.nameOf(id)).join(' / ') : '', // 双打：这一站的搭档
         })),
       }));
       const inBoard = (s) => Number(s.year) === Number(year) && C.boardOfStop(s) === which;
       const stopView = (s) => ({
-        id: s.id, date: s.date, kind: C.kindText(s.kind), format: C.formatText(s.format), draft: s.status !== 'published', fixes: s.fixes || 0,
+        id: s.id, date: s.date, kind: C.stopKindText(s), format: C.formatText(s.format), draft: s.status !== 'published', fixes: s.fixes || 0,
         // 双打一队两条（两人各拿一半）：名字写「Alice（和 Fay 一队）」
         lines: (s.results || []).map((x, i) => ({
           i, tier: C.tierText(x.tier), points: C.pointsText(x), total: x.total, bonusText: x.bonusText || '',

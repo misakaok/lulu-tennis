@@ -3,13 +3,15 @@
   min-height: 300rpx;
   background: #9796C4; /* 图片还没显示出来时的底色，和左边场地颜色接近 */
   color: #fff; padding: 40rpx 36rpx 44rpx; border-radius: 0 0 40rpx 40rpx;
+  /* 文字上下居中：普通球友没有「创建球友活动」按钮，内容矮，不居中会全挤在上面、下面空一截 */
+  display: flex; flex-direction: column; justify-content: center;
 }
 .hero-in { width: 56%; }
 /* 轮播：hero-2 / hero-3 叠在固定的 hero-court 上面。on 淡入、off 淡出；hold = 上一张先垫着（新的一张淡入时不露出底图），gone = 直接藏起来 */
 .hero-slides { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; }
 .hero-slide { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; z-index: 1; }
-.hero-slide.on { opacity: 1; z-index: 2; transition: opacity 0.8s ease; }
-.hero-slide.off { opacity: 0; z-index: 2; transition: opacity 0.8s ease; }
+.hero-slide.on { opacity: 1; z-index: 2; transition: opacity 0.6s ease; }
+.hero-slide.off { opacity: 0; z-index: 2; transition: opacity 0.6s ease; }
 .hero-slide.hold { opacity: 1; z-index: 1; }
 .hero-dots { position: absolute; right: 18rpx; bottom: 10rpx; display: flex; }
 .hero-dot { padding: 14rpx 8rpx; }
@@ -37,9 +39,10 @@
 .d-date.done .d-day { color: #A5A5BA; }
 .d-mw { margin: 4rpx 0 12rpx; font-size: 20rpx; line-height: 1.3; color: #8686A0; white-space: nowrap; }
 .d-date.tbd .d-day { font-size: 28rpx; font-weight: 700; }
-.d-body { flex: 1; min-width: 0; margin-left: 24rpx; display: flex; flex-direction: column; justify-content: center; }
+.d-body { flex: 1; min-width: 0; margin-left: 24rpx; display: flex; flex-direction: column; } /* 从顶部排：名称和状态标签每张卡都和日期块顶端对齐，不随行数上下浮动 */
 .d-top { display: flex; align-items: flex-start; }
-.d-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #1E1E32; word-break: break-all; }
+/* 名称完整显示：第一行放不下就接着在第二行显示（最多 20 个字），英文单词（如 lulu）尽量不从中间断开 */
+.d-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #1E1E32; word-break: normal; overflow-wrap: break-word; }
 .d-status { flex: none; margin: 4rpx 0 0 16rpx; }
 .d-meta { margin-top: 10rpx; font-size: 24rpx; line-height: 1.4; color: #8686A0; word-break: keep-all; } /* 配合不换行空格：只在「 · 」之间换行 */
 .d-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; }
@@ -80,3 +83,12 @@
 .tl-title { margin-top: 20rpx; font-size: 44rpx; font-weight: 900; }
 .tl-sub { margin-top: 6rpx; font-size: 26rpx; opacity: 0.95; }
 .tl-desc { margin-top: 24rpx; font-size: 25rpx; line-height: 1.7; opacity: 0.95; }
+
+/* LULU 积分活动的标签（名称下面一行） */
+.d-cup { margin-top: 10rpx; line-height: 1; }
+
+/* 删除后的撤回提示条 */
+.undo-bar { display: flex; align-items: center; padding: 20rpx 24rpx; }
+.undo-t { flex: 1; min-width: 0; font-size: 26rpx; line-height: 1.4; color: #1E1E32; overflow-wrap: break-word; }
+.undo-bar .btn-line.mini { flex: none; margin-left: 16rpx; }
+.undo-x { flex: none; width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center; margin-left: 4rpx; font-size: 26rpx; color: #8686A0; }

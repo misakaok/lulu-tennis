@@ -374,18 +374,22 @@ test('带入日常录分：预填规则和盘分（自己在 B 方时对调）�
   });
 });
 
-test('战绩页：「场边记分」和「记一场」两个入口都只给正式成员；场边记分页不开转发', () => withWx({}, () => {
+test('战绩页右下角只有「记一场」（只给正式成员），场边记分在记一场页里面；场边记分页不开转发', () => withWx({}, () => {
   const xml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8');
-  assert.ok(/<view wx:if="\{\{canRecordDaily\}\}" class="fabs">[\s\S]*bindtap="goScorer"[\s\S]*bindtap="goAdd"[\s\S]*记一场/.test(xml));
+  assert.ok(/<view wx:if="\{\{canRecordDaily\}\}" class="fabs">[\s\S]*bindtap="goAdd"[\s\S]*记一场/.test(xml));
+  assert.ok(!/场边记分<\/view>|goScorer|fab-alt/.test(xml), '右下角不再放场边记分');
+  const addXml = fs.readFileSync(path.join(__dirname, '../pages/add/add.wxml'), 'utf8');
+  assert.ok(/<view wx:if="\{\{!fromScorer\}\}" class="sc-row">[\s\S]*bindtap="openScorer"/.test(addXml), '记一场页有场边记分入口（已经带入比分就不再显示）');
   const navs = [];
   const p = load('pages/index/index.js', { navigateTo: (o) => navs.push(o.url), getStorageSync: () => '' }, {
     '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null },
   });
-  p.goScorer(); p.goAdd();
+  assert.strictEqual(p.goScorer, undefined);
+  p.goAdd();
   assert.deepStrictEqual(navs, []);
   p.data.canRecordDaily = true;
-  p.goScorer(); p.goAdd();
-  assert.deepStrictEqual(navs, ['/pages/scorer/scorer', '/pages/add/add']);
+  p.goAdd();
+  assert.deepStrictEqual(navs, ['/pages/add/add']);
   const conf = JSON.parse(fs.readFileSync(path.join(__dirname, '../pages/scorer/scorer.json'), 'utf8'));
   assert.strictEqual(conf.enableShareAppMessage, false);
   assert.strictEqual(conf.enableShareTimeline, false);
@@ -569,6 +573,50 @@ test('活动录分页：「场边记分」入口在录分卡片里，按钮用�
   assert.ok(/wx:if="\{\{fromScorer\}\}"[^>]*>已带入场边记分的局分，核对后点「提交比分」才会保存/.test(xml));
   const sxml = fs.readFileSync(path.join(__dirname, '../pages/scorer/scorer.wxml'), 'utf8');
   assert.ok(/带入这一场录分/.test(sxml));
+});
+
+test('从「记一场」进场边记分：没打完显示「继续场边记分」；完赛后「带入日常录分」退回同一页预填（不叠一层录分页，已选的球员保留）', async () => {
+  const c = cfg(4, true, 1);
+  const store = {};
+  const navs = [];
+  let backs = 0;
+  const wx = Object.assign(mockWx(store), {
+    showModal: (o) => o.success({ confirm: true }), setKeepScreenOn() {}, vibrateShort() {}, showToast() {},
+    showActionSheet: (o) => o.success({ tapIndex: 0 }), navigateTo: (o) => navs.push(o.url), navigateBack: () => { backs++; },
+  });
+  const deps = {
+    '../../utils/member': { statusCached: async () => ({ status: 'active' }), status: async () => ({ status: 'active' }), knownActive: () => false },
+    '../../utils/db': { cachedPlayersFull: () => [], fetchPlayersFull: async () => [], cachedProfile: () => null, getMyProfile: async () => null, myOpenid: async () => 'me' },
+  };
+  await withWx(store, async () => {
+    const add = load('pages/add/add.js', wx, deps, { setTimeout() {} });
+    add.selectComponent = () => null;
+    add.onLoad({});
+    await add.onShow();
+    assert.strictEqual(add.data.scorerResume, false);
+    add.openScorer();
+    assert.deepStrictEqual(navs, ['/pages/scorer/scorer']);
+    add.slots.b[0] = '对手'; // 记分前已经选好的对手
+    S.saveDraft(st(c, games('aa')));
+    await add.onShow();
+    assert.strictEqual(add.data.scorerResume, true, '没打完：继续场边记分');
+    S.saveDraft(st(c, games('aaaa')));
+    const sc = load('pages/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/index/index' }, { route: 'pages/add/add' }, {}] });
+    sc.onLoad(); await sc.onShow();
+    sc.handoff();
+    assert.deepStrictEqual([backs, navs.length], [1, 1], '退回记一场页，不再打开新的录分页');
+    await add.onShow();
+    assert.deepStrictEqual([add.data.fromScorer, add.data.setGames, add.data.bestOf], [true, 4, 1]);
+    assert.deepStrictEqual(add.data.initSets, [{ a: 4, b: 0 }]);
+    assert.strictEqual(add.slots.b[0], '对手', '已选的球员保留');
+    await add.onShow();
+    assert.deepStrictEqual(add.data.initSets, [{ a: 4, b: 0 }], '标记只用一次');
+    // 不是从记一场进来的（例如重开小程序后直接打开记分页）：照旧打开新的录分页
+    const sc2 = load('pages/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/scorer/scorer' }] });
+    sc2.onLoad(); await sc2.onShow();
+    sc2.handoff();
+    assert.match(navs[navs.length - 1], /^\/pages\/add\/add\?scorer=/);
+  });
 });
 
 module.exports = T;

@@ -1,10 +1,11 @@
 <view wx:if="{{!canPublish && authError}}" class="page muted">{{authError}}</view>
+<view wx:elif="{{settingsLoading}}" class="page muted">加载中…</view>
 <block wx:elif="{{canPublish}}">
 <view class="page">
   <!-- 顶部概要：选项一改就跟着变，边填边确认建的是什么活动；整页唯一的重点色块 -->
   <view class="hero">
     <view class="hero-main">
-      <view class="hero-k">{{fromSignup ? '按报名名单生成对阵' : '新活动'}}</view>
+      <view class="hero-k">{{editingSettings ? title : fromSignup ? '按报名名单生成对阵' : '新活动'}}</view>
       <view class="hero-t">{{heroTop}}</view>
       <view class="hero-s">{{heroSub}}</view>
     </view>
@@ -12,13 +13,13 @@
   </view>
 
   <!-- 活动设置 -->
-  <view class="card">
+  <view wx:if="{{!editingSettings || !fixedRotation}}" class="card">
     <view class="card-title">活动设置</view>
-    <view class="field first">
+    <view wx:if="{{!editingSettings}}" class="field first">
       <text class="label">比赛名称</text>
       <input class="title-in" value="{{title}}" maxlength="20" bindinput="onTitle" placeholder="请输入比赛名称，例如：周末内部赛" disabled="{{fromSignup}}" />
     </view>
-    <view wx:if="{{!fromSignup}}" class="field">
+    <view wx:if="{{!fromSignup && !editingSettings && mode !== 'rotation'}}" class="field">
       <text class="label">参加方式</text>
       <view class="seg">
         <view class="seg-item {{entry === 'signup' ? 'on' : ''}}" data-v="signup" bindtap="setEntry">开放报名</view>
@@ -31,7 +32,9 @@
         <view class="seg-item {{mode === 'groups' ? 'on' : ''}}" data-v="groups" bindtap="setMode">分组循环</view>
         <view class="seg-item {{mode === 'bracket' ? 'on' : ''}}" data-v="bracket" bindtap="setMode">单淘汰</view>
         <view class="seg-item {{mode === 'groups_ko' ? 'on' : ''}}" data-v="groups_ko" bindtap="setMode">循环＋淘汰</view>
+        <view wx:if="{{!editingSettings}}" class="seg-item {{mode === 'rotation' ? 'on' : ''}}" data-v="rotation" bindtap="setMode">四人轮换</view>
       </view>
+      <view wx:if="{{mode === 'rotation'}}" class="muted small">固定 4 人双打，每人单独报名；三轮换搭档：A＋B 对 C＋D、A＋C 对 B＋D、A＋D 对 B＋C</view>
     </view>
     <view wx:if="{{mode === 'bracket'}}" class="field">
       <text class="label">签数</text>
@@ -39,7 +42,7 @@
         <view wx:for="{{sizes}}" wx:key="*this" class="pill {{size === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setSize">{{item}} 签</view>
       </view>
     </view>
-    <view wx:else class="field">
+    <view wx:elif="{{mode !== 'rotation'}}" class="field">
       <text class="label">分几组</text>
       <view class="pills {{fromSignup ? 'locked' : ''}}">
         <view wx:for="{{groupOpts}}" wx:key="*this" class="pill {{groupCount === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setGroups">{{item === 1 ? '1 组（大循环）' : item + ' 组'}}</view>
@@ -53,35 +56,62 @@
       </view>
       <view class="muted small">{{koInfo}}</view>
     </view>
+    <!-- LULU 积分（默认不计）：开启后选类别；周赛、月赛固定单淘汰 8 签 -->
+    <view wx:if="{{!fromSignup && !editingSettings && mode !== 'rotation'}}" class="field">
+      <text class="label">计入 LULU 积分</text>
+      <view class="seg">
+        <view class="seg-item {{cupOn ? '' : 'on'}}" data-v="0" bindtap="setCup">不计入</view>
+        <view class="seg-item {{cupOn ? 'on' : ''}}" data-v="1" bindtap="setCup">计入</view>
+      </view>
+    </view>
+    <view wx:if="{{!fromSignup && !editingSettings && cupOn && mode !== 'rotation'}}" class="field">
+      <text class="label">积分类别</text>
+      <view class="seg cup-kinds">
+        <view wx:for="{{cupKinds}}" wx:key="value" class="seg-item {{cupKind === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setCupKind">{{item.label}}</view>
+      </view>
+      <view class="small cup-n {{cupErr ? 'bad' : 'muted'}}">{{cupErr || cupNote}}</view>
+      <block wx:if="{{cupKind !== 'encounter'}}">
+        <text class="label cup-n">积分组别</text>
+        <view class="seg">
+          <view wx:for="{{cupPointGroups}}" wx:key="value" class="seg-item {{cupPointGroup === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setCupPointGroup">{{item.label}}</view>
+        </view>
+        <view class="small cup-n muted">3.5 组女子单打：冠军加 5 分，亚军加 3 分，四强加 1 分</view>
+      </block>
+    </view>
+    <view wx:if="{{(fromSignup || editingSettings) && cupText}}" class="field">
+      <text class="label">LULU 积分</text>
+      <view><text class="ui-tag solid">{{cupText}}</text></view>
+      <view wx:if="{{editingSettings && cupErr}}" class="small cup-n bad">{{cupErr}}</view>
+    </view>
   </view>
 
   <!-- 时间地点（截止报名后不再显示，到活动详情里编辑） -->
-  <view wx:if="{{!fromSignup}}" class="card">
+  <view wx:if="{{!fromSignup && !editingSettings}}" class="card">
     <view class="card-title">时间地点<text class="sub">创建后可以在活动详情里编辑</text></view>
-    <event-form recent="{{recentPlaces}}" bind:change="onInfo" />
+    <event-form recent="{{recentPlaces}}" allow-past="{{entry === 'pick'}}" bind:change="onInfo" />
   </view>
 
   <!-- 比赛规则：录分时直接沿用，不用每场再选 -->
   <view class="card">
-    <view class="card-title">计分规则<text class="sub">{{fromSignup ? '创建时已定好' : '录分时自动沿用'}}</text></view>
-    <view class="field first">
+    <view class="card-title">计分规则<text class="sub">{{fromSignup ? '按当前规则排对阵' : '录分时自动沿用'}}</text></view>
+    <view wx:if="{{!editingSettings}}" class="field first">
       <text class="label">单打 / 双打</text>
-      <view class="seg {{fromSignup ? 'locked' : ''}}">
+      <view class="seg {{fromSignup || mode === 'rotation' ? 'locked' : ''}}">
         <view class="seg-item {{type === 'single' ? 'on' : ''}}" data-v="single" bindtap="setType">单打</view>
         <view class="seg-item {{type === 'double' ? 'on' : ''}}" data-v="double" bindtap="setType">双打</view>
       </view>
     </view>
-    <view class="field">
+    <view wx:if="{{!editingSettings}}" class="field">
       <text class="label">组别</text>
       <view class="pills {{fromSignup ? 'locked' : ''}}">
         <view class="pill {{category === '' ? 'on' : ''}}" data-v="" bindtap="setCategory">不限</view>
         <view class="pill {{category === 'm' ? 'on' : ''}}" data-v="m" bindtap="setCategory">男子</view>
         <view class="pill {{category === 'f' ? 'on' : ''}}" data-v="f" bindtap="setCategory">女子</view>
-        <view wx:if="{{type === 'double'}}" class="pill {{category === 'mixed' ? 'on' : ''}}" data-v="mixed" bindtap="setCategory">混双</view>
+        <view wx:if="{{type === 'double' && mode !== 'rotation'}}" class="pill {{category === 'mixed' ? 'on' : ''}}" data-v="mixed" bindtap="setCategory">混双</view>
       </view>
       <view wx:if="{{category}}" class="muted small">{{category === 'mixed' ? '报名时搭档必须一男一女；没搭档的由你配对' : '报名时按个人资料里的性别限制'}}{{entry === 'pick' && !fromSignup ? '。「我来选人」不会自动检查性别，请自己把关' : ''}}</view>
     </view>
-    <view wx:if="{{mode !== 'bracket' && entry === 'signup' && !fromSignup}}" class="field">
+    <view wx:if="{{mode !== 'bracket' && mode !== 'rotation' && entry === 'signup' && !fromSignup}}" class="field">
       <text class="label">报名上限</text>
       <view class="pills">
         <view wx:for="{{limits}}" wx:key="*this" class="pill {{limit === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setLimit">{{item ? item + (type === 'double' ? ' 队' : ' 人') : '不限'}}</view>
@@ -92,12 +122,12 @@
 
     <!-- 小组赛规则 -->
     <view wx:if="{{mode !== 'bracket'}}" class="stage">
-      <view class="stage-h">分组循环的规则</view>
+      <view class="stage-h">{{mode === 'rotation' ? '每轮的规则（三轮相同）' : '分组循环的规则'}}</view>
       <rule-picker value="{{rules.group}}" disabled="{{fromSignup}}" data-stage="group" bind:change="onRule" />
     </view>
 
     <!-- 淘汰赛规则：统一一套，或按轮次单独设置 -->
-    <view wx:if="{{mode !== 'groups'}}" class="stage">
+    <view wx:if="{{mode !== 'groups' && mode !== 'rotation'}}" class="stage">
       <view class="stage-h row">
         <text>单淘汰的规则</text>
         <view class="seg mini {{fromSignup ? 'locked' : ''}}">
@@ -124,10 +154,14 @@
       <view wx:for="{{rulesSum}}" wx:key="stage" class="sum-row {{item.hl ? 'hl' : ''}}"><text class="sum-k">{{item.stage}}</text><text class="sum-v">{{item.text}}</text></view>
     </view>
 
-    <view wx:if="{{entry === 'signup'}}" class="info ok">{{info}}</view>
+    <view wx:if="{{editingSettings}}" class="info">已报名的球友和搭档会保留，候补按新的名额和原报名顺序更新。</view>
+    <view wx:elif="{{entry === 'signup'}}" class="info ok">{{info}}</view>
   </view>
 
-  <block wx:if="{{entry === 'pick'}}">
+  <block wx:if="{{editingSettings}}">
+    <view class="btn-primary {{saving || cupErr ? 'disabled' : ''}}" hover-class="tap-on" bindtap="saveSettings">{{saving ? '保存中…' : '保存规则'}}</view>
+  </block>
+  <block wx:elif="{{entry === 'pick'}}">
     <!-- 参赛球员 -->
     <view class="card">
       <view class="card-title row">
@@ -182,14 +216,30 @@
       <view class="muted small">{{seedInfo}}</view>
     </view>
 
-    <view class="btn-primary {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" bindtap="doDraw">{{preview ? '重新排' : (mode === 'bracket' ? '随机排对阵' : '随机分组')}}</view>
+    <view class="btn-primary {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" bindtap="doDraw">{{mode === 'rotation' ? '排三轮对阵' : (preview && !manualOpts.length) ? '重新排' : (mode === 'bracket' ? '随机排对阵' : '随机分组')}}</view>
+    <view wx:if="{{mode === 'bracket' && (!preview || !manualOpts.length)}}" class="btn-line manual-start {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" data-manual="yes" bindtap="doDraw">手动排对阵</view>
 
     <!-- 抽签结果预览 -->
     <view wx:if="{{preview}}" id="preview" class="preview">
+      <view wx:if="{{manualOpts.length}}" class="card">
+        <view class="card-title">手动排对阵</view>
+        <view class="muted small top">按原来的签位从上到下核对。选中其他位置的球员或队伍，会交换两边的位置。</view>
+        <picker wx:for="{{preview.lines}}" wx:key="index" range="{{manualOpts}}" value="{{manualIndexes[index]}}" data-i="{{index}}" bindchange="setManualSlot">
+          <view class="manual-row">
+            <text class="manual-no">签位 {{index + 1}}</text>
+            <text class="manual-name">{{item.name || '轮空'}}</text>
+            <text class="muted">更换 ›</text>
+          </view>
+        </picker>
+      </view>
       <view class="preview-title">对阵预览</view>
-      <draw-board draw="{{preview}}" />
+      <view wx:if="{{preview.rotRounds}}" class="rot-pv">
+        <view wx:for="{{preview.rotRounds}}" wx:key="*this" class="rot-pv-r"><text class="rot-pv-n">第 {{index + 1}} 轮</text><text class="rot-pv-t">{{item}}</text></view>
+        <view class="muted small">按名单顺序排：每人和另外三位各搭档一次</view>
+      </view>
+      <draw-board wx:else draw="{{preview}}" />
       <view class="actions">
-        <view class="btn-line redo" hover-class="tap-on" bindtap="doDraw">重新抽</view>
+        <view wx:if="{{!preview.rotRounds && !manualOpts.length}}" class="btn-line redo" hover-class="tap-on" bindtap="doDraw">重新抽</view>
         <view class="btn-primary grow {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : (fromSignup ? '确定，生成对阵' : '创建活动，生成对阵')}}</view>
       </view>
     </view>

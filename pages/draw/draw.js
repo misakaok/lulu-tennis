@@ -1,5 +1,6 @@
 const db = require('../../utils/db');
 const E = require('../../utils/event');
+const C = require('../../utils/cup');
 const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
 
@@ -31,14 +32,15 @@ function toView(d, matches, myId, signed) {
     if (signing && role.signed) roleTags.push('已报名');
     if (!signing && role.entrant) roleTags.push(finished ? '参加过' : '参加中');
   }
-  const modeText = d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`;
+  const modeText = E.isRotation(d) ? E.MODES.rotation : d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`;
   const typeText = (E.categoryText(d) && E.categoryOf(d) !== 'mixed' ? E.categoryText(d) : '') + (E.categoryOf(d) === 'mixed' ? '混双' : cfg.type === 'double' ? '双打' : '单打');
-  const meta = [modeText, typeText];
+  const meta = [modeText, E.isRotation(d) ? E.categoryText(d) : typeText].filter(Boolean); // 四人轮换名字里已经有「双打」
   if (E.levelRangeText(d)) meta.push('建议水平 ' + E.levelRangeText(d)); // 没设置（含旧活动）整项不显示
-  if (!signing) meta.push(`${(d.entrants || []).length} ${cfg.type === 'double' ? '队' : '人'}`);
+  if (!signing) meta.push(`${(d.entrants || []).length} ${cfg.type === 'double' && d.mode !== 'rotation' ? '队' : '人'}`);
   if ((d.seeds || []).length) meta.push(cfg.type === 'double' ? `种子队伍 ${d.seeds.length} 支` : `种子选手 ${d.seeds.length} 位`);
   return {
     _id: d._id, signing, mine: !!role, roleTags,
+    cupTag: C.drawCupText(d), // LULU 积分活动：报名阶段就显示「LULU 积分 · 周赛」
     title: d.title,
     meta: meta.map((x) => x.replace(/ /g, '\u00a0')).join(' · '), // 每一项内部用不换行空格：只在项与项之间换行，「2 个」不会拆开
     date: d.date || '',
@@ -59,14 +61,17 @@ function dayOf(date) {
 }
 
 const HERO_SLIDES = 3; // 顶部背景轮播张数（hero-court + hero-2 + hero-3）
-const HERO_MS = 4000;
+const HERO_MS = 3000; // 每张停 3 秒（2026-11-23 用户嫌 4 秒慢）
 
 Page({
-  data: { list: [], shown: [], loading: true, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
+  data: { list: [], shown: [], loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
     this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render();
+    // 「创建活动」按钮先按本机记得的身份显示（24 小时内确认过的管理员），不等云端；load 里拿到身份后再更正
+    const M = require('../../utils/member');
+    if (M.knownActive() && M.isAdminLocal()) this.setData({ canPublish: true });
   },
   onShow() {
     if (this.timeline) return;
@@ -74,7 +79,31 @@ Page({
     // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取
     const kept = db.withoutRemoved(this.draws);
     if (kept !== this.draws) { this.draws = kept; this.render(); }
+    this.showUndo();
     this.load();
+  },
+  // 刚删除了活动（5 分钟内）：顶部提示「已删除 · 撤回」，误删可以马上恢复（2026-11-24 用户要求）
+  showUndo() {
+    const r = db.recentRemoved();
+    const undo = r ? { id: r.id, title: r.title } : null;
+    if ((undo && undo.id) !== (this.data.undo && this.data.undo.id)) this.setData({ undo });
+  },
+  closeUndo() { db.dismissRemoved(); this.setData({ undo: null }); },
+  async undoRemove() {
+    const u = this.data.undo;
+    if (!u || this.restoring) return;
+    this.restoring = true;
+    wx.showLoading({ title: '正在撤回', mask: true });
+    try {
+      await db.restoreDraw(u.id);
+      wx.hideLoading();
+      this.setData({ undo: null });
+      wx.showToast({ title: '已撤回' });
+      await this.load();
+    } catch (e) {
+      wx.hideLoading();
+      wx.showModal({ title: '撤回失败', content: e.message || '请稍后再试', showCancel: false });
+    } finally { this.restoring = false; }
   },
   onHide() { this.heroStop(); },
   onUnload() { this.heroStop(); },
@@ -116,14 +145,15 @@ Page({
     // 这时在「我的下一场」里提示网络异常，不直接说「暂无下一场」
     let stale = false;
     const soft = (p, fallback) => p.catch(() => { stale = true; return fallback(); });
+    // 「创建活动」按钮只决定显示（创建页打开时实时校验身份，云函数也会校验）：用 60 秒缓存，不每次切 tab 都调云函数；
+    // 单独更新，不等活动、战绩这些读完
+    const showNew = require('../../utils/member').statusCached()
+      .then((m) => !!m && m.status === 'active' && !!m.isAdmin, () => false)
+      .then((v) => { if (v !== this.data.canPublish) this.setData({ canPublish: v }); });
     try {
-      const [list, matches, myId, signups, member] = await Promise.all([
+      const [list, matches, myId, signups] = await Promise.all([
         db.drawsShared(), soft(db.matchesShared(), () => db.cachedMatches()), soft(db.myOpenid(), () => ''), soft(db.fetchMySignups(), () => []), // 活动、比赛用共享数据（只读）
-        // 「创建活动」按钮只决定显示（创建页打开时实时校验身份，云函数也会校验）：用 60 秒缓存，不每次切 tab 都调云函数
-        require('../../utils/member').statusCached().catch(() => null),
       ]);
-      const canPublish = !!member && member.status === 'active' && !!member.isAdmin;
-      if (canPublish !== this.data.canPublish) this.setData({ canPublish });
       // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染：活动、比赛比较引用，我的报名（很少）比较内容
       const sig = JSON.stringify([myId, signups]);
       // 隔天再打开也要重算「我的下一场」（昨天的场次不再显示）
@@ -134,12 +164,12 @@ Page({
       }
     } catch (e) {
       stale = true;
-      this.setData({ canPublish: false });
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
     }
     if (stale !== this.data.nextStale) this.setData({ nextStale: stale });
     if (this.data.loading) this.setData({ loading: false });
+    await showNew;
   },
   goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
   open(e) { wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + e.currentTarget.dataset.id }); },

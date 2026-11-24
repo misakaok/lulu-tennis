@@ -27,6 +27,10 @@
 .gw-empty { margin-top: 22rpx; font-size: 24rpx; color: #8686A0; }
 .gw-add { margin-top: 20rpx; height: 72rpx; line-height: 68rpx; font-size: 26rpx; }
 
+/* 我的 LULU 积分（数字格沿用成长档案的 .gw-nums） */
+.cup-last { margin-top: 18rpx; font-size: 23rpx; color: #8686A0; }
+.cup-pts { font-weight: 800; color: #4F4F7D; }
+
 /* 成员管理 */
 .adm-only { margin-left: 12rpx; font-size: 20rpx; }
 .adm-n { flex: none; min-width: 40rpx; height: 40rpx; line-height: 40rpx; box-sizing: border-box; padding: 0 12rpx; border-radius: 20rpx; text-align: center; font-size: 22rpx; font-weight: 800; color: #fff; background: #e5484d; }

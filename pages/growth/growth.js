@@ -12,7 +12,7 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.g
 function rowOf(r) {
   return {
     id: r.id, date: r.date, md: r.date.slice(5).replace('-', '/'),
-    type: G.TYPES[r.type] || '', kind: G.KINDS[r.kind] || '', formal: r.kind === 'formal',
+    type: G.TYPES[r.type] || '', kind: r.points11 ? '练习赛 · 抢11分' : (G.KINDS[r.kind] || ''), formal: r.kind === 'formal',
     win: r.result === 'win', score: G.scoreText(r), tags: r.tags || [],
   };
 }

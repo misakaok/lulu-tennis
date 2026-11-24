@@ -125,7 +125,17 @@ Page({
       itemList: SIDES,
       success: (r) => {
         const side = r.tapIndex === 1 ? 'b' : 'a';
-        wx.navigateTo({ url: `/pages/add/add?scorer=${id}&side=${side}` });
+        // 从「记一场」页进来的：退回去，由那一页 onShow 取走标记后预填（已经选好的球员照样保留）
+        const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+        const prev = pages[pages.length - 2];
+        const open = () => wx.navigateTo({ url: `/pages/add/add?scorer=${id}&side=${side}` });
+        if (prev && prev.route === 'pages/add/add') {
+          S.setDailyPending(id, side);
+          // 没退回去（连点、页面栈变了）就清掉标记、照旧打开新的录分页，免得以后打开「记一场」被旧草稿预填
+          wx.navigateBack({ fail: () => { S.takeDailyPending(); open(); } });
+          return;
+        }
+        open();
       },
     });
   },

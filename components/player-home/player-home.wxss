@@ -81,8 +81,11 @@
 /* 生涯成就：标题 + 徽章进度条 → 3 × 2 数字格 → 4 列徽章 → 记录列表 */
 .cr-head { display: flex; align-items: baseline; justify-content: space-between; }
 .cr-title { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
-.cr-cnt { font-size: 22rpx; color: #8686A0; }
-.cr-cnt .b { font-size: 30rpx; font-weight: 900; color: #6E6EA3; }
+/* 徽章进度「徽章 3 / 21」：两个数字同一字号、按基线对齐，已达成的加粗紫色，总数灰色 */
+.cr-cnt { display: flex; align-items: baseline; color: #8686A0; font-variant-numeric: tabular-nums; }
+.cr-cnt .l { font-size: 22rpx; margin-right: 10rpx; }
+.cr-cnt .b { font-size: 28rpx; font-weight: 800; color: #6E6EA3; }
+.cr-cnt .t { font-size: 28rpx; font-weight: 600; margin-left: 6rpx; }
 .cr-prog { height: 10rpx; margin-top: 16rpx; border-radius: 5rpx; background: #EFEFF6; overflow: hidden; }
 .cr-prog-in { height: 100%; border-radius: 5rpx; background: #A3A3CB; }
 .cr-nums { display: flex; flex-wrap: wrap; margin-top: 26rpx; border-radius: 22rpx; background: #F8F8FC; }

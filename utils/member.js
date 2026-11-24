@@ -77,5 +77,10 @@ async function check() {
 
 // 当前用户是不是管理员（本机记录，只用于界面显示；最近一次校验成员资格时更新）
 function isAdminLocal() { try { return !!wx.getStorageSync('is_admin'); } catch (e) { return false; } }
+// 本机 24 小时内确认过是正式成员（和 utils/db.js 读受保护缓存同一个口径）：只用来让页面先显示、不等云端校验，
+// 页面仍要调 status() 实时校验，不通过再收起；权限一律由云函数判断
+function knownActive() {
+  try { const ok = wx.getStorageSync('member_ok_at'); return !!ok && Date.now() - ok <= 24 * 3600 * 1000; } catch (e) { return false; }
+}
 
-module.exports = { status, statusCached, check, kickout, clearProtected, isAdminLocal, GATE };
+module.exports = { status, statusCached, check, kickout, clearProtected, isAdminLocal, knownActive, GATE };

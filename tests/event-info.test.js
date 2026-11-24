@@ -31,7 +31,7 @@ test('发布页面：普通成员直接进入创建和编辑页不会显示表�
   let submitted = 0, loaded = 0;
   let member = { status: 'active', isAdmin: false, uid: 'alice' };
   const deps = {
-    '../../utils/member': { status: async () => member },
+    '../../utils/member': { status: async () => member, knownActive: () => false, isAdminLocal: () => false },
     '../../utils/db': {
       addDraw() { submitted++; }, generateDraw() { submitted++; },
       cachedPlayersFull: () => [], fetchPlayersFull: async () => { loaded++; return []; }, fetchMatches: async () => [],
@@ -71,6 +71,45 @@ test('活动列表：管理员入口随服务端身份（60 秒缓存）变化�
   assert.strictEqual(p.data.canPublish, false); assert.strictEqual(navigations, 1);
 });
 
+test('活动页「创建球友活动」、战绩页「记一场」：本机记得身份就一打开就显示，不等云端；云端说不是再收起', async () => {
+  let admin = true, active = true;
+  const member = {
+    knownActive: () => true, isAdminLocal: () => true,
+    statusCached: async () => ({ status: active ? 'active' : 'removed', isAdmin: admin }),
+  };
+  const never = () => new Promise(() => {}); // 数据一直没读完：按钮也不等它
+  const d = load('pages/draw/draw.js', { showToast() {} }, 'Page', {
+    '../../utils/member': member,
+    '../../utils/db': { cachedDraws: () => [], cachedMatches: () => [], drawsShared: never, matchesShared: never, myOpenid: never, fetchMySignups: never },
+  });
+  d.render = () => {};
+  d.onLoad();
+  assert.strictEqual(d.data.canPublish, true, '活动页打开就显示');
+  admin = false; d.load(); await new Promise((r) => setImmediate(r));
+  assert.strictEqual(d.data.canPublish, false, '云端说不是管理员：收起（不等活动列表读完）');
+  const i = load('pages/index/index.js', { showToast() {}, getStorageSync: () => '', hideShareMenu() {} }, 'Page', {
+    '../../utils/member': member,
+    '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null, profilesOf: () => ({}), matchesAllShared: never, playersShared: never, myOpenid: never },
+  });
+  i.render = () => {};
+  i.onLoad();
+  assert.strictEqual(i.data.canRecordDaily, true, '战绩页打开就显示');
+  active = false; i.load(); await new Promise((r) => setImmediate(r));
+  assert.strictEqual(i.data.canRecordDaily, false);
+});
+
+test('「我的」页：球员卡和成员管理入口按本机记得的身份先显示；本机没记录时等云端', () => {
+  const mk = (known, admin) => load('pages/me/me.js', { getStorageSync: (k) => (k === 'my_openid' ? 'alice' : ''), hideShareMenu() {} }, 'Page', {
+    '../../utils/member': { knownActive: () => known, isAdminLocal: () => admin },
+  });
+  const a = mk(true, true); a.onLoad();
+  assert.deepStrictEqual([a.data.myId, a.data.isAdmin], ['alice', true]);
+  const b = mk(true, false); b.onLoad();
+  assert.deepStrictEqual([b.data.myId, b.data.isAdmin], ['alice', false]);
+  const c = mk(false, true); c.onLoad();
+  assert.deepStrictEqual([c.data.myId, c.data.isAdmin], ['', false]);
+});
+
 test('战绩页：「记一场」用缓存版身份显示，和读数据同时进行；查不到身份时收起按钮，列表照常显示', async () => {
   let active = true, fail = false, realtime = 0, rendered = 0;
   const deps = {
@@ -98,7 +137,7 @@ test('战绩页：「记一场」用缓存版身份显示，和读数据同时�
 
 test('日常录分页：正式成员（不必是管理员）可以录；不是正式成员不能提交，每次打开实时校验', async () => {
   let status = 'pending', submitted = 0, loaded = 0;
-  const deps = { '../../utils/member': { status: async () => ({ status, isAdmin: false }) }, '../../utils/db': { addMatch() { submitted++; } } };
+  const deps = { '../../utils/member': { status: async () => ({ status, isAdmin: false }), knownActive: () => false }, '../../utils/db': { addMatch() { submitted++; } } };
   const p = load('pages/add/add.js', {}, 'Page', deps);
   p.loadPlayers = async () => { loaded++; };
   await p.onShow(); await p.submit();
@@ -108,6 +147,44 @@ test('日常录分页：正式成员（不必是管理员）可以录；不是�
   assert.strictEqual(p.data.canRecordDaily, true); assert.strictEqual(loaded, 1);
   status = 'removed'; await p.onShow();
   assert.strictEqual(p.data.canRecordDaily, false);
+});
+
+test('创建活动 / 记一场：本机记得身份就先显示、不等云端校验；校验不通过再收起', async () => {
+  let resolve, member;
+  const wait = () => new Promise((r) => { resolve = r; });
+  const deps = {
+    '../../utils/member': { status: () => wait(), knownActive: () => true, isAdminLocal: () => true },
+    '../../utils/db': {
+      cachedPlayersFull: () => [], fetchPlayersFull: async () => [], fetchMatches: async () => [],
+      cachedDraws: () => [], drawsShared: async () => [],
+    },
+  };
+  const wx = { getStorageSync: () => ({}), setNavigationBarTitle() {} };
+  // 创建活动：校验还没回来，表单已经显示；回来说不是管理员 → 收起
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const done = p.onLoad({});
+  await Promise.resolve();
+  assert.strictEqual(p.data.canPublish, true);
+  member = { status: 'active', isAdmin: false }; resolve(member); await done; await new Promise((r) => setImmediate(r));
+  assert.strictEqual(p.data.canPublish, false); assert.match(p.data.authError, /管理员/);
+  // 本机不记得是管理员：照旧等校验
+  deps['../../utils/member'].isAdminLocal = () => false;
+  const q = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const done2 = q.onLoad({});
+  await Promise.resolve();
+  assert.strictEqual(q.data.canPublish, false);
+  resolve({ status: 'active', isAdmin: true }); await done2;
+  assert.strictEqual(q.data.canPublish, true);
+  // 记一场：先显示、同时读球员；校验不通过再收起
+  let loaded = 0;
+  const a = load('pages/add/add.js', {}, 'Page', deps);
+  a.loadPlayers = async () => { loaded++; };
+  const shown = a.onShow();
+  await Promise.resolve();
+  assert.strictEqual(a.data.canRecordDaily, true); assert.strictEqual(loaded, 1);
+  resolve({ status: 'removed' }); await shown;
+  assert.strictEqual(a.data.canRecordDaily, false); assert.match(a.data.authError, /正式成员/);
+  assert.strictEqual(loaded, 1, '球员只读一次');
 });
 
 test('创建活动顶部概要：形式、签数 / 组数、参加方式，日期、时间、单双打、组别，选项一改就跟着变', () => {
@@ -346,6 +423,26 @@ test('种子选手（单打手选）：点选、取消、上移调整顺序，1�
   assert.ok(/\{\{type === 'double' \? '种子队伍' : '种子选手'\}\}/.test(xml) && /\{\{item\.seed\}\} 号种子/.test(xml) && !/分开排位|号位/.test(xml));
 });
 
+test('补录活动：历史日期和手动调整后的签位原样保存，交换轮空不会丢掉球员', async () => {
+  let saved;
+  const { p } = seedPage({ '../../utils/db': { addDraw: async (draw) => { saved = draw; return { id: 'past' }; } } });
+  p.players = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  p.selected = p.players.slice();
+  p.seeds = ['A'];
+  p.info = { date: '2026-11-21' };
+  p.setData({ title: '上次活动' });
+  p.refresh();
+  p.doDraw(tap({ manual: 'yes' }));
+  const place = (i, j) => p.setManualSlot({ ...tap({ i }), detail: { value: String(j) } });
+  place(3, 0); // 把 A 放在第 4 个位置
+  place(1, 7); // 轮空换到第 2 个位置
+  await p.save();
+  assert.strictEqual(saved.date, '2026-11-21');
+  assert.deepStrictEqual(plain(saved.lines.map((line) => line.name || '轮空')), ['D', '轮空', 'C', 'A', 'E', 'F', 'G', 'B']);
+  assert.strictEqual(saved.lines[3].seed, 1);
+  assert.deepStrictEqual(plain(p.data.manualIndexes), [3, 7, 2, 0, 4, 5, 6, 1]);
+});
+
 test('种子队伍（双打按队设置）：按队伍点选和推荐，分组按蛇形分配', () => {
   const { p, toasts } = seedPage();
   p.setType(tap({ v: 'double' }));
@@ -374,7 +471,7 @@ test('报名后：按水平推荐种子，发起人可以取消、换人、调�
   let sent = null;
   const players = ['Ann', 'Ben', 'Cat', 'Dan', 'Eve'].map((name, i) => ({ name, uid: 'u' + i, level: [3, 4.5, 2.5, 4, 3.5][i] }));
   const deps = {
-    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
+    '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }), knownActive: () => false, isAdminLocal: () => false },
     '../../utils/db': {
       cachedPlayersFull: () => [], fetchPlayersFull: async () => players, fetchMatches: async () => [],
       getDraw: async () => ({ _id: 'd1', title: '周日内部赛', mode: 'bracket', size: 8, type: 'single', status: 'signup' }),

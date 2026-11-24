@@ -23,13 +23,13 @@
 
   <!-- 年度榜：点一行展开来源场次 -->
   <view wx:if="{{rows.length}}" class="card cup-board">
-    <view class="card-title">{{year}} 年{{which === 'encounter' ? '遭遇赛积分' : which === 'double' ? '双打年终榜' : '单打年终榜'}}<text class="sub">{{which === 'encounter' ? '单独统计，不进年终榜' : which === 'double' ? '周赛 + 月赛 · 每站两人平分' : '周赛 + 月赛'}}</text></view>
+    <view class="card-title">{{year}} 年{{which === 'encounter' ? '遭遇赛积分' : which === 'double' ? '双打年终榜' : '单打年终榜'}}<text class="sub">{{which === 'encounter' ? '历史积分 · 单独统计' : '每人计入积分最高的组'}}</text></view>
     <view wx:for="{{rows}}" wx:key="key" class="cup-r {{item.mine ? 'me' : ''}}">
       <view class="cup-main" hover-class="tap-row-on" data-key="{{item.key}}" bindtap="toggleRow">
         <text class="cup-rank {{item.rank <= 3 ? 'top' : ''}}">{{item.rank}}</text>
         <view class="cup-avs"><pl-av wx:for="{{item.people}}" wx:key="key" wx:for-item="p" class="cup-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
         <view class="cup-nm"><block wx:for="{{item.people}}" wx:key="key" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></view>
-        <view class="cup-pt"><text class="cup-pt-v">{{item.total}}</text><text class="cup-pt-l">{{item.stops}} 站</text></view>
+        <view class="cup-pt"><text class="cup-pt-v">{{item.total}}</text><text class="cup-pt-l">{{item.pointGroup || item.stops + ' 站'}}</text></view>
       </view>
       <view wx:if="{{open === item.key}}" class="cup-src">
         <view wx:for="{{item.sources}}" wx:key="i" wx:for-item="s" class="cup-s" hover-class="tap-row-on" data-id="{{s.stopId}}" bindtap="goStop">

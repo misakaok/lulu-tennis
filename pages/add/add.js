@@ -18,10 +18,11 @@ Page({
     slotsA: [], slotsB: [], chips: [], me: '', noProfile: false,
     aLabel: 'A 方', bLabel: 'B 方',
     check: { ok: false, msg: '' }, submitting: false, rulesText: '', dayText: '',
-    fromScorer: false, initSets: [], // 从场边记分带过来的规则和盘分（只预填，仍要选球员、核对后提交）
+    fromScorer: false, initSets: [], scorerResume: false, // 从场边记分带过来的规则和盘分（只预填，仍要选球员、核对后提交）
   },
 
   onLoad(options) {
+    SC.takeDailyPending(); // 新打开的录分页不接之前没被取走的标记（只给退回的那一页用）
     const t = today();
     let last = {};
     try { last = wx.getStorageSync(CFG_KEY) || {}; } catch (e) {}
@@ -49,16 +50,36 @@ Page({
   },
 
   async onShow() {
-    // 校验期间保持当前显示（首次进入是空白），不显示「正在校验」之类的过渡文字
+    // 从场边记分「带入日常录分」退回来：预填规则和盘分（球员不动）；按钮文字跟着草稿变（继续 / 开始）
+    const back = SC.takeDailyPending();
+    if (back) {
+      const sc = this.scorerPrefill({ scorer: back.id, side: back.side });
+      if (sc) { this.setData({ setGames: sc.setGames, noAd: sc.noAd, bestOf: sc.bestOf, initSets: sc.sets, fromScorer: true }); this.refresh(); }
+    }
+    this.refreshScorer();
+    // 每次打开都实时校验；本机记得是正式成员（24 小时内确认过）就先显示、同时读球员，不等校验（不通过再收起，提交仍由云端校验）
+    const M = require('../../utils/member');
+    const check = M.status();
+    const early = M.knownActive();
+    if (early && !this.data.canRecordDaily) this.setData({ canRecordDaily: true, authError: '' });
+    const players = early ? this.loadPlayers() : null;
     try {
-      const member = await require('../../utils/member').status();
+      const member = await check;
       if (member.status !== 'active') {
         this.setData({ canRecordDaily: false, authError: '成为正式成员后才能记录比赛' }); return;
       }
-      this.setData({ canRecordDaily: true, authError: '' });
-      await this.loadPlayers();
+      if (!this.data.canRecordDaily || this.data.authError) this.setData({ canRecordDaily: true, authError: '' });
+      await (players || this.loadPlayers());
     } catch (e) { this.setData({ canRecordDaily: false, authError: '身份校验失败，请返回后重试' }); }
   },
+
+  // 场边记分入口（2026-11-23 从战绩页右下角挪到这里）：本机有一场还没打完的日常记分就写「继续场边记分」；已经带入比分就不再显示
+  refreshScorer() {
+    const d = SC.loadDraft();
+    const resume = !!(d && !d.ev && d.points && !SC.resultOf(d));
+    if (resume !== this.data.scorerResume) this.setData({ scorerResume: resume });
+  },
+  openScorer() { wx.navigateTo({ url: '/pages/scorer/scorer' }); },
 
   // 只有已注册（设置过资料、昵称唯一）的球员可选：战绩按账号累计
   setPlayers(full) {

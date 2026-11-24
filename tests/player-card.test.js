@@ -80,7 +80,7 @@ test('名次口径：球员卡、报名名单、战绩页卡片都和排行榜�
       require: (id) => (id === '../../utils/db'
         ? { cachedMatches: () => ms, cachedPlayersFull: () => pr, cachedProfile: () => null, profilesOf: () => profiles }
         : createRequire(filename)(id)),
-      wx: { getStorageSync: (k) => store[k], setStorageSync: (k, v) => { store[k] = v; } }, Page: (d) => { def = d; }, console, Date,
+      wx: { getStorageSync: (k) => store[k], setStorageSync: (k, v) => { store[k] = v; }, hideShareMenu() {} }, Page: (d) => { def = d; }, console, Date,
     });
     return Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(p) { Object.assign(this.data, p); } });
   })();

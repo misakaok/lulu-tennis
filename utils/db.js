@@ -305,15 +305,31 @@ const cloudCall = (action, data) => require('./cloud').call(action, data);
 async function addDraw(data) { const r = await cloudCall('createDraw', { draw: data }); return { id: r.id, placeDropped: !!r.placeDropped }; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
 async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
+async function updateDrawSettings(id, settings, settingsVersion) { await cloudCall('updateDrawSettings', { drawId: id, settings, settingsVersion }); }
 // 编辑活动信息：手动名称、日期、开始时间、场地编号、定位；公开文字先经云端检测
 async function updateDrawInfo(id, info) { const r = await cloudCall('updateDrawInfo', { drawId: id, info }); return { placeDropped: !!(r && r.placeDropped) }; }
 // 删除活动（软删除：签表不再显示，已录比分保留在战绩里）。管理员删除别人的活动要带原因
 // 删除成功后记下来：返回活动列表时先把它从手上的列表里去掉，不用等重新读取（云端也不会再返回它）
 const removedDraws = {};
-async function removeDraw(id, reason) {
+let lastRemoved = null; // 最近一次删除：{ id, title, at }，活动首页据此显示「撤回」
+async function removeDraw(id, reason, title) {
   await cloudCall('removeDraw', { drawId: id, reason: reason || '' });
   removedDraws[id] = 1;
+  lastRemoved = { id, title: title || '', at: Date.now() };
   cacheSetLater('cache_draws', cachedDraws().filter((d) => d._id !== id));
+}
+// 刚删除的活动（UNDO_MS 内、还没撤回 / 关掉）：活动首页顶部显示「已删除 · 撤回」
+const UNDO_MS = 5 * 60 * 1000;
+function recentRemoved() {
+  if (lastRemoved && Date.now() - lastRemoved.at > UNDO_MS) lastRemoved = null;
+  return lastRemoved;
+}
+function dismissRemoved() { lastRemoved = null; }
+// 撤回删除：成功后不再从列表里去掉它，重新读取就能看到
+async function restoreDraw(id) {
+  await cloudCall('restoreDraw', { drawId: id });
+  delete removedDraws[id];
+  if (lastRemoved && lastRemoved.id === id) lastRemoved = null;
 }
 // 去掉本次刚删除的活动；没有要去掉的就原样返回同一个数组（页面按引用判断要不要重算）
 function withoutRemoved(list) {
@@ -356,6 +372,6 @@ module.exports = {
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, removeDraw, withoutRemoved, setFixtureSlot,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

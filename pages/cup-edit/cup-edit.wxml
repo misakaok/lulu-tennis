@@ -1,7 +1,13 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="muted">加载中…</view>
-  <view wx:elif="{{authError}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{authError}}</view></view>
-  <block wx:else>
+  <view wx:if="{{!loading && authError}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{authError}}</view></view>
+  <block wx:elif="{{!loading && ok}}">
+    <view wx:if="{{from}}" class="card">
+      <view class="card-title">来自活动<text class="sub">{{from.title}}</text></view>
+      <view wx:if="{{from.stale}}" class="ce-err">赛果改过，下面的名次和最新对阵对不上</view>
+      <view wx:for="{{from.notes}}" wx:key="*this" class="ce-note">· {{item}}</view>
+      <view wx:if="{{!from.stale && !from.notes.length}}" class="ce-note">名次已按对阵带入，请核对后发布</view>
+      <view wx:if="{{from.stale}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="refill">按最新对阵重新带入</view></view>
+    </view>
     <view class="card">
       <view class="card-title">这一站<text wx:if="{{published}}" class="ui-tag solid">已发布{{fixes ? ' · 更正过 ' + fixes + ' 次' : ''}}</text></view>
       <view class="ce-row">
@@ -9,9 +15,13 @@
         <picker mode="date" value="{{date}}" end="{{today}}" bindchange="setDate"><view class="ce-pick">{{date}} ›</view></picker>
       </view>
       <view class="ce-lbl">类别</view>
-      <view class="seg"><view wx:for="{{kinds}}" wx:key="value" class="seg-item {{kind === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setKind">{{item.label}}</view></view>
+      <view class="seg cup-kinds {{from ? 'locked' : ''}}"><view wx:for="{{kinds}}" wx:key="value" class="seg-item {{kind === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setKind">{{item.label}}</view></view>
       <view class="ce-lbl">比赛形式</view>
-      <view class="seg"><view wx:for="{{formats}}" wx:key="value" class="seg-item {{format === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setFormat">{{item.label}}</view></view>
+      <view class="seg {{from ? 'locked' : ''}}"><view wx:for="{{formats}}" wx:key="value" class="seg-item {{format === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setFormat">{{item.label}}</view></view>
+      <block wx:if="{{showPointGroup}}">
+        <view class="ce-lbl">积分组别</view>
+        <view class="seg {{from || published ? 'locked' : ''}}"><view wx:for="{{pointGroups}}" wx:key="value" class="seg-item {{pointGroup === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setPointGroup">{{item.label}}</view></view>
+      </block>
       <view class="ce-note">{{pointsNote}}</view>
     </view>
 
@@ -31,6 +41,7 @@
         </view>
       </view>
       <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">＋ 添加参加保底</view></view>
+      <view wx:if="{{showPointGroup}}" class="ce-note">参加保底只给实际打过球、未取得以上名次的球友。</view>
       <view wx:else class="ce-note">月赛没有参加保底分</view>
     </view>
 

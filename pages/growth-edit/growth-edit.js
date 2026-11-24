@@ -8,11 +8,13 @@ const R = require('../../utils/rules');
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const CFG_KEY = 'growth_rules'; // 记住上次用的局制，只是本机的输入习惯
+const pointsValue = (s) => /^\d+$/.test(s) ? Number(s) : NaN;
 
 Page({
   data: {
     id: '', ready: false, error: '', today: '', date: '', type: 'single', kind: 'practice',
     rule: { setGames: 4, noAd: true, bestOf: 1 }, init: [], tags: [], tagOpts: [],
+    points11: false, points: { a: '', b: '' },
     check: { ok: false, msg: '请填写比分' }, saving: false, removing: false,
     TYPES: G.TYPES, KINDS: G.KINDS, maxTags: G.MAX_TAGS,
   },
@@ -35,12 +37,16 @@ Page({
     A.list().then((list) => {
       const r = list.find((x) => x.id === id);
       if (!r) { this.setData({ error: '记录不存在，可能已被删除' }); return; }
+      const points11 = r.points11 === true;
+      const score = points11 && r.sets && r.sets[0];
       this.setData({
         date: r.date, type: r.type, kind: r.kind, tags: r.tags || [],
         rule: { setGames: r.setGames === 6 ? 6 : 4, noAd: r.noAd !== false, bestOf: r.bestOf === 3 ? 3 : 1 },
-        init: r.sets || [], ready: true,
+        points11, points: score ? { a: String(score.a), b: String(score.b) } : { a: '', b: '' },
+        init: points11 ? [] : r.sets || [], ready: true,
       });
       this.refreshTags();
+      this.refreshCheck();
     }).catch((e) => this.setData({ error: e.message || '读取失败' }));
   },
 
@@ -51,12 +57,34 @@ Page({
 
   onDate(e) { this.setData({ date: e.detail.value }); },
   setType(e) { this.setData({ type: e.currentTarget.dataset.v }); },
-  setKind(e) { this.setData({ kind: e.currentTarget.dataset.v }); },
+  setKind(e) {
+    const kind = e.currentTarget.dataset.v;
+    this.setData({ kind, points11: kind === 'practice' && this.data.points11 });
+    this.refreshCheck();
+  },
+  setPointsMode(e) {
+    this.setData({ points11: this.data.kind === 'practice' && e.currentTarget.dataset.v === 'points' });
+    this.refreshCheck();
+  },
+  onPoints(e) {
+    const points = Object.assign({}, this.data.points, { [e.currentTarget.dataset.side]: e.detail.value });
+    this.setData({ points });
+    this.refreshCheck();
+  },
   onRule(e) { this.setData({ rule: e.detail }); },
-  onSets(e) { this.res = e.detail; this.setData({ check: this.resultOf(e.detail) }); },
-  resultOf(res) {
-    if (!res.ok) return { ok: false, msg: res.msg };
-    return { ok: true, win: res.winner === 'a', msg: `盘分 ${res.won.a}:${res.won.b}，${res.winner === 'a' ? '我赢了' : '我输了'}` };
+  onSets(e) { this.res = e.detail; this.refreshCheck(); },
+  scoreResult() {
+    if (!this.data.points11) return this.res;
+    const { a, b } = this.data.points;
+    return G.checkPoints11([{ a: pointsValue(a), b: pointsValue(b) }]);
+  },
+  refreshCheck() {
+    const res = this.scoreResult();
+    if (!res.ok) { this.setData({ check: { ok: false, msg: res.msg } }); return; }
+    const win = res.winner === 'a';
+    const result = win ? '我赢了' : '我输了';
+    const msg = this.data.points11 ? result : `盘分 ${res.won.a}:${res.won.b}，${result}`;
+    this.setData({ check: { ok: true, win, msg } });
   },
   toggleTag(e) {
     const t = e.currentTarget.dataset.t, tags = this.data.tags.slice(), i = tags.indexOf(t);
@@ -70,11 +98,13 @@ Page({
   async save() {
     if (this.data.saving) return;
     const d = this.data;
+    const res = this.scoreResult();
+    if (!res.ok) { wx.showToast({ title: res.msg, icon: 'none' }); return; }
     const c = G.clean({
       date: d.date, type: d.type, kind: d.kind, setGames: d.rule.setGames, noAd: d.rule.noAd, bestOf: d.rule.bestOf,
-      sets: this.res.ok ? this.res.sets : [], tags: d.tags,
+      points11: d.points11, sets: res.sets, tags: d.tags,
     }, d.today);
-    if (!c.ok) { wx.showToast({ title: this.res.ok ? c.msg : (this.res.msg || c.msg), icon: 'none' }); return; }
+    if (!c.ok) { wx.showToast({ title: c.msg, icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
       await A.save(d.id, c.rec);

@@ -18,6 +18,17 @@ const validDate = (s) => {
   return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 };
 
+function checkPoints11(sets) {
+  const score = Array.isArray(sets) && sets.length === 1 ? sets[0] : null;
+  if (!score || ![score.a, score.b].every((n) => Number.isSafeInteger(n) && n >= 0)) {
+    return { ok: false, msg: '请填写双方分数' };
+  }
+  const { a, b } = score;
+  // 抢11分（2026-11-24 用户要求）：先到 11 分直接赢，不用领先 2 分，所以胜方正好 11 分、负方 0～10 分
+  if (Math.max(a, b) !== 11 || a === b) return { ok: false, msg: '抢11分：先到 11 分的一方获胜，胜方 11 分、负方 0～10 分' };
+  return { ok: true, winner: a > b ? 'a' : 'b', sets: [{ a, b }] };
+}
+
 /**
  * 整理并校验一条私人比赛记录。input 来自小程序端，today 是今天（YYYY-MM-DD，云端按北京时间算）。
  * 只取认识的字段，其余一律丢掉。返回 { ok: true, rec } 或 { ok: false, msg }
@@ -30,14 +41,20 @@ function clean(input, today) {
   if (!TYPES[x.type]) return { ok: false, msg: '请选择单打或双打' };
   if (!KINDS[x.kind]) return { ok: false, msg: '请选择练习赛或正式比赛' };
   const cfg = R.normCfg(x);
-  const bestOf = x.bestOf === 1 ? 1 : 3;
-  if (!Array.isArray(x.sets) || !x.sets.length || x.sets.length > 3) return { ok: false, msg: '请填写比分' };
-  const raw = x.sets.map((s) => ({
-    a: Number.isInteger(s && s.a) ? s.a : NaN, b: Number.isInteger(s && s.b) ? s.b : NaN,
-    tbA: s && s.tbA, tbB: s && s.tbB,
-  }));
-  if (raw.some((s) => isNaN(s.a) || isNaN(s.b) || s.a < 0 || s.b < 0 || s.a > R.maxGames(cfg) || s.b > R.maxGames(cfg))) return { ok: false, msg: '比分不对' };
-  const res = R.checkMatch(raw, bestOf, cfg);
+  const points11 = x.points11 === true;
+  if (points11 && x.kind !== 'practice') return { ok: false, msg: '抢11分只用于练习赛' };
+  const bestOf = points11 || x.bestOf === 1 ? 1 : 3;
+  let res;
+  if (points11) {
+    res = checkPoints11(x.sets);
+  } else {
+    if (!Array.isArray(x.sets) || !x.sets.length || x.sets.length > 3) return { ok: false, msg: '请填写比分' };
+    const max = R.maxGames(cfg);
+    if (x.sets.some((s) => !s || ![s.a, s.b].every((n) => Number.isInteger(n) && n >= 0 && n <= max))) {
+      return { ok: false, msg: '比分不对' };
+    }
+    res = R.checkMatch(x.sets, bestOf, cfg);
+  }
   if (!res.ok) return { ok: false, msg: res.msg };
   const tags = Array.isArray(x.tags) ? x.tags : [];
   if (tags.some((t) => NOTE_TAGS.indexOf(t) < 0)) return { ok: false, msg: '备注只能从选项里选' };
@@ -48,6 +65,7 @@ function clean(input, today) {
     rec: {
       date: x.date, type: x.type, kind: x.kind,
       setGames: cfg.setGames, noAd: cfg.noAd, bestOf,
+      ...(points11 ? { points11: true } : {}),
       sets: res.sets, result: res.winner === 'a' ? 'win' : 'lose', tags: uniq,
     },
   };
@@ -107,4 +125,4 @@ function summary(records, today) {
   });
 }
 
-module.exports = { TYPES, KINDS, NOTE_TAGS, MAX_TAGS, MAX_RECORDS, clean, summary, scoreText, lastMonths, validDate };
+module.exports = { TYPES, KINDS, NOTE_TAGS, MAX_TAGS, MAX_RECORDS, clean, checkPoints11, summary, scoreText, lastMonths, validDate };

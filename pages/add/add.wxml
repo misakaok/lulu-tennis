@@ -11,6 +11,10 @@
     <image class="hero-art" src="/images/art-ball.png" mode="aspectFit" />
   </view>
   <view class="event-tip" hover-class="tap-on" bindtap="goEvents">提交后直接计入战绩，参加者可在比赛详情里修改。活动里的比赛请到「活动」按场次录分 ›</view>
+  <view wx:if="{{!fromScorer}}" class="sc-row">
+    <view class="sc-t">打球时可以用场边记分逐分记，打完自动填好局分</view>
+    <view class="btn-line mini" hover-class="tap-on" bindtap="openScorer">{{scorerResume ? '继续场边记分' : '场边记分'}}</view>
+  </view>
   <view wx:if="{{fromScorer}}" class="scorer-tip">已带入场边记分的规则和比分：选好搭档和对手、核对比分后再保存。返回不会保存，记分还留在本机</view>
   <view wx:if="{{noProfile}}" class="card np" hover-class="tap-on" bindtap="goProfile">先设置自己的昵称，才能记录比赛 ›</view>
   <!-- 基本信息 -->

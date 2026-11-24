@@ -8,9 +8,7 @@
 }
 .g-title { margin-top: 16rpx; font-size: 38rpx; font-weight: 900; }
 .g-desc { margin-top: 12rpx; font-size: 25rpx; opacity: 0.95; line-height: 1.6; }
-.g-reason { margin-top: 14rpx; font-size: 24rpx; background: rgba(255,255,255,0.2); border-radius: 14rpx; padding: 10rpx 16rpx; }
 .g-in { height: 84rpx; background: #F7F7FB; border-radius: 16rpx; padding: 0 22rpx; font-size: 28rpx; }
-.g-wait { text-align: center; font-size: 26rpx; color: #6E6EA3; padding: 30rpx 0; }
 .g-id { text-align: center; font-size: 21rpx; color: #6E6EA3; margin-top: 36rpx; }
 .g-code { margin-bottom: 16rpx; }
 .g-switch { margin-top: 24rpx; }

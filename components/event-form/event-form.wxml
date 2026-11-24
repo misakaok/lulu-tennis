@@ -1,6 +1,6 @@
 <view class="ef-row">
   <text class="label">活动日期</text>
-  <picker mode="date" value="{{v.date}}" start="{{today}}" bindchange="onDate">
+  <picker mode="date" value="{{v.date}}" start="{{allowPast ? '2000-01-01' : today}}" bindchange="onDate">
     <view class="ef-pick">{{v.date}} <text class="ef-arrow">›</text></view>
   </picker>
 </view>

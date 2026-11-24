@@ -425,6 +425,7 @@ async function signUp({ drawId, partnerId }, uid) {
   if (nameTaken(me.name, uid)) deny('报名名单里已经有同名的球友，请先改昵称');
 
   const double = E.cfgOf(draw).type === 'double';
+  if (E.isRotation(draw) && partnerId) deny('四人轮换双打每人单独报名，不用选搭档');
   let partner = null;
   if (double && partnerId) {
     if (typeof partnerId !== 'string') deny('搭档不对');
@@ -881,16 +882,17 @@ function cleanLevel(v) {
 function cleanSettings(s) {
   s = s || {};
   if (!E.MODES[s.mode]) deny('请选择活动形式');
-  const out = { mode: s.mode, type: s.type === 'double' ? 'double' : 'single' };
+  const out = { mode: s.mode, type: s.type === 'double' || s.mode === 'rotation' ? 'double' : 'single' };
   const size = intOr(s.size, 2, 128), gc = intOr(s.groupCount, 1, 16), adv = intOr(s.advance, 1, 2);
   if (size !== undefined) out.size = size;
   if (gc !== undefined) out.groupCount = gc;
   if (adv !== undefined) out.advance = adv;
   if (out.mode === 'groups_ko' && out.groupCount === 1) out.advance = 2; // 只分 1 组：前 2 名打决赛
+  if (out.mode === 'rotation') { out.size = E.ROTATION_SIZE; delete out.groupCount; delete out.advance; } // 四人轮换：固定 4 人
   // 组别（按性别限制报名）和报名上限（小组赛用；淘汰赛的上限就是签数）
-  if (s.category === 'm' || s.category === 'f' || (s.category === 'mixed' && out.type === 'double')) out.category = s.category;
+  if (s.category === 'm' || s.category === 'f' || (s.category === 'mixed' && out.type === 'double' && out.mode !== 'rotation')) out.category = s.category;
   const lim = intOr(s.limit, 2, 128);
-  if (lim !== undefined && out.mode !== 'bracket') out.limit = lim;
+  if (lim !== undefined && out.mode !== 'bracket' && out.mode !== 'rotation') out.limit = lim;
   const r = plainObj(s.rules) ? s.rules : {};
   const legacy = E.normRule(s);
   const ko = E.normRule(r.ko, legacy);
@@ -904,6 +906,7 @@ function cleanSettings(s) {
 async function cleanStructure(drawId, settings, p, uid) {
   p = p || {};
   const ents = Array.isArray(p.entrants) ? p.entrants : [];
+  if (settings.mode === 'rotation') return cleanRotation(drawId, ents, p, uid);
   if (ents.length < 2 || ents.length > 128 || ents.some((e) => typeof e !== 'string' || !e || e.length > 50)) deny('参加名单不对');
   if (new Set(ents).size !== ents.length) deny('参加名单里有重复的名字');
   const isEnt = (n) => ents.indexOf(n) >= 0;
@@ -991,28 +994,89 @@ async function createDraw({ draw }, uid) {
   const doc = Object.assign({}, settings, cleanInfo(p), { results: {} });
   const level = cleanLevel(p.level);
   if (level) doc.level = level;
+  // 计入 LULU 积分（默认不计）：类别要和活动形式对得上（周赛、月赛单淘汰 8 签）
+  if (p.cup !== undefined && p.cup !== null && p.cup !== false) {
+    const kind = plainObj(p.cup) ? p.cup.kind : '';
+    const err = CUP.drawCupError(settings, kind);
+    if (err) deny(err);
+    if (p.cup.scoreVersion === CUP.SCORE_VERSION && !CUP.usesPointGroup(kind)) deny('请选择当前的积分类别');
+    const pointGroup = CUP.pointGroupOf(kind, p.cup.pointGroup);
+    if (p.cup.pointGroup && !pointGroup) deny('积分组别不正确');
+    doc.cup = CUP.usesPointGroup(kind) ? { kind, pointGroup: pointGroup || 'open', scoreVersion: CUP.SCORE_VERSION } : { kind };
+  }
   const [title, pl] = await Promise.all([checkedTitle(p.title, uid), checkedPlace(p.place, doc.location, uid)]);
   doc.title = title;
   doc.place = pl.place;
+  if (Array.isArray(p.entrants) && settings.mode === 'rotation') deny('四人轮换双打要先开放报名，满 4 人后再生成对阵');
   if (Array.isArray(p.entrants)) Object.assign(doc, await cleanStructure('', settings, p, uid), { status: 'drawn' });
   else doc.status = 'signup';
   const r = await db.collection('draws').add({ data: Object.assign(doc, { _openid: uid, createdAt: db.serverDate() }) });
   return { id: r._id, placeDropped: !!pl.placeDropped };
 }
 
+// 四人轮换双打：正好 4 位不同的球员（单人，不带搭档），每位都要能对应到一个不同的成员账号（报名记录或本人资料证明）；
+// 三轮的搭档组合由 E.rotationPairs 按名单顺序固定算出，不接受前端传的分队 / 签位
+async function cleanRotation(drawId, ents, p, uid) {
+  if (ents.length !== E.ROTATION_SIZE || ents.some((e) => typeof e !== 'string' || !e || e.length > 20)) deny('四人轮换双打要正好 4 位球员');
+  if (new Set(ents).size !== ents.length) deny('参加名单里有重复的名字');
+  const s = await cleanStructure(drawId, { type: 'single', mode: 'groups' }, { entrants: ents, groups: [{ members: ents.map((name) => ({ name })) }], uidOf: p.uidOf, avatars: p.avatars }, uid);
+  if (ents.some((n) => !s.uidOf[n])) deny('四人轮换双打要 4 位不同的成员，名单里有人没有对应的成员账号');
+  return { entrants: ents.slice(), seeds: [], teams: E.rotationTeams(ents), results: {}, avatars: s.avatars, uidOf: s.uidOf };
+}
+
 // 报名截止后生成签表；已经开始录分、登记过退赛的活动不能重新生成（会让已有比分对不上）
 async function generateDraw({ drawId, draw }, uid) {
   const d = await ownDraw(drawId, uid);
+  const p = plainObj(draw) ? draw : {};
+  const version = d.settingsVersion || 0;
+  if (d.status === 'signup' && (p.settingsVersion || 0) !== version) deny('活动规则已有更新，请重新打开页面再排对阵');
   if (d.status !== 'signup') {
     if ((d.withdrawals || []).length) deny('已经登记过退赛，不能重新生成对阵表');
     if ((await officialEventMatches(drawId)).length) deny('已经有比赛录分了，不能重新生成对阵表');
   }
-  const settings = cleanSettings(d); // 活动形式和规则在创建时就定了，这里不接受修改
-  const s = await cleanStructure(drawId, settings, plainObj(draw) ? draw : {}, uid);
+  const settings = cleanSettings(d);
+  const s = await cleanStructure(drawId, settings, p, uid);
   const data = Object.assign({}, s, { status: 'drawn', results: _.set({}), teams: _.set(s.teams), avatars: _.set(s.avatars), uidOf: _.set(s.uidOf), slots: _.set({}) }); // 重新生成签表：原来的单场安排作废
-  if (s.groups) { data.groups = _.set(s.groups); data.lines = _.remove(); } else { data.lines = _.set(s.lines); data.groups = _.remove(); }
-  await db.collection('draws').doc(drawId).update({ data });
+  if (s.groups) { data.groups = _.set(s.groups); data.lines = _.remove(); } else if (s.lines) { data.lines = _.set(s.lines); data.groups = _.remove(); } else { data.lines = _.remove(); data.groups = _.remove(); } // 四人轮换：没有签位和分组
+  if (d.status === 'signup') {
+    await db.runTransaction(async (tx) => {
+      const ref = tx.collection('draws').doc(drawId);
+      const current = (await ref.get()).data;
+      if (!current || current.deleted || current.status !== 'signup' || (current.settingsVersion || 0) !== version) {
+        deny('活动已有更新，请重新打开页面再排对阵');
+      }
+      await ref.update({ data });
+    });
+  } else await db.collection('draws').doc(drawId).update({ data });
   return { id: drawId };
+}
+
+async function updateDrawSettings({ drawId, settings, settingsVersion }, uid) {
+  await manageDraw(drawId, uid);
+  const input = plainObj(settings) ? settings : {};
+  await db.runTransaction(async (tx) => {
+    const ref = tx.collection('draws').doc(drawId);
+    const d = (await ref.get()).data;
+    if (!d || d.deleted || d.status !== 'signup') deny('对阵生成后不能修改活动规则');
+    const version = d.settingsVersion || 0;
+    if (settingsVersion !== version) deny('活动规则已有更新，请重新打开页面后修改');
+    if (E.isRotation(d) !== (input.mode === 'rotation')) deny('四人轮换双打的报名方式固定，不能与其他形式互换');
+    const next = cleanSettings(Object.assign({}, input, { type: d.type, category: d.category }));
+    if (next.mode === 'bracket' && !next.size) deny('请选择签数');
+    if (E.hasGroups(next) && (!next.groupCount || (next.limit && next.groupCount * 2 > next.limit))) {
+      deny('每组至少需要 2 位球员或 2 支队伍，请调整组数或报名上限');
+    }
+    const cup = CUP.drawCupOf(d);
+    const error = cup && CUP.drawCupError(next, cup.kind);
+    if (error) deny(error);
+    const data = Object.assign({}, next, {
+      rules: _.set(next.rules), limit: next.limit || _.remove(), settingsVersion: version + 1,
+      updatedAt: db.serverDate(), updatedBy: uid,
+    });
+    await ref.update({ data });
+    await logAction({ type: 'editDrawSettings', drawId, by: uid, byAdmin: true, before: cleanSettings(d), after: next }, tx);
+  });
+  return {};
 }
 
 async function updateDrawInfo({ drawId, info }, uid) {
@@ -1060,6 +1124,20 @@ async function removeDraw({ drawId, reason }, uid) {
   return { deleted: true };
 }
 
+// 撤回删除（2026-11-24 用户要求：管理员误删可以撤回）：删除的人本人或管理员可以撤回，不用填原因、留档。
+// 活动恢复原样（报名、对阵、比分本来就没动）；删除时作废的申请（handleNote「活动已删除」）恢复成待处理。已经恢复过的再撤回什么都不改
+async function restoreDraw({ drawId }, uid) {
+  if (typeof drawId !== 'string' || !drawId) deny('缺少活动');
+  const d = await getDoc('draws', drawId);
+  if (!d) deny('活动不存在');
+  if (!d.deleted) return { restored: true, same: true };
+  if (d.deletedBy !== uid && !isAdmin(uid)) deny('只有删除这个活动的人或管理员可以撤回');
+  await db.collection('draws').doc(drawId).update({ data: { deleted: _.remove(), deletedBy: _.remove(), deletedAt: _.remove(), deleteReason: _.remove(), deletedByAdmin: _.remove() } });
+  await db.collection('requests').where({ drawId, status: 'cancelled', handleNote: '活动已删除' }).update({ data: { status: 'pending', handleNote: '' } });
+  await logAction({ type: 'restoreDraw', drawId, by: uid, byAdmin: d.deletedBy !== uid, deletedBy: d.deletedBy || '', deleteReason: d.deleteReason || '' });
+  return { restored: true };
+}
+
 /* ---------- 共用：审计记录、作废记录、局分校验 ---------- */
 // requests 集合（仅管理端可读写）：改分申请、退赛申请，以及发起人的裁定 / 弃权 / 退赛处理记录
 //   状态 pending → processing（领取，原子操作防并发）→ accepted / rejected / ruled / cancelled / stale / done
@@ -1071,8 +1149,8 @@ const cleanReason = (r, need) => {
   if (!ok) deny('原因只能从固定选项里选择');
   return ok;
 };
-async function logAction(data) {
-  await db.collection('requests').add({ data: Object.assign({ status: 'done', createdAt: db.serverDate(), handledAt: db.serverDate() }, data) });
+async function logAction(data, store = db) {
+  await store.collection('requests').add({ data: Object.assign({ status: 'done', createdAt: db.serverDate(), handledAt: db.serverDate() }, data) });
 }
 // 领取一条待处理的申请：只有一个人能领到（where + update 是原子的），重复点击 / 两人同时处理都只生效一次
 async function claim(id, uid) {
@@ -1485,6 +1563,7 @@ async function handleWithdraw({ drawId, entrant, requestId, approve, policy, rea
       const groupLeft = sched.some((x) => /^g/.test(x.key) && !x.done);
       if (groupLeft || draw.mode === 'groups') stage = 'group';
     }
+    if (E.isRotation(draw)) stage = 'rotation'; // 四人轮换：已打的轮次保留，没打的轮次判 TA 这一方弃权负（每轮都有 TA）
     if (stage === 'group' && policy !== 'walkover' && policy !== 'void') deny('分组循环阶段退赛请选择处理方式：未赛场次判对手弃权胜，或取消该球员全部小组成绩');
     const entry = { entrant, stage, policy: stage === 'group' ? policy : 'walkover', reason: why, by: uid, at: Date.now(), requestId: requestId || '' };
     const draw2 = Object.assign({}, draw, { withdrawals: (draw.withdrawals || []).concat([entry]) });
@@ -1495,6 +1574,9 @@ async function handleWithdraw({ drawId, entrant, requestId, approve, policy, rea
         const loser = x.a === entrant ? 'a' : 'b';
         woRecords.push({ x, loser });
       });
+    }
+    if (stage === 'rotation') {
+      sched.filter((x) => E.isRotationKey(x.key) && !x.done).forEach((x) => woRecords.push({ x, loser: x.aMembers.indexOf(entrant) >= 0 ? 'a' : 'b' }));
     }
     const fake = woRecords.map(({ x, loser }) => ({ _id: evId(drawId, x.key), drawId, drawKey: x.key, ea: x.a, eb: x.b, a: x.aMembers, b: x.bMembers, winner: loser === 'a' ? 'b' : 'a', sets: [], outcome: 'walkover', createdAt: Date.now() }));
     const impact = E.impactOf(draw, list, draw2, list.concat(fake));
@@ -1636,7 +1718,7 @@ async function setMemberGender({ uid: target, gender }, uid) {
   return { ok: true };
 }
 
-const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1 };
+const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, updateDrawSettings: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1, cupFromDraw: 1, updateDrawCupKind: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -1918,6 +2000,7 @@ async function dataGateway({ op, coll, where, orders, skip, limit, id, data }, u
 const GROWTH = 'growth_matches';
 const growthView = (d) => ({
   id: d._id, date: d.date, type: d.type, kind: d.kind, setGames: d.setGames, noAd: d.noAd, bestOf: d.bestOf,
+  ...(d.points11 === true ? { points11: true } : {}),
   sets: d.sets || [], result: d.result, tags: d.tags || [], createdAt: tsOf(d),
 });
 async function ownGrowth(id, uid) {
@@ -1933,7 +2016,10 @@ async function growthSave({ id, record }, uid) {
   if (!c.ok) deny(c.msg);
   if (id) {
     await ownGrowth(id, uid);
-    await db.collection(GROWTH).doc(id).update({ data: Object.assign({}, c.rec, { updatedAt: db.serverDate() }) });
+    await db.collection(GROWTH).doc(id).update({ data: Object.assign({}, c.rec, {
+      points11: c.rec.points11 === true ? true : _.remove(),
+      updatedAt: db.serverDate(),
+    }) });
     return { id };
   }
   const n = (await db.collection(GROWTH).where({ owner: uid }).count()).total;
@@ -2043,16 +2129,99 @@ const CUP_STOPS = 'cup_stops';
 const CUP_KEY = /^[A-Za-z0-9_-]{8,40}$/;
 const cupView = (d) => ({
   id: d._id, date: d.date, year: d.year, kind: d.kind, format: d.format, places: d.places, results: d.results || [],
-  status: d.status, fixes: d.fixes || 0, updatedAt: tsOf({ createdAt: d.updatedAt }) || tsOf(d),
+  status: d.status, fixes: d.fixes || 0, updatedAt: tsOf({ createdAt: d.updatedAt }) || tsOf(d), drawId: d.drawId || '',
+  pointGroup: CUP.pointGroupOf(d.kind, d.pointGroup),
+  scoreVersion: d.scoreVersion || 0,
 });
+// 活动结算的那一站：编号由活动 ID 固定算出（重复点、几位管理员同时结算都落到同一条，数据库按编号只能新增一次）
+const cupKeyOfDraw = (drawId) => 'd' + md5('draw:' + drawId).slice(0, 24);
+const DRAW_CUP_KEY = /^d[0-9a-f]{24}$/;
+// 只有文档确实不存在才返回 null，其他错误不能当成没结算。
+async function readCupDoc(ref) {
+  try { return (await ref.get()).data || null; }
+  catch (e) {
+    if (/document not exist|document with _id .* does not exist/i.test(String(e && (e.message || e.errMsg) || e))) return null;
+    throw e;
+  }
+}
+
+// 管理员只更正已标记积分的活动类别。和活动结算在同一组文档上做事务校验。
+async function updateDrawCupKind({ drawId, kind, fromKind }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以操作');
+  if (typeof drawId !== 'string' || !drawId) deny('缺少活动');
+  let result;
+  await db.runTransaction(async (tx) => {
+    const ref = tx.collection('draws').doc(drawId);
+    const d = await readCupDoc(ref);
+    if (!d || d.deleted) deny('活动不存在，可能已被删除');
+    const before = CUP.drawCupOf(d);
+    if (!before) deny('这个活动没有设置计入 LULU 积分');
+    if (kind === before.kind) { result = { cup: before, same: true }; return; }
+    if (fromKind !== before.kind) deny('积分类别刚刚有变动，请刷新后再修改');
+    if (!CUP.kindsForVersion(before.scoreVersion).some((item) => item.value === kind)) deny('请选择有效积分类别');
+    const error = CUP.drawCupError(d, kind);
+    if (error) deny(error);
+    if (await readCupDoc(tx.collection(CUP_STOPS).doc(cupKeyOfDraw(drawId)))) {
+      deny('这场活动已有积分结算记录，积分类别已锁定');
+    }
+    const cup = Object.assign({}, d.cup, { kind });
+    await ref.update({ data: { cup: _.set(cup) } });
+    await logAction({ type: 'editCupKind', drawId, by: uid, byAdmin: true, before: before.kind, after: kind }, tx);
+    result = { cup: CUP.drawCupOf({ cup }) };
+  });
+  return result;
+}
+// 积分活动：活动本身 + 从对阵推出来的名次（CUP.fromDraw）
+async function drawCupCtx(drawId) {
+  if (typeof drawId !== 'string' || !drawId) deny('缺少活动');
+  const d = await getDoc('draws', drawId);
+  if (!d || d.deleted) deny('活动不存在，可能已被删除');
+  if (!CUP.drawCupOf(d)) deny('这个活动没有设置计入 LULU 积分');
+  d._id = drawId;
+  const [matches, map] = await Promise.all([officialEventMatches(drawId), drawUidMap(drawId, {})]);
+  return { d, fresh: CUP.fromDraw(d, matches, map) };
+}
+// 结算 LULU 积分（管理员，只读）：返回固定编号、预填名次和提示；已经结算过就带回原来那一站，
+// 赛果改过、推出来的名次和已存的不一样时 stale = true（提示重新核对、发布更正，沿用原编号）
+async function cupFromDraw({ drawId }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以操作');
+  const { d, fresh } = await drawCupCtx(drawId);
+  const key = cupKeyOfDraw(drawId);
+  const old = await readCupDoc(db.collection(CUP_STOPS).doc(key));
+  const live = old && !old.deleted ? old : null;
+  return {
+    key, title: E.titleOf(d), fresh, stop: live ? cupView(live) : null, removed: !!(old && old.deleted),
+    stale: !!(live && fresh.done && CUP.placesDiffer(live.places, fresh.places)),
+  };
+}
 // 内容是否没变：逐项取出来比（不依赖数据库返回的字段顺序）；名次里的每一队在 cleanStop 里已经排好序
 const cupCanon = (d) => {
   const p = d.places || {};
   const t = (x) => (Array.isArray(x) ? x.slice() : []);
-  return JSON.stringify([d.date, d.kind, d.format, t(p.champion), t(p.runnerUp), (p.semis || []).map(t), (p.floor || []).map(t),
+  return JSON.stringify([d.date, d.kind, d.format, d.scoreVersion || 0, CUP.pointGroupOf(d.kind, d.pointGroup), t(p.champion), t(p.runnerUp), (p.semis || []).map(t), (p.floor || []).map(t),
     (d.results || []).map((r) => [r.tier, r.key, r.base, r.bonus, r.total])]);
 };
-const cupSummary = (d) => (d ? { date: d.date, kind: d.kind, format: d.format, places: d.places, results: (d.results || []).map((r) => ({ tier: r.tier, ids: r.ids, total: r.total })) } : null);
+const cupSummary = (d) => (d ? { date: d.date, kind: d.kind, format: d.format, pointGroup: d.pointGroup || '', scoreVersion: d.scoreVersion || 0, places: d.places, results: (d.results || []).map((r) => ({ tier: r.tier, ids: r.ids, total: r.total })) } : null);
+
+async function writeLinkedCup(linked, key, old, data) {
+  await db.runTransaction(async (tx) => {
+    const d = await readCupDoc(tx.collection('draws').doc(linked.drawId));
+    if (!d || d.deleted) deny('活动不存在，可能已被删除');
+    const cup = CUP.drawCupOf(d);
+    if (!cup || cup.kind !== linked.kind || cup.pointGroup !== linked.pointGroup || cup.scoreVersion !== linked.scoreVersion) {
+      deny('活动的积分设置刚刚有变动，请重新打开结算页');
+    }
+    const stops = tx.collection(CUP_STOPS);
+    const ref = stops.doc(key);
+    const saved = await readCupDoc(ref);
+    if (saved && saved.deleted) deny('这个活动的积分已经撤下，不能再结算；需要的话请补录一站');
+    if (Boolean(saved) !== Boolean(old) || (saved && (saved.status !== old.status || saved.fixes !== old.fixes || cupCanon(saved) !== cupCanon(old)))) {
+      deny('这个活动的积分刚刚已由另一位管理员更新，请返回后重新打开');
+    }
+    if (saved) await ref.update({ data: Object.assign({}, data, { places: _.set(data.places), results: _.set(data.results) }) });
+    else await stops.add({ data: Object.assign({ _id: key }, data, { createdBy: data.updatedBy, createdAt: db.serverDate(), fixes: 0 }) });
+  });
+}
 
 // 录入的人：都必须是正式成员（管理员默认是成员），而且设置过资料；性别取本人资料（女生夺冠奖励用）
 async function cupPeople(ids) {
@@ -2070,36 +2239,65 @@ async function cupPeople(ids) {
 
 // key：这一站的编号（新建时由补录页生成，更正时就是原来那一站的编号）；同一个编号重复提交只会更新这一站。
 // publish：true 发布（已发布的站再保存就是更正，立即生效）；false 只保存草稿（成员看不到、不进榜）
-async function cupSave({ key, stop, publish }, uid) {
+// drawId：从积分活动结算（编号由活动 ID 算出，不认前端传的 key）：活动要全部场次结束，类别、单双打必须和活动一致
+async function cupSave({ key, stop, publish, drawId }, uid) {
   if (!isAdmin(uid)) deny('只有管理员可以操作');
+  let linked = null;
+  if (drawId !== undefined && drawId !== null && drawId !== '') {
+    const { fresh } = await drawCupCtx(drawId);
+    key = cupKeyOfDraw(drawId);
+    // 第一次结算要全部完赛；已经发布的站，活动后来有场次被撤销 / 重新打开也照样能更正（不然只能撤下）
+    if (!fresh.done) {
+      const pub = await getDoc(CUP_STOPS, key);
+      if (pub && pub.deleted) deny('这个活动的积分已经撤下，不能再结算；需要的话请补录一站');
+      if (!pub || pub.status !== 'published') deny('这个活动还有场次没打完，全部结束后才能结算积分');
+    }
+    linked = { drawId, kind: fresh.kind, format: fresh.format, pointGroup: fresh.pointGroup, scoreVersion: fresh.scoreVersion, playedKeys: fresh.playedKeys };
+  } else if (typeof key === 'string' && DRAW_CUP_KEY.test(key)) deny('这一站是从活动结算的，请在活动详情里打开');
   if (typeof key !== 'string' || !CUP_KEY.test(key)) deny('缺少这一站的编号，请返回后重新打开补录页');
-  const c = CUP.cleanStop(stop, today());
+  const old = await getDoc(CUP_STOPS, key);
+  if (old && old.deleted) deny(linked ? '这个活动的积分已经撤下，不能再结算；需要的话请补录一站' : '这一站已经撤下，要重新录请补录一站');
+  if (old && old.drawId && !linked) deny('这一站是从活动结算的，请在活动详情里打开');
+  const input = plainObj(stop) ? stop : {};
+  const wasPub = !!old && old.status === 'published';
+  const scoreVersion = linked ? linked.scoreVersion : old ? old.scoreVersion : input.scoreVersion;
+  if (old && !scoreVersion && CUP.eventBonusOf(input.kind)) deny('这站沿用原积分规则，请补录新的一站');
+  if (scoreVersion === CUP.SCORE_VERSION && input.kind === 'encounter') deny('请选择当前的积分类别');
+  // 活动以创建时的组别为准；已发布的站和旧站继续按原计分，草稿可核对组别。
+  let pointGroup = linked ? linked.pointGroup : old ? old.pointGroup : input.pointGroup;
+  if (!linked && old && !wasPub && old.pointGroup && input.pointGroup) pointGroup = input.pointGroup;
+  if (!CUP.usesPointGroup(input.kind)) pointGroup = '';
+  const c = CUP.cleanStop(Object.assign({}, input, { pointGroup, scoreVersion }), today());
   if (!c.ok) deny(c.error);
   const rec = c.rec;
+  if (linked && (rec.kind !== linked.kind || rec.format !== linked.format)) deny(`这个活动是${CUP.kindText(linked.kind)} · ${CUP.formatText(linked.format)}，类别和单打 / 双打不能改`);
   const p = rec.places;
+  if (linked && linked.playedKeys && p.floor.some((ids) => !linked.playedKeys.includes(CUP.teamKey(ids)))) {
+    deny('参加保底只给有实际打球记录的球员或队伍，请核对名单');
+  }
   const ids = [].concat(p.champion, p.runnerUp, ...p.semis, ...p.floor);
   const prof = await cupPeople(ids);
   rec.results = CUP.results(rec, (id) => (prof[id] && prof[id].gender) || '');
-  // 同一天、同一类、同一形式只能有一站（重复补录会重复加分）：要改就更正原来那一站
-  const dup = (await db.collection(CUP_STOPS).where({ date: rec.date, kind: rec.kind, format: rec.format }).get()).data.find((d) => d._id !== key && !d.deleted);
+  // 同一天、同类别、同形式、同组别只能有一站；历史无组别按不分组检查重复。
+  const dup = (await db.collection(CUP_STOPS).where({ date: rec.date, kind: rec.kind, format: rec.format }).get()).data.find((d) =>
+    d._id !== key && !d.deleted && (d.pointGroup || 'open') === (rec.pointGroup || 'open'));
   if (dup) deny(`这一天已经有一站${CUP.kindText(rec.kind)} · ${CUP.formatText(rec.format)}的积分，请在那一站里更正`);
-  const old = await getDoc(CUP_STOPS, key);
-  if (old && old.deleted) deny('这一站已经撤下，要重新录请补录一站');
-  const wasPub = !!old && old.status === 'published';
   const status = wasPub || publish === true ? 'published' : 'draft';
   // 内容和状态都没变（重复点了发布 / 保存）：什么都不改，也不留档
   if (old && old.status === status && cupCanon(old) === cupCanon(rec)) return { id: key, status, same: true, stop: cupView(old) };
   const how = !old ? (status === 'published' ? 'publish' : 'draft') : wasPub ? 'fix' : status === 'published' ? 'publish' : 'draft';
-  const data = Object.assign({}, rec, { status, updatedBy: uid, updatedAt: db.serverDate() });
+  const data = Object.assign({}, rec, { status, updatedBy: uid, updatedAt: db.serverDate() }, linked ? { drawId: linked.drawId } : {});
+  if (old && old.pointGroup && !rec.pointGroup) data.pointGroup = '';
   if (how === 'fix') data.fixes = (old.fixes || 0) + 1;
   if (status === 'published' && !wasPub) data.publishedAt = db.serverDate();
-  if (old) await db.collection(CUP_STOPS).doc(key).update({ data: Object.assign({}, data, { places: _.set(rec.places), results: _.set(rec.results) }) });
+  if (linked) await writeLinkedCup(linked, key, old, data);
+  else if (old) await db.collection(CUP_STOPS).doc(key).update({ data: Object.assign({}, data, { places: _.set(rec.places), results: _.set(rec.results) }) });
   else {
     // 新建：add 带编号，编号已存在就失败（getDoc 读取出错也返回 null，不能用 set，否则会把已有的站整条覆盖、清掉更正次数）
     try { await db.collection(CUP_STOPS).add({ data: Object.assign({ _id: key }, data, { createdBy: uid, createdAt: db.serverDate(), fixes: 0 }) }); }
     catch (e) { deny('这一站刚刚没读到，请返回积分页刷新后再试'); }
   }
-  await logAction({ type: 'cup', how, stopId: key, by: uid, byAdmin: true, from: cupSummary(old), to: cupSummary(rec) });
+  await logAction(Object.assign({ type: 'cup', how, stopId: key, by: uid, byAdmin: true, from: cupSummary(old), to: cupSummary(rec) }, linked ? { drawId: linked.drawId } : {}));
   return { id: key, status, how, stop: cupView(Object.assign({ _id: key }, old || {}, data, { fixes: data.fixes || (old && old.fixes) || 0 })) };
 }
 
@@ -2138,11 +2336,12 @@ async function cupList(_d, uid) {
   const admin = isAdmin(uid);
   const list = (await allDocs(CUP_STOPS, admin ? {} : { status: 'published' })).filter((d) => !d.deleted && (admin || d.status === 'published'));
   list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : tsOf(b) - tsOf(a)));
-  const out = list.map(cupView);
+  // 对应的活动 ID 只给管理员（补录页打开、更正要用），成员的积分榜用不到
+  const out = list.map((d) => { const v = cupView(d); if (!admin) delete v.drawId; return v; });
   return { list: admin ? out : await cupMask(out, uid), admin };
 }
 
-const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, removeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

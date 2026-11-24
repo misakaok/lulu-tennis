@@ -14,6 +14,7 @@ Component({
   options: { addGlobalClass: true },
   properties: {
     value: { type: Object, value: null, observer: 'init' },
+    allowPast: { type: Boolean, value: false },
     // 最近使用的地点（新建活动页传入，utils/places.js 的 recentPlaces）：点选直接填回位置和地点名称，不打开地图
     recent: { type: Array, value: [] },
   },

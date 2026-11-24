@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "LULU网球",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false
 }

@@ -97,7 +97,7 @@ test('表单：点选历史地点直接填回 location 和 place，不打开地�
 
   const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
   assert.ok(/最近使用的地点/.test(xml) && /bindtap="pickRecent"/.test(xml) && /bindtap="pickLocation"/.test(xml) && /bindtap="clearLocation"/.test(xml));
-  assert.ok(/<event-form recent="\{\{recentPlaces\}\}" bind:change="onInfo" \/>/.test(fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8')));
+  assert.ok(/<event-form\b[^>]*\brecent="\{\{recentPlaces\}\}"[^>]*\bbind:change="onInfo"/.test(fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8')));
   // 编辑页不传历史地点：不显示这一块
   assert.ok(!/recent=/.test(fs.readFileSync(path.join(__dirname, '../pages/event-edit/event-edit.wxml'), 'utf8')));
 });

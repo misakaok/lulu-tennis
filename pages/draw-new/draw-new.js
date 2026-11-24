@@ -5,6 +5,7 @@ const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const PL = require('../../utils/places');
+const C = require('../../utils/cup');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const SIZES = [8, 12, 16, 24, 32];
@@ -25,28 +26,33 @@ Page({
     rules: { group: DEF_RULE, ko: DEF_RULE, rounds: {} }, koRoundList: [], rulesSum: [],
     sizes: SIZES, groupOpts: GROUPS,
     chips: [], seedChips: [], seedList: [], teamList: [],
-    info: '', seedInfo: '', canDraw: false, preview: null, saving: false,
+    info: '', seedInfo: '', canDraw: false, preview: null, manualOpts: [], manualIndexes: [], saving: false,
     recentPlaces: [], heroTop: '', heroSub: '',
+    cupOn: false, cupKind: 'weekly', cupKinds: C.ACTIVE_KINDS, cupPointGroup: 'open', cupPointGroups: C.POINT_GROUPS, cupErr: '', cupNote: '', cupText: '',
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
+    editingSettings: false, settingsLoading: false, fixedRotation: false,
   },
 
   async onLoad(options) {
-    try {
-      const member = await require('../../utils/member').status();
-      if (member.status !== 'active' || !member.isAdmin) {
-        this.setData({ canPublish: false, authError: '只有管理员可以发布活动' });
-        return;
-      }
-      this.setData({ canPublish: true, authError: '' });
-    } catch (e) {
-      this.setData({ canPublish: false, authError: '身份校验失败，请返回后重试' });
-      return;
-    }
+    const editingSettings = !!(options && options.id && options.settings === '1');
+    // 每次打开都实时校验身份；本机记得是管理员（24 小时内确认过）就先显示表单、校验在后台跑，不通过再收起（提交仍由云端校验）
+    const M = require('../../utils/member');
+    const check = M.status().then((m) => (m.status === 'active' && m.isAdmin ? '' : '只有管理员可以发布活动'), () => '身份校验失败，请返回后重试');
+    const lock = (err) => { if (err) this.setData({ canPublish: false, authError: err }); return !!err; };
+    if (M.knownActive() && M.isAdminLocal()) check.then(lock);
+    else if (lock(await check)) return;
+    this.setData({ canPublish: true, authError: '' });
     const d = new Date();
     this.date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     this.selected = []; // 选中的球员（双打按顺序两两组队）
     this.seeds = [];    // 种子（参赛单位：单打是名字，双打是「张三 / 李四」）
     this.players = [];
+    if (editingSettings) {
+      this.drawId = options.id;
+      this.setData({ editingSettings: true, settingsLoading: true });
+      await this.loadSettings();
+      return;
+    }
     this.setPlayers(db.cachedPlayersFull());
     let last = {};
     try { last = wx.getStorageSync(CFG_KEY) || {}; } catch (e) {}
@@ -65,6 +71,27 @@ Page({
       this.loadRecentPlaces();
     }
     this.refresh();
+  },
+
+  async loadSettings() {
+    try {
+      const d = await db.getDraw(this.drawId);
+      if (d.status !== 'signup') throw new Error('对阵生成后不能修改活动规则');
+      const { type } = E.cfgOf(d);
+      const rules = E.stageRules(d), cup = C.drawCupOf(d);
+      this.settingsVersion = d.settingsVersion || 0;
+      wx.setNavigationBarTitle({ title: '修改活动规则' });
+      this.setData({
+        title: d.title, mode: d.mode, size: d.size || 8, groupCount: d.groupCount || 4, advance: d.advance === 1 ? 1 : 2,
+        type, category: E.categoryOf(d), rules, byRound: Object.keys(rules.rounds).length > 0,
+        limit: d.limit || 0, limits: LIMITS[type], fixedRotation: E.isRotation(d),
+        cupOn: !!cup, cupKind: cup ? cup.kind : 'weekly', cupText: C.drawCupText(d),
+      });
+      this.refresh();
+      this.setData({ settingsLoading: false });
+    } catch (e) {
+      this.setData({ canPublish: false, settingsLoading: false, authError: e.message || '读取活动失败' });
+    }
   },
 
   setPlayers(full) {
@@ -102,6 +129,7 @@ Page({
       this.ratings = R.computeRatings(matches, R.startLevelsFrom(full));
       this.signUid = ID.drawUids(null, signups); // 报名记录是本人写的，ID 最可靠
       const cfg = E.cfgOf(draw), st = E.stageRules(draw);
+      this.settingsVersion = draw.settingsVersion || 0;
       // 双打：已经带搭档的先排，单人报名的排在后面按顺序两两配对
       const names = [];
       const push = (n) => { if (n && names.indexOf(n) < 0) names.push(n); };
@@ -126,7 +154,7 @@ Page({
       waiting.forEach((s) => [s.name, s.partner].forEach((n) => { if (n && this.players.indexOf(n) < 0) this.players.push(n); }));
       this.selected = names.slice();
       this.setData({
-        category: E.categoryOf(draw), limit: draw.limit || 0,
+        category: E.categoryOf(draw), limit: draw.limit || 0, cupText: C.drawCupText(draw),
         waitInfo: waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
         title: draw.title, mode: draw.mode, size: draw.size || 8, groupCount: draw.groupCount || 4, advance: draw.advance === 1 ? 1 : 2,
         type: cfg.type, limits: LIMITS[cfg.type === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0,
@@ -142,7 +170,7 @@ Page({
 
   // 参赛单位和双打队伍
   entrants() {
-    if (!this.isDouble()) { this.teams = null; return this.selected.slice(); }
+    if (!this.isDouble() || this.isRot()) { this.teams = null; return this.selected.slice(); } // 四人轮换：参加者是 4 位球员，搭档每轮由公式定
     const out = [], teams = {};
     for (let i = 0; i + 1 < this.selected.length; i += 2) {
       const pair = [this.selected[i], this.selected[i + 1]];
@@ -161,9 +189,13 @@ Page({
     return ms.reduce((s, n) => s + this.levelOf(n), 0) / ms.length;
   },
 
-  isGroups() { return this.data.mode !== 'bracket'; }, // 小组赛、小组赛＋淘汰赛都要先分组
-  maxSeeds(n) { return D.maxSeeds(this.isGroups() ? 'groups' : 'bracket', this.isGroups() ? this.data.groupCount : this.data.size, n); },
-  recSeeds(n) { return Math.min(this.maxSeeds(n), this.isGroups() ? this.data.groupCount : D.nextPow2(this.data.size) / 4); },
+  isGroups() { return this.data.mode !== 'bracket' && !this.isRot(); }, // 小组赛、小组赛＋淘汰赛都要先分组
+  isRot() { return this.data.mode === 'rotation'; },
+  maxSeeds(n) {
+    if (this.isRot()) return 0; // 四人轮换没有种子
+    return D.maxSeeds(this.isGroups() ? 'groups' : 'bracket', this.isGroups() ? this.data.groupCount : this.data.size, n);
+  },
+  recSeeds(n) { if (this.isRot()) return 0; return Math.min(this.maxSeeds(n), this.isGroups() ? this.data.groupCount : D.nextPow2(this.data.size) / 4); },
   // 种子的叫法：单打「N 位种子选手」，双打「N 支种子队伍」（只在种子设置相关的界面用「种子」）
   seedUnit() { return this.isDouble() ? '支' : '位'; },
   seedName() { return this.isDouble() ? '种子队伍' : '种子选手'; },
@@ -182,7 +214,10 @@ Page({
   setHero() {
     const { mode, size, groupCount, entry, type, category, fromSignup } = this.data;
     const i = this.info || {};
-    const top = [E.MODES[mode], mode === 'bracket' ? `${size} 签` : (groupCount === 1 ? '大循环' : `${groupCount} 组`), fromSignup ? '' : (entry === 'signup' ? '开放报名' : '我来选人')];
+    const top = mode === 'rotation' ? [E.MODES.rotation, '4 人', fromSignup ? '' : '开放报名']
+      : [E.MODES[mode], mode === 'bracket' ? `${size} 签` : (groupCount === 1 ? '大循环' : `${groupCount} 组`), fromSignup ? '' : (entry === 'signup' ? '开放报名' : '我来选人')];
+    if (this.data.editingSettings && this.data.cupText) top.unshift(this.data.cupText);
+    else if (this.data.cupOn && !fromSignup) top.unshift(C.drawCupText({ cup: { kind: this.data.cupKind, pointGroup: this.data.cupPointGroup } }));
     const cat = { m: '男子', f: '女子', mixed: '混双' }[category] || '';
     const sub = (fromSignup ? [] : [E.dayText(i.date) || '日期待定', i.startTime || '时间待定']).concat([type === 'double' ? '双打' : '单打', cat]);
     const heroTop = top.filter(Boolean).join(' · '), heroSub = sub.filter(Boolean).join(' · ');
@@ -190,16 +225,22 @@ Page({
   },
   refresh() {
     this.setHero();
+    this.checkCup();
     const { mode, size, groupCount, entry } = this.data;
     const dbl = this.isDouble();
     const ents = this.entrants();
     const n = ents.length, unit = dbl ? '队' : '人';
     const max = this.maxSeeds(n);
     this.seeds = this.seeds.filter((s) => ents.indexOf(s) >= 0).slice(0, max);
-    const odd = dbl && this.selected.length % 2 === 1;
+    const odd = dbl && !this.isRot() && this.selected.length % 2 === 1;
 
     let info = '', ok = false;
-    if (entry === 'signup') {
+    const rot = this.isRot();
+    if (rot && entry === 'signup') { ok = true; info = '创建后发给球友，每人单独报名（不用选搭档）；报满 4 位后由你确认生成三轮对阵，之后报名的进候补'; }
+    else if (rot) {
+      ok = n === E.ROTATION_SIZE;
+      info = ok ? '已选 4 位 · 三轮换搭档，每人和另外三位各搭档一次' : `已选 ${n} 位，四人轮换双打要正好 4 位`;
+    } else if (entry === 'signup') {
       ok = true;
       info = (mode === 'bracket' ? `创建后发给球友，球友点「我要报名」，最多 ${size} ${unit}` : (groupCount === 1 ? '创建后发给球友，球友点「我要报名」，报完所有人打一个大循环' : `创建后发给球友，球友点「我要报名」，报完再分 ${groupCount} 组`))
         + (dbl ? '。报名时可以选搭档，没搭档的由你来配对' : '');
@@ -225,10 +266,10 @@ Page({
     this.setData(Object.assign({
       chips: this.players.map((p) => {
         const i = this.selected.indexOf(p);
-        return { name: p, level: lv(this.levelOf(p)), on: i >= 0, team: dbl && i >= 0 ? Math.floor(i / 2) + 1 : 0 };
+        return { name: p, level: lv(this.levelOf(p)), on: i >= 0, team: dbl && !this.isRot() && i >= 0 ? Math.floor(i / 2) + 1 : 0 };
       }),
-      teamList: dbl ? ents.map((t, i) => ({ no: i + 1, name: t, level: lv(this.levelOfEnt(t)) })).concat(odd ? [{ no: ents.length + 1, name: this.selected[this.selected.length - 1] + ' / ？', level: '' }] : []) : [],
-      seedChips: ents.map((p) => Object.assign(chip(p), { seed: this.seeds.indexOf(p) + 1 })),
+      teamList: dbl && !this.isRot() ? ents.map((t, i) => ({ no: i + 1, name: t, level: lv(this.levelOfEnt(t)) })).concat(odd ? [{ no: ents.length + 1, name: this.selected[this.selected.length - 1] + ' / ？', level: '' }] : []) : [],
+      seedChips: this.isRot() ? [] : ents.map((p) => Object.assign(chip(p), { seed: this.seeds.indexOf(p) + 1 })),
       seedList: this.seeds.map((p, i) => Object.assign(chip(p), { seed: i + 1 })),
       info, seedInfo, canDraw: ok,
     }, this.ruleView()));
@@ -252,16 +293,19 @@ Page({
   // 首个阶段的规则也写在顶层（旧版本页面和战绩列表用）
   cfg() {
     const d = this.draft(), st = E.stageRules(d);
-    return Object.assign({ type: this.data.type }, E.hasGroups(d) ? st.group : st.ko);
+    return Object.assign({ type: this.data.type }, E.hasGroups(d) || E.isRotation(d) ? st.group : st.ko);
   },
-  saveCfg() { try { wx.setStorageSync(CFG_KEY, Object.assign(this.cfg(), { rules: this.draft().rules })); } catch (e) {} },
+  saveCfg() {
+    if (this.isRot()) return; // 四人轮换固定双打，不记进「上次的设置」（不然下次普通活动默认成双打）
+    try { wx.setStorageSync(CFG_KEY, Object.assign(this.cfg(), { rules: this.draft().rules })); } catch (e) {}
+  },
   changed(data) {
     if (this.data.fromSignup) return; // 报名时就定好了，不能再改
     const next = Object.assign({}, this.data, data);
     // 小组赛＋淘汰赛只分 1 组时，只出线第 1 名就没有淘汰赛了：固定前 2 名打决赛
     if (next.mode === 'groups_ko' && next.groupCount === 1 && next.advance !== 2) data = Object.assign({}, data, { advance: 2 });
     this.setData(Object.assign({ preview: null }, data));
-    this.saveCfg();
+    if (!this.data.editingSettings) this.saveCfg();
     this.refresh();
   },
 
@@ -288,8 +332,47 @@ Page({
     if (err) wx.showToast({ title: err, icon: 'none' });
     return !err;
   },
-  setEntry(e) { this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh(); },
-  setMode(e) { this.changed({ mode: e.currentTarget.dataset.v }); },
+  // LULU 积分：周赛、月赛选上时直接切成单淘汰 8 签；之后改了形式 / 签数就提示不匹配，不能创建
+  setCup(e) {
+    const on = e.currentTarget.dataset.v === '1';
+    if (on === this.data.cupOn) return;
+    this.setData({ cupOn: on });
+    if (on) this.fitCup(this.data.cupKind); else this.refresh();
+  },
+  setCupKind(e) { this.setData({ cupKind: e.currentTarget.dataset.v }); this.fitCup(e.currentTarget.dataset.v); },
+  setCupPointGroup(e) {
+    const group = C.pointGroupOf(this.data.cupKind, e.currentTarget.dataset.v);
+    if (group) this.changed({ cupPointGroup: group });
+  },
+  fitCup(kind) {
+    if ((kind === 'weekly' || kind === 'monthly') && C.drawCupError(this.data, kind)) this.changed({ mode: 'bracket', size: C.DRAW_SIZE });
+    else if (C.drawCupError(this.data, kind)) this.changed({ mode: 'bracket' });
+    else this.refresh();
+  },
+  checkCup() {
+    const { cupOn, cupKind } = this.data;
+    const cupErr = cupOn ? C.drawCupError(this.data, cupKind) : '';
+    const cupNote = cupOn ? C.drawCupNote(cupKind) : '';
+    if (cupErr !== this.data.cupErr || cupNote !== this.data.cupNote) this.setData({ cupErr, cupNote });
+  },
+  cupOk() {
+    if (this.data.fromSignup || !this.data.cupOn) return true;
+    const err = C.drawCupError(this.data, this.data.cupKind);
+    if (err) wx.showToast({ title: err, icon: 'none' });
+    return !err;
+  },
+  setEntry(e) {
+    if (this.isRot()) return; // 四人轮换只能开放报名
+    this.setData({ entry: e.currentTarget.dataset.v, preview: null }); this.refresh();
+  },
+  // 四人轮换：固定双打、开放报名、没有混双和报名上限，不计 LULU 积分
+  setMode(e) {
+    const mode = e.currentTarget.dataset.v;
+    if (this.data.editingSettings && (this.data.fixedRotation || mode === 'rotation')) return;
+    if (mode !== 'rotation') { this.changed({ mode }); return; }
+    this.seeds = [];
+    this.changed({ mode, type: 'double', limits: LIMITS.double, entry: 'signup', limit: 0, cupOn: false, category: this.data.category === 'mixed' ? '' : this.data.category });
+  },
   setSize(e) { this.changed({ size: Number(e.currentTarget.dataset.v) }); },
   setGroups(e) {
     const groupCount = Number(e.currentTarget.dataset.v), { limit, entry } = this.data;
@@ -300,6 +383,7 @@ Page({
     this.changed({ groupCount });
   },
   setType(e) {
+    if (this.isRot() || this.data.editingSettings) return;
     const type = e.currentTarget.dataset.v;
     this.seeds = [];
     const next = { type, limits: LIMITS[type === 'double' ? 'double' : 'single'] };
@@ -307,7 +391,7 @@ Page({
     if (next.limits.indexOf(this.data.limit) < 0) next.limit = 0; // 「2 队」只有双打有
     this.changed(next);
   },
-  setCategory(e) { this.changed({ category: e.currentTarget.dataset.v }); },
+  setCategory(e) { if (!this.data.editingSettings) this.changed({ category: e.currentTarget.dataset.v }); },
   // 报名上限：分的组数要放得下（每组至少 2 队 / 人），否则截止报名后生成不了，组数跟着减少（例如「2 队」只能 1 组）
   setLimit(e) {
     if (this.data.fromSignup) return;
@@ -394,10 +478,13 @@ Page({
     const extra = {};
     if (this.data.category && (this.data.category !== 'mixed' || this.isDouble())) extra.category = this.data.category;
     if (this.data.limit && d.mode !== 'bracket' && this.data.entry === 'signup') extra.limit = this.data.limit;
+    if (!this.data.fromSignup && !this.data.editingSettings && this.data.cupOn) {
+      extra.cup = C.drawCupOf({ cup: { kind: this.data.cupKind, pointGroup: this.data.cupPointGroup, scoreVersion: C.SCORE_VERSION } });
+    }
     return Object.assign({ mode: d.mode, size: d.size, groupCount: d.groupCount, advance: d.advance, rules }, extra, this.cfg());
   },
 
-  doDraw() {
+  doDraw(e) {
     if (!this.data.canDraw) { wx.showToast({ title: this.data.info, icon: 'none' }); return; }
     try {
       const ents = this.entrants();
@@ -405,10 +492,26 @@ Page({
         entrants: ents, seeds: this.seeds.slice(), results: {},
         teams: this.teams || {}, uidOf: this.uidsOf(this.selected),
       });
-      const preview = !this.isGroups()
+      const manual = this.data.mode === 'bracket' && e && e.currentTarget.dataset.manual === 'yes';
+      if (manual) {
+        const lines = Array.from({ length: D.nextPow2(base.size) }, (_, i) => {
+          const name = ents[i];
+          if (!name) return { bye: true };
+          const seed = base.seeds.indexOf(name) + 1;
+          return seed ? { name, seed } : { name };
+        });
+        const manualOpts = lines.some((s) => s.bye) ? ents.concat('轮空') : ents;
+        const manualIndexes = lines.map((line, i) => line.bye ? ents.length : i);
+        this.setData({ preview: Object.assign(base, { lines }), manualOpts, manualIndexes });
+        setTimeout(() => wx.pageScrollTo({ selector: '#preview', duration: 300 }), 50);
+        return;
+      }
+      // 四人轮换：按名单顺序排三轮（云端按同一个公式重新算，不信任这里的预览）
+      const preview = this.isRot() ? Object.assign(base, { teams: {}, rotRounds: E.rotationPairs(ents).map(([a, b]) => `${E.teamLabel(a)} 对 ${E.teamLabel(b)}`) })
+        : !this.isGroups()
         ? Object.assign(base, { lines: D.makeBracket(ents, this.seeds, this.data.size) })
         : Object.assign(base, { groups: D.makeGroups(ents, this.seeds, this.data.groupCount) });
-      this.setData({ preview });
+      this.setData({ preview, manualOpts: [], manualIndexes: [] });
       wx.vibrateShort({ type: 'medium' });
       setTimeout(() => wx.pageScrollTo({ selector: '#preview', duration: 300 }), 50);
     } catch (err) {
@@ -416,15 +519,32 @@ Page({
     }
   },
 
+  setManualSlot(e) {
+    const { preview, manualOpts, manualIndexes, saving } = this.data;
+    if (!preview || !manualOpts.length || saving) return;
+    const i = Number(e.currentTarget.dataset.i), j = Number(e.detail.value);
+    const lines = preview.lines.slice();
+    if (!lines[i] || !Number.isInteger(j) || j < 0 || j >= manualOpts.length) return;
+    if (manualIndexes[i] === j) return;
+    const from = manualIndexes.indexOf(j);
+    if (from < 0) return;
+    [lines[i], lines[from]] = [lines[from], lines[i]];
+    const indexes = manualIndexes.slice();
+    [indexes[i], indexes[from]] = [indexes[from], indexes[i]];
+    this.setData({ 'preview.lines': lines, manualIndexes: indexes });
+  },
+
   // 开放报名：只保存活动设置，抽签等报名结束后再做
   async publishSignup() {
-    if (!this.data.canPublish) return;
+    if (!this.data.canPublish || this.data.editingSettings) return;
     if (this.data.saving) return;
     const title = this.inputTitle();
-    if (!title || !this.levelOk()) return;
+    if (!title || !this.levelOk() || !this.cupOk()) return;
+    const info = this.infoFields();
+    if (info.date < this.date) { wx.showToast({ title: '开放报名请选择今天或之后', icon: 'none' }); return; }
     this.setData({ saving: true });
     try {
-      const r = await db.addDraw(Object.assign(this.settings(), this.infoFields(), {
+      const r = await db.addDraw(Object.assign(this.settings(), info, {
         title, status: 'signup', results: {},
       }));
       const id = r.id;
@@ -438,17 +558,31 @@ Page({
     }
   },
 
+  async saveSettings() {
+    if (!this.data.canPublish || !this.data.editingSettings || this.data.settingsLoading || this.data.saving || !this.cupOk()) return;
+    this.setData({ saving: true });
+    try {
+      await db.updateDrawSettings(this.drawId, this.settings(), this.settingsVersion);
+      wx.showToast({ title: '规则已更新', icon: 'success' });
+      wx.navigateBack();
+    } catch (e) {
+      wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });
+    } finally {
+      this.setData({ saving: false });
+    }
+  },
+
   async save() {
     if (!this.data.canPublish) return;
     const p = this.data.preview;
     if (!p || this.data.saving) return;
     const title = this.drawId ? this.data.title : this.inputTitle();
-    if (!title || (!this.drawId && !this.levelOk())) return;
+    if (!title || (!this.drawId && (!this.levelOk() || !this.cupOk()))) return;
     this.setData({ saving: true });
     try {
       let id = this.drawId, dropped = false;
       if (id) {
-        await db.generateDraw(id, p);
+        await db.generateDraw(id, Object.assign({}, p, { settingsVersion: this.settingsVersion || 0 }));
       } else {
         const r = await db.addDraw(Object.assign({}, p, this.infoFields(), { title, status: 'drawn' }));
         id = r.id; dropped = r.placeDropped;

@@ -53,6 +53,36 @@ test('活动发布：只有云端配置的管理员可创建；伪造身份和�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
+test('报名中改规则：保留报名和搭档，扩大名额后候补递补，生成对阵后锁定', async () => {
+  const env = setup();
+  env.coll('draws').d2.size = 2;
+  env.put('signups', { _id: 's1', drawId: 'd2', _openid: 'alice', name: 'Alice', partner: 'Bob', partnerId: 'bob' });
+  env.put('signups', { _id: 's2', drawId: 'd2', _openid: 'carl', name: 'Carl', partner: 'Eve', partnerId: 'eve' });
+  env.put('signups', { _id: 's3', drawId: 'd2', _openid: 'owner', name: 'Owner' });
+  const E = require('../utils/event');
+  const signups = Object.values(env.coll('signups'));
+  assert.deepStrictEqual(E.waitingOf(signups, E.capacityOf(env.coll('draws').d2)), { s3: 1 });
+  const before = JSON.stringify(signups);
+  const args = { drawId: 'd2', settingsVersion: 0, settings: { mode: 'groups', groupCount: 1, limit: 6, type: 'single' } };
+  no(await env.call('owner', 'updateDrawSettings', args), /管理员/);
+  ok(await adminCall(env, 'carl', 'updateDrawSettings', args));
+  const d = env.coll('draws').d2;
+  assert.deepStrictEqual([d.mode, d.type, d.limit, d.settingsVersion], ['groups', 'double', 6, 1]);
+  assert.deepStrictEqual(E.waitingOf(signups, E.capacityOf(d)), {});
+  assert.strictEqual(JSON.stringify(Object.values(env.coll('signups'))), before);
+  no(await adminCall(env, 'carl', 'updateDrawSettings', args), /已有更新/);
+  const teams = { 'Alice / Bob': ['Alice', 'Bob'], 'Carl / Eve': ['Carl', 'Eve'] };
+  const entrants = Object.keys(teams);
+  const draw = { teams, entrants, groups: [{ members: entrants.map((name) => ({ name })) }] };
+  no(await adminCall(env, 'owner', 'generateDraw', { drawId: 'd2', draw }), /已有更新/);
+  ok(await adminCall(env, 'owner', 'generateDraw', { drawId: 'd2', draw: { ...draw, settingsVersion: 1 } }));
+  assert.strictEqual(env.coll('draws').d2.status, 'drawn');
+  no(await adminCall(env, 'carl', 'updateDrawSettings', { ...args, settingsVersion: 1 }), /对阵生成后/);
+
+  env.coll('draws').d1.cup = { kind: 'weekly' };
+  no(await adminCall(env, 'carl', 'updateDrawSettings', { drawId: 'd1', settingsVersion: 0, settings: { mode: 'bracket', size: 16 } }), /周赛要用单淘汰 8 签/);
+});
+
 test('日常比赛：普通成员可以记录自己参加的比赛（不用管理员），参赛双方可直接改分；锁定后对方确认，无须管理员', async () => {
   const env = setup();
   const payload = { op: 'add', coll: 'matches', isAdmin: true, openid: 'owner', data: { a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 2 }] } };
@@ -1280,6 +1310,41 @@ test('管理员可以编辑 / 删除别人的活动：留档；删除必须填�
     // 发起人自己删除不需要原因
     env.put('draws', { _id: 'd8', _openid: 'owner', title: 'T', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
     ok(await env.call('owner', 'removeDraw', { drawId: 'd8' }));
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
+test('撤回删除：删除的人本人或管理员可以撤回；活动恢复，删除时作废的申请恢复成待处理；留档；重复撤回不改动', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'admin';
+  try {
+    env.put('members', { _id: 'admin', status: 'active' });
+    env.put('draws', { _id: 'd9', _openid: 'owner', title: '周末赛', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    env.put('requests', { _id: 'r1', drawId: 'd9', type: 'withdraw', status: 'pending', by: 'alice' });
+    env.put('requests', { _id: 'r2', drawId: 'd9', type: 'withdraw', status: 'rejected', by: 'bob' });
+    // 管理员误删
+    ok(await env.call('admin', 'removeDraw', { drawId: 'd9', reason: '重复创建' }));
+    assert.strictEqual(env.coll('requests').r1.status, 'cancelled');
+    // 普通成员、活动发起人（不是删除的人）都不能撤回
+    no(await env.call('alice', 'restoreDraw', { drawId: 'd9' }), /删除这个活动的人或管理员/);
+    no(await env.call('owner', 'restoreDraw', { drawId: 'd9' }), /删除这个活动的人或管理员/);
+    assert.ok(env.coll('draws').d9.deleted);
+    // 管理员撤回：活动恢复、作废的申请恢复，别的申请不动
+    ok(await env.call('admin', 'restoreDraw', { drawId: 'd9' }));
+    const d = env.coll('draws').d9;
+    assert.ok(!d.deleted && d.deleteReason === undefined && d.deletedBy === undefined);
+    assert.strictEqual(env.coll('requests').r1.status, 'pending');
+    assert.strictEqual(env.coll('requests').r2.status, 'rejected');
+    const log = Object.values(env.coll('requests')).find((x) => x.type === 'restoreDraw');
+    assert.ok(log && log.by === 'admin' && log.deleteReason === '重复创建');
+    // 恢复后成员又能读到；再撤回一次什么都不改
+    assert.strictEqual(ok(await env.call('alice', 'restoreDraw', { drawId: 'd9' })).same, true);
+    assert.strictEqual(Object.values(env.coll('requests')).filter((x) => x.type === 'restoreDraw').length, 1);
+    // 发起人自己删的，自己可以撤回
+    ok(await env.call('owner', 'removeDraw', { drawId: 'd9' }));
+    ok(await env.call('owner', 'restoreDraw', { drawId: 'd9' }));
+    assert.ok(!env.coll('draws').d9.deleted);
+    no(await env.call('admin', 'restoreDraw', { drawId: 'nope' }), /不存在/);
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 

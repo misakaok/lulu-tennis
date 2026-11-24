@@ -36,6 +36,13 @@
     <view class="seg-item {{tab === 'next' ? 'on' : ''}}" data-v="next" bindtap="setTab">我的下一场</view>
   </view>
 
+  <!-- 刚删除的活动：5 分钟内可以撤回 -->
+  <view wx:if="{{undo}}" class="card undo-bar ani-in">
+    <view class="undo-t">已删除{{undo.title ? '「' + undo.title + '」' : '活动'}}</view>
+    <view class="btn-line mini" hover-class="tap-on" bindtap="undoRemove">撤回</view>
+    <view class="undo-x" hover-class="tap-on" bindtap="closeUndo">✕</view>
+  </view>
+
   <!-- 我的下一场：只有一场；时间、对手没确定的明确写「待定」；点进活动详情的「场次」并定位到这场 -->
   <block wx:if="{{tab === 'next'}}">
     <view wx:if="{{nextStale && next}}" class="nx-stale">网络异常，下面可能不是最新的安排，下拉刷新重试</view>
@@ -85,9 +92,10 @@
     </view>
     <view class="d-body">
       <view class="d-top">
-        <text class="d-title">{{item.title}}</text>
+        <view class="d-title">{{item.title}}</view>
         <text class="ui-tag {{item.status.cls}} d-status">{{item.status.text}}</text>
       </view>
+      <view wx:if="{{item.cupTag}}" class="d-cup"><text class="ui-tag">{{item.cupTag}}</text></view>
       <view class="d-meta">{{item.meta}}</view>
       <view wx:if="{{item.roleTags.length || item.champion || item.progress}}" class="d-foot">
         <view class="d-roles">

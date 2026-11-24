@@ -20,6 +20,7 @@ function nextKey(key) {
 
 function impactOf(x, byKey) {
   const W = x.winner === 'a' ? x.a : x.b, L = x.winner === 'a' ? x.b : x.a;
+  if (E.isRotationKey(x.key)) return x.outcome === 'walkover' ? `这一轮记 ${W} 胜（弃权），不算局分` : `这一轮记 ${W} 胜`; // 四人轮换：没有总名次
   if (/^g/.test(x.key)) { // 分组循环：按积分榜现有算法（E.standings）
     if (x.outcome === 'void') return '这场成绩取消，不计入积分榜';
     if (x.outcome === 'walkover') return `积分榜上 ${W} 记胜、${L} 记负（弃权），不算盘分和局分`;
@@ -46,8 +47,11 @@ function withdrawView(d, items, mineOf) {
   const rows = list.filter(affected).map((x) => {
     const kind = x.outcome;
     const loser = kind === 'void' ? voidedName(x, wd) : x.winner === 'a' ? x.b : x.a;
-    const byWd = kind === 'void' || !!(x.resolution && x.resolution.type === 'withdraw') || !!wd[loser];
-    const status = kind === 'void' ? `${loser} 退赛，成绩取消` : kind === 'retired' ? `${loser} 中途退赛` : byWd ? `${loser} 退赛，判弃权` : `${loser} 弃权`;
+    // 四人轮换：一方是两个人临时搭档，退赛的只是其中一位（退赛名单按个人记），不能写成整队退赛
+    const who = !wd[loser] && kind !== 'void' ? E.membersOf(d, loser).filter((n) => n !== loser && wd[n]) : [];
+    const byWd = kind === 'void' || !!(x.resolution && x.resolution.type === 'withdraw') || !!wd[loser] || who.length > 0;
+    const status = kind === 'void' ? `${loser} 退赛，成绩取消` : kind === 'retired' ? `${loser} 中途退赛`
+      : who.length ? `${who.join('、')} 退赛，这一轮判 ${loser} 弃权` : byWd ? `${loser} 退赛，判弃权` : `${loser} 弃权`;
     const u = R.unratedOf(kind);
     return {
       key: x.key, stage: x.stage, a: x.aText || x.a, b: x.bText || x.b, winner: kind === 'void' ? '' : x.winner,
@@ -55,11 +59,12 @@ function withdrawView(d, items, mineOf) {
     };
   });
   const entrants = Object.keys(wd).map((name) => {
-    const w = wd[name], ko = w.stage !== 'group';
+    const w = wd[name], rot = w.stage === 'rotation', ko = w.stage !== 'group' && !rot;
+    const inRow = (r) => r.a === name || r.b === name || E.membersOf(d, r.a).concat(E.membersOf(d, r.b)).indexOf(name) >= 0;
     return {
-      entrant: name, status: '已退赛', stage: ko ? '单淘汰阶段' : '分组循环阶段',
-      policy: ko ? '下一场对手弃权胜，进入下一轮' : POLICY[w.policy] || POLICY.walkover,
-      count: rows.filter((r) => r.a === name || r.b === name).length,
+      entrant: name, status: '已退赛', stage: rot ? '四人轮换' : ko ? '单淘汰阶段' : '分组循环阶段',
+      policy: rot ? '已打的轮次保留，没打的轮次判 TA 这一方弃权负' : ko ? '下一场对手弃权胜，进入下一轮' : POLICY[w.policy] || POLICY.walkover,
+      count: rows.filter(inRow).length,
       mine: !!(mineOf && mineOf(name)),
     };
   });

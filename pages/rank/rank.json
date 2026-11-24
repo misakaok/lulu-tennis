@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "LULU网球",
   "enablePullDownRefresh": true,
+  "enableShareAppMessage": false,
+  "enableShareTimeline": false,
   "usingComponents": { "cup-board": "/components/cup-board/cup-board" }
 }

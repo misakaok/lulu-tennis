@@ -15,7 +15,7 @@ const TEAM_SEP = ' / ';
 function cfgOf(d) {
   d = d || {};
   return {
-    type: d.type === 'double' ? 'double' : 'single',
+    type: d.type === 'double' || d.mode === 'rotation' ? 'double' : 'single', // 四人轮换一定是双打
     setGames: d.setGames === 6 ? 6 : 4,
     noAd: d.noAd !== false,
     bestOf: d.bestOf === 3 ? 3 : 1,
@@ -38,14 +38,47 @@ function formatText(cfg) {
 //   规则 = { setGames: 4|6, noAd: 金球?, bestOf: 1|3 }；rounds 的键是这一轮的人数（2 = 决赛）
 // 旧活动没有 rules：所有场次都用顶层的 setGames / noAd / bestOf
 // 界面用语：分组循环 / 单淘汰 / 最后一轮 / 对阵表（不用小组赛、淘汰赛、决赛、签表这类赛事说法）
-const MODES = { bracket: '单淘汰', groups: '分组循环', groups_ko: '循环＋淘汰' };
+const MODES = { bracket: '单淘汰', groups: '分组循环', groups_ko: '循环＋淘汰', rotation: '四人轮换双打' };
 // 旧比分记录里存的阶段名（「淘汰赛 · 半决赛」等）换成现在的叫法；只用于展示，数据库不动
 function stageText(s) {
   return typeof s === 'string' ? s.replace(/小组赛/g, '分组循环').replace(/淘汰赛/g, '单淘汰')
     .replace(/1\/4 决赛/g, '8 强').replace(/半决赛/g, '4 强').replace(/决赛/g, '最后一轮') : s;
 }
 const hasGroups = (d) => !!d && (d.mode === 'groups' || d.mode === 'groups_ko');
-const hasKo = (d) => !!d && (d.mode !== 'groups');
+const hasKo = (d) => !!d && d.mode !== 'groups' && d.mode !== 'rotation';
+const isRotation = (d) => !!d && d.mode === 'rotation';
+// 四人轮换的场次 key：t0 / t1 / t2（rotationFor 生成）
+const isRotationKey = (key) => /^t\d$/.test(key || '');
+
+/* ---------- 四人轮换双打（2026-11-23 用户要求）：固定 4 位球员，每人单独报名，三轮换搭档 ---------- */
+// entrants 是 4 位球员 [A, B, C, D]（按生成对阵时的顺序）：第 1 轮 A＋B 对 C＋D，第 2 轮 A＋C 对 B＋D，第 3 轮 A＋D 对 B＋C。
+// 每人打满三轮、任意两人恰好搭档一次。场次 key 是 't0' / 't1' / 't2'（每轮一条比赛记录），规则用 rules.group（「每轮的规则」）。
+// 只是普通活动：不排总名次、不出冠军，也不计 LULU 积分
+const ROTATION_SIZE = 4;
+const ROTATION = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
+function rotationPairs(ents) {
+  return ROTATION.map(([a, b]) => [a.map((i) => ents[i]), b.map((i) => ents[i])]);
+}
+// 6 个搭档组合的队名 → 成员（存进 draws.teams，membersOf 照常能用）
+function rotationTeams(ents) {
+  const teams = {};
+  rotationPairs(ents).forEach(([a, b]) => { teams[teamLabel(a)] = a; teams[teamLabel(b)] = b; });
+  return teams;
+}
+function rotationFor(d, matches) {
+  const ents = d.entrants || [];
+  if (ents.length !== ROTATION_SIZE) return [];
+  const idx = indexFor(matches, d._id);
+  return rotationPairs(ents).map(([pa, pb], r) => {
+    const a = teamLabel(pa), b = teamLabel(pb), key = 't' + r;
+    const res = resultFor(idx[key], a, b);
+    return {
+      key, round: r + 1, stage: `${MODES.rotation} · 第 ${r + 1} 轮`, a, b, ready: true,
+      done: !!res, void: false, winner: res ? res.winner : '', sets: res ? res.sets : [], recordId: res ? res.id : '',
+      outcome: res ? res.outcome : '', resolution: res ? res.resolution : null,
+    };
+  });
+}
 
 // 名称按用户输入展示；场地只选固定编号，地图只保留坐标。
 const TITLE_MAX = 20;
@@ -92,6 +125,9 @@ function publicDraw(d) {
   delete out.address;
   const level = levelRangeOf(d.level); // 建议水平：不合法的旧值按没设置处理
   if (level) out.level = level; else delete out.level;
+  // LULU 积分活动（draws.cup，只由管理员创建时设置）：只认三种类别，不合法的按普通活动处理
+  const cup = require('./cup').drawCupOf(d);
+  if (cup) out.cup = cup; else delete out.cup;
   if (Array.isArray(d.withdrawals)) out.withdrawals = d.withdrawals.map((w) => {
     const row = Object.assign({}, w); delete row.reason; return row;
   });
@@ -154,6 +190,7 @@ function ruleFor(d, key) {
   const type = cfgOf(d).type;
   const s = stageRules(d);
   if (/^g/.test(key || '')) return Object.assign({ type, stage: MODES.groups }, s.group);
+  if (isRotationKey(key)) return Object.assign({ type, stage: MODES.rotation }, s.group);
   const r = parseInt(String(key || '0').replace(/^k/, ''), 10) || 0;
   const players = Math.max(2, koSize(d) >> r);
   const custom = s.rounds[players];
@@ -163,6 +200,7 @@ function ruleFor(d, key) {
 // 活动详情里展示的赛制：每个阶段一行；单独设置过的轮次也列出来
 function rulesSummary(d) {
   const s = stageRules(d), out = [];
+  if (isRotation(d)) return [{ stage: '每轮', text: ruleText(s.group) }];
   if (hasGroups(d)) out.push({ stage: MODES.groups, text: ruleText(s.group) });
   if (hasKo(d)) {
     const rs = koRounds(d), custom = rs.filter((x) => s.rounds[x.players] && !sameRule(s.rounds[x.players], s.ko));
@@ -181,12 +219,13 @@ const CATEGORIES = { m: '男子', f: '女子', mixed: '混双' };
 function categoryOf(d) {
   const c = d && d.category;
   if (c === 'm' || c === 'f') return c;
-  return c === 'mixed' && cfgOf(d).type === 'double' ? 'mixed' : '';
+  return c === 'mixed' && cfgOf(d).type === 'double' && !isRotation(d) ? 'mixed' : ''; // 四人轮换每轮换搭档，没有混双
 }
 const categoryText = (d) => CATEGORIES[categoryOf(d)] || '';
 
 // 报名名额，按人数算（双打一队 2 人）：淘汰赛是签数，小组赛是创建时填的上限（没填 = 不限，返回 0）
 function capacityOf(d) {
+  if (isRotation(d)) return ROTATION_SIZE; // 固定 4 个个人名额
   const n = d && (d.mode === 'bracket' ? d.size : d.limit);
   return n > 0 ? n * (cfgOf(d).type === 'double' ? 2 : 1) : 0;
 }
@@ -216,7 +255,7 @@ function signupStatus(d, signups) {
   let text, note = '';
   if (!waiting) {
     text = left ? `已报名 ${used}/${cap} 人 · 还差 ${left} 人` : `已报名 ${used}/${cap} 人 · 已满`;
-    if (left === 1 && cfgOf(d).type === 'double') note = '只剩 1 个名额：单人报名可以直接报上，带搭档报名会进候补';
+    if (left === 1 && cfgOf(d).type === 'double' && !isRotation(d)) note = '只剩 1 个名额：单人报名可以直接报上，带搭档报名会进候补';
   } else if (!left) text = `已满 · 候补 ${waiting} 人`;
   else {
     text = `已报名 ${used}/${cap} 人 · 候补 ${waiting} 人`;
@@ -533,7 +572,8 @@ function slotText(s) {
 function scheduleOf(d, matches) {
   if (!d || d.status === 'signup') return [];
   let out = [];
-  if (hasGroups(d)) {
+  if (isRotation(d)) out = rotationFor(d, matches).map((f) => item(d, f));
+  else if (hasGroups(d)) {
     const groups = groupsFor(d, matches);
     const all = [];
     groups.forEach((g) => g.fixtures.forEach((f) => all.push(f)));
@@ -574,5 +614,6 @@ module.exports = {
   CATEGORIES, categoryOf, categoryText, capacityOf, waitingOf, signupStatus, LEVELS, levelRangeOf, levelRangeText, levelError,
   TEAM_SEP, cfgOf, formatText, teamLabel, membersOf, tsOf, dedupe, indexFor, flipSets, scoreText, resultFor,
   bracketFor, roundRobin, standings, groupsFor, scheduleOf, findFixture, progressOf,
+  isRotation, isRotationKey, ROTATION_SIZE, rotationPairs, rotationTeams, rotationFor,
   withdrawalsOf, outcomeText, impactOf, dayText, slotOf, slotText, MODES, stageText, hasGroups, hasKo, normRule, ruleText, sameRule, koSize, koRounds, stageRules, ruleFor, rulesSummary, koLines, knockoutFor,
 };

@@ -76,9 +76,12 @@ Page({
   },
 
   onLoad() {
+    wx.hideShareMenu({ fail() {} }); // 战绩、排行、我的（带昵称和战绩）不能转发，菜单里不显示转发；只有活动首页能分享
     this.limit = PAGE;
     this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull(), (db.cachedProfile() || {})._openid || '');
     this.render();
+    // 「记一场」按钮先按本机记得的身份显示（24 小时内确认过是正式成员），不等云端；load 里拿到身份后再更正
+    if (require('../../utils/member').knownActive()) this.setData({ canRecordDaily: true });
   },
   onReachBottom() {
     if (!this.data.more) return;
@@ -185,7 +188,6 @@ Page({
   },
   onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
   goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
-  goScorer() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/scorer/scorer' }); }, // 场边记分：只在本机，完赛后带入日常录分
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
 

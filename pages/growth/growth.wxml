@@ -16,8 +16,8 @@
       <view class="hero-main">
         <view class="hero-big"><text class="hb-n">{{s.played}}</text><text class="hb-u">场</text></view>
         <view class="hero-wl">
-          <view><text class="hw-n">{{s.win}}</text> 胜 <text class="hw-n">{{s.lose}}</text> 负</view>
-          <view class="hero-rate">胜率 <text class="hr-n">{{s.played ? s.rate + '%' : '—'}}</text></view>
+          <view class="hw"><text class="hw-n">{{s.win}}</text><text class="hw-u">胜</text><text class="hw-n hw-gap">{{s.lose}}</text><text class="hw-u">负</text></view>
+          <view class="hero-rate">胜率<text class="hr-n">{{s.played ? s.rate + '%' : '—'}}</text></view>
         </view>
       </view>
       <view class="hero-row">
@@ -77,7 +77,7 @@
       <view class="card-title">正式战绩<text class="sub">和排行榜同一套数据，单独统计</text></view>
       <view class="off-row">
         <view class="oc"><view class="stat-n">{{official.played}}</view><view class="stat-l">场次</view></view>
-        <view class="oc"><view class="stat-n">{{official.win}}<text class="oc-s">胜</text>{{official.lose}}<text class="oc-s">负</text></view><view class="stat-l">胜负</view></view>
+        <view class="oc"><view class="stat-n">{{official.win}}<text class="oc-s mid">胜</text>{{official.lose}}<text class="oc-s">负</text></view><view class="stat-l">胜负</view></view>
         <view class="oc"><view class="stat-n">{{official.rate}}</view><view class="stat-l">胜率</view></view>
         <view class="oc"><view class="stat-n">{{official.month}}</view><view class="stat-l">本月</view></view>
       </view>

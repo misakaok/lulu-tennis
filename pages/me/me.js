@@ -1,17 +1,59 @@
 // 我的：就是自己的球员主页（和报名名单 / 排行榜点进去的球员主页共用 components/player-home），
 // 不显示近期比赛（player-home 的 mine）；下面是只有自己看得到的：成长档案（带一个小摘要）、成员管理（管理员，放最下面）。
 const G = require('../../utils/growth');
+const C = require('../../utils/cup');
 
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 Page({
-  data: { myId: '', isAdmin: false, pendingApply: 0, gw: { played: 0 } },
+  data: { myId: '', isAdmin: false, pendingApply: 0, gw: { played: 0 }, cup: null },
 
-  onShow() { this.load(); this.loadGrowth(); },
-  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
+  // 球员卡（按 myId 显示）和成员管理入口先按本机记得的身份显示（24 小时内确认过），不等云端；load 拿到身份后再更正
+  onLoad() {
+    wx.hideShareMenu({ fail() {} }); // 战绩、排行、我的（带昵称和战绩）不能转发，菜单里不显示转发；只有活动首页能分享
+    const M = require('../../utils/member');
+    if (!M.knownActive()) return;
+    let myId = '';
+    try { myId = wx.getStorageSync('my_openid') || ''; } catch (e) {}
+    this.setData({ myId, isAdmin: M.isAdminLocal() });
+  },
+  onShow() { this.load(); this.loadGrowth(); this.loadCup(); },
+  onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存（管理员刚更正 / 撤下的积分也马上看到）
     const c = this.selectComponent('#home');
-    Promise.all([this.load(), this.loadGrowth(), c ? c.load() : null]).then(() => wx.stopPullDownRefresh());
+    Promise.all([this.load(), this.loadGrowth(), this.loadCup(), c ? c.load() : null]).then(() => wx.stopPullDownRefresh());
+  },
+
+  // 我的 LULU 积分（2026-11-23 用户要求）：今年的单打 / 双打积分（遭遇赛有分才显示）+ 最近一站。
+  // 数据是排行页积分榜同一个 cupList（只有已发布、没撤下的站）；按当前账号的用户 ID 认自己的记录（没开公开展示也能看到自己，cupList 不会把自己匿名）。
+  // 读不到就不显示这张卡（不显示「暂无积分」，免得误以为分没了）
+  async loadCup() {
+    const seq = this.cupSeq = (this.cupSeq || 0) + 1;
+    try {
+      const [r, myId] = await Promise.all([require('../../utils/cloud').cached('cupList'), require('../../utils/db').myOpenid()]);
+      if (seq !== this.cupSeq) return;
+      const list = (r && r.list) || [];
+      const year = C.thisYear();
+      // cached 在 60 秒内返回同一个数组：数据、账号、年度都没变就不重算（每次切回「我的」都会调）
+      const key = [myId, year].join('|');
+      if (list === this.cupSrc && key === this.cupKey) return;
+      this.cupSrc = list; this.cupKey = key;
+      const m = C.mine(list, myId, year);
+      const n = C.numText;
+      const l = C.latestOf(list, myId);
+      const cup = {
+        year, any: m.single.stops + m.double.stops + m.encounter.stops > 0,
+        single: n(m.single.total), double: n(m.double.total), encounter: m.encounter.stops ? n(m.encounter.total) : '',
+        last: l ? { date: l.year === year ? l.date.slice(5) : l.date, kind: C.stopKindText(l), format: C.formatText(l.format), tier: C.tierText(l.tier), total: n(l.total), which: l.board, year: l.year } : null,
+      };
+      if (JSON.stringify(cup) !== JSON.stringify(this.data.cup)) this.setData({ cup });
+    } catch (e) { console.error(e); }
+  },
+  openCup() {
+    const l = this.data.cup && this.data.cup.last;
+    // 今年有积分就看今年；今年没有、但以前有：直接打开最近一站那一年
+    const year = this.data.cup && !this.data.cup.any && l ? l.year : C.thisYear();
+    wx.navigateTo({ url: `/pages/cup-mine/cup-mine?year=${year}&which=${l && l.year === year ? l.which : 'single'}` });
   },
 
   // 成长档案摘要：只有本人的记录（云函数按 OPENID 读，内存缓存 60 秒）；读不到就显示入口说明

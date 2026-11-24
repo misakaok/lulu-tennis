@@ -5,6 +5,7 @@
     "pages/add/add",
     "pages/scorer/scorer",
     "pages/cup-edit/cup-edit",
+    "pages/cup-mine/cup-mine",
     "pages/rank/rank",
     "pages/me/me",
     "pages/draw-new/draw-new",
