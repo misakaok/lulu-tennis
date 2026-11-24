@@ -1,8 +1,5 @@
 /* 底部留白：有「记一场」按钮时刚好让开按钮（距底 40rpx + 高 100rpx + 间隔 10rpx），没有按钮时用普通页面的 60rpx */
 .page.with-fab { padding-bottom: 150rpx; }
-.top { padding: 8rpx 4rpx 22rpx; }
-.top-t { font-size: 44rpx; font-weight: 800; }
-.top-s { margin-top: 4rpx; font-size: 24rpx; color: #70708C; }
 
 /* 我的战绩卡 */
 .mine.ani-sheen::after { animation-delay: 0.22s; }

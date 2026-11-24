@@ -1,9 +1,5 @@
 <view class="page {{canRecordDaily ? 'with-fab' : ''}}">
-  <view class="top">
-    <view class="top-t">战绩</view>
-    <view class="top-s">本月 {{stat.month}} 场 · 共 {{stat.total}} 场 · {{stat.players}} 位球员</view>
-  </view>
-
+  <!-- 顶部不放「战绩」大标题和「本月 N 场 · 共 N 场 · N 位球员」（2026-11-25 用户要求去掉；底部标签栏已写着「战绩」） -->
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
   <!-- 背景：俯拍球网横在卡片底边，网球停在网带上（images/bg-mine.jpg） -->
   <!-- 高光只在这张卡第一次出现时扫一次（和「我的」页一样），切 tab 回来不再扫（2026-11-25 用户嫌闪） -->
