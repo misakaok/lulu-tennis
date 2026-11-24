@@ -30,14 +30,16 @@
 .podium.few .pod-base { height: 120rpx; }
 
 .table { padding: 10rpx 24rpx; overflow: hidden; } /* 「我」那一行的底色铺满到卡片边上：按卡片圆角裁掉，不露出直角 */
-.tr { display: flex; align-items: center; height: 92rpx; border-top: 1rpx solid #F2F2F8; font-size: 26rpx; }
-.th { height: 64rpx; border-top: 0; color: #70708C; font-size: 22rpx; }
+.tr { display: flex; align-items: center; min-height: 92rpx; border-top: 1rpx solid #F2F2F8; font-size: 26rpx; }
+.th { min-height: 64rpx; border-top: 0; color: #70708C; font-size: 22rpx; }
 .c-rank { width: 50rpx; color: #70708C; font-weight: 700; }
 .c-rank.gold { color: #d79b00; }
 .c-name { flex: 1; display: flex; align-items: center; overflow: hidden; }
 .c-name .avatar { margin-right: 14rpx; }
 /* 名字长时换到第二行（最多两行），性别、「我」标签跟在名字后面一起折行 */
-.nm { flex: 1; min-width: 0; font-weight: 600; line-height: 1.4; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* 名字 + 性别 / 「我」标签：不用 -webkit-line-clamp。标签是 inline-block，iOS 上和行数截断一起用会算错行高，
+   标签换到第二行时后面多出一个「…」（2026-11-25 用户看到）。昵称最多 10 个字，最多折成两行，不用截断 */
+.nm { flex: 1; min-width: 0; margin: 10rpx 0; font-weight: 600; line-height: 1.4; word-break: break-all; } /* 上下留一点：名字折成多行把这一行撑高时不贴分隔线 */
 .c-n { width: 120rpx; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .th .c-n { display: block; }
 .b { font-weight: 700; }
@@ -56,7 +58,7 @@
 .prov { font-size: 18rpx; color: #84849E; margin-top: 2rpx; }
 .tr.me { background: #f6f6fb; margin: 0 -24rpx; padding: 0 24rpx; }
 /* 「我」在最后一行：底色一直铺到卡片底边，不在下面留一条白边（2026-11-25 用户看到右下、左下角显示异常） */
-.tr.me:last-child { height: 102rpx; margin-bottom: -10rpx; padding-bottom: 10rpx; box-sizing: border-box; }
+.tr.me:last-child { min-height: 102rpx; margin-bottom: -10rpx; padding-bottom: 10rpx; box-sizing: border-box; }
 .me-tag { display: inline-block; vertical-align: middle; line-height: 1.5; font-weight: 400; font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; }
 
 /* 赛季筛选 */
