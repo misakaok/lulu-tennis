@@ -56,7 +56,7 @@ test('不那么素：全部比赛顶部数字卡、录日常比赛顶部概要�
   assert.ok(/class="hs"/.test(hist) && ['场数', '胜', '负', '胜率'].every((l) => hist.indexOf(`<text class="hs-l">${l}</text>`) >= 0));
   const add = read('pages/add/add.wxml');
   assert.ok(/<image class="hero-art" src="\/images\/art-ball\.png" mode="aspectFit" \/>/.test(add) && /待选对手/.test(add));
-  // 界面上不用彩色 emoji（和 3D 配图风格不搭）：冠军用黄绿标签 / 奖杯插画，名次用数字圆章；✓ ★ ✕ 这类单色符号可以
+  // 界面上不用彩色 emoji（和 3D 配图风格不搭）：冠军用黄绿标签 / 奖杯插画，名次用金银铜奖牌图标（图片）；✓ ★ ✕ 这类单色符号可以
   const files = [];
   for (const dir of ['pages', 'components']) {
     for (const d of fs.readdirSync(path.join(__dirname, '..', dir))) {
@@ -174,6 +174,16 @@ T.push({ name: '生涯成就徽章：每个徽章都有图标 images/badges/<id>
   // 「我的」入口图标用配图，不用 emoji
   const me = read('pages/me/me.wxml');
   assert.ok(/src="\/images\/art-basket\.png"/.test(me) && /src="\/images\/badges\/social\.png"/.test(me) && !/📈|👥/.test(me));
+} });
+
+T.push({ name: '排行榜前三：金银铜奖牌图标 images/medal-1/2/3.png（图片，不用 emoji 字符），每张不超过 12KB', fn() {
+  const fs = require('fs'), path = require('path');
+  for (const n of [1, 2, 3]) {
+    const f = path.join(__dirname, '../images/medal-' + n + '.png');
+    assert.ok(fs.existsSync(f), f); assert.ok(fs.statSync(f).size <= 12 * 1024, f);
+  }
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/rank/rank.wxml'), 'utf8');
+  assert.ok(/<image class="medal-img" src="\/images\/medal-\{\{item\.rank\}\}\.png" mode="aspectFit" \/>/.test(xml));
 } });
 
 module.exports = T;
