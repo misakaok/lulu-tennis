@@ -33,25 +33,3 @@
 .ce-del { margin: 0 0 48rpx; }
 .seg.locked { opacity: 0.6; } /* 从活动结算：类别、单打 / 双打跟活动走 */
 .cup-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-/* 选球员弹层 */
-.sheet-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(30, 30, 50, 0.45); z-index: 20; }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); }
-.sh-h { display: flex; align-items: baseline; justify-content: space-between; }
-.sh-t { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
-.sh-s { font-size: 24rpx; color: #8686A0; }
-.sh-q { height: 72rpx; margin: 20rpx 0 12rpx; padding: 0 28rpx; border-radius: 36rpx; background: #F2F2F8; font-size: 27rpx; color: #1E1E32; }
-.sh-ph { color: #A5A5BA; }
-.sh-list { height: 50vh; }
-.sh-chips { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
-.sh-chip { display: flex; align-items: center; margin: 8rpx; padding: 8rpx 22rpx 8rpx 8rpx; border-radius: 34rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; }
-.sh-chip.on { background: #6E6EA3; color: #fff; }
-.sh-chip.on .gd, .sh-chip.on .sh-tag { color: #E6E6F5; }
-.sh-g { margin-left: 12rpx; } /* 名字和性别分开一点（开头的空格在小程序里会被吞掉） */
-.sh-chip.off { opacity: 0.45; }
-.sh-av { margin-right: 10rpx; }
-.sh-n { max-width: 260rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.sh-tag { margin-left: 10rpx; font-size: 20rpx; color: #6E6EA3; }
-.sh-none { text-align: center; padding: 40rpx 0; }
-.sh-acts { display: flex; margin-top: 20rpx; }
-.sh-a { flex: 1; }
-.sh-a + .sh-a { margin-left: 20rpx; }

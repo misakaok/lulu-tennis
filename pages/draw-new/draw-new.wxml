@@ -216,18 +216,18 @@
       <view class="muted small">{{seedInfo}}</view>
     </view>
 
-    <view class="btn-primary {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" bindtap="doDraw">{{mode === 'rotation' ? '排三轮对阵' : (preview && !manualOpts.length) ? '重新排' : (mode === 'bracket' ? '随机排对阵' : '随机分组')}}</view>
-    <view wx:if="{{mode === 'bracket' && (!preview || !manualOpts.length)}}" class="btn-line manual-start {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" data-manual="yes" bindtap="doDraw">手动排对阵</view>
+    <view wx:if="{{!manualOnly}}" class="btn-primary {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" bindtap="doDraw">{{mode === 'rotation' ? '排三轮对阵' : (preview && !manualOpts.length) ? '重新排' : (mode === 'bracket' ? '随机排对阵' : '随机分组')}}</view>
+    <view wx:if="{{mode !== 'rotation' && (!preview || !manualOpts.length)}}" class="btn-line manual-start {{canDraw ? '' : 'disabled'}}" hover-class="tap-on" data-manual="yes" bindtap="doDraw">{{mode === 'bracket' ? '手动排对阵' : '手动分组'}}</view>
 
     <!-- 抽签结果预览 -->
     <view wx:if="{{preview}}" id="preview" class="preview">
       <view wx:if="{{manualOpts.length}}" class="card">
-        <view class="card-title">手动排对阵</view>
-        <view class="muted small top">按原来的签位从上到下核对。选中其他位置的球员或队伍，会交换两边的位置。</view>
-        <picker wx:for="{{preview.lines}}" wx:key="index" range="{{manualOpts}}" value="{{manualIndexes[index]}}" data-i="{{index}}" bindchange="setManualSlot">
+        <view class="card-title">{{mode === 'bracket' ? '手动排对阵' : '手动分组'}}</view>
+        <view class="muted small top">按实际对阵核对。选中其他位置的球员或队伍，会交换两边的位置。</view>
+        <picker wx:for="{{manualLabels}}" wx:key="*this" range="{{manualOpts}}" value="{{manualIndexes[index]}}" data-i="{{index}}" bindchange="setManualSlot">
           <view class="manual-row">
-            <text class="manual-no">签位 {{index + 1}}</text>
-            <text class="manual-name">{{item.name || '轮空'}}</text>
+            <text class="manual-no">{{item}}</text>
+            <text class="manual-name">{{manualOpts[manualIndexes[index]]}}</text>
             <text class="muted">更换 ›</text>
           </view>
         </picker>
@@ -240,12 +240,28 @@
       <draw-board wx:else draw="{{preview}}" />
       <view class="actions">
         <view wx:if="{{!preview.rotRounds && !manualOpts.length}}" class="btn-line redo" hover-class="tap-on" bindtap="doDraw">重新抽</view>
-        <view class="btn-primary grow {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : (fromSignup ? '确定，生成对阵' : '创建活动，生成对阵')}}</view>
+        <view class="btn-primary grow {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{saving ? '保存中…' : (editingMatchups ? '保存对阵' : fromSignup ? '确定，生成对阵' : '创建活动，生成对阵')}}</view>
       </view>
     </view>
   </block>
 
-  <view wx:else class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="publishSignup">{{saving ? '创建中…' : '开始报名'}}</view>
+  <block wx:else>
+    <!-- 开放报名时先加入的球友（可选）：已经确定参加的，创建后由管理员代报名，其余名额照常开放 -->
+    <view class="card">
+      <view class="card-title row">
+        <text>先加入的球友<text class="sub">可选，其余名额开放报名</text></text>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="openPre">＋ 添加</view>
+      </view>
+      <view wx:if="{{!pre.length}}" class="muted small">已经确定参加的可以先加进报名名单（会留档）；不加也行，创建后在活动详情里也能加</view>
+      <view wx:for="{{pre}}" wx:key="key" class="pre-row">
+        <text class="pre-no">{{index + 1}}</text>
+        <text class="pre-n">{{type === 'double' && mode !== 'rotation' ? item.text : item.names}}</text>
+        <text class="pre-x" data-i="{{index}}" bindtap="removePre">✕</text>
+      </view>
+    </view>
+    <member-sheet wx:if="{{preSheet}}" title="{{preSheet.title}}" sub="{{preSheet.sub}}" list="{{preSheet.list}}" extra="{{preSheet.extra}}" bind:pick="prePick" bind:extra="preSolo" bind:close="closePre" />
+    <view class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="publishSignup">{{saving ? '创建中…' : '开始报名'}}</view>
+  </block>
 </view>
 
 </block>

@@ -1,7 +1,7 @@
 // 活动分享卡片封面：在页面上隐藏的 2d 画布里画「日期 + 报名人数」，导出临时图片给 onShareAppMessage 用。
 // 只画日期、时间和人数这些固定格式的内容，不画活动名称、昵称（名称已经在卡片标题里）。
 // 画不出来（基础库太旧、画布取不到）时，调用方退回固定封面 FALLBACK。
-const FALLBACK = '/images/share.jpg'; // 固定封面：底图 + 「LULU网球」（邀请、准入页分享，以及画布画不出来时）
+const FALLBACK = '/images/share.jpg'; // 固定封面：底图 + 「LULU 网球」（邀请、准入页分享，以及画布画不出来时）
 const BG = '/images/share-bg.jpg'; // 画布底图：俯拍淡紫球场，右上一个网球、一条白线（2026-11-22 界面配图）
 const W = 1000, H = 800; // 5:4，微信分享卡片的比例
 const WEEK = '日一二三四五六';
@@ -66,7 +66,7 @@ function paint(ctx, info, bg) {
   // 左上：名字
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `bold 40px ${FONT}`;
-  ctx.fillText('LULU网球', bg ? 80 : 160, 133);
+  ctx.fillText('LULU 网球', bg ? 80 : 160, 133);
 
   // 右上：报名中标签（正向状态用黄绿）
   if (info.tag) {

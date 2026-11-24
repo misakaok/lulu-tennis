@@ -248,6 +248,47 @@ test('创建和编辑：名称手动输入，改日期、单双打、组别、�
   assert.strictEqual(e.data.title, '女子双打友谊赛');
 });
 
+test('开放报名时先加入的球友：创建后按顺序逐条代报名（adminAddSignup），双打带搭档；改成单打拆成单人；没加进去的列出原因、活动照常创建', async () => {
+  const calls = [], modals = [], toasts = [];
+  let redirected = '';
+  const members = [{ uid: 'c', nickname: 'Cat', gender: 'f' }, { uid: 'a', nickname: 'Ann', gender: 'f' }, { uid: 'b', nickname: 'Bob', gender: 'm' }, { uid: 'z', nickname: '' }];
+  const cloud = { call: async (action, data) => {
+    calls.push([action, plain(data || {})]);
+    if (action === 'listMembers') return { active: members };
+    if (action === 'adminAddSignup' && data.playerId === 'c') throw new Error('这是男子组活动，只有男球员可以报名');
+    return { ok: true };
+  } };
+  const deps = { '../../utils/db': { addDraw: async () => ({ id: 'n1' }) }, '../../utils/cloud': cloud };
+  const wx = { showToast: (t) => toasts.push(t.title), showModal: (o) => { modals.push(o.content); o.complete && o.complete(); }, redirectTo: (o) => { redirected = o.url; }, setStorageSync() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: (f) => f(), console });
+  p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
+  p.setData({ canPublish: true, title: '周日约球', entry: 'signup', type: 'double', mode: 'bracket' });
+  p.onInfo({ detail: { date: '2026-11-30' } });
+  await p.openPre();
+  assert.deepStrictEqual(p.data.preSheet.list.map((m) => m.name), ['Ann', 'Bob', 'Cat'], '没设置资料的不出现，按名字排');
+  p.prePick({ detail: { uid: 'a' } });
+  assert.deepStrictEqual(p.data.preSheet.list.map((m) => m.uid), ['b', 'c'], '搭档不能选自己');
+  p.prePick({ detail: { uid: 'b' } });
+  await p.openPre();
+  assert.deepStrictEqual(p.data.preSheet.list.map((m) => m.uid), ['c'], '已选的不再出现');
+  p.prePick({ detail: { uid: 'c' } }); p.preSolo();
+  assert.deepStrictEqual(p.data.pre.map((x) => x.text), ['Ann / Bob', 'Cat']);
+  await p.publishSignup();
+  assert.deepStrictEqual(calls.filter((c) => c[0] === 'adminAddSignup').map((c) => c[1]), [
+    { drawId: 'n1', playerId: 'a', partnerId: 'b' }, { drawId: 'n1', playerId: 'c', partnerId: '' },
+  ]);
+  assert.match(modals.pop(), /有 1 条没加进报名名单[\s\S]*Cat：这是男子组活动/);
+  assert.match(redirected, /draw-view\?id=n1/, '活动照常创建、打开详情');
+  // 改成单打：搭档拆成各自单独报名；删掉一条
+  calls.length = 0; redirected = '';
+  p.setData({ type: 'single' });
+  p.removePre({ currentTarget: { dataset: { i: 1 } } });
+  await p.publishSignup();
+  assert.deepStrictEqual(calls.filter((c) => c[0] === 'adminAddSignup').map((c) => [c[1].playerId, c[1].partnerId]), [['a', ''], ['b', '']]);
+  assert.match(toasts.pop(), /先加入 1 条报名/);
+  assert.ok(redirected);
+});
+
 test('名称为空时创建和编辑都不提交', async () => {
   let submitted = 0;
   const deps = { '../../utils/db': { addDraw() { submitted++; }, updateDrawInfo() { submitted++; } } };
@@ -283,9 +324,9 @@ test('活动首页转发和朋友圈：只分享首页，标题和封面固定�
   const deps = { '../../utils/db': {}, '../../utils/event': {}, '../../utils/next-match': {}, '../../utils/timeline': { isTimeline: () => false } };
   const d = load('pages/draw/draw.js', {}, 'Page', deps);
   d.data.list = [{ title: '周末球友赛' }]; d.data.next = { title: '周末球友赛', opp: 'Bob' };
-  assert.deepStrictEqual(plain(d.onShareAppMessage()), { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' });
+  assert.deepStrictEqual(plain(d.onShareAppMessage()), { title: 'LULU 网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' });
   // 朋友圈：没有 query（不带任何参数），封面是 1:1 方图
-  assert.deepStrictEqual(plain(d.onShareTimeline()), { title: 'LULU网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' });
+  assert.deepStrictEqual(plain(d.onShareTimeline()), { title: 'LULU 网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' });
   for (const f of ['images/share-home.jpg', 'images/share-timeline.jpg']) {
     const img = path.resolve(__dirname, '..', f);
     assert.ok(fs.existsSync(img) && fs.statSync(img).size <= 80 * 1024, f + ' 在包里、不超过 80KB');
@@ -367,7 +408,7 @@ test('分享封面：只画日期、时间和人数（不画活动名称、昵�
     : k === 'measureText' ? (t) => ({ width: String(t).length * 40 })
     : k === 'createLinearGradient' ? () => ({ addColorStop: noop }) : (k in o ? o[k] : noop), set: (o, k, v) => { o[k] = v; return true; } });
   Card.paint(ctx, a);
-  assert.deepStrictEqual(texts, ['LULU网球', '报名中', '11月21日', '周六 14:00', '已报名', '8', '/ 8 人', '候补 2 人']);
+  assert.deepStrictEqual(texts, ['LULU 网球', '报名中', '11月21日', '周六 14:00', '已报名', '8', '/ 8 人', '候补 2 人']);
   assert.ok(!texts.some((t) => /用户填的名称|张三|小组赛|淘汰赛|赛事|参赛|圈/.test(t)));
   // 活动详情页：报名人数变了才重画，分享时没画好就等它（微信最多等 3 秒），否则用固定封面
   const view = fs.readFileSync(path.join(__dirname, '../pages/draw-view/draw-view.js'), 'utf8');
@@ -401,7 +442,7 @@ const tap = (dataset) => ({ currentTarget: { dataset } });
 function seedPage(extraDeps) {
   const toasts = [];
   const fail = (t) => { throw new Error('不应出错：' + (t.content || t.title)); };
-  const wx = { setStorageSync() {}, getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast: (t) => toasts.push(t.title), showModal: fail, vibrateShort() {}, pageScrollTo() {}, redirectTo() {} };
+  const wx = { setStorageSync() {}, getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast: (t) => toasts.push(t.title), showModal: fail, vibrateShort() {}, pageScrollTo() {}, redirectTo() {}, navigateBack() {} };
   const p = load('pages/draw-new/draw-new.js', wx, 'Page', extraDeps, { setTimeout: () => {}, console });
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
   p.setData({ canPublish: true, entry: 'pick' });
@@ -517,6 +558,98 @@ test('报名后：按水平推荐种子，发起人可以取消、换人、调�
   assert.strictEqual(sent.id, 'd1');
   assert.deepStrictEqual(plain(sent.draw.seeds), ['Eve', 'Dan']);
   assert.ok(sent.draw.lines.some((x) => x && x.name === 'Dan' && x.seed === 2));
+});
+
+test('成员管理：顶部数出没填性别的球友（含还没设置资料、加入时留了昵称的），可以只看他们；设置性别走 setMemberGender，没资料的先确认', async () => {
+  const calls = [];
+  let sheet, modal;
+  const active = [{ uid: 'a', nickname: 'Ann', gender: 'f' }, { uid: 'b', nickname: 'Bob', gender: '' }, { uid: 'c', nickname: '', name: '', gender: '' }, { uid: 'd', nickname: 'Dan' }, { uid: 'j', nickname: '', name: '杰娃儿' }];
+  const cloud = { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active, pending: [], others: [], candidates: [] } : { ok: true }; } };
+  const v = load('pages/members/members.js', { showToast() {}, showActionSheet: (o) => { sheet = o; }, showModal: (o) => { modal = o; } }, 'Page', { '../../utils/cloud': cloud });
+  await v.load();
+  assert.deepStrictEqual([v.data.noGender, v.data.activeList.length], [3, 5], '加入时也没留昵称的不算');
+  v.toggleNoGender();
+  assert.deepStrictEqual(v.data.activeList.map((m) => m.uid), ['b', 'd', 'j']);
+  await v.setGender({ currentTarget: { dataset: { uid: 'b', name: 'Bob' } } });
+  sheet.success({ tapIndex: 1 });
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(plain(calls.find((c) => c[0] === 'setMemberGender')), ['setMemberGender', { uid: 'b', gender: 'f' }]);
+  assert.strictEqual(v.data.onlyNoGender, true, '刷新后仍只看没填的');
+  await v.setGender({ currentTarget: { dataset: { uid: 'a', name: 'Ann', gender: 'f' } } });
+  assert.match(sheet.alertText, /现在是女/, '改已有的性别时写出现在是什么');
+  // 还没设置资料的：先弹窗说明会替 TA 建资料，取消就不选
+  sheet = null;
+  const p1 = v.setGender({ currentTarget: { dataset: { uid: 'j', name: '杰娃儿', fresh: true } } });
+  assert.match(modal.content, /杰娃儿/);
+  modal.success({ confirm: false }); await p1;
+  assert.strictEqual(sheet, null);
+  const p2 = v.setGender({ currentTarget: { dataset: { uid: 'j', name: '杰娃儿', fresh: true } } });
+  modal.success({ confirm: true }); await p2;
+  sheet.success({ tapIndex: 0 });
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(plain(calls.filter((c) => c[0] === 'setMemberGender').pop()), ['setMemberGender', { uid: 'j', gender: 'm' }]);
+  v.toggleNoGender();
+  assert.strictEqual(v.data.activeList.length, 5);
+});
+
+test('管理员代报名：选人弹层里只列还没报名的正式成员；双打接着选搭档（可以不带），确认后才调用 adminAddSignup', async () => {
+  const calls = [], modals = [];
+  const wx = { showToast() {}, showModal: (o) => { modals.push(o.content); o.success({ confirm: true }); } };
+  const members = [{ uid: 'carl', nickname: 'Carl', gender: 'm' }, { uid: 'ann', nickname: 'Ann', gender: 'f' }, { uid: 'bob', nickname: 'Bob', gender: 'm' }, { uid: 'x', nickname: '' }];
+  const cloud = { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: members } : { ok: true }; } };
+  const v = load('pages/draw-view/draw-view.js', wx, 'Page', { '../../utils/cloud': cloud });
+  let reloaded = 0;
+  Object.assign(v, { id: 'd1', signupRows: [{ _openid: 'bob', partnerId: '' }], loadSignups: async () => { reloaded++; } });
+  v.setData({ canEdit: true, signing: true, isDouble: true, isRot: false });
+  await v.openAdminSignup();
+  assert.deepStrictEqual(v.data.adminSheet.list.map((m) => [m.name, m.g]), [['Ann', '女'], ['Carl', '男']], '已报名的、没设置资料的不出现，按名字排');
+  v.adminPick({ detail: { uid: 'ann' } });
+  assert.deepStrictEqual([v.data.adminSheet.title, v.data.adminSheet.extra], ['选择 Ann 的搭档', '不带搭档']);
+  assert.deepStrictEqual(v.data.adminSheet.list.map((m) => m.uid), ['carl'], '搭档不能选自己');
+  v.adminPick({ detail: { uid: 'carl' } });
+  await new Promise((r) => setImmediate(r));
+  assert.strictEqual(v.data.adminSheet, null);
+  assert.match(modals[0], /Ann \/ Carl/);
+  assert.deepStrictEqual(plain(calls.pop()), ['adminAddSignup', { drawId: 'd1', playerId: 'ann', partnerId: 'carl' }]);
+  assert.strictEqual(reloaded, 1, '添加后刷新名单');
+  // 不带搭档；单打选了人直接确认
+  await v.openAdminSignup(); v.adminPick({ detail: { uid: 'carl' } }); v.adminSolo();
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(plain(calls.pop()), ['adminAddSignup', { drawId: 'd1', playerId: 'carl', partnerId: '' }]);
+  v.setData({ isDouble: false });
+  await v.openAdminSignup(); v.adminPick({ detail: { uid: 'ann' } });
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(plain(calls.pop()), ['adminAddSignup', { drawId: 'd1', playerId: 'ann', partnerId: '' }]);
+  // 关掉弹层不调用；不是管理员打不开
+  await v.openAdminSignup(); v.closeAdminSheet();
+  assert.ok(!calls.some((c) => c[0] === 'adminAddSignup'), '关掉弹层不添加');
+  v.setData({ canEdit: false }); calls.length = 0;
+  await v.openAdminSignup();
+  assert.deepStrictEqual(calls, []);
+});
+
+test('调整活动对阵：保留现有签位和双打搭档，手动交换后保存实际位置和对阵版本', async () => {
+  const draw = {
+    _id: 'd1', status: 'drawn', mode: 'bracket', type: 'double', size: 4, drawVersion: 3, rosterVersion: 2,
+    title: '双打活动', entrants: ['Ann / Ben', 'Cat / Dan'], teams: { 'Ann / Ben': ['Ann', 'Ben'], 'Cat / Dan': ['Cat', 'Dan'] },
+    lines: [{ bye: true }, { name: 'Cat / Dan' }, { name: 'Ann / Ben' }, { bye: true }],
+  };
+  let saved;
+  const { p } = seedPage({
+    '../../utils/db': {
+      getDraw: async () => draw, fetchPlayersFull: async () => [], fetchSignups: async () => [], fetchMatches: async () => [],
+      generateDraw: async (id, data, manual) => { saved = { id, data, manual }; },
+    },
+  });
+  p.drawId = 'd1';
+  p.setData({ fromSignup: true, manualOnly: true });
+  await p.loadSignups();
+  assert.deepStrictEqual(plain(p.data.preview.lines), draw.lines);
+  p.setManualSlot({ ...tap({ i: 1 }), detail: { value: '0' } });
+  await p.save();
+  assert.deepStrictEqual([saved.id, saved.data.drawVersion, saved.data.rosterVersion, saved.manual], ['d1', 3, 2, true]);
+  assert.deepStrictEqual(plain(saved.data.teams), draw.teams);
+  assert.deepStrictEqual(plain(saved.data.lines), [{ bye: true }, { name: 'Ann / Ben' }, { name: 'Cat / Dan' }, { bye: true }]);
 });
 
 test('旧活动的种子名单：活动详情按「N 号种子」显示，单打叫种子选手、双打叫种子队伍；活动列表显示种子数', async () => {

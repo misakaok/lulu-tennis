@@ -3,6 +3,7 @@
   "usingComponents": {
     "draw-board": "/components/draw-board/draw-board",
     "event-form": "/components/event-form/event-form",
-    "rule-picker": "/components/rule-picker/rule-picker"
+    "rule-picker": "/components/rule-picker/rule-picker",
+    "member-sheet": "/components/member-sheet/member-sheet"
   }
 }

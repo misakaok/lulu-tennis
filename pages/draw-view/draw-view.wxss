@@ -98,6 +98,8 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .su-team + .su-team { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
 /* 名单底部不要多出一截留白：卡片下边距收小，最后一组不再加下边距（行本身的上下间距照旧） */
 .su-card { padding-bottom: 18rpx; }
+.su-add { margin-top: 16rpx; } /* 管理员「＋ 添加报名」：在名单最下面 */
+.matchup-edit { margin-bottom: 20rpx; }
 .su-team:last-child { padding-bottom: 0; }
 .su-row { display: flex; align-items: center; padding: 12rpx 0; }
 .su-no { width: 40rpx; flex: none; color: #A5A5BA; font-size: 22rpx; font-weight: 700; }

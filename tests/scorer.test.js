@@ -503,6 +503,9 @@ test('活动录分页：完赛的场边记分退回来预填局分，不自动�
     // 别的场次的草稿、没打完的：不预填
     const r2 = scorePage(store); r2.p.key = 'g0-2'; r2.p.applyScorer(fin.id);
     assert.strictEqual(r2.p.data.fromScorer, false);
+    // 调整对阵后，即使同一个位置和规则没变，也不能带入原来双方的比分。
+    const reordered = scorePage(store); reordered.p.drawVersion = 1; reordered.p.applyScorer(fin.id);
+    assert.strictEqual(reordered.p.data.fromScorer, false);
     S.saveDraft(Object.assign({}, fin, { points: 'aaa' }));
     const r3 = scorePage(store); r3.p.applyScorer(fin.id);
     assert.strictEqual(r3.p.data.fromScorer, false);

@@ -87,7 +87,10 @@
           <view wx:if="{{item.waiting}}" class="su-solo su-wait">候补中：前面有人取消就自动递补</view>
           <view wx:elif="{{isDouble && !isRot && item.solo}}" class="su-solo">找搭档中，由发起人配对</view>
         </view>
+        <view wx:if="{{canEdit}}" class="su-add"><view class="btn-line mini {{adminBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="openAdminSignup">＋ 添加报名</view></view>
       </view>
+      <!-- 管理员代报名：选人弹层（双打接着选搭档，可以不带） -->
+      <member-sheet wx:if="{{adminSheet}}" title="{{adminSheet.title}}" sub="{{adminSheet.sub}}" list="{{adminSheet.list}}" extra="{{adminSheet.extra}}" bind:pick="adminPick" bind:extra="adminSolo" bind:close="closeAdminSheet" />
 
       <view wx:if="{{joined}}" class="joined">
         <view class="joined-ic">✓</view>
@@ -97,7 +100,7 @@
         </view>
         <view class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
       </view>
-      <view wx:if="{{canPublish}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view>
+      <view wx:if="{{canEdit && (!isRot || canPublish)}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">{{canPublish ? '截止报名，生成' : '截止报名，手动排'}}{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view>
     </block>
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
@@ -126,7 +129,10 @@
         </view>
         <view class="muted center">三轮换搭档，每人和另外三位各搭档一次；不排总名次</view>
       </view>
-      <draw-board wx:elif="{{tab === 'board'}}" draw="{{draw}}" matches="{{matches}}" me="{{myName}}" editable="{{true}}" bind:open="onOpen" />
+      <block wx:elif="{{tab === 'board'}}">
+        <view wx:if="{{canEditMatchups}}" class="btn-line matchup-edit" hover-class="tap-on" bindtap="editDrawMatchups">手动调整对阵</view>
+        <draw-board draw="{{draw}}" matches="{{matches}}" me="{{myName}}" editable="{{true}}" bind:open="onOpen" />
+      </block>
 
       <view wx:else>
         <view class="seg sch-seg">

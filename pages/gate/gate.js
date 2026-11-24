@@ -82,5 +82,5 @@ Page({
     const home = '/pages/draw/draw';
     wx.reLaunch({ url: to || home, fail: () => { if (to) wx.reLaunch({ url: home }); } });
   },
-  onShareAppMessage() { return { title: 'LULU网球', path: '/pages/gate/gate', imageUrl: SHARE_IMAGE }; }, // 分享出去也只能看到准入页
+  onShareAppMessage() { return { title: 'LULU 网球', path: '/pages/gate/gate', imageUrl: SHARE_IMAGE }; }, // 分享出去也只能看到准入页
 });

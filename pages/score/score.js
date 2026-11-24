@@ -59,9 +59,10 @@ Page({
       this.ids = { a: ID.idsFor(f.aMembers, uidOf), b: ID.idsFor(f.bMembers, uidOf) };
       const inMatch = !!myId && this.ids.a.concat(this.ids.b).indexOf(myId) >= 0;
       const myName = me && me.name;
-      const canEdit = owner || inMatch;
+      const canEdit = owner || inMatch || (!f.done && !E.isRotation(d) && require('../../utils/member').isAdminLocal());
       const cfg = E.ruleFor(d, this.key); // 这一场所在阶段 / 轮次的规则（如决赛单独用 6 局制）
       this.d = d; this.f = f; this.cfg = cfg;
+      this.drawVersion = d.drawVersion || 0;
       this.res = { ok: false, msg: '' };
       let revocable = false;
       const scheduled = (f.slot && f.slot.date) || d.date;
@@ -107,20 +108,22 @@ Page({
   },
 
   /* ---------- 场边记分 ---------- */
-  // 只给能录这一场的人（球员、发起人），而且这一场还没有比分；规则就是这一场的规则
+  // 只给能录这一场的人，而且这一场还没有比分。
   refreshScorer() {
     const d = SC.loadDraft();
-    const mine = SC.sameEv(d, this.drawId, this.key) && SC.sameCfg(d.cfg, this.cfg);
+    const mine = SC.sameEv(d, this.drawId, this.key, this.drawVersion || 0) && SC.sameCfg(d.cfg, this.cfg);
     this.setData({ scorerOk: !!this.data.canEdit && !this.f.done, scorerResume: mine && !!d.points });
   },
   openScorer() {
     if (!this.data.scorerOk) return;
     const f = this.f;
-    SC.setLabels({ drawId: this.drawId, key: this.key }, { a: f.a, b: f.b, title: f.stage });
+    const ev = { drawId: this.drawId, key: this.key };
+    if (this.drawVersion) ev.drawVersion = this.drawVersion;
+    SC.setLabels(ev, { a: f.a, b: f.b, title: f.stage });
     const go = () => wx.navigateTo({ url: '/pages/scorer/scorer?go=1' });
     const d = SC.loadDraft();
-    if (SC.sameEv(d, this.drawId, this.key) && SC.sameCfg(d.cfg, this.cfg)) { go(); return; } // 这一场已经在记：接着记
-    const fresh = () => { SC.saveDraft(SC.start(this.cfg, Date.now(), { drawId: this.drawId, key: this.key })); go(); };
+    if (SC.sameEv(d, this.drawId, this.key, this.drawVersion || 0) && SC.sameCfg(d.cfg, this.cfg)) { go(); return; } // 这一场已经在记：接着记
+    const fresh = () => { SC.saveDraft(SC.start(this.cfg, Date.now(), ev)); go(); };
     if (!d || !d.points) { fresh(); return; }
     wx.showModal({
       title: '开始这一场的场边记分？',
@@ -132,7 +135,7 @@ Page({
   // 预填场边记分的结果：只认这一场、已完赛、规则和这一场一样的草稿；不自动提交
   applyScorer(id) {
     const d = SC.loadDraft();
-    const r = d && d.id === id && SC.sameEv(d, this.drawId, this.key) ? SC.resultOf(d) : null;
+    const r = d && d.id === id && SC.sameEv(d, this.drawId, this.key, this.drawVersion || 0) ? SC.resultOf(d) : null;
     if (!r) { wx.showToast({ title: '没找到这一场已完赛的场边记分', icon: 'none' }); return; }
     if (!SC.sameCfg(d.cfg, this.cfg)) {
       wx.showModal({ title: '规则不一样', content: `这一场的规则已改为「${E.ruleText(this.cfg)}」，和场边记分时不同，请按这一场的规则填写局分。`, showCancel: false });
@@ -168,7 +171,9 @@ Page({
     this.setData({ submitting: true });
     try {
       // 活动比分只能经云函数写入：服务端按签表重新核对双方和本场规则，每一场只有一条记录（改比分是覆盖）
-      const res = await this.withImpact('recordEventMatch', { drawId: this.drawId, key: this.key, date: this.data.date, sets: r.sets });
+      const res = await this.withImpact('recordEventMatch', {
+        drawId: this.drawId, key: this.key, drawVersion: this.drawVersion || 0, date: this.data.date, sets: r.sets,
+      });
       if (!res) return;
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉场边记分草稿
       wx.showToast({ title: f.done ? '比分已更新' : '比分已保存', icon: 'success' });

@@ -127,10 +127,19 @@ function handoff(state, side) {
 }
 
 /* ---------- 状态：开始、加一分、撤销 ---------- */
-// 活动场次的编号：活动 ID 是云数据库的文档 ID，场次 key 是签表生成的（如 g0-1、k1-0）；别的一律不认
-const evOf = (ev) => (ev && typeof ev === 'object' && typeof ev.drawId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(ev.drawId)
-  && typeof ev.key === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(ev.key) ? { drawId: ev.drawId, key: ev.key } : null);
-const sameEv = (state, drawId, key) => !!(state && state.ev && state.ev.drawId === drawId && state.ev.key === key);
+// 场次编号和对阵版本：重排后同一编号可能换了球员，草稿必须跟着当时的版本。
+function evOf(ev) {
+  if (!ev || !/^[A-Za-z0-9_-]{1,64}$/.test(typeof ev.drawId === 'string' ? ev.drawId : '') ||
+      !/^[A-Za-z0-9_-]{1,32}$/.test(typeof ev.key === 'string' ? ev.key : '')) return null;
+  const out = { drawId: ev.drawId, key: ev.key };
+  if (ev.drawVersion !== undefined) {
+    if (!Number.isSafeInteger(ev.drawVersion) || ev.drawVersion < 0) return null;
+    out.drawVersion = ev.drawVersion;
+  }
+  return out;
+}
+const sameEv = (state, drawId, key, version) => !!(state && state.ev && state.ev.drawId === drawId && state.ev.key === key &&
+  (version === undefined || (state.ev.drawVersion || 0) === version));
 const sameCfg = (x, y) => { const a = cfgOf(x), b = cfgOf(y); return a.setGames === b.setGames && a.noAd === b.noAd && a.bestOf === b.bestOf; };
 
 function start(cfg, now, ev) {
@@ -226,7 +235,7 @@ function takeDailyPending() { const p = dailyPending; dailyPending = null; retur
 
 // 活动场次双方的名字：由录分页打开记分器时放在内存里（不写进草稿，草稿里没有姓名）；小程序重开后没有就显示 A 方 / B 方
 const labels = {};
-const evKey = (e) => e.drawId + '/' + e.key;
+const evKey = (e) => e.drawId + '/' + e.key + '/' + (e.drawVersion || 0);
 function setLabels(ev, l) {
   const e = evOf(ev);
   if (e && l) labels[evKey(e)] = { a: String(l.a || '').slice(0, 40), b: String(l.b || '').slice(0, 40), title: String(l.title || '').slice(0, 40) };

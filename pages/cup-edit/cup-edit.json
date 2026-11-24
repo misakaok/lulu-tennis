@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "补录积分"
+  "navigationBarTitleText": "补录积分",
+  "usingComponents": {
+    "member-sheet": "/components/member-sheet/member-sheet"
+  }
 }

@@ -385,12 +385,22 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   assert.strictEqual(p.data.ok, true);
   const uids = ['alice', 'bob', 'carl'];
   const open = (slot, i, j) => p.openPick({ currentTarget: { dataset: { slot, i, j } } });
-  const tap = (uid) => p.tapPick({ currentTarget: { dataset: { uid } } });
+  const tap = (uid) => p.tapPick({ detail: { uid } }); // member-sheet 的 pick 事件
   const pick = (slot, i, j, v) => { open(slot, i, j); tap(uids[v]); };
   open('champion', 0, 0);
   assert.deepStrictEqual(p.data.sheet.list.map((x) => x.name + ' · ' + x.g), ['Alice · 女', 'Bob · 男', 'Carl · 男'], '没设置资料的不能选');
-  p.onPickSearch({ detail: { value: 'b' } });
-  assert.deepStrictEqual(p.data.sheet.list.map((x) => x.uid), ['bob'], '搜索只在本机按名字筛');
+  // 弹层组件：搜索只在本机按名字筛（不分大小写），清空恢复全部；点名字发 pick
+  const sheetDef = loadDef('components/member-sheet/member-sheet.js', {}, wx);
+  const events = [];
+  const sh = Object.assign({}, sheetDef.methods, { data: Object.assign(plain(sheetDef.data), { list: p.data.sheet.list }), setData(o) { Object.assign(this.data, o); }, triggerEvent: (n, d) => events.push([n, d]) });
+  sheetDef.lifetimes.attached.call(sh);
+  assert.strictEqual(sh.data.shown.length, 3);
+  sh.onQ({ detail: { value: 'B' } });
+  assert.deepStrictEqual(sh.data.shown.map((x) => x.uid), ['bob'], '搜索只在本机按名字筛');
+  sh.onQ({ detail: { value: '' } });
+  assert.strictEqual(sh.data.shown.length, 3);
+  sh.tap({ currentTarget: { dataset: { uid: 'carl' } } });
+  assert.deepStrictEqual(plain(events), [['pick', { uid: 'carl' }]]);
   p.closePick();
   assert.strictEqual(p.data.sheet, null);
   pick('champion', 0, 0, 0); pick('runnerUp', 0, 0, 1);
@@ -410,9 +420,10 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   p.addFloor();
   assert.strictEqual(p.data.sheet.multi, true);
   tap('alice');
-  assert.strictEqual(p.data.sheet.count, 0, '冠军不能再选进保底');
+  assert.strictEqual(p.data.sheet.sub, '已选 0 人', '冠军不能再选进保底');
+  assert.ok(p.data.sheet.list.find((x) => x.uid === 'alice').off, '已在别的名次里的变灰');
   tap('carl'); tap('dora');
-  assert.strictEqual(p.data.sheet.count, 2);
+  assert.strictEqual(p.data.sheet.sub, '已选 2 人');
   p.confirmPick();
   assert.deepStrictEqual(plain(p.places.floor), [['carl'], ['dora']]);
   p.addFloor();

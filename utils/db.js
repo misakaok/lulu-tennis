@@ -304,7 +304,11 @@ const cloudCall = (action, data) => require('./cloud').call(action, data);
 // 返回 { id, placeDropped }：placeDropped = 地点名称没通过内容检测，只保存了地图位置
 async function addDraw(data) { const r = await cloudCall('createDraw', { draw: data }); return { id: r.id, placeDropped: !!r.placeDropped }; }
 // 报名截止后生成签表（已经录分或登记过退赛的不能重新生成）
-async function generateDraw(id, data) { await cloudCall('generateDraw', { drawId: id, draw: data }); }
+async function generateDraw(id, data, manual) {
+  const payload = { drawId: id, draw: data };
+  if (manual) payload.manual = true;
+  await cloudCall('generateDraw', payload);
+}
 async function updateDrawSettings(id, settings, settingsVersion) { await cloudCall('updateDrawSettings', { drawId: id, settings, settingsVersion }); }
 // 编辑活动信息：手动名称、日期、开始时间、场地编号、定位；公开文字先经云端检测
 async function updateDrawInfo(id, info) { const r = await cloudCall('updateDrawInfo', { drawId: id, info }); return { placeDropped: !!(r && r.placeDropped) }; }

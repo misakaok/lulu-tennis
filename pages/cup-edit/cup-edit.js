@@ -20,7 +20,8 @@ Page({
     ok: false, authError: '', loading: true, busy: false, editing: false, published: false, fixes: 0,
     date: '', today: '', kind: 'weekly', format: 'single', kinds: C.ACTIVE_KINDS, formats: [], scoreVersion: C.SCORE_VERSION,
     pointGroup: 'open', pointGroups: C.POINT_GROUPS, showPointGroup: false,
-    slots: [], sheet: null, // sheet：选球员弹层 { title, multi, q, list, count } hasFloor: true, preview: null, pointsNote: '',
+    slots: [], hasFloor: true, preview: null, pointsNote: '',
+    sheet: null, // 选球员弹层（components/member-sheet）：{ title, sub, multi, list }
     from: null, // 从活动结算：{ title, notes, stale }
   },
 
@@ -116,7 +117,7 @@ Page({
     this.render();
   },
 
-  // 选球员（2026-11-24 用户要求：人多了滚轮不好选）：底部弹层，搜索 + 点名字；已在别的名次里的标出名次。
+  // 选球员（2026-11-24 用户要求：人多了滚轮不好选）：底部弹层 member-sheet，搜索 + 点名字；已在别的名次里的标出名次。
   //   单个格子：点谁就填谁，已在别处的挪过来；参加保底（单打）一次多选，已在冠军 / 亚军 / 四强的不能选
   rowOf(slot, i) { return slot === 'semis' || slot === 'floor' ? this.places[slot][i] : this.places[slot]; },
   positions() { // uid → 在这一站的位置
@@ -134,34 +135,25 @@ Page({
     if (slot === 'floor' && this.data.size === 1) { this.openFloor(); return; }
     this.target = { slot, i: Number(i), j: Number(j) };
     const label = { champion: '冠军', runnerUp: '亚军', semis: '四强', floor: '参加保底' }[slot];
-    this.openSheet(false, '选择' + label + (this.data.size === 2 ? `（第 ${this.target.j + 1} 位）` : ''));
+    this.renderSheet(false, '选择' + label + (this.data.size === 2 ? `（第 ${this.target.j + 1} 位）` : ''));
   },
   openFloor() { // 单打的参加保底：多选，按原来的顺序保留，新选的接在后面
     this.target = null;
     this.order = this.places.floor.map((r) => r[0]).filter(Boolean);
-    this.openSheet(true, '选择参加保底');
+    this.renderSheet(true, '选择参加保底');
   },
-  openSheet(multi, title) {
-    this.q = '';
-    this.setData({ sheet: { title, multi, q: '', list: [], count: 0 } });
-    this.renderSheet();
-  },
-  renderSheet() {
-    const sh = this.data.sheet;
-    if (!sh) return;
-    const q = (this.q || '').trim().toLowerCase();
+  renderSheet(multi = this.data.sheet.multi, title = this.data.sheet.title) {
     const at = this.positions(), t = this.target;
-    const list = this.people.filter((p) => !q || p.name.toLowerCase().indexOf(q) >= 0).map((p) => {
+    const list = this.people.map((p) => {
       const pos = at[p.uid];
-      const here = sh.multi ? !!pos && pos.slot === 'floor' : !!pos && pos.slot === t.slot && pos.i === t.i && pos.j === t.j;
-      const on = sh.multi ? this.order.indexOf(p.uid) >= 0 : here;
-      return { uid: p.uid, name: p.name, g: S.GENDER[p.gender] || '', on, tag: pos && !here ? pos.label : '' };
+      const here = multi ? !!pos && pos.slot === 'floor' : !!pos && pos.slot === t.slot && pos.i === t.i && pos.j === t.j;
+      const tag = pos && !here ? pos.label : '';
+      return { uid: p.uid, name: p.name, g: S.GENDER[p.gender] || '', on: multi ? this.order.indexOf(p.uid) >= 0 : here, tag, off: multi && !!tag };
     });
-    this.setData({ sheet: Object.assign({}, sh, { list, q: this.q, count: sh.multi ? this.order.length : 0 }) });
+    this.setData({ sheet: { title, multi, list, sub: multi ? `已选 ${this.order.length} 人` : '点名字选中' } });
   },
-  onPickSearch(e) { this.q = e.detail.value; this.renderSheet(); },
   tapPick(e) {
-    const uid = e.currentTarget.dataset.uid;
+    const uid = e.detail.uid;
     const sh = this.data.sheet;
     if (!sh || !this.byUid[uid]) return;
     const pos = this.positions()[uid];

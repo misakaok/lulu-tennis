@@ -27,7 +27,7 @@ Page({
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     cupTag: '', cupBox: null, canEditCup: false, cupKindBusy: false, isRot: false, rotRounds: [],
     signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
-    partnerOpts: [], info: null,
+    partnerOpts: [], info: null, adminSheet: null, adminBusy: false, // adminSheet：管理员代报名的选人弹层（components/member-sheet）
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
     schFilter: 'all', wdView: { entrants: [], rows: [] }, wdCount: 0, // 场次：全部 / 退赛／弃权
     courts: E.COURTS.map((c) => c || '沿用活动场地'),
@@ -78,10 +78,12 @@ Page({
         draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
         formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
       });
-      // 发布和编辑仅管理员；生成对阵还需为发起人。历史发起人保留删除能力，云端逐项校验。
+      // 随机生成仍由发起人操作；管理员也可手动排对阵。
       const isAdmin = require('../../utils/member').isAdminLocal();
       const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
-      this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin });
+      const canEditMatchups = isAdmin && !signing && !E.isRotation(d) && !matches.length &&
+        !Object.keys(d.results || {}).length && !(d.withdrawals || []).length;
+      this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups });
       this.setData({ info: this.infoOf(d) });
       if (signing) {
         this.cupSeq = (this.cupSeq || 0) + 1;
@@ -263,6 +265,7 @@ Page({
       preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
       db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
     ]);
+    this.signupRows = list;
     const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
     // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
     // 名次和排行榜一致：只在同意公开展示的人里排。授权直接看球员列表里的 shown——这里的 players 是复制版，
@@ -309,6 +312,51 @@ Page({
     });
     this.shareCounts = { people, cap: capP, wait: waitPeople };
     this.makeCover();
+  },
+
+  // 管理员代报名（补录外部活动）：在选人弹层里选正式成员，双打接着选搭档（可以不带），确认后由云端 adminAddSignup
+  //   按本人报名同一套规则校验（组别、性别、重名、搭档），并留档。已在名单里的（含被带的搭档）不出现
+  async openAdminSignup() {
+    if (!this.data.canEdit || !this.data.signing || this.data.adminBusy) return;
+    this.setData({ adminBusy: true });
+    try {
+      const { active } = await cloud.call('listMembers');
+      const taken = new Set((this.signupRows || []).flatMap((s) => [s._openid, s.partnerId]).filter(Boolean));
+      this.adminPool = (active || []).filter((m) => m.uid && m.nickname && !taken.has(m.uid))
+        .map((m) => ({ uid: m.uid, name: m.nickname, g: S.GENDER[m.gender] || '' }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+      if (!this.adminPool.length) { wx.showToast({ title: '没有可添加的球友', icon: 'none' }); return; }
+      this.adminPlayer = null;
+      this.setData({ adminSheet: { title: '添加报名', sub: '选择要报名的球友', list: this.adminPool, extra: '' } });
+    } catch (e) { wx.showToast({ title: e.message || '读取成员失败', icon: 'none' }); }
+    finally { this.setData({ adminBusy: false }); }
+  },
+  adminPick(e) {
+    const p = (this.adminPool || []).find((m) => m.uid === e.detail.uid);
+    if (!p) return;
+    if (this.adminPlayer) { this.confirmAdminSignup(this.adminPlayer, p); return; }
+    if (!this.data.isDouble || this.data.isRot) { this.confirmAdminSignup(p, null); return; }
+    this.adminPlayer = p; // 双打：接着选搭档
+    this.setData({ adminSheet: { title: `选择 ${p.name} 的搭档`, sub: '也可以不带搭档', list: this.adminPool.filter((m) => m.uid !== p.uid), extra: '不带搭档' } });
+  },
+  adminSolo() { if (this.adminPlayer) this.confirmAdminSignup(this.adminPlayer, null); },
+  closeAdminSheet() { this.adminPlayer = null; this.setData({ adminSheet: null }); },
+  confirmAdminSignup(player, partner) {
+    this.closeAdminSheet();
+    wx.showModal({
+      title: '添加报名？', content: `把 ${partner ? player.name + ' / ' + partner.name : player.name} 加进报名名单（会留档）`, confirmText: '添加',
+      success: (r) => { if (r.confirm) this.saveAdminSignup(player, partner); },
+    });
+  },
+  async saveAdminSignup(player, partner) {
+    if (this.data.adminBusy) return;
+    this.setData({ adminBusy: true });
+    try {
+      const r = await cloud.call('adminAddSignup', { drawId: this.id, playerId: player.uid, partnerId: partner ? partner.uid : '' });
+      await this.loadSignups(this.d, this.allMatches);
+      wx.showToast({ title: r.already ? '这位球友已报名' : r.waiting ? '已添加到候补' : '已添加', icon: 'none' });
+    } catch (e) { wx.showModal({ title: '添加失败', content: e.message || '请稍后再试', showCancel: false }); }
+    finally { this.setData({ adminBusy: false }); }
   },
 
   // 双打：先在弹出的列表里选搭档
@@ -368,11 +416,14 @@ Page({
   },
 
   startDraw() {
-    if (!this.data.canPublish) return;
+    if (!this.data.canEdit || !this.data.signing || (this.data.isRot && !this.data.canPublish)) return;
     if (this.data.signups.length < 2) { wx.showToast({ title: '报名的还不够', icon: 'none' }); return; }
     // 四人轮换：要报满 4 位（候补的不算）才能生成
     if (this.data.isRot && this.data.signups.filter((s) => !s.waiting).length < E.ROTATION_SIZE) { wx.showToast({ title: '四人轮换双打要报满 4 位才能生成对阵', icon: 'none' }); return; }
-    wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + this.id });
+    wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + encodeURIComponent(this.id) + (this.data.canPublish ? '' : '&manual=1') });
+  },
+  editDrawMatchups() {
+    if (this.data.canEdit && this.data.canEditMatchups) wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + encodeURIComponent(this.id) + '&manual=1' });
   },
 
   /* ---------- 签表 / 赛程 ---------- */

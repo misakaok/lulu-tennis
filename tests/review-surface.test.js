@@ -107,9 +107,10 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
 
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  // 仍然允许文字输入的页面：比赛名称（创建 / 编辑活动，各 1 个）、昵称（资料页）、准入页、搜索球员（首页、补录积分选人，只在本机筛选，不保存）
-  const allowed = { 'pages/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pages/draw-new/draw-new': 1, 'pages/event-edit/event-edit': 1, 'pages/cup-edit/cup-edit': 1 };
-  app.pages.forEach((page) => {
+  // 仍然允许文字输入的页面：比赛名称（创建 / 编辑活动，各 1 个）、昵称（资料页）、准入页、搜索球员（首页；选人弹层 member-sheet，只在本机筛选，不保存）
+  const allowed = { 'pages/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pages/draw-new/draw-new': 1, 'pages/event-edit/event-edit': 1, 'components/member-sheet/member-sheet': 1 };
+  const comps = fs.readdirSync(path.join(root, 'components')).map((c) => `components/${c}/${c}`).filter((c) => fs.existsSync(path.join(root, c + '.wxml')));
+  app.pages.concat(comps).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
     const code = fs.readFileSync(path.join(root, page + '.js'), 'utf8');
     const texts = (xml.match(/<input\b[^>]*>/g) || []).filter((tag) => !/type\s*=\s*['"](?:number|digit)['"]/.test(tag));

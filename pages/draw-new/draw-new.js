@@ -6,6 +6,7 @@ const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const PL = require('../../utils/places');
 const C = require('../../utils/cup');
+const cloud = require('../../utils/cloud');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const SIZES = [8, 12, 16, 24, 32];
@@ -26,7 +27,9 @@ Page({
     rules: { group: DEF_RULE, ko: DEF_RULE, rounds: {} }, koRoundList: [], rulesSum: [],
     sizes: SIZES, groupOpts: GROUPS,
     chips: [], seedChips: [], seedList: [], teamList: [],
-    info: '', seedInfo: '', canDraw: false, preview: null, manualOpts: [], manualIndexes: [], saving: false,
+    info: '', seedInfo: '', canDraw: false, preview: null, manualOpts: [], manualIndexes: [], manualLabels: [], saving: false,
+    manualOnly: false, editingMatchups: false,
+    pre: [], preSheet: null, // 开放报名时先加入的球友：[{ key, ids, who, playerId, partnerId, text, names }]；preSheet 是选人弹层
     recentPlaces: [], heroTop: '', heroSub: '',
     cupOn: false, cupKind: 'weekly', cupKinds: C.ACTIVE_KINDS, cupPointGroup: 'open', cupPointGroups: C.POINT_GROUPS, cupErr: '', cupNote: '', cupText: '',
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
@@ -62,7 +65,7 @@ Page({
     this.setData({ type: lastType, limits: LIMITS[lastType === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0 });
     if (options && options.id) {
       this.drawId = options.id;
-      this.setData({ fromSignup: true, entry: 'pick' });
+      this.setData({ fromSignup: true, entry: 'pick', manualOnly: options.manual === '1' });
       wx.setNavigationBarTitle({ title: '截止报名 · 生成对阵' });
       this.loadSignups();
     } else {
@@ -124,19 +127,25 @@ Page({
         db.getDraw(this.drawId), db.fetchSignups(this.drawId), db.fetchPlayersFull(), db.fetchMatches(),
       ]);
       this.setPlayers(full);
-      signups.forEach((s) => {
-      });
       this.ratings = R.computeRatings(matches, R.startLevelsFrom(full));
-      this.signUid = ID.drawUids(null, signups); // 报名记录是本人写的，ID 最可靠
+      const editingMatchups = draw.status !== 'signup';
+      if (editingMatchups && (!this.data.manualOnly || E.isRotation(draw) || Object.keys(draw.results || {}).length ||
+          (draw.withdrawals || []).length || matches.some((m) => m.drawId === this.drawId))) throw new Error('当前活动不能调整对阵');
+      this.originalMatchups = editingMatchups ? draw : null;
+      this.signUid = ID.drawUids(draw, signups);
       const cfg = E.cfgOf(draw), st = E.stageRules(draw);
       this.settingsVersion = draw.settingsVersion || 0;
+      this.rosterVersion = draw.rosterVersion || 0;
+      this.drawVersion = draw.drawVersion || 0;
       // 双打：已经带搭档的先排，单人报名的排在后面按顺序两两配对
       const names = [];
       const push = (n) => { if (n && names.indexOf(n) < 0) names.push(n); };
       // 候补的不默认参赛：留在可选名单里，发起人想让谁上可以自己点
       const wait = E.waitingOf(signups, E.capacityOf(draw));
       const inList = signups.filter((s) => !wait[s._id]), waiting = signups.filter((s) => wait[s._id]);
-      if (cfg.type === 'double') {
+      if (editingMatchups) {
+        (draw.entrants || []).forEach((ent) => E.membersOf(draw, ent).forEach(push));
+      } else if (cfg.type === 'double') {
         inList.filter((s) => s.partner).forEach((s) => { push(s.name); push(s.partner); });
         let solos = inList.filter((s) => !s.partner).map((s) => s.name);
         // 混双：没搭档的按「一男一女」交替排，按顺序两两配对时尽量凑成混双（性别读个人资料）
@@ -155,14 +164,22 @@ Page({
       this.selected = names.slice();
       this.setData({
         category: E.categoryOf(draw), limit: draw.limit || 0, cupText: C.drawCupText(draw),
-        waitInfo: waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
+        waitInfo: !editingMatchups && waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
+        editingMatchups,
         title: draw.title, mode: draw.mode, size: draw.size || 8, groupCount: draw.groupCount || 4, advance: draw.advance === 1 ? 1 : 2,
         type: cfg.type, limits: LIMITS[cfg.type === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0,
       });
-      this.recommendSeeds(true);
+      if (editingMatchups) {
+        this.seeds = (draw.seeds || []).slice();
+        wx.setNavigationBarTitle({ title: '手动调整对阵' });
+        this.refresh();
+        if (this.data.canDraw) this.doDraw();
+      } else {
+        this.recommendSeeds(true);
+      }
     } catch (e) {
       console.error(e);
-      wx.showToast({ title: '读取报名名单失败', icon: 'none' });
+      this.setData({ canPublish: false, authError: e.message || '读取报名名单失败' });
     }
   },
 
@@ -492,17 +509,36 @@ Page({
         entrants: ents, seeds: this.seeds.slice(), results: {},
         teams: this.teams || {}, uidOf: this.uidsOf(this.selected),
       });
-      const manual = this.data.mode === 'bracket' && e && e.currentTarget.dataset.manual === 'yes';
+      const manual = !this.isRot() && (this.data.manualOnly || (e && e.currentTarget.dataset.manual === 'yes'));
       if (manual) {
-        const lines = Array.from({ length: D.nextPow2(base.size) }, (_, i) => {
-          const name = ents[i];
+        const old = this.originalMatchups;
+        const oldEntrants = old && old.entrants || [];
+        const sameEntrants = oldEntrants.length === ents.length && oldEntrants.every((name) => ents.includes(name));
+        if (old && old.avatars) base.avatars = old.avatars;
+        const slot = (name) => {
           if (!name) return { bye: true };
           const seed = base.seeds.indexOf(name) + 1;
           return seed ? { name, seed } : { name };
-        });
-        const manualOpts = lines.some((s) => s.bye) ? ents.concat('轮空') : ents;
-        const manualIndexes = lines.map((line, i) => line.bye ? ents.length : i);
-        this.setData({ preview: Object.assign(base, { lines }), manualOpts, manualIndexes });
+        };
+        let positions, manualLabels;
+        if (this.isGroups()) {
+          const groups = sameEntrants && old.groups ? old.groups.map((g) => ({ name: g.name, members: g.members.map((s) => slot(s.name)) }))
+            : Array.from({ length: base.groupCount }, (_, i) => ({
+              name: String.fromCharCode(65 + i) + ' 组',
+              members: ents.filter((_, j) => j % base.groupCount === i).map(slot),
+            }));
+          base.groups = groups;
+          positions = groups.flatMap((g) => g.members);
+          manualLabels = groups.flatMap((g) => g.members.map((_, i) => `${g.name} · ${i + 1}`));
+        } else {
+          base.lines = sameEntrants && old.lines ? old.lines.map((s) => slot(s && s.name))
+            : Array.from({ length: D.nextPow2(base.size) }, (_, i) => slot(ents[i]));
+          positions = base.lines;
+          manualLabels = positions.map((_, i) => `签位 ${i + 1}`);
+        }
+        const manualOpts = positions.some((s) => s.bye) ? ents.concat('轮空') : ents;
+        const manualIndexes = positions.map((s) => s.bye ? ents.length : ents.indexOf(s.name));
+        this.setData({ preview: base, manualOpts, manualIndexes, manualLabels });
         setTimeout(() => wx.pageScrollTo({ selector: '#preview', duration: 300 }), 50);
         return;
       }
@@ -523,15 +559,24 @@ Page({
     const { preview, manualOpts, manualIndexes, saving } = this.data;
     if (!preview || !manualOpts.length || saving) return;
     const i = Number(e.currentTarget.dataset.i), j = Number(e.detail.value);
-    const lines = preview.lines.slice();
-    if (!lines[i] || !Number.isInteger(j) || j < 0 || j >= manualOpts.length) return;
+    const positions = preview.lines ? preview.lines.slice() : preview.groups.flatMap((g) => g.members);
+    if (!positions[i] || !Number.isInteger(j) || j < 0 || j >= manualOpts.length) return;
     if (manualIndexes[i] === j) return;
     const from = manualIndexes.indexOf(j);
     if (from < 0) return;
-    [lines[i], lines[from]] = [lines[from], lines[i]];
+    [positions[i], positions[from]] = [positions[from], positions[i]];
     const indexes = manualIndexes.slice();
     [indexes[i], indexes[from]] = [indexes[from], indexes[i]];
-    this.setData({ 'preview.lines': lines, manualIndexes: indexes });
+    if (preview.lines) this.setData({ 'preview.lines': positions, manualIndexes: indexes });
+    else {
+      let offset = 0;
+      const groups = preview.groups.map((g) => {
+        const members = positions.slice(offset, offset + g.members.length);
+        offset += g.members.length;
+        return { name: g.name, members };
+      });
+      this.setData({ 'preview.groups': groups, manualIndexes: indexes });
+    }
   },
 
   // 开放报名：只保存活动设置，抽签等报名结束后再做
@@ -548,14 +593,72 @@ Page({
         title, status: 'signup', results: {},
       }));
       const id = r.id;
-      wx.showToast(r.placeDropped ? PLACE_DROPPED : { title: '已创建', icon: 'success' });
-      setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
+      const go = () => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id });
+      const fails = await this.addPreSignups(id);
+      if (fails.length) { // 活动已经建好：没加进去的列出来，之后在活动详情里补
+        wx.showModal({ title: '活动已创建', content: `有 ${fails.length} 条没加进报名名单：\n${fails.join('\n')}\n可以在活动详情里用「＋ 添加报名」再加`, showCancel: false, complete: go });
+        return;
+      }
+      wx.showToast(r.placeDropped ? PLACE_DROPPED : { title: this.data.pre.length ? `已创建，先加入 ${this.data.pre.length} 条报名` : '已创建', icon: r.placeDropped || this.data.pre.length ? 'none' : 'success' });
+      setTimeout(go, 600);
     } catch (e) {
       console.error(e);
       wx.showModal({ title: '创建失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ saving: false });
     }
+  },
+
+  // 开放报名时先加入的球友（2026-11-24 用户要求）：已经确定参加的先选好，活动创建后逐条代报名
+  //   （云端 adminAddSignup，按本人报名同一套规则校验组别、性别、重名、搭档，留档）；按选的顺序报名，名额满了的进候补。
+  //   双打可以带搭档；改成单打 / 四人轮换时，选好的搭档拆成各自单独报名
+  async openPre() {
+    if (this.data.saving) return;
+    if (!this.prePool) {
+      try {
+        const { active } = await cloud.call('listMembers');
+        const G = require('../../utils/stats').GENDER;
+        this.prePool = (active || []).filter((m) => m.uid && m.nickname)
+          .map((m) => ({ uid: m.uid, name: m.nickname, g: G[m.gender] || '' }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+      } catch (e) { wx.showToast({ title: e.message || '读取成员失败', icon: 'none' }); return; }
+    }
+    this.prePlayer = null;
+    const list = this.preFree();
+    if (!list.length) { wx.showToast({ title: '没有可添加的球友', icon: 'none' }); return; }
+    this.setData({ preSheet: { title: '先加入的球友', sub: '选择已经确定参加的', list, extra: '' } });
+  },
+  preFree(except) {
+    const used = new Set(this.data.pre.flatMap((x) => x.ids));
+    return this.prePool.filter((m) => !used.has(m.uid) && m.uid !== except);
+  },
+  prePick(e) {
+    const p = (this.prePool || []).find((m) => m.uid === e.detail.uid);
+    if (!p) return;
+    if (this.prePlayer) { this.addPre(this.prePlayer, p); return; }
+    if (this.data.type !== 'double' || this.isRot()) { this.addPre(p, null); return; }
+    this.prePlayer = p; // 双打：接着选搭档
+    this.setData({ preSheet: { title: `选择 ${p.name} 的搭档`, sub: '也可以不带搭档', list: this.preFree(p.uid), extra: '不带搭档' } });
+  },
+  preSolo() { if (this.prePlayer) this.addPre(this.prePlayer, null); },
+  closePre() { this.prePlayer = null; this.setData({ preSheet: null }); },
+  addPre(a, b) {
+    const who = b ? [a, b] : [a];
+    const row = { key: a.uid, ids: who.map((m) => m.uid), who: who.map((m) => m.name), playerId: a.uid, partnerId: b ? b.uid : '', text: who.map((m) => m.name).join(' / '), names: who.map((m) => m.name).join('、') };
+    this.prePlayer = null;
+    this.setData({ pre: this.data.pre.concat([row]), preSheet: null });
+  },
+  removePre(e) { const pre = this.data.pre.slice(); pre.splice(Number(e.currentTarget.dataset.i), 1); this.setData({ pre }); },
+  // 活动建好后逐条代报名，返回没加进去的「名字：原因」
+  async addPreSignups(drawId) {
+    const pairs = this.data.type === 'double' && !this.isRot();
+    const rows = pairs ? this.data.pre : this.data.pre.flatMap((x) => x.ids.map((id, k) => ({ playerId: id, partnerId: '', text: x.who[k] })));
+    const fails = [];
+    for (const x of rows) {
+      try { await cloud.call('adminAddSignup', { drawId, playerId: x.playerId, partnerId: x.partnerId }); }
+      catch (e) { fails.push(`${x.text}：${e.message || '添加失败'}`); }
+    }
+    return fails;
   },
 
   async saveSettings() {
@@ -582,13 +685,16 @@ Page({
     try {
       let id = this.drawId, dropped = false;
       if (id) {
-        await db.generateDraw(id, Object.assign({}, p, { settingsVersion: this.settingsVersion || 0 }));
+        await db.generateDraw(id, Object.assign({}, p, {
+          settingsVersion: this.settingsVersion || 0, rosterVersion: this.rosterVersion || 0, drawVersion: this.drawVersion || 0,
+        }), this.data.manualOpts.length > 0);
       } else {
         const r = await db.addDraw(Object.assign({}, p, this.infoFields(), { title, status: 'drawn' }));
         id = r.id; dropped = r.placeDropped;
       }
-      wx.showToast(dropped ? PLACE_DROPPED : { title: '已生成', icon: 'success' });
-      setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
+      wx.showToast(dropped ? PLACE_DROPPED : { title: this.data.editingMatchups ? '对阵已更新' : '已生成', icon: 'success' });
+      if (this.data.manualOnly) wx.navigateBack({ fail: () => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }) });
+      else setTimeout(() => wx.redirectTo({ url: '/pages/draw-view/draw-view?id=' + id }), 600);
     } catch (e) {
       console.error(e);
       wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });

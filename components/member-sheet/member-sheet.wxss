@@ -1,0 +1,21 @@
+.ms-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(30, 30, 50, 0.45); z-index: 20; }
+.ms { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); }
+.ms-h { display: flex; align-items: baseline; justify-content: space-between; }
+.ms-t { font-size: 32rpx; font-weight: 800; color: #1E1E32; }
+.ms-s { font-size: 24rpx; color: #8686A0; }
+.ms-q { height: 72rpx; margin: 20rpx 0 12rpx; padding: 0 28rpx; border-radius: 36rpx; background: #F2F2F8; font-size: 27rpx; color: #1E1E32; }
+.ms-ph { color: #A5A5BA; }
+.ms-list { height: 50vh; }
+.ms-chips { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
+.ms-chip { display: flex; align-items: center; margin: 8rpx; padding: 8rpx 22rpx 8rpx 8rpx; border-radius: 34rpx; background: #F2F2F8; font-size: 26rpx; color: #3A3A52; }
+.ms-chip.on { background: #6E6EA3; color: #fff; }
+.ms-chip.on .gd, .ms-chip.on .ms-tag { color: #E6E6F5; }
+.ms-chip.off { opacity: 0.45; }
+.ms-av { margin-right: 10rpx; }
+.ms-n { max-width: 260rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ms-g { margin-left: 12rpx; } /* 名字和性别分开一点（开头的空格在 flex 里会被吞掉） */
+.ms-tag { margin-left: 10rpx; font-size: 20rpx; color: #6E6EA3; }
+.ms-none { padding: 40rpx 0; text-align: center; font-size: 22rpx; color: #8686A0; }
+.ms-acts { display: flex; margin-top: 20rpx; }
+.ms-a { flex: 1; }
+.ms-a + .ms-a { margin-left: 20rpx; }

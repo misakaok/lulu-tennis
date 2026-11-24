@@ -7,15 +7,22 @@ const { copyFail } = require('../../utils/privacy'); // 剪切板是隐私接口
 const SHARE_IMAGE = require('../../utils/share-card').FALLBACK; // 分享卡片封面（不指定时微信截页面顶部，有时截成空白）
 
 Page({
-  data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '', audit: null, auditing: false },
+  data: { tab: 'pending', d: null, loading: true, picked: {}, lastInvite: '', audit: null, auditing: false, activeList: [], noGender: 0, onlyNoGender: false },
   onShow() { this.load(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
-    try { const d = await cloud.call('listMembers'); this.setData({ d, loading: false }); }
+    try { const d = await cloud.call('listMembers'); this.d = d; this.setData(Object.assign({ d, loading: false }, this.activeView())); }
     catch (e) { this.setData({ loading: false }); wx.showModal({ title: '无法打开', content: e.message, showCancel: false, success: () => wx.navigateBack() }); }
   },
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
+  // 成员列表：没填性别的数一下（含还没设置资料、但加入时留了昵称的），可以只看他们
+  activeView(only = this.data.onlyNoGender) {
+    const all = (this.d && this.d.active) || [];
+    const missing = all.filter((m) => !m.gender && (m.nickname || m.name));
+    return { activeList: only ? missing : all, noGender: missing.length, onlyNoGender: only };
+  },
+  toggleNoGender() { this.setData(this.activeView(!this.data.onlyNoGender)); },
   async runAudit() {
     if (this.data.auditing) return;
     this.setData({ auditing: true });
@@ -49,11 +56,19 @@ Page({
     if (!reason) return;
     this.run('removeMember', { uid, reason }, '已移除');
   },
-  // 替没选性别的成员补选（点已有的性别可以更正）；成员本人之后仍可在编辑资料里改
-  setGender(e) {
-    const { uid, name } = e.currentTarget.dataset;
+  // 替没选性别的成员补选（点已有的性别可以更正）；成员本人之后仍可在编辑资料里改。
+  // 还没设置资料的（fresh）：先说明会用 TA 加入时的昵称替 TA 建好资料（云端 setMemberGender 建、留档）
+  async setGender(e) {
+    const { uid, name, gender, fresh } = e.currentTarget.dataset;
+    if (fresh) {
+      const go = await new Promise((done) => wx.showModal({
+        title: `替 ${name} 建好资料？`, content: `TA 还没设置资料。选好性别后，会用 TA 加入时的昵称「${name}」替 TA 建好资料（会留档），之后就能报名、被选进积分；TA 以后可以在编辑资料里改昵称和性别。`,
+        confirmText: '选性别', success: (x) => done(x.confirm), fail: () => done(false),
+      }));
+      if (!go) return;
+    }
     wx.showActionSheet({
-      alertText: `${name || '该成员'}的性别`, itemList: ['男', '女'],
+      alertText: `${name || '该成员'}的性别${gender ? '（现在是' + (gender === 'm' ? '男' : '女') + '）' : ''}`, itemList: ['男', '女'],
       success: (r) => this.run('setMemberGender', { uid, gender: r.tapIndex === 0 ? 'm' : 'f' }, '已保存'),
     });
   },
@@ -64,6 +79,16 @@ Page({
     if (go) this.run('adminClearPhoto', { uid }, '已移除照片');
   },
   restore(e) { this.run('reviewMember', { uid: e.currentTarget.dataset.uid, approve: true }, '已恢复为成员'); },
+  // 一键清空「已拒绝 / 已移除」：只是从列表里收起，不删记录（云端 clearMemberHistory，留档）
+  async clearOthers() {
+    const n = ((this.d && this.d.others) || []).length;
+    if (!n) return;
+    const go = await new Promise((done) => wx.showModal({
+      title: `清空这 ${n} 人？`, content: '只是不再显示在这里，不删除记录，TA 们仍然不能使用小程序。以后重新申请或用邀请码加入时，会照常出现在待审核或成员里。',
+      confirmText: '清空', success: (x) => done(x.confirm), fail: () => done(false),
+    }));
+    if (go) this.run('clearMemberHistory', {}, '已清空');
+  },
   pick(e) { const uid = e.currentTarget.dataset.uid; this.setData({ [`picked.${uid}`]: !this.data.picked[uid] }); },
   async importPicked() {
     const uids = Object.keys(this.data.picked).filter((u) => this.data.picked[u]);
@@ -79,6 +104,6 @@ Page({
   revoke(e) { this.run('revokeInvite', { code: e.currentTarget.dataset.code }, '已作废'); },
   onShareAppMessage(e) {
     const code = (e && e.target && e.target.dataset && e.target.dataset.code) || this.data.lastInvite;
-    return { title: '邀请你加入 LULU网球', path: '/pages/gate/gate?invite=' + code, imageUrl: SHARE_IMAGE };
+    return { title: '邀请你加入 LULU 网球', path: '/pages/gate/gate?invite=' + code, imageUrl: SHARE_IMAGE };
   },
 });

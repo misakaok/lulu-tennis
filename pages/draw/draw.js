@@ -184,11 +184,11 @@ Page({
   // 右上角「转发给朋友」：只转发小程序首页，标题和封面固定（不带活动名称、人名等任何内容）；
   // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据
   onShareAppMessage() {
-    return { title: 'LULU网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' };
+    return { title: 'LULU 网球 · 一起来打球', path: '/pages/draw/draw', imageUrl: '/images/share-home.jpg' };
   },
   // 「分享到朋友圈」：同样只分享首页、固定标题和封面（朋友圈缩略图是 1:1 方图）；
   // 朋友圈点开是单页模式，只显示上面的固定介绍，不读任何数据
   onShareTimeline() {
-    return { title: 'LULU网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' };
+    return { title: 'LULU 网球 · 一起来打球', imageUrl: '/images/share-timeline.jpg' };
   },
 });
