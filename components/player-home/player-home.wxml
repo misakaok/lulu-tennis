@@ -1,5 +1,5 @@
 <!-- 球员卡（卡面不写标题）：头像 / 首字圆、昵称、比赛等级最突出；下方排名、场数、胜率。全部由正式战绩自动计算，只在小程序里展示 -->
-<view class="pcard bg-host {{view.profile ? '' : 'pcard-empty'}}" bindtap="edit">
+<view class="pcard bg-host {{view.profile ? '' : 'pcard-empty'}}">
   <image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />
   <view class="court"><view class="c-line l1"></view><view class="c-line l2"></view><view class="c-line l3"></view></view>
 
@@ -23,7 +23,7 @@
         <view class="pc-tags"><text class="pc-tag">这位球员还没有完善资料</text></view>
       </block>
     </view>
-    <view wx:if="{{isSelf}}" class="pc-edit" catchtap="edit">{{view.profile ? '编辑资料' : '完善资料'}}</view>
+    <view wx:if="{{isSelf}}" class="pc-edit" hover-class="tap-on" catchtap="edit">{{view.profile ? '编辑资料' : '完善资料'}}</view>
   </view>
 
   <block wx:if="{{view.profile}}">

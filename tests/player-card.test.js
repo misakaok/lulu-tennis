@@ -146,6 +146,9 @@ test('球员卡界面：卡面不写标题；头像 / 首字圆（<pl-av>）、�
   const fixed = xml.replace('<image class="bg-img" src="/images/bg-card.jpg" mode="aspectFill" />', '').split('<image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" />').join('');
   assert.ok(!/<image /.test(fixed), '照片只走 pl-av；<image> 只有卡片背景和徽章图标（包里的静态配图）');
   assert.ok(!/stats4/.test(xml), '原来卡片下面单独的数据行已并进球员卡');
+  // 只有「编辑资料 / 完善资料」按钮进资料页，点卡片其他地方不跳转（2026-11-24 用户报的 bug）
+  assert.ok(/<view class="pcard[^>]*>/.test(card) && !/tap=/.test(card.match(/<view class="pcard[^>]*>/)[0]), '卡片本身不绑点击');
+  assert.strictEqual((card.match(/tap="edit"/g) || []).length, 1, '只有编辑资料按钮调 edit');
   // 第一版只在站内展示：没有分享、保存图片
   for (const f of ['components/player-home/player-home.js', 'pages/player/player.js']) {
     const js = read(f);
