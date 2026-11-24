@@ -1124,6 +1124,18 @@ async function removeDraw({ drawId, reason }, uid) {
   return { deleted: true };
 }
 
+// 置顶（2026-11-24 用户要求）：管理员把活动置顶到活动列表最前面（draws.pinnedAt = 置顶时间，越晚置顶越靠前），
+// 可以取消；不限个数；留档。只改这一个字段，不影响报名、对阵和比分
+async function pinDraw({ drawId, pinned }, uid) {
+  if (!isAdmin(uid)) deny('只有管理员可以置顶活动');
+  const d = await loadDraw(drawId);
+  const on = pinned === true;
+  if (on === !!d.pinnedAt) return { pinned: on, same: true };
+  await db.collection('draws').doc(drawId).update({ data: { pinnedAt: on ? Date.now() : _.remove() } });
+  await logAction({ type: 'pinDraw', drawId, by: uid, pinned: on });
+  return { pinned: on };
+}
+
 // 撤回删除（2026-11-24 用户要求：管理员误删可以撤回）：删除的人本人或管理员可以撤回，不用填原因、留档。
 // 活动恢复原样（报名、对阵、比分本来就没动）；删除时作废的申请（handleNote「活动已删除」）恢复成待处理。已经恢复过的再撤回什么都不改
 async function restoreDraw({ drawId }, uid) {
@@ -1718,7 +1730,7 @@ async function setMemberGender({ uid: target, gender }, uid) {
   return { ok: true };
 }
 
-const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, updateDrawSettings: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1, cupFromDraw: 1, updateDrawCupKind: 1 };
+const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, updateDrawInfo: 1, updateDrawSettings: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1, cupFromDraw: 1, updateDrawCupKind: 1, pinDraw: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -2341,7 +2353,7 @@ async function cupList(_d, uid) {
   return { list: admin ? out : await cupMask(out, uid), admin };
 }
 
-const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

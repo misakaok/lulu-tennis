@@ -35,6 +35,7 @@ const WRITES = {
   updateDrawSettings: ['draws', 'requests'],
   updateDrawCupKind: ['draws', 'requests'],
   removeDraw: ['draws', 'signups', 'requests'], // 软删除活动、作废申请；比分照常保留在战绩里
+  pinDraw: ['draws', 'requests'], // 置顶 / 取消置顶：只改活动的 pinnedAt
   restoreDraw: ['draws', 'signups', 'requests'], // 撤回删除：活动和被作废的申请恢复
 };
 function invalidateAfter(action, data) {

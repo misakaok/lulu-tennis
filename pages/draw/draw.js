@@ -41,6 +41,7 @@ function toView(d, matches, myId, signed) {
   return {
     _id: d._id, signing, mine: !!role, roleTags,
     cupTag: C.drawCupText(d), // LULU 积分活动：报名阶段就显示「LULU 积分 · 周赛」
+    pinnedAt: Number(d.pinnedAt) || 0, // 置顶（管理员设置）：排在最前面，越晚置顶越靠前
     title: d.title,
     meta: meta.map((x) => x.replace(/ /g, '\u00a0')).join(' · '), // 每一项内部用不换行空格：只在项与项之间换行，「2 个」不会拆开
     date: d.date || '',
@@ -128,6 +129,8 @@ Page({
     const byDraw = {};
     (this.matches || []).forEach((m) => { if (m.drawId) (byDraw[m.drawId] = byDraw[m.drawId] || []).push(m); });
     const list = (this.draws || []).map((d) => toView(d, byDraw[d._id] || [], this.myId, signed));
+    // 置顶的排最前（越晚置顶越靠前），其余保持原来的顺序（按创建时间，新的在前）
+    if (list.some((x) => x.pinnedAt)) list.sort((a, b) => b.pinnedAt - a.pinnedAt);
     this.list = list;
     // 我的下一场：录分、改时间场地之后活动 / 战绩会重新读到新数组，这里跟着重算
     this.today = NX.todayOf();

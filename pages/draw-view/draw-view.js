@@ -512,6 +512,22 @@ Page({
     });
   },
 
+  // 置顶 / 取消置顶（管理员，2026-11-24 用户要求）：活动列表里排在最前面
+  async togglePin() {
+    if (!this.data.canEdit || this.data.pinBusy) return;
+    const pinned = !this.data.draw.pinnedAt;
+    this.setData({ pinBusy: true });
+    try {
+      await db.pinDraw(this.id, pinned);
+      this.d = Object.assign({}, this.d, { pinnedAt: pinned ? Date.now() : 0 });
+      this.setData({ 'draw.pinnedAt': pinned ? Date.now() : 0 });
+      wx.showToast({ title: pinned ? '已置顶' : '已取消置顶', icon: 'none' });
+    } catch (e) {
+      wx.showModal({ title: pinned ? '置顶失败' : '取消置顶失败', content: e.message || '请稍后再试', showCancel: false });
+    }
+    this.setData({ pinBusy: false });
+  },
+
   // 管理员删除别人发起的活动：必须选原因（留档）
   async adminRemove() {
     const go = await new Promise((done) => wx.showModal({ title: '删除这个活动（管理员）', content: '已录比分保留在战绩里。下一步选择删除原因，会留档。', confirmText: '继续', confirmColor: '#e5484d', success: (x) => done(x.confirm), fail: () => done(false) }));

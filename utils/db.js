@@ -325,6 +325,8 @@ function recentRemoved() {
   return lastRemoved;
 }
 function dismissRemoved() { lastRemoved = null; }
+// 置顶 / 取消置顶（管理员）
+async function pinDraw(id, pinned) { await cloudCall('pinDraw', { drawId: id, pinned: !!pinned }); }
 // 撤回删除：成功后不再从列表里去掉它，重新读取就能看到
 async function restoreDraw(id) {
   await cloudCall('restoreDraw', { drawId: id });
@@ -372,6 +374,6 @@ module.exports = {
   fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

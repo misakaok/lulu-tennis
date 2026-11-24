@@ -86,6 +86,7 @@
 
 /* LULU 积分活动的标签（名称下面一行） */
 .d-cup { margin-top: 10rpx; line-height: 1; }
+.d-pin { margin-right: 10rpx; }
 
 /* 删除后的撤回提示条 */
 .undo-bar { display: flex; align-items: center; padding: 20rpx 24rpx; }

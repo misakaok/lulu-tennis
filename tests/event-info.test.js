@@ -110,6 +110,26 @@ test('「我的」页：球员卡和成员管理入口按本机记得的身份�
   assert.deepStrictEqual([c.data.myId, c.data.isAdmin], ['', false]);
 });
 
+test('活动列表置顶：置顶的排最前（越晚置顶越靠前），带「置顶」标签；其余保持原顺序；「我的活动」同样', () => {
+  const p = load('pages/draw/draw.js', { showToast() {} }, 'Page', {
+    '../../utils/member': { knownActive: () => false, isAdminLocal: () => false },
+    '../../utils/db': { cachedDraws: () => [], cachedMatches: () => [] },
+  });
+  const base = { status: 'signup', type: 'single', mode: 'bracket', size: 4, date: '2026-11-30' };
+  p.draws = [
+    Object.assign({ _id: 'a', title: '新活动' }, base),
+    Object.assign({ _id: 'b', title: '早置顶', pinnedAt: 100 }, base),
+    Object.assign({ _id: 'c', title: '旧活动' }, base),
+    Object.assign({ _id: 'd', title: '晚置顶', pinnedAt: 200 }, base),
+  ];
+  p.matches = []; p.myId = 'me'; p.signups = [];
+  p.render();
+  assert.deepStrictEqual(p.data.shown.map((x) => x._id), ['d', 'b', 'a', 'c']);
+  assert.deepStrictEqual(p.data.shown.map((x) => !!x.pinnedAt), [true, true, false, false]);
+  const xml = fs.readFileSync(path.resolve(__dirname, '../pages/draw/draw.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{item.pinnedAt\}\}" class="ui-tag solid d-pin">置顶</.test(xml));
+});
+
 test('战绩页：「记一场」用缓存版身份显示，和读数据同时进行；查不到身份时收起按钮，列表照常显示', async () => {
   let active = true, fail = false, realtime = 0, rendered = 0;
   const deps = {

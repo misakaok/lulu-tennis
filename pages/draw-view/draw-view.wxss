@@ -6,6 +6,7 @@
 .h-lbl { background: #fff; color: #6E6EA3; font-weight: 700; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 12rpx; font-size: 20rpx; }
 
 .actions { display: flex; align-items: center; margin-top: 30rpx; }
+.pin-btn { margin-top: 30rpx; } /* 管理员：置顶 / 取消置顶 */
 .share {
   flex: 1; height: 92rpx; line-height: 92rpx; border-radius: 46rpx; font-size: 30rpx; font-weight: 600; color: #fff;
   background: linear-gradient(90deg, #8484B6, #A3A3CB); box-shadow: 0 10rpx 24rpx rgba(133, 133, 184, 0.3); margin: 0;

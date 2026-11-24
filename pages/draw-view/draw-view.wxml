@@ -238,6 +238,7 @@
       </view>
     </view>
 
+    <view wx:if="{{canEdit}}" class="btn-line pin-btn {{pinBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="togglePin">{{draw.pinnedAt ? '取消置顶' : '置顶到活动列表'}}</view>
     <view class="actions">
       <button class="share" open-type="share">{{signing ? '发给球友报名' : '发给球友'}}</button>
       <view wx:if="{{canManage}}" class="del" hover-class="del-hover" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view>

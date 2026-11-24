@@ -1348,6 +1348,29 @@ test('撤回删除：删除的人本人或管理员可以撤回；活动恢复�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
+test('置顶活动：只有管理员；置顶写 pinnedAt、取消去掉；留档；重复操作不改动；已删除的不能置顶', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'admin';
+  try {
+    env.put('members', { _id: 'admin', status: 'active' });
+    env.put('draws', { _id: 'd9', _openid: 'owner', title: '周末赛', status: 'signup', type: 'single', mode: 'bracket', size: 4 });
+    no(await env.call('alice', 'pinDraw', { drawId: 'd9', pinned: true }));
+    no(await env.call('owner', 'pinDraw', { drawId: 'd9', pinned: true }), /管理员/);
+    ok(await env.call('admin', 'pinDraw', { drawId: 'd9', pinned: true }));
+    assert.ok(env.coll('draws').d9.pinnedAt > 0);
+    assert.strictEqual(ok(await env.call('admin', 'pinDraw', { drawId: 'd9', pinned: true })).same, true);
+    // 成员读活动列表能看到置顶标记
+    const list = ok(await adminCall(env, 'alice', 'data', { op: 'get', coll: 'draws' }));
+    assert.ok((list.data || list).find((d) => d._id === 'd9').pinnedAt > 0);
+    ok(await env.call('admin', 'pinDraw', { drawId: 'd9', pinned: false }));
+    assert.strictEqual(env.coll('draws').d9.pinnedAt, undefined);
+    assert.strictEqual(Object.values(env.coll('requests')).filter((x) => x.type === 'pinDraw').length, 2);
+    ok(await env.call('admin', 'removeDraw', { drawId: 'd9', reason: '重复创建' }));
+    no(await env.call('admin', 'pinDraw', { drawId: 'd9', pinned: true }), /已删除/);
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
 test('订阅消息已移除：没有 notifyTemplates 操作；录分、申请、审核照常', async () => {
   const env = setup();
   assert.strictEqual((await env.call('alice', 'notifyTemplates')).error, '未知操作');

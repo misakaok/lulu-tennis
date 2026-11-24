@@ -95,7 +95,9 @@
         <view class="d-title">{{item.title}}</view>
         <text class="ui-tag {{item.status.cls}} d-status">{{item.status.text}}</text>
       </view>
-      <view wx:if="{{item.cupTag}}" class="d-cup"><text class="ui-tag">{{item.cupTag}}</text></view>
+      <view wx:if="{{item.pinnedAt || item.cupTag}}" class="d-cup">
+        <text wx:if="{{item.pinnedAt}}" class="ui-tag solid d-pin">置顶</text><text wx:if="{{item.cupTag}}" class="ui-tag">{{item.cupTag}}</text>
+      </view>
       <view class="d-meta">{{item.meta}}</view>
       <view wx:if="{{item.roleTags.length || item.champion || item.progress}}" class="d-foot">
         <view class="d-roles">
