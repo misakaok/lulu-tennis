@@ -53,9 +53,9 @@ test('活动详情：先用活动列表的本机缓存画出标题、规则、�
   await loading;
   assert.strictEqual(v.data.ready, true); assert.strictEqual(v.data.joined, true, '读完才知道已经报名');
   assert.strictEqual(v.data.signups.length, 1);
-  // 页面：名单读完前写「正在读取报名名单…」，报名、取消、添加报名、生成对阵、删除、手动调整对阵都要 ready
+  // 页面：名单读完前先空着（不写读取中的提示），报名、取消、添加报名、生成对阵、删除、手动调整对阵都要 ready
   const xml = read('pages/draw-view/draw-view.wxml');
-  assert.ok(/wx:if="\{\{!ready && !signups.length\}\}" class="muted">正在读取报名名单…/.test(xml));
+  assert.ok(/wx:if="\{\{!ready && !signups.length\}\}" class="muted"><\/view>/.test(xml), '名单读完前先空着');
   assert.ok(/wx:elif="\{\{ready && !signups.length\}\}" class="muted">还没有人报名/.test(xml), '读完前不说「还没有人报名」');
   ['ready && joined', 'ready && signing && !joined', 'canEdit && ready', 'ready && canEdit && (!isRot || canPublish)', 'ready && canManage', 'ready && canEditMatchups']
     .forEach((c) => assert.ok(xml.indexOf(`wx:if="{{${c}}}"`) >= 0, c));
@@ -98,31 +98,38 @@ test('活动详情：已生成对阵的活动先用本机战绩画出场次；�
 
 test('比赛详情：先用本机战绩里的这一场画记分牌；确认 / 改分 / 撤销、修改记录等云端读完（不让组件自己再调一次 matchState）', async () => {
   const st = later();
-  const rec = { _id: 'm1', date: '2026-11-20', a: ['我'], b: ['对手'], aIds: ['me'], bIds: ['op'], winner: 'a', sets: [{ a: 6, b: 3 }], type: 'single', status: 'official' };
+  const rec = { _id: 'm1', date: '2026-11-20', a: ['我'], b: ['对手'], aIds: ['me'], bIds: ['op'], aKeys: ['me'], bKeys: ['op'], winner: 'a', sets: [{ a: 6, b: 3 }], type: 'single', status: 'official' };
   const p = load('pages/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: () => st.p },
     '../../utils/db': {
       cachedMatchesAll: () => [rec], cachedPlayersFull: () => [], fetchPlayersFull: async () => [], cachedMatches: () => [rec],
-      myOpenid: async () => 'me', matchesShared: async () => [rec],
+      cachedOpenid: () => 'me', myOpenid: async () => 'me', matchesShared: async () => [rec],
     },
   });
   p.onLoad({ id: 'm1' });
   assert.strictEqual(p.data.loading, false, '不显示「加载中…」');
   assert.strictEqual(p.data.ready, false);
   assert.deepStrictEqual([p.data.m.bigA, p.data.m.bigB, p.data.m.bigLbl, p.data.m.a[0].name], [6, 3, '局分', '我']);
+  // 「这场的水平分」和亮点标签也先用本机战绩算好，云端读完不再插进一张卡片（不闪）
+  assert.ok(p.data.why && !p.data.why.none, '水平分说明先显示');
+  const why0 = JSON.stringify(p.data.why);
+  assert.strictEqual(p.data.sheen, true, '这次启动第一次打开：记分牌扫一次高光');
   st.ok({ match: rec, status: 'official', matchId: 'm1', changes: [{ who: '我', how: 'edit', from: '6-4', to: '6-3', at: 1 }] });
   await tick(); await tick();
   assert.strictEqual(p.data.ready, true); assert.strictEqual(p.data.changes.length, 1);
+  assert.strictEqual(JSON.stringify(p.data.why), why0, '云端读完水平分说明不变');
   assert.strictEqual(p.data.preset.matchId, 'm1');
   const xml = read('pages/match/match.wxml');
-  assert.ok(/<match-social wx:if="\{\{ready\}\}"/.test(xml), 'match-social 等 ready');
-  // 本机没有这一场：照旧「加载中…」等云端
+  assert.ok(/<view wx:if="\{\{ready\}\}" class="late"><match-social /.test(xml), "match-social 等 ready，出现时淡入");
+  assert.ok(!/正在读取/.test(xml), '比赛详情读云端期间不放「正在读取」占位文字');
+  // 本机没有这一场：照旧等云端（页面先空着）
   const q = load('pages/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: () => new Promise(() => {}) },
     '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], fetchPlayersFull: async () => [], myOpenid: async () => '', matchesShared: async () => [] },
   });
   q.onLoad({ id: 'm9' });
   assert.strictEqual(q.data.loading, true); assert.strictEqual(q.data.m, null);
+  assert.strictEqual(q.data.sheen, false, '再打开别的比赛不再扫高光');
 });
 
 function scorePage(peek, fresh) {
@@ -158,7 +165,7 @@ test('活动录分页：从活动详情点进来先用刚读到的活动显示�
   f2.ok({ draw: Object.assign(drawnDraw(), { drawVersion: 2 }), profile: { name: '小明' }, signups: [] });
   await tick(); await tick();
   assert.deepStrictEqual(plain(q.data.init), []); assert.strictEqual(q.drawVersion, 2);
-  // 没有活动详情刚读到的数据（直接打开）：照旧「加载中…」等云端
+  // 没有活动详情刚读到的数据（直接打开）：照旧等云端（页面先空着）
   const r = scorePage(null, later());
   r.onLoad({ drawId: 'd2', key });
   assert.strictEqual(r.data.loading, true);
@@ -351,7 +358,7 @@ test('报名名单秒出：本机记着上次的名单（或 60 秒内读过的�
   p.onLoad({ id: 'd1' });
   await tick();
   assert.deepStrictEqual([p.data.draw.title, p.data.signups.length, p.data.ready], ['周六约球', 2, false]);
-  // 本机什么都没有：照旧「正在读取报名名单…」
+  // 本机什么都没有：名单先空着，等云端
   const q = viewPage({ cachedDraws: () => [signupDraw()], fetchDrawDetail: () => new Promise(() => {}) });
   q.onLoad({ id: 'd1' });
   await tick();

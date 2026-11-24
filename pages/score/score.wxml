@@ -1,5 +1,5 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="muted center">加载中…</view>
+  <view wx:if="{{loading}}" class="muted center"></view>
 
   <view wx:elif="{{error}}" class="empty">
     <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />

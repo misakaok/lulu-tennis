@@ -91,7 +91,7 @@ test('活动页「创建球友活动」、战绩页「记一场」：本机记�
   assert.strictEqual(d.data.canPublish, false, '云端说不是管理员：收起（不等活动列表读完）');
   const i = load('pages/index/index.js', { showToast() {}, getStorageSync: () => '', hideShareMenu() {} }, 'Page', {
     '../../utils/member': member,
-    '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null, profilesOf: () => ({}), matchesAllShared: never, playersShared: never, myOpenid: never },
+    '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedProfile: () => null, cachedOpenid: () => '', profilesOf: () => ({}), matchesAllShared: never, playersShared: never, myOpenid: never },
   });
   i.render = () => {};
   i.onLoad();

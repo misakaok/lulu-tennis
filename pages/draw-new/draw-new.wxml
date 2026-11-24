@@ -1,5 +1,5 @@
 <view wx:if="{{!canPublish && authError}}" class="page muted">{{authError}}</view>
-<view wx:elif="{{settingsLoading}}" class="page muted">加载中…</view>
+<view wx:elif="{{settingsLoading}}" class="page muted"></view>
 <block wx:elif="{{canPublish}}">
 <view class="page">
   <!-- 顶部概要：选项一改就跟着变，边填边确认建的是什么活动；整页唯一的重点色块 -->

@@ -4,8 +4,8 @@ const S = require('../../utils/stats');
 const { computeRank, colorOf, initialOf } = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const SE = require('../../utils/season');
-const Anim = require('../../utils/anim');
 const haptic = require('../../utils/haptic');
+const Anim = require('../../utils/anim');
 
 const PAGE = 50; // 榜单每次显示多少名，滑到底再加载
 
@@ -27,8 +27,7 @@ Page({
     this.render();
   },
   onShow() {
-    const replay = Anim.enter(this); // 切换 tab 回来：重播领奖台、榜单的入场动画
-    if (Object.keys(replay).length) this.setData(replay);
+    Anim.enter(this); // 切换 tab 回来：重播领奖台、榜单的入场动画（从球员主页返回不重播）
     if (this.data.view === 'cup') this.setData({ cupTick: this.data.cupTick + 1 }); // 从补录页回来：积分马上更新
     this.load();
   },

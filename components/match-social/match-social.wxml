@@ -1,6 +1,6 @@
 <view class="card ms">
   <view class="card-title">比分状态</view>
-  <view wx:if="{{loading && !st}}" class="ms-muted">读取中…</view>
+  <view wx:if="{{loading && !st}}" class="ms-muted"></view>
   <view wx:elif="{{err}}" class="ms-muted">{{err}}</view>
   <block wx:elif="{{st}}">
     <view wx:if="{{st.finished && st.daily && !st.confirmed}}" class="ms-banner ok">

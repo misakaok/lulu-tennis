@@ -81,7 +81,7 @@
     <view class="tr-box">
       <view class="tr-y"><text>{{view.trend.max}}</text><text>{{view.trend.min}}</text></view>
       <view class="tr-bars">
-        <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col"><view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 20}}ms"></view></view>
+        <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col"><view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view></view>
       </view>
     </view>
     <view class="tr-x"><text>{{view.trend.from}}</text><text>每根柱子是一场比赛后的等级，绿涨红跌</text><text>{{view.trend.to}}</text></view>
@@ -91,7 +91,7 @@
   <view wx:if="{{!mine}}" class="card">
     <view class="card-title row-t"><text>近期比赛</text><text wx:if="{{total}}" class="more" bindtap="allHistory">全部 {{total}} 场 ›</text></view>
     <view wx:if="{{!recent.length}}" class="muted">还没有正式比赛记录</view>
-    <view wx:for="{{recent}}" wx:key="id" class="mr ani-in" style="animation-delay:{{index * 40}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
+    <view wx:for="{{recent}}" wx:key="id" class="mr ani-in" style="animation-delay:{{index * 50}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
       <view class="mr-top"><text class="mr-date">{{item.md}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
       <view class="mr-main">
         <view class="mr-opp">vs {{item.opp}}<text wx:if="{{item.partner}}" class="mr-pt">（搭档 {{item.partner}}）</text></view>
@@ -143,7 +143,7 @@
     <view class="cr-sec"><text>徽章</text><text class="more" bindtap="toggleBadges">{{allBadges ? '只看已达成' : '全部 ' + view.career.total + ' 个'}} ›</text></view>
     <view class="bd-grid">
       <block wx:for="{{view.career.badges}}" wx:key="id">
-        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got ani-in' : 'off'}}" style="{{item.got ? 'animation-delay:' + (index < 8 ? index * 30 : 240) + 'ms' : ''}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
+        <view wx:if="{{item.got || allBadges}}" class="bd {{item.got ? 'got ani-in' : 'off'}}" style="{{item.got ? 'animation-delay:' + (index < 8 ? index * 45 : 360) + 'ms' : ''}}" hover-class="tap-on" data-i="{{index}}" bindtap="badgeTip">
           <view class="bd-in">
             <view class="bd-ic"><image class="bd-img" src="/images/badges/{{item.id}}.png" mode="aspectFit" /></view>
             <text class="bd-n">{{item.name}}</text>

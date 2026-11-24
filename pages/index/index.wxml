@@ -6,7 +6,8 @@
 
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
   <!-- 背景：俯拍球网横在卡片底边，网球停在网带上（images/bg-mine.jpg） -->
-  <view wx:if="{{me}}" class="mine bg-host {{play ? 'ani-sheen' : ''}}" hover-class="tap-on" bindtap="goMe">
+  <!-- 高光只在这张卡第一次出现时扫一次（和「我的」页一样），切 tab 回来不再扫（2026-11-25 用户嫌闪） -->
+  <view wx:if="{{me}}" class="mine bg-host ani-sheen" hover-class="tap-on" bindtap="goMe">
     <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-h">
       <pl-av class="mine-av" uid="{{me.uid}}" name="{{me.name}}" />
@@ -49,7 +50,7 @@
 
   <block wx:for="{{groups}}" wx:key="date" wx:for-item="g" wx:for-index="gi">
     <view class="date">{{g.label}}</view>
-    <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}} {{gi * 2 + index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{gi * 2 + index < 10 ? (gi * 2 + index) * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
+    <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}} {{gi * 2 + index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{gi * 2 + index < 10 ? (gi * 2 + index) * 62 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
       <view class="mc-meta">
         <text class="mc-type">{{item.typeText}}</text>
         <text wx:if="{{item.eventText}}" class="mc-ev">{{item.eventText}}</text>

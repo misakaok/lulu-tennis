@@ -1,4 +1,4 @@
-<view wx:if="{{loading}}" class="page"><view class="state">正在读取…</view></view>
+<view wx:if="{{loading}}" class="page"><view class="state"></view></view>
 <view wx:elif="{{error}}" class="page">
   <view class="card state-card">
     <view class="state-t">{{error}}</view>
@@ -69,7 +69,7 @@
     </view>
     <view wx:if="{{!shown.length}}" class="none">{{filter === 'maint' ? '还没有维护记录' : filter === 'string' ? '还没有穿线记录' : '还没有记录，点上面的按钮记一次'}}</view>
     <view class="tl">
-      <view wx:for="{{shown}}" wx:key="id" class="tl-i {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openLog">
+      <view wx:for="{{shown}}" wx:key="id" class="tl-i {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 45 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openLog">
         <view class="tl-dot {{item.kind}}"></view>
         <view class="tl-b">
           <view class="tl-top"><text class="tl-date">{{item.date}}</text><text class="tl-k">{{item.kind === 'string' ? '穿线' : '维护'}}</text><text wx:if="{{item.cost}}" class="tl-cost">{{item.cost}}</text></view>

@@ -67,8 +67,8 @@
           <text>报名名单</text>
           <text class="count">{{signCount}}</text>
         </view>
-        <!-- 先用本机缓存画的页面（ready 为假）：本机记着上次的名单就先显示名单（只是显示），没有才写「正在读取」；读完前不说「还没有人报名」 -->
-        <view wx:if="{{!ready && !signups.length}}" class="muted">正在读取报名名单…</view>
+        <!-- 先用本机缓存画的页面（ready 为假）：本机记着上次的名单就先显示名单（只是显示），没有就先空着（不写读取中的提示，2026-11-25 用户要求）；读完前不说「还没有人报名」 -->
+        <view wx:if="{{!ready && !signups.length}}" class="muted"></view>
         <view wx:elif="{{ready && !signups.length}}" class="muted">还没有人报名，把它分享到群里吧</view>
 
         <view wx:for="{{signups}}" wx:key="_id" class="su-team">

@@ -1,12 +1,12 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:if="{{loading}}" class="muted"></view>
   <view wx:elif="{{error}}" class="empty"><image class="empty-art" src="/images/art-ball.png" mode="aspectFit" /><view>{{error}}</view></view>
   <block wx:else>
     <view wx:if="{{status === 'invalid'}}" class="st-tip bad">这条活动比分不是从活动对阵表录入的，不计入战绩</view>
 
     <!-- 记分牌 -->
     <!-- 背景：俯拍球网竖在正中间，左右两个半场对应两方（images/bg-score.jpg） -->
-    <view class="hero bg-host ani-sheen">
+    <view class="hero bg-host {{sheen ? 'ani-sheen' : ''}}">
       <image class="bg-img" src="/images/bg-score.jpg" mode="aspectFill" />
       <view class="hero-top">
         <view class="hero-tag" bindtap="openEvent">{{m.event || '日常比赛'}}{{m.event ? ' ›' : ''}}</view>
@@ -66,11 +66,11 @@
       </block>
     </view>
 
-    <!-- 先用本机缓存画的记分牌（ready 为假）：确认 / 改分 / 撤销等云端读完再出来，免得组件自己再调一次 matchState -->
-    <match-social wx:if="{{ready}}" match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
-    <view wx:else class="muted">正在读取比分状态…</view>
+    <!-- 先用本机缓存画的记分牌（ready 为假）：确认 / 改分 / 撤销等云端读完再出来，免得组件自己再调一次 matchState；
+         读的期间不放占位文字（2026-11-25 用户要求），读完卡片直接出现 -->
+    <view wx:if="{{ready}}" class="late"><match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" /></view>
 
-    <view wx:if="{{changes.length}}" class="card">
+    <view wx:if="{{changes.length}}" class="card late">
       <view class="card-title">比分修改记录<text class="sub">{{changes.length}} 次</text></view>
       <view wx:for="{{changes}}" wx:key="i" class="chg">
         <view class="chg-dot"></view>

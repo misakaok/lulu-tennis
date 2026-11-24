@@ -1,5 +1,5 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="state">正在读取…</view>
+  <view wx:if="{{loading}}" class="state"></view>
 
   <view wx:elif="{{error}}" class="card state-card">
     <view class="state-t">读取失败</view>
@@ -43,7 +43,7 @@
         <view class="bars">
           <view wx:for="{{s.trend}}" wx:key="ym" class="bar-col">
             <text class="bar-n">{{item.played || ''}}</text>
-            <view class="bar-box"><view class="bar ani-grow-y {{index === 5 ? 'now' : ''}}" style="height:{{item.played ? (item.h < 6 ? 6 : item.h) : 0}}%;animation-delay:{{index * 50}}ms"></view></view>
+            <view class="bar-box"><view class="bar ani-grow-y {{index === 5 ? 'now' : ''}}" style="height:{{item.played ? (item.h < 6 ? 6 : item.h) : 0}}%;animation-delay:{{index * 62}}ms"></view></view>
             <text class="bar-l">{{item.label}}</text>
             <text class="bar-r">{{item.played ? item.rate + '%' : '—'}}</text>
           </view>
@@ -61,7 +61,7 @@
       <!-- 记录列表（按月） -->
       <view wx:for="{{groups}}" wx:key="ym" wx:for-item="g" wx:for-index="gi" class="card list">
         <view class="g-head"><text class="g-t">{{g.label}}</text><text class="g-s">{{g.sum}}</text></view>
-        <view wx:for="{{g.rows}}" wx:key="id" class="gr {{gi === 0 && index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{gi === 0 && index < 10 ? index * 30 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="open">
+        <view wx:for="{{g.rows}}" wx:key="id" class="gr {{gi === 0 && index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{gi === 0 && index < 10 ? index * 45 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="open">
           <text class="gr-date">{{item.md}}</text>
           <view class="gr-m">
             <view class="gr-top"><text class="ui-tag">{{item.type}}</text><text class="ui-tag {{item.formal ? 'solid' : ''}} gr-k">{{item.kind}}</text></view>

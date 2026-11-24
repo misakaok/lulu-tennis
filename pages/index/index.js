@@ -79,7 +79,8 @@ Page({
   onLoad() {
     wx.hideShareMenu({ fail() {} }); // 战绩、排行、我的（带昵称和战绩）不能转发，菜单里不显示转发；只有活动首页能分享
     this.limit = PAGE;
-    this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull(), (db.cachedProfile() || {})._openid || '');
+    // 本人 ID 先用本机记着的（资料里没有就用登录时记下的），免得顶部先画「全部比赛」卡、云端读完再换成「我的战绩」卡
+    this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull(), db.cachedOpenid() || (db.cachedProfile() || {})._openid || '');
     this.render();
     // 「记一场」按钮先按本机记得的身份显示（24 小时内确认过是正式成员），不等云端；load 里拿到身份后再更正
     if (require('../../utils/member').knownActive()) this.setData({ canRecordDaily: true });
@@ -90,8 +91,7 @@ Page({
     this.render();
   },
   onShow() {
-    const replay = Anim.enter(this); // 切换 tab 回来：重播入场动画和数字滚动
-    if (Object.keys(replay).length) this.setData(replay);
+    Anim.enter(this); // 切换 tab 回来：重播入场动画和数字滚动（从详情返回不重播）
     this.load();
   },
   onHide() { Anim.leave(this); },

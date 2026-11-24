@@ -6,7 +6,7 @@
     <view class="seg-item {{tab === 'invite' ? 'on' : ''}}" data-v="invite" bindtap="setTab">邀请</view>
     <view class="seg-item {{tab === 'audit' ? 'on' : ''}}" data-v="audit" bindtap="setTab">数据核对</view>
   </view>
-  <view wx:if="{{loading}}" class="muted">加载中…</view>
+  <view wx:if="{{loading}}" class="muted"></view>
 
   <view wx:elif="{{tab === 'pending'}}" class="card">
     <view wx:if="{{!d.pending.length}}" class="muted">没有待审核的申请</view>

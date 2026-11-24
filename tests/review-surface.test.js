@@ -216,6 +216,14 @@ T.push({ name: '只有活动首页能分享：战绩、排行、球拍、我的�
   }
 } });
 
+T.push({ name: '读取期间不放「正在读取 / 读取中 / 加载中」之类的占位文字（2026-11-25 用户要求）：先空着，读完直接出现', fn() {
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.wxml') ? [path.join(d, e.name)] : []));
+  ['pages', 'components'].flatMap((d) => walk(path.join(root, d))).forEach((f) => {
+    const xml = fs.readFileSync(f, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    assert.ok(!/正在读取|读取中…|加载中…/.test(xml), path.relative(root, f) + ' 里还有读取中的占位文字');
+  });
+} });
+
 module.exports = T;
 
 T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {

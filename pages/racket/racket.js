@@ -2,7 +2,6 @@
 //   数据只经云函数按本人 OPENID 读写（utils/rackets.js），没有任何查看别人球拍、分享或交易的入口。
 const API = require('../../utils/rackets');
 const K = require('../../utils/racket');
-const Anim = require('../../utils/anim');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -18,7 +17,7 @@ function cardOf(r, logs, t) {
 }
 
 Page({
-  data: { loading: true, error: '', cards: [], o: null, clearing: false, play: true }, // play：入场动画（切换 tab 回来时重播）
+  data: { loading: true, error: '', cards: [], o: null, clearing: false },
 
   onLoad() {
     wx.hideShareMenu(); // 私人数据不能分享
@@ -27,11 +26,8 @@ Page({
     if (c) { this.fromCache = true; this.show(c); }
   },
   onShow() {
-    const replay = Anim.enter(this); // 切换 tab 回来：重播入场动画
-    if (Object.keys(replay).length) this.setData(replay);
     this.load();
   },
-  onHide() { Anim.leave(this); },
   onPullDownRefresh() {
     require('../../utils/memo').invalidate();
     this.load().then(() => wx.stopPullDownRefresh());
@@ -53,6 +49,7 @@ Page({
     const t = today();
     // 在用的排前面，已退役的放最后
     const list = rackets.slice().sort((a, b) => (a.status === 'retired') - (b.status === 'retired') || a.no - b.no);
+    // 顶部卡片不做动画（2026-11-25 用户觉得动画太多）：数字直接显示，不滚
     this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },

@@ -112,10 +112,12 @@ page {
  *   .ani-score   记分牌大比分聚焦落位
  *   .ani-sheen   紫色头卡入场时一道高光扫过，只播一次、停在看不见（用 ::after 画，不往卡片里加子元素，
  *                不影响 .bg-host 的第一个子元素 .bg-img；宿主卡片不要再用 ::after）
- *   .ani-wait / .ani-wait-x / .ani-wait-y / .ani-wait-pop   切走后的等待态（和动画起点一样），回到页面换回
- *                .ani-in / .ani-grow-x / .ani-grow-y / .ani-pop 再播一次（见 utils/anim.js 的 leave / enter）；.ani-sheen 切走时直接去掉
+ *   .ani-wait / .ani-wait-x / .ani-wait-y / .ani-wait-pop   战绩、排行切走后的等待态（和动画起点一样），回到页面换回
+ *                .ani-in / .ani-grow-x / .ani-grow-y / .ani-pop 再播一次（见 utils/anim.js 的 leave / enter）；球拍页不重播
  * 缓动统一用「快起慢刹」cubic-bezier(0.22, 1, 0.36, 1)。数字滚动在 utils/anim.js。
  */
+/* 入场时长（2026-11-25 用户觉得原来的稍快，统一放慢约 25%）：滑入 0.62s、进度条 0.94s、柱子 0.78s、弹出 0.52s、大比分 0.55s；
+   逐行错开每行 0.045～0.062s。按下回弹、分段滑块、场边记分是操作反馈，保持快 */
 @keyframes ani-in { from { opacity: 0; transform: translateY(20rpx) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes ani-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
@@ -123,15 +125,18 @@ page {
 @keyframes ani-pulse { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(2.2); } }
 @keyframes ani-score { from { opacity: 0; transform: translateY(8rpx) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes ani-sheen { 0% { opacity: 0; transform: translateX(-100%); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(100%); } }
-.ani-in { animation: ani-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.75s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ani-in { animation: ani-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ani-grow-x { transform-origin: left center; animation: ani-grow-x 0.94s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-wait { opacity: 0; transform: translateY(20rpx) scale(0.985); }
 .ani-wait-x { transform-origin: left center; transform: scaleX(0); }
-.ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.78s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-wait-y { transform-origin: center bottom; transform: scaleY(0); }
-.ani-pop { animation: ani-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.ani-pop { animation: ani-pop 0.52s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-wait-pop { opacity: 0; transform: scale(0.55); }
-.ani-score { animation: ani-score 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* 换成等待态（切 tab 回来重播前）一下子到位，不走卡片自带的按下回弹过渡：
+   否则卡片先往下滑一点、再弹上来，看着像上下弹两下（2026-11-25 用户快速点 tab 时看到） */
+.ani-wait, .ani-wait-x, .ani-wait-y, .ani-wait-pop { transition: none !important; }
+.ani-score { animation: ani-score 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-sheen { position: relative; overflow: hidden; }
 .ani-sheen::after {
   content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1; opacity: 0;

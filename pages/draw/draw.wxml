@@ -84,7 +84,7 @@
     <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 
-  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
+  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 62 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
     <!-- 左：日期块；右：名称 + 状态 / 形式一行 / 我的关系和进度 -->
     <view class="d-date {{item.st}} {{item.day.m ? '' : 'tbd'}}">
       <text class="d-band">{{item.day.m || '日期'}}</text>

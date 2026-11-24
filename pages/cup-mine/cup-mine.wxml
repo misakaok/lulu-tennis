@@ -1,6 +1,6 @@
 <!-- 我的 LULU 积分：只有本人看得到。年度 → 单打 / 双打 / 遭遇赛 → 总分 + 每站明细（名次、基础分、奖励分、合计） -->
 <view class="page">
-  <view wx:if="{{loading}}" class="empty">加载中…</view>
+  <view wx:if="{{loading}}" class="empty"></view>
   <view wx:elif="{{error}}" class="card cm-err">{{error}}</view>
   <block wx:else>
     <view wx:if="{{years.length > 1}}" class="cm-years">

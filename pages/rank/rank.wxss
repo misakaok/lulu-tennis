@@ -18,7 +18,7 @@
 }
 /* 冠军台：顶部一条黄绿光带、更有纵深的渐变；高光只给冠军台，压轴扫过 */
 .r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #B9B9DF, #7D7DB3); border-top: 5rpx solid #C9E33A; }
-.r1 .pod-base.ani-sheen::after { animation-delay: 0.55s; }
+.r1 .pod-base.ani-sheen::after { animation-delay: 0.7s; }
 .r2 .pod-base::after, .r3 .pod-base::after { display: none; }
 /* 底座右下角的大号名次水印 */
 .pod-wm { position: absolute; right: 8rpx; bottom: -16rpx; font-size: 92rpx; font-weight: 900; color: rgba(255, 255, 255, 0.13); line-height: 1; pointer-events: none; z-index: 0; }

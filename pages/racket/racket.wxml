@@ -1,5 +1,5 @@
 <view class="page">
-  <view wx:if="{{loading}}" class="state">正在读取…</view>
+  <view wx:if="{{loading}}" class="state"></view>
 
   <view wx:elif="{{error}}" class="card state-card">
     <view class="state-t">读取失败</view>
@@ -9,12 +9,13 @@
 
   <block wx:else>
     <!-- 右边是固定配图（images/racket-hero.png，通用球拍、没有品牌），不随球拍变化；每支球拍仍用 <rk-art> 按配色画 -->
-    <view class="hero {{play ? 'ani-in' : 'ani-wait'}}">
+    <!-- 顶部卡片静止不动（2026-11-25 用户觉得动画太多）：不滑入、数字不滚、配图不动；下面的球拍卡片照旧滑入 -->
+    <view class="hero">
       <view class="hero-main">
         <view class="hero-row">
-          <view class="hc"><view class="hc-n">{{o.inUse}}</view><view class="hc-l">在用球拍</view></view>
-          <view class="hc"><view class="hc-n">{{o.stringCount}}</view><view class="hc-l">累计穿线</view></view>
-          <view class="hc"><view class="hc-n">{{o.maintCount}}</view><view class="hc-l">累计维护</view></view>
+          <view class="hc"><view class="hc-n num">{{o.inUse}}</view><view class="hc-l">在用球拍</view></view>
+          <view class="hc"><view class="hc-n num">{{o.stringCount}}</view><view class="hc-l">累计穿线</view></view>
+          <view class="hc"><view class="hc-n num">{{o.maintCount}}</view><view class="hc-l">累计维护</view></view>
         </view>
         <view class="hero-foot">
           <text wx:if="{{o.due}}" class="hero-due">{{o.due}} 项到期或快到了</text>
@@ -32,7 +33,7 @@
     </view>
 
     <block wx:else>
-      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{index < 10 ? index * 50 : 0}}ms" hover-class="tap-on" data-id="{{item.id}}" bindtap="open">
+      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 62 : 0}}ms" hover-class="tap-on" data-id="{{item.id}}" bindtap="open">
         <view class="rk-main">
           <rk-art class="rk-ph" brand="{{item.brand}}" model="{{item.model}}" />
           <view class="rk-body">

@@ -6,6 +6,7 @@ const OF = require('../../utils/official');
 const E = require('../../utils/event');
 const R = require('../../utils/rating');
 const H = require('../../utils/highlight');
+const Anim = require('../../utils/anim');
 const { colorOf, initialOf, outcomeOf } = require('../../utils/rules');
 
 // 「这场为什么涨分 / 掉分」：只给本人看自己参加的正式比赛（按统计身份认人，不看昵称）。
@@ -44,15 +45,37 @@ function boardOf(m, players) {
   };
 }
 
+// 亮点标签和「这场的水平分」：都在正式战绩上算（和战绩列表同一套），水平分只算一次
+function extrasOf(all, players, m, myId) {
+  const ratings = R.computeRatings(all || [], R.startLevelsFrom(players || []));
+  return { tags: H.matchTags(all || [], ratings)[m._id] || [], why: whyView(all, ratings, m, myId) };
+}
+
 Page({
-  data: { loading: true, ready: false, error: '', m: null, revocable: false, preset: null, changes: [], tags: [], why: null, whyOpen: false },
-  onLoad(o) { this.id = o.id; this.preview(); this.load(); },
+  data: { loading: true, ready: false, error: '', m: null, revocable: false, preset: null, changes: [], tags: [], why: null, whyOpen: false, sheen: false },
+  onLoad(o) {
+    this.id = o.id;
+    this.sheen = Anim.once('match-hero'); // 记分牌的高光一次启动只扫一次：每点开一场都扫一道太闪（2026-11-25 用户要求）
+    this.preview();
+    if (this.sheen) this.setData({ sheen: true });
+    this.load();
+  },
   // 先用本机战绩里的这一场画记分牌（2026-11-24 用户嫌打开慢），云端 matchState 读完再更正；
-  // 确认 / 改分 / 撤销（match-social）、修改记录、亮点和水平分说明都等云端读完（ready）才显示
+  // 亮点标签和「这场的水平分」也先用本机战绩算好（2026-11-25 用户嫌读完又闪一下：记分牌变高、卡片插进来），
+  // 确认 / 改分 / 撤销（match-social）和修改记录等云端读完（ready）才显示，出现时淡入
   preview() {
     try {
-      const m = db.cachedMatchesAll().find((x) => x && x._id === this.id);
-      if (m) this.setData({ loading: false, m: boardOf(m, db.cachedPlayersFull()), status: m.status === 'pending' ? 'pending' : 'official' });
+      const list = db.cachedMatchesAll(); // 本机只存这一份；去掉待确认的就是正式战绩（和 db.cachedMatches 一样，不再读一遍本机存储）
+      const m = list.find((x) => x && x._id === this.id);
+      if (!m) return;
+      const players = db.cachedPlayersFull();
+      const board = boardOf(m, players);
+      let extra = {};
+      try {
+        const myId = (db.cachedOpenid && db.cachedOpenid()) || '';
+        extra = extrasOf(list.filter((x) => x && x.status !== 'pending'), players, board, myId);
+      } catch (e) { console.warn('[比赛详情] 本机战绩算不出亮点 / 水平分，等云端', e); }
+      this.setData(Object.assign({ loading: false, m: board, status: m.status === 'pending' ? 'pending' : 'official' }, extra));
     } catch (e) { console.warn('[比赛详情] 本机缓存画不出来，等云端', e); }
   },
   onShow() { if (this.shown) this.load(); this.shown = true; }, // 从改分页回来：比分和修改记录要刷新
@@ -86,9 +109,7 @@ Page({
         return { i, when: d ? `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}` : '', text: `${c.who}${HOW[c.how] || '修改了比分'}`, from: c.from, to: c.to };
       });
       // 亮点标签（爆冷、逆转、终结连胜…）：和战绩列表同一套算法；水平分只算一次，「为什么涨分 / 掉分」也用这一份
-      const ratings = R.computeRatings(all || [], R.startLevelsFrom(players || []));
-      const tags = H.matchTags(all || [], ratings)[m._id] || [];
-      const why = whyView(all, ratings, m, myId);
+      const { tags, why } = extrasOf(all, players, m, myId);
       this.setData({
         loading: false, ready: true, changes, tags, why,
         revocable,

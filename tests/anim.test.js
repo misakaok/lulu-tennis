@@ -9,9 +9,10 @@ const wait = clock.wait;
 // 模拟页面：setData 支持 'a.b' 路径
 const page = (data) => ({
   data, frames: 0,
-  setData(o) {
+  setData(o, cb) {
     this.frames++;
     Object.keys(o).forEach((k) => { const ks = k.split('.'); let t = this.data; while (ks.length > 1) t = t[ks.shift()]; t[ks[0]] = o[k]; });
+    if (cb) setTimeout(cb, 16); // 渲染完成后回调（下一帧）
   },
 });
 
@@ -33,20 +34,31 @@ test('roll：起始帧从 0 开始，结束后是原值（类型不变）；每�
   assert.deepStrictEqual(Anim.roll(p, { 'me.played': 13 }), {});
 });
 
-test('roll：没有数据（0、暂无）时不滚，等有数据再滚；滚动中重新渲染会停下，不再改数据', async () => {
+test('roll：没有数据（0、暂无）时不滚，等有数据再滚；滚动中重新渲染（缓存画完云端又画）接着滚到新值，不跳到终点', async () => {
   const p = page({ s: { n: 0, t: '暂无' } });
   assert.deepStrictEqual(Anim.roll(p, { 's.n': 0, 's.t': '暂无' }), {});
   assert.deepStrictEqual(Anim.roll(p, { 's.n': 20, 's.t': '暂无' }), { 's.n': '0' }); // 没有数字的字段不参与
   await wait(80);
-  assert.deepStrictEqual(Anim.roll(p, { 's.n': 21 }), {}); // 新的渲染：停下
-  p.data.s.n = 21;
-  const frames = p.frames;
-  await wait(Anim.MS);
-  assert.strictEqual(p.data.s.n, 21);
-  assert.strictEqual(p.frames, frames);
+  const mid = Anim.roll(p, { 's.n': 40 }); // 新的渲染：放当前进度的一帧，不是终值
+  const v = Number(mid['s.n']);
+  assert.ok(v > 0 && v < 40, '接着滚，不跳到 40：' + mid['s.n']);
+  p.setData(mid);
+  const seen = [];
+  const set = p.setData.bind(p);
+  p.setData = (o) => { if (o['s.n'] !== undefined) seen.push(Number(o['s.n'])); set(o); };
+  await wait(Anim.MS + 150);
+  assert.strictEqual(p.data.s.n, 40);
+  assert.ok(seen.every((x, i) => i === 0 || x >= seen[i - 1]) && seen[0] >= v, '只往上走，不回头');
+  assert.deepStrictEqual(Anim.roll(p, { 's.n': 41 }), {}, '滚完以后不再滚');
 });
 
-test('leave / enter：切换 tab 回来时重播（动画类、数字从 0 再滚到原值）；只是被子页面盖住时不重播', async () => {
+test('once：一次启动只返回一次 true', () => {
+  assert.strictEqual(Anim.once('t-x'), true);
+  assert.strictEqual(Anim.once('t-x'), false);
+  assert.strictEqual(Anim.once('t-y'), true);
+});
+
+test('leave / enter：战绩、排行切换 tab 回来时重播（动画类、数字从 0 再滚到原值）；只是被子页面盖住时不重播', async () => {
   const p = page({ play: true, me: { played: 12, rate: 58 } });
   Anim.roll(p, { 'me.played': 12, 'me.rate': 58 });
   await wait(Anim.MS + 150);
@@ -54,32 +66,52 @@ test('leave / enter：切换 tab 回来时重播（动画类、数字从 0 再�
   Anim.leave(p);
   assert.strictEqual(p.data.play, true);
   assert.deepStrictEqual(Anim.enter(p), {});
+  // 点进详情页：onHide 时新页面还没进页面栈，稍后才进 → 也不重播（2026-11-25 用户说返回战绩页闪一下）
+  global.getCurrentPages = () => [p];
+  Anim.leave(p);
+  global.getCurrentPages = () => [p, {}];
+  await wait(Anim.LEAVE_MS + 50);
+  assert.strictEqual(p.data.play, true);
+  Anim.enter(p);
+  // 退到后台马上又回来（还没到 LEAVE_MS）：保持原样
+  global.getCurrentPages = () => [p];
+  Anim.leave(p);
+  Anim.enter(p);
+  await wait(Anim.LEAVE_MS + 50);
+  assert.strictEqual(p.data.play, true);
   global.getCurrentPages = () => [{}]; // 切到别的 tab
   Anim.leave(p);
+  await wait(Anim.LEAVE_MS + 50);
   assert.strictEqual(p.data.play, false);
   assert.deepStrictEqual(p.data.me, { played: '0', rate: '0' });
   // 切走期间数据变了：仍停在 0，回来时滚到新值
   assert.deepStrictEqual(Anim.roll(p, { 'me.played': 13, 'me.rate': 60 }), { 'me.played': '0', 'me.rate': '0' });
   p.data.me = { played: '0', rate: '0' };
-  const back = Anim.enter(p);
-  assert.deepStrictEqual(back, { play: true, 'me.played': '0', 'me.rate': '0' });
-  p.setData(back);
+  const plays = [];
+  const set0 = p.setData;
+  p.setData = function (o, cb) { if (o.play !== undefined) plays.push(o.play); return set0.call(this, o, cb); };
+  assert.deepStrictEqual(Anim.enter(p), {}, '重播自己 setData，返回空');
+  // 先确认「入场前」画出来（play: false + 数字 0），下一帧才加上动画类（不挤在同一帧，免得上下弹两下）
+  assert.deepStrictEqual(plays, [false]);
+  await wait(40);
+  assert.deepStrictEqual(plays, [false, true]);
   await wait(Anim.MS + 150);
   assert.deepStrictEqual(p.data.me, { played: 13, rate: 60 });
-  assert.deepStrictEqual(Anim.enter(p), {}); // 只重播一次
+  Anim.enter(p);
+  assert.deepStrictEqual(plays, [false, true], '只重播一次');
   delete global.getCurrentPages;
 });
 
-test('页面接入：战绩、排行的入场动画类都随 play 切换，并在 onHide / onShow 里调用 leave / enter', () => {
+test('页面接入：战绩、排行的入场动画类都随 play 切换，并在 onHide / onShow 里调用 leave / enter；球拍页不重播', () => {
   const fs = require('fs');
   const path = require('path');
   ['index', 'rank'].forEach((n) => {
     const base = path.join(__dirname, '..', 'pages', n, n);
     const wxml = fs.readFileSync(base + '.wxml', 'utf8'), js = fs.readFileSync(base + '.js', 'utf8');
     // 入场动画类（含弹出、柱子升起、高光）都只能写成 play ? 'ani-xx' : …，切 tab 回来才能重播
-    const ANI = /'ani-(in|grow-[xy]|pop|score|sheen)'\s*:\s*''|class="[^"]*\bani-(in|grow-[xy]|pop|score|sheen)\b[^{"]*"/;
+    // 高光例外：战绩页「我的战绩」卡的高光只在第一次出现时扫一次（固定类），切 tab 回来不再扫
+    const ANI = /'ani-(in|grow-[xy]|pop|score|sheen)'\s*:\s*''|class="[^"]*\bani-(in|grow-[xy]|pop|score)\b[^{"]*"/;
     assert.ok(!ANI.test(wxml.replace(/play \? 'ani-(in|grow-[xy]|pop|score|sheen)'/g, '')), n + ' 有不随 play 切换的动画类');
-    // 等待态和动画起点一一对应
     (wxml.match(/play \? 'ani-[a-z-]+' : '[a-z-]*'/g) || []).forEach((x) => {
       const [, on, off] = x.match(/'(ani-[a-z-]+)' : '([a-z-]*)'/);
       const want = { 'ani-in': 'ani-wait', 'ani-grow-x': 'ani-wait-x', 'ani-grow-y': 'ani-wait-y', 'ani-pop': 'ani-wait-pop', 'ani-sheen': '' }[on];
@@ -87,6 +119,14 @@ test('页面接入：战绩、排行的入场动画类都随 play 切换，并�
     });
     assert.ok(/onHide\(\)\s*\{\s*Anim\.leave\(this\)/.test(js) && /Anim\.enter\(this\)/.test(js), n + ' 没有接入 leave / enter');
   });
+  const idx = fs.readFileSync(path.join(__dirname, '..', 'pages', 'index', 'index.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{me\}\}" class="mine bg-host ani-sheen"/.test(idx), '「我的战绩」卡高光只扫一次，不随 play 重播');
+  // 球拍页切 tab 回来不重播（2026-11-25 用户觉得动画太多，只还原战绩、排行）
+  const rk = path.join(__dirname, '..', 'pages', 'racket', 'racket');
+  assert.ok(!/\bplay\b|ani-wait/.test(fs.readFileSync(rk + '.wxml', 'utf8')));
+  assert.ok(!/Anim\.(leave|enter)/.test(fs.readFileSync(rk + '.js', 'utf8')));
+  // 等待态一下子到位，不走卡片的按下回弹过渡（不然切 tab 回来卡片先下滑再弹上来）
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app.wxss'), 'utf8'), /\.ani-wait, \.ani-wait-x, \.ani-wait-y, \.ani-wait-pop \{ transition: none !important; \}/);
 });
 
 test('缓动：4 次方减速（快起慢刹），两端是 0 和 1、全程单调不回头；滚动约 28ms 一帧', async () => {
@@ -103,12 +143,11 @@ test('缓动：4 次方减速（快起慢刹），两端是 0 和 1、全程单�
   assert.ok(p.frames >= Math.floor(Anim.MS / 28) - 2 && p.frames <= Math.ceil(Anim.MS / 28) + 2, '帧数按 28ms 一帧');
 });
 
-test('全局动效类：弹出 / 记分 / 高光 / 升起都有等待态；高光用 ::after、只播一次停在看不见；排行领奖台按名次错峰（第 3 → 2 → 1）', () => {
+test('全局动效类：高光用 ::after、只播一次停在看不见；排行领奖台按名次错峰（第 3 → 2 → 1）', () => {
   const fs = require('fs');
   const path = require('path');
   const css = fs.readFileSync(path.join(__dirname, '..', 'app.wxss'), 'utf8');
   ['ani-pop', 'ani-score', 'ani-sheen'].forEach((k) => assert.ok(new RegExp('@keyframes ' + k + ' ').test(css), k));
-  ['.ani-wait-pop', '.ani-wait-y'].forEach((k) => assert.ok(css.indexOf(k + ' {') >= 0, k));
   const sheen = css.match(/\.ani-sheen::after \{([^}]*)\}/)[1];
   assert.ok(/pointer-events: none/.test(sheen) && /opacity: 0/.test(sheen) && /\bboth;/.test(sheen) && !/infinite/.test(sheen));
   assert.ok(/100% \{ opacity: 0;/.test(css.match(/@keyframes ani-sheen [^\n]*/)[0]), '最后停在看不见');
@@ -130,13 +169,16 @@ test('全局动效类：弹出 / 记分 / 高光 / 升起都有等待态；高�
     props.forEach((x) => assert.ok(x === 'transform' || x === 'opacity', k));
   });
   const rank = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
-  const D = "\\{\\{item\\.rank === 1 \\? 340 : item\\.rank === 2 \\? 200 : 80\\}\\}ms";
+  const D = "\\{\\{item\\.rank === 1 \\? 420 : item\\.rank === 2 \\? 250 : 100\\}\\}ms";
   assert.match(rank, new RegExp('class="pod r\\{\\{item\\.rank\\}\\} [^"]*" style="animation-delay:' + D + '"'));
   assert.match(rank, new RegExp(`class="pod-base \\{\\{play \\? 'ani-grow-y' : 'ani-wait-y'\\}\\} \\{\\{play \\? 'ani-sheen' : ''\\}\\}" style="animation-delay:` + D + '"'));
-  assert.match(rank, /class="medal-img \{\{play \? 'ani-pop' : 'ani-wait-pop'\}\}" style="animation-delay:\{\{item\.rank === 1 \? 580 : item\.rank === 2 \? 440 : 320\}\}ms"/);
+  assert.match(rank, /class="medal-img \{\{play \? 'ani-pop' : 'ani-wait-pop'\}\}" style="animation-delay:\{\{item\.rank === 1 \? 720 : item\.rank === 2 \? 550 : 400\}\}ms"/);
   // 高光只给冠军台
   const rcss = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxss'), 'utf8');
   assert.ok(/\.r2 \.pod-base::after, \.r3 \.pod-base::after \{ display: none; \}/.test(rcss));
+  // 入场时长统一放慢约 25%（2026-11-25 用户觉得稍快），在全局类里改，页面不再单独覆盖
+  [['ani-in', '0.62s'], ['ani-grow-x', '0.94s'], ['ani-grow-y', '0.78s'], ['ani-pop', '0.52s'], ['ani-score', '0.55s']].forEach(([k, d]) =>
+    assert.ok(new RegExp('\\.' + k + ' \\{[^}]*animation: ' + k + ' ' + d.replace('.', '\\.')).test(css), k + ' 应为 ' + d));
   // 呼吸光点：外圈放大淡出，只动 transform / opacity（上面的 keyframes 检查也覆盖）
   assert.match(css, /@keyframes ani-pulse \{ 0% \{ opacity: 0\.7; transform: scale\(1\); \} 100% \{ opacity: 0; transform: scale\(2\.2\); \} \}/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'pages', 'draw', 'draw.wxml'), 'utf8'), /<view wx:if="\{\{item\.st === 'sign'\}\}" class="pulse"><\/view>\{\{item\.status\.text\}\}/);

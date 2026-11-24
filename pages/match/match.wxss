@@ -6,6 +6,9 @@
 .hero { margin-bottom: 24rpx; padding: 30rpx 28rpx 32rpx; border-radius: 32rpx; color: #fff; background: #9594C1; box-shadow: 0 16rpx 36rpx rgba(110, 110, 163, 0.3); }
 /* iPhone 推入页有约 300ms 滑入动画：高光、比分等页面滑稳后再出来 */
 .hero.ani-sheen::after { animation-delay: 0.38s; }
+/* 云端读完才出来的比分状态、修改记录：淡入，不是一下子冒出来（只动 opacity） */
+@keyframes late-in { from { opacity: 0; } to { opacity: 1; } }
+.late { animation: late-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
 /* 顶部 1rpx 内高光（背景图盖住了卡片自己的 inset 阴影，所以用 ::before 画；::after 留给 .ani-sheen） */
 .hero::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1rpx; background: rgba(255, 255, 255, 0.35); pointer-events: none; z-index: 1; }
 

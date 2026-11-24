@@ -442,6 +442,11 @@ test('球拍列表页：有上次的记录就直接画出来（不显示「正�
   const p = k.page();
   p.onLoad();
   assert.deepStrictEqual([p.data.loading, p.data.cards.length], [false, 1], '第一帧就有上次的球拍');
+  // 顶部卡片静止（用户觉得动画太多）：数字直接是实际值，不滑入、配图不动
+  assert.strictEqual(p.sets[0].o.inUse, 1); assert.ok(!('o.inUse' in p.sets[0]), '数字不滚');
+  const rxml = require('fs').readFileSync(require('path').join(__dirname, '../pages/racket/racket.wxml'), 'utf8');
+  assert.match(rxml, /<view class="hero">/);
+  assert.ok(!/art-in|art-box/.test(rxml));
   p.onShow();
   await tickR();
   assert.deepStrictEqual([p.data.loading, p.data.error, p.data.cards.length], [false, '', 2], '云端读完更正');
@@ -454,7 +459,7 @@ test('球拍列表页：有上次的记录就直接画出来（不显示「正�
   await tickR();
   assert.deepStrictEqual([q.data.error, q.data.cards.length], ['', 2]);
   assert.deepStrictEqual(k.toasts, ['网络异常，显示的是上次的记录']);
-  // 没有可先显示的：照旧先「正在读取…」，失败整页提示
+  // 没有可先显示的：先空着等云端，失败整页提示
   const k3 = rackKit({ store: { my_openid: 'alice' } });
   k3.state.fail = new Error('网络异常');
   const r = k3.page();
@@ -484,7 +489,7 @@ test('球拍详情：本机记着的球拍列表里有这支拍就直接画出�
   await tickR();
   assert.deepStrictEqual([q.data.error, q.data.loading], ['', false]);
   assert.deepStrictEqual(k.toasts, ['网络异常，显示的是上次的记录']);
-  // 本机没有这支拍（别的手机上刚加的）：照旧「正在读取…」，失败整页提示
+  // 本机没有这支拍（别的手机上刚加的）：先空着等云端，失败整页提示
   const r = k.page('pages/racket-view/racket-view.js');
   r.onLoad({ id: 'r9' });
   assert.strictEqual(r.data.loading, true);

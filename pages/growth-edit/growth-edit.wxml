@@ -1,5 +1,5 @@
 <view wx:if="{{error}}" class="page"><view class="card st"><view class="st-t">{{error}}</view></view></view>
-<view wx:elif="{{!ready}}" class="page"><view class="st-load">正在读取…</view></view>
+<view wx:elif="{{!ready}}" class="page"><view class="st-load"></view></view>
 <view wx:else class="page">
   <view class="card">
     <view class="line">
