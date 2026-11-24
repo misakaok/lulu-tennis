@@ -248,3 +248,15 @@ T.push({ name: '用到 player-home 的页面：页面样式的类名不和组件
     assert.deepStrictEqual(clash, [], `pages/${d} 的样式和 player-home 重名：${clash.join('、')}`);
   }
 } });
+
+T.push({ name: '界面上的名称统一写「LULU 网球」（中间有空格）：页面、组件、utils 和 app.json 里不再出现「LULU网球」', fn() {
+  const bad = [];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((f) => {
+    const p = path.join(dir, f.name);
+    if (f.isDirectory()) walk(p);
+    else if (/\.(js|json|wxml|wxss)$/.test(f.name) && fs.readFileSync(p, 'utf8').indexOf('LULU网球') >= 0) bad.push(path.relative(root, p));
+  });
+  ['pages', 'components', 'utils'].forEach((d) => walk(path.join(root, d)));
+  if (fs.readFileSync(path.join(root, 'app.json'), 'utf8').indexOf('LULU网球') >= 0) bad.push('app.json');
+  assert.deepStrictEqual(bad, []);
+} });
