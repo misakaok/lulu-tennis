@@ -5,23 +5,26 @@
 .h-seed { display: inline-block; margin-right: 24rpx; }
 .h-lbl { background: #fff; color: #6E6EA3; font-weight: 700; border-radius: 8rpx; padding: 2rpx 10rpx; margin-right: 12rpx; font-size: 20rpx; }
 
-.actions { display: flex; align-items: center; margin-top: 30rpx; }
-.pin-btn { margin-top: 30rpx; } /* 管理员：置顶 / 取消置顶 */
+/* 底部按钮：两行、每行两个，一样高；只有一个时占满一行 */
+.acts { margin-top: 30rpx; }
+.act-row { display: flex; }
+.act-row + .act-row { margin-top: 20rpx; }
+.act-cell { flex: 1; min-width: 0; }
+.act-cell + .act-cell { margin-left: 20rpx; }
+.act-btn { height: 88rpx; line-height: 88rpx; font-size: 29rpx; box-sizing: border-box; }
+.btn-line.act-btn, .btn-danger.act-btn { line-height: 82rpx; }
+/* 分享：次要按钮（线框），和「我要报名」主按钮区分开 */
 .share {
-  flex: 1; height: 92rpx; line-height: 92rpx; border-radius: 46rpx; font-size: 30rpx; font-weight: 600; color: #fff;
-  background: linear-gradient(90deg, #8484B6, #A3A3CB); box-shadow: 0 10rpx 24rpx rgba(133, 133, 184, 0.3); margin: 0;
+  margin: 0; border-radius: 44rpx; font-weight: 600; color: #6E6EA3;
+  background: #fff; border: 3rpx solid #B9B9DA;
 }
 .share::after { border: none; }
 /* 新版按钮样式（style v2）自带上下内边距和固定宽度，会把文字往下推：清掉，改用 flex 居中 */
 button.share { display: flex !important; align-items: center; justify-content: center; padding: 0 !important; width: auto !important; line-height: normal !important; box-sizing: border-box; }
-.del {
-  flex: none; margin-left: 20rpx; padding: 0 34rpx; height: 92rpx; line-height: 88rpx; border-radius: 46rpx; box-sizing: border-box;
-  border: 2rpx solid #F1CDD0; background: #fff; color: #D9484E; font-size: 28rpx; font-weight: 600; white-space: nowrap;
-}
-.del-hover { background: #FDF2F3; border-color: #E9A9AE; }
 
 .row { display: flex; justify-content: space-between; align-items: center; }
 .count { font-size: 26rpx; color: #6E6EA3; font-weight: 700; }
+.su-card .count { padding-right: 32rpx; } /* = 名单行右边「›」的宽度 + 间距，人数和等级一列右对齐 */
 .muted { color: #A5A5BA; font-size: 24rpx; padding: 10rpx 0; }
 .grid { display: flex; flex-wrap: wrap; margin: 0 -8rpx; }
 .su { width: 25%; display: flex; flex-direction: column; align-items: center; padding: 14rpx 0; }
@@ -121,7 +124,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .hr-v { flex: 1; }
 .sch-rule { margin-top: 8rpx; font-size: 21rpx; color: #A5A5BA; }
 .sch-rule.hl { color: #6E6EA3; font-weight: 700; }
-.su-go { flex: none; margin-left: 8rpx; color: #C5C5DA; font-size: 30rpx; }
+.su-go { flex: none; width: 24rpx; margin-left: 8rpx; text-align: right; color: #C5C5DA; font-size: 30rpx; } /* 固定宽度：标题右边的人数按它留出同样的位置，和「3.0 自评」右对齐 */
 .wd-row { display: flex; align-items: center; padding: 12rpx 0; font-size: 24rpx; }
 .wd-row + .wd-row { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */
 .wd-row:last-child { padding-bottom: 0; } /* 卡片最后一行：下边距不叠在卡片内边距上（否则底部比顶部多出一截留白） */
@@ -168,7 +171,13 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .wdv-u { font-size: 21rpx; color: #8686A0; margin-top: 6rpx; }
 
 /* LULU 积分：头部标签 + 管理员结算卡 */
-.h-cup { margin-top: 14rpx; line-height: 1; }
+.h-cup { margin-top: 14rpx; line-height: 1; display: flex; align-items: center; }
+/* 置顶（管理员）：在积分标签右边、靠右；没置顶是白底红字，已置顶是实心红 */
+/* 置顶（管理员）：在积分标签右边、靠右；和顶部的半透明白色一致，没置顶是半透明白底白字，已置顶是实心白底紫字 */
+.h-pin { margin-left: auto; flex: none; height: 48rpx; line-height: 44rpx; padding: 0 24rpx; border-radius: 24rpx; box-sizing: border-box;
+  font-size: 23rpx; font-weight: 700; color: #fff; background: rgba(255, 255, 255, 0.16); border: 2rpx solid rgba(255, 255, 255, 0.6); }
+.h-pin.on { color: #6E6EA3; background: #fff; border-color: #fff; }
+.h-pin.busy { opacity: 0.5; }
 .h-cup-action { display: inline-flex; align-items: center; min-height: 48rpx; }
 .h-cup-edit { margin-left: 10rpx; font-size: 30rpx; line-height: 1; opacity: .85; }
 .cb-note { font-size: 24rpx; line-height: 1.5; color: #8686A0; }

@@ -516,6 +516,10 @@ Page({
   async togglePin() {
     if (!this.data.canEdit || this.data.pinBusy) return;
     const pinned = !this.data.draw.pinnedAt;
+    if (!pinned) { // 已置顶：确认后再取消，免得误点
+      const go = await new Promise((done) => wx.showModal({ title: '取消置顶？', content: '取消后这个活动回到活动列表原来的位置', confirmText: '取消置顶', cancelText: '保留', success: (x) => done(x.confirm), fail: () => done(false) }));
+      if (!go) return;
+    }
     this.setData({ pinBusy: true });
     try {
       await db.pinDraw(this.id, pinned);

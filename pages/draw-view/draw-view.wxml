@@ -11,11 +11,15 @@
       <image class="bg-img" src="/images/bg-event.jpg" mode="aspectFill" />
       <view class="h-title">{{draw.title}}</view>
       <view class="h-meta">{{meta}} · {{draw.date}}</view>
-      <view wx:if="{{cupTag}}" class="h-cup">
-        <view wx:if="{{canEditCup}}" class="ui-tag solid h-cup-action" hover-class="tap-on" bindtap="editCupKind">
-          <text>{{cupTag}}</text><text class="h-cup-edit">›</text>
-        </view>
-        <text wx:else class="ui-tag solid">{{cupTag}}</text>
+      <!-- 积分标签 + 右边管理员的「置顶」（半透明白；已置顶是实心白「已置顶」，再点确认后取消） -->
+      <view wx:if="{{cupTag || canEdit}}" class="h-cup">
+        <block wx:if="{{cupTag}}">
+          <view wx:if="{{canEditCup}}" class="ui-tag solid h-cup-action" hover-class="tap-on" bindtap="editCupKind">
+            <text>{{cupTag}}</text><text class="h-cup-edit">›</text>
+          </view>
+          <text wx:else class="ui-tag solid">{{cupTag}}</text>
+        </block>
+        <view wx:if="{{canEdit}}" class="h-pin {{draw.pinnedAt ? 'on' : ''}} {{pinBusy ? 'busy' : ''}}" hover-class="tap-on" bindtap="togglePin">{{draw.pinnedAt ? '已置顶' : '置顶'}}</view>
       </view>
       <view wx:if="{{levelText}}" class="h-level">建议水平 {{levelText}}<text class="h-level-s">仅供参考，不限制报名</text></view>
       <view class="h-rules">
@@ -93,10 +97,6 @@
         </view>
         <view class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
       </view>
-      <picker wx:elif="{{isDouble && !isRot && myName}}" range="{{partnerOpts}}" bindchange="joinDouble">
-        <view class="btn-primary {{busy ? 'disabled' : ''}}">{{full ? '名额已满，排队候补（选择搭档）' : '我要报名（选择搭档）'}}</view>
-      </picker>
-      <view wx:else class="btn-primary {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '名额已满，排队候补' : '我要报名'}}</view>
       <view wx:if="{{canPublish}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">截止报名，生成{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view>
     </block>
 
@@ -238,10 +238,21 @@
       </view>
     </view>
 
-    <view wx:if="{{canEdit}}" class="btn-line pin-btn {{pinBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="togglePin">{{draw.pinnedAt ? '取消置顶' : '置顶到活动列表'}}</view>
-    <view class="actions">
-      <button class="share" open-type="share">{{signing ? '发给球友报名' : '发给球友'}}</button>
-      <view wx:if="{{canManage}}" class="del" hover-class="del-hover" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view>
+    <!-- 底部按钮：第 1 行 报名（主按钮，报名中、还没报名时才有；双打点了选搭档）+ 分享，只有一个时占满一行；
+         第 2 行 删除（管理员「管理员删除」/ 发起人「删除活动」）。置顶在顶部积分标签右边 -->
+    <view class="acts">
+    <view class="act-row">
+      <block wx:if="{{signing && !joined}}">
+        <picker wx:if="{{isDouble && !isRot && myName}}" class="act-cell" range="{{partnerOpts}}" bindchange="joinDouble">
+          <view class="btn-primary act-btn {{busy ? 'disabled' : ''}}">{{full ? '排队候补' : '我要报名'}}</view>
+        </picker>
+        <view wx:else class="act-cell"><view class="btn-primary act-btn {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '排队候补' : '我要报名'}}</view></view>
+      </block>
+      <view class="act-cell"><button class="share act-btn" open-type="share">{{signing ? '发给球友报名' : '发给球友'}}</button></view>
+    </view>
+    <view wx:if="{{canManage}}" class="act-row">
+      <view class="act-cell"><view class="btn-danger act-btn" hover-class="tap-on" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view></view>
+    </view>
     </view>
   </block>
   <!-- 分享封面用的画布（不显示） -->
