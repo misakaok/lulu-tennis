@@ -49,7 +49,7 @@
 .chip-av { width: 36rpx; height: 36rpx; border-radius: 50%; margin: 0 8rpx 0 -12rpx; background: #fff; }
 .chips-note { font-size: 21rpx; color: #A5A5BA; margin-top: 12rpx; }
 
-.chip-g { margin-left: 8rpx; font-size: 20rpx; opacity: 0.65; }
+.chip-g { margin-left: 12rpx; font-size: 20rpx; opacity: 0.65; }
 .scorer-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #fff; border: 2rpx solid #D9D9EC; color: #4F4F7D; font-size: 24rpx; line-height: 1.6; }
 
 /* 场边记分入口（和活动录分页同一个样子） */

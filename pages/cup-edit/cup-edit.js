@@ -20,7 +20,7 @@ Page({
     ok: false, authError: '', loading: true, busy: false, editing: false, published: false, fixes: 0,
     date: '', today: '', kind: 'weekly', format: 'single', kinds: C.ACTIVE_KINDS, formats: [], scoreVersion: C.SCORE_VERSION,
     pointGroup: 'open', pointGroups: C.POINT_GROUPS, showPointGroup: false,
-    opts: [], slots: [], hasFloor: true, preview: null, pointsNote: '',
+    slots: [], sheet: null, // sheet：选球员弹层 { title, multi, q, list, count } hasFloor: true, preview: null, pointsNote: '',
     from: null, // 从活动结算：{ title, notes, stale }
   },
 
@@ -42,7 +42,6 @@ Page({
         .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
       this.byUid = {};
       this.people.forEach((p) => { this.byUid[p.uid] = p; });
-      this.setData({ opts: this.people.map((p) => p.name + (S.GENDER[p.gender] ? ' · ' + S.GENDER[p.gender] : '')) });
       let s = null;
       if (options.id) {
         s = ((list && list.list) || []).find((x) => x.id === options.id);
@@ -117,14 +116,82 @@ Page({
     this.render();
   },
 
-  pick(e) {
+  // 选球员（2026-11-24 用户要求：人多了滚轮不好选）：底部弹层，搜索 + 点名字；已在别的名次里的标出名次。
+  //   单个格子：点谁就填谁，已在别处的挪过来；参加保底（单打）一次多选，已在冠军 / 亚军 / 四强的不能选
+  rowOf(slot, i) { return slot === 'semis' || slot === 'floor' ? this.places[slot][i] : this.places[slot]; },
+  positions() { // uid → 在这一站的位置
+    const at = {};
+    const add = (row, slot, i, label) => row.forEach((uid, j) => { if (uid) at[uid] = { slot, i, j, label }; });
+    const p = this.places;
+    add(p.champion, 'champion', 0, '冠军');
+    add(p.runnerUp, 'runnerUp', 0, '亚军');
+    p.semis.forEach((r, i) => add(r, 'semis', i, '四强'));
+    p.floor.forEach((r, i) => add(r, 'floor', i, '参加保底'));
+    return at;
+  },
+  openPick(e) {
     const { slot, i, j } = e.currentTarget.dataset;
-    const p = this.people[Number(e.detail.value)];
-    if (!p) return;
-    const row = slot === 'semis' || slot === 'floor' ? this.places[slot][Number(i)] : this.places[slot];
-    row[Number(j)] = p.uid;
+    if (slot === 'floor' && this.data.size === 1) { this.openFloor(); return; }
+    this.target = { slot, i: Number(i), j: Number(j) };
+    const label = { champion: '冠军', runnerUp: '亚军', semis: '四强', floor: '参加保底' }[slot];
+    this.openSheet(false, '选择' + label + (this.data.size === 2 ? `（第 ${this.target.j + 1} 位）` : ''));
+  },
+  openFloor() { // 单打的参加保底：多选，按原来的顺序保留，新选的接在后面
+    this.target = null;
+    this.order = this.places.floor.map((r) => r[0]).filter(Boolean);
+    this.openSheet(true, '选择参加保底');
+  },
+  openSheet(multi, title) {
+    this.q = '';
+    this.setData({ sheet: { title, multi, q: '', list: [], count: 0 } });
+    this.renderSheet();
+  },
+  renderSheet() {
+    const sh = this.data.sheet;
+    if (!sh) return;
+    const q = (this.q || '').trim().toLowerCase();
+    const at = this.positions(), t = this.target;
+    const list = this.people.filter((p) => !q || p.name.toLowerCase().indexOf(q) >= 0).map((p) => {
+      const pos = at[p.uid];
+      const here = sh.multi ? !!pos && pos.slot === 'floor' : !!pos && pos.slot === t.slot && pos.i === t.i && pos.j === t.j;
+      const on = sh.multi ? this.order.indexOf(p.uid) >= 0 : here;
+      return { uid: p.uid, name: p.name, g: S.GENDER[p.gender] || '', on, tag: pos && !here ? pos.label : '' };
+    });
+    this.setData({ sheet: Object.assign({}, sh, { list, q: this.q, count: sh.multi ? this.order.length : 0 }) });
+  },
+  onPickSearch(e) { this.q = e.detail.value; this.renderSheet(); },
+  tapPick(e) {
+    const uid = e.currentTarget.dataset.uid;
+    const sh = this.data.sheet;
+    if (!sh || !this.byUid[uid]) return;
+    const pos = this.positions()[uid];
+    if (sh.multi) {
+      if (pos && pos.slot !== 'floor') { wx.showToast({ title: `已经在${pos.label}里`, icon: 'none' }); return; }
+      const k = this.order.indexOf(uid);
+      if (k >= 0) this.order.splice(k, 1);
+      else if (this.order.length >= C.MAX_FLOOR) { wx.showToast({ title: `参加保底最多 ${C.MAX_FLOOR} 位`, icon: 'none' }); return; }
+      else this.order.push(uid);
+      this.renderSheet();
+      return;
+    }
+    const t = this.target;
+    if (pos && !(pos.slot === t.slot && pos.i === t.i && pos.j === t.j)) {
+      this.rowOf(pos.slot, pos.i)[pos.j] = ''; // 已在别的名次里：挪过来
+      if (pos.slot === 'floor' && this.data.size === 1) this.places.floor.splice(pos.i, 1);
+      wx.showToast({ title: `已从${pos.label}挪到这里`, icon: 'none' });
+    }
+    this.rowOf(t.slot, t.i)[t.j] = uid; // 单打的保底走多选，目标格不会是被删掉的那行
+    this.setData({ sheet: null });
     this.render();
   },
+  confirmPick() {
+    if (!this.data.sheet || !this.data.sheet.multi) return;
+    this.places.floor = this.order.map((uid) => [uid]);
+    this.setData({ sheet: null });
+    this.render();
+  },
+  closePick() { this.setData({ sheet: null }); },
+  noop() {},
   clearCell(e) {
     const { slot, i, j } = e.currentTarget.dataset;
     const row = slot === 'semis' || slot === 'floor' ? this.places[slot][Number(i)] : this.places[slot];
@@ -132,6 +199,7 @@ Page({
     this.render();
   },
   addFloor() {
+    if (this.data.size === 1) { this.openFloor(); return; } // 单打：直接多选
     if (this.places.floor.length >= C.MAX_FLOOR) return;
     this.places.floor.push(blank(C.sizeOf(this.data.format)));
     this.render();

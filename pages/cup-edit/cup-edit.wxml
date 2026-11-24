@@ -28,19 +28,19 @@
     <view class="card">
       <view class="card-title">名次<text class="sub">从正式成员名单里选{{size === 2 ? '，两人一队' : ''}}</text></view>
       <view wx:for="{{slots}}" wx:key="id" class="ce-slot">
-        <view class="ce-slot-h"><text class="ce-tier">{{item.label}}</text><text class="ce-pts">{{item.pts}} 分</text>
-          <view wx:if="{{item.removable}}" class="btn-line mini ce-rm" hover-class="tap-on" data-i="{{item.i}}" bindtap="removeFloor">移除</view>
-        </view>
-        <view class="ce-cells">
-          <view wx:for="{{item.cells}}" wx:key="j" wx:for-item="c" class="ce-cell">
-            <picker range="{{opts}}" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindchange="pick">
-              <view class="ce-pick {{c.uid ? '' : 'ph'}}">{{c.name || '选择球员'}} ›</view>
-            </picker>
-            <text wx:if="{{c.uid}}" class="ce-x" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindtap="clearCell">✕</text>
+        <!-- 名次和分数居中在下面的选人按钮上方（✕ 浮在按钮右边，不算进宽度） -->
+        <view class="ce-col">
+          <view class="ce-slot-h"><text class="ce-tier">{{item.label}}</text><text class="ce-pts">{{item.pts}} 分</text></view>
+          <view class="ce-cells">
+            <view wx:for="{{item.cells}}" wx:key="j" wx:for-item="c" class="ce-cell">
+              <view class="ce-pick {{c.uid ? '' : 'ph'}}" hover-class="tap-on" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindtap="openPick">{{c.name || '选择球员'}} ›</view>
+              <text wx:if="{{c.uid}}" class="ce-x" data-slot="{{c.slot}}" data-i="{{c.i}}" data-j="{{c.j}}" bindtap="clearCell">✕</text>
+            </view>
           </view>
         </view>
+        <view wx:if="{{item.removable}}" class="btn-line mini ce-rm" hover-class="tap-on" data-i="{{item.i}}" bindtap="removeFloor">移除</view>
       </view>
-      <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">＋ 添加参加保底</view></view>
+      <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">{{size === 1 ? '＋ 选择参加保底（可多选）' : '＋ 添加参加保底'}}</view></view>
       <view wx:if="{{showPointGroup}}" class="ce-note">参加保底只给实际打过球、未取得以上名次的球友。</view>
       <view wx:else class="ce-note">月赛没有参加保底分</view>
     </view>
@@ -63,5 +63,27 @@
       <view class="btn-primary ce-a {{busy || preview.error ? 'disabled' : ''}}" hover-class="tap-on" bindtap="publish">{{published ? '发布更正' : '确认发布'}}</view>
     </view>
     <view wx:if="{{editing}}" class="btn-danger ce-del {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="removeStop">{{published ? '撤下这一站' : '删除这份草稿'}}</view>
+  </block>
+  <!-- 选球员：底部弹层，可搜索、点选；参加保底（单打）可以一次多选。只在本机筛选，不保存搜索文字 -->
+  <block wx:if="{{sheet}}">
+    <view class="sheet-mask" bindtap="closePick" catchtouchmove="noop"></view>
+    <view class="sheet">
+      <view class="sh-h"><text class="sh-t">{{sheet.title}}</text><text class="sh-s">{{sheet.multi ? '已选 ' + sheet.count + ' 人' : '点名字选中'}}</text></view>
+      <input class="sh-q" placeholder="搜索球员" placeholder-class="sh-ph" value="{{sheet.q}}" bindinput="onPickSearch" confirm-type="search" />
+      <scroll-view scroll-y class="sh-list">
+        <view class="sh-chips">
+          <view wx:for="{{sheet.list}}" wx:key="uid" class="sh-chip {{item.on ? 'on' : ''}} {{item.tag && sheet.multi ? 'off' : ''}}" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="tapPick">
+            <pl-av class="avatar sm sh-av" uid="{{item.uid}}" name="{{item.name}}" />
+            <text class="sh-n">{{item.name}}</text><text wx:if="{{item.g}}" class="gd sh-g">{{item.g}}</text>
+            <text wx:if="{{item.tag}}" class="sh-tag">{{item.tag}}</text>
+          </view>
+        </view>
+        <view wx:if="{{!sheet.list.length}}" class="ce-note sh-none">{{sheet.q ? '没有找到「' + sheet.q + '」' : '还没有设置过资料的正式成员'}}</view>
+      </scroll-view>
+      <view class="sh-acts">
+        <view class="btn-line sh-a" hover-class="tap-on" bindtap="closePick">取消</view>
+        <view wx:if="{{sheet.multi}}" class="btn-primary sh-a" hover-class="tap-on" bindtap="confirmPick">确定</view>
+      </view>
+    </view>
   </block>
 </view>
