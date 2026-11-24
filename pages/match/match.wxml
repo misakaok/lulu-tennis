@@ -66,7 +66,9 @@
       </block>
     </view>
 
-    <match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+    <!-- 先用本机缓存画的记分牌（ready 为假）：确认 / 改分 / 撤销等云端读完再出来，免得组件自己再调一次 matchState -->
+    <match-social wx:if="{{ready}}" match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
+    <view wx:else class="muted">正在读取比分状态…</view>
 
     <view wx:if="{{changes.length}}" class="card">
       <view class="card-title">比分修改记录<text class="sub">{{changes.length}} 次</text></view>

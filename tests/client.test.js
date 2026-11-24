@@ -199,7 +199,34 @@ test('共享数据只读：各页面用到的统计、等级、亮点、生涯�
   const v = PV.playerView(c.db.profilesOf(p), p, m, 'alice');
   PV.h2hView(m, 'alice', 'Alice', 'bob', 'Bob', v.tagsOf);
   d.forEach((x) => { E.progressOf(x, m); E.scheduleOf(x, m); });
+  // 活动详情、活动录分页（2026-11-24 起用共享版）：对阵、场次冲突、退赛／弃权、找某一场
+  const SC = require(path.join(ROOT, 'utils/slot-conflict.js')), WV = require(path.join(ROOT, 'utils/withdraw-view.js'));
+  d.forEach((x) => {
+    const items = E.scheduleOf(x, m);
+    WV.withdrawView(x, items, () => true);
+    items.forEach((it) => { E.findFixture(x, m, it.key); SC.slotConflicts(x, m, {}, it.key, { date: x.date || '2026-11-29', time: '09:00', court: '1 号场' }); });
+  });
   assert.strictEqual(JSON.stringify([m, all, p, d, c.db.profilesOf(p)]), before);
+});
+test('cloud.fresh / peek：实时读一次并留给 cached / peek（60 秒内同步取到复制版）；只能用于只读操作', async () => {
+  const env = createEnv(); env.load(); seed(env);
+  const c = client(env, 'alice');
+  const memo = require(path.join(ROOT, 'utils/memo.js')); memo.invalidate();
+  const cloud = require(path.join(ROOT, 'utils/cloud.js'));
+  assert.strictEqual(cloud.peek('memberStatus'), undefined);
+  const n0 = c.calls();
+  const r = await cloud.fresh('memberStatus');
+  assert.strictEqual(c.calls(), n0 + 1);
+  const pk = cloud.peek('memberStatus');
+  assert.deepStrictEqual(pk, r); pk.status = '改了';
+  assert.notStrictEqual(cloud.peek('memberStatus').status, '改了');
+  await cloud.cached('memberStatus');
+  assert.strictEqual(c.calls(), n0 + 1, 'cached 直接用 fresh 留下的');
+  await cloud.fresh('memberStatus');
+  assert.strictEqual(c.calls(), n0 + 2, 'fresh 每次都实时读');
+  await assert.rejects(cloud.fresh('signUp', { drawId: 'd1' }), /只有只读操作/);
+  memo.invalidate();
+  assert.strictEqual(cloud.peek('memberStatus'), undefined);
 });
 test('活动详情一次取齐（drawDetail）：1 次调用', async () => {
   const env = createEnv(); env.load(); seed(env);
@@ -208,6 +235,15 @@ test('活动详情一次取齐（drawDetail）：1 次调用', async () => {
   assert.strictEqual(c.calls(), 1);
   assert.strictEqual(r.draw._id, 'd1'); assert.strictEqual(r.profile.name, 'Alice');
   assert.strictEqual(c.db.cachedProfile().name, 'Alice');
+  // 录分页先用它画出来：同步取到复制版，不再调用；改了不影响下一次；任何写操作、下拉刷新都作废
+  const peek = c.db.peekDrawDetail('d1');
+  assert.strictEqual(c.calls(), 1);
+  assert.deepStrictEqual(peek, r);
+  peek.draw.title = '改了'; r.draw.title = '也改了';
+  assert.notStrictEqual(c.db.peekDrawDetail('d1').draw.title, '改了');
+  assert.strictEqual(c.db.peekDrawDetail('other'), null);
+  require(path.join(ROOT, 'utils/memo.js')).invalidate(['signups']);
+  assert.strictEqual(c.db.peekDrawDetail('d1'), null);
 });
 test('旧云函数和本机缓存：保留手动活动名称、历史名称快照，场地只展示固定编号', async () => {
   const env = createEnv(); env.load(); seed(env);

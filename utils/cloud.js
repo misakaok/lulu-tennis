@@ -47,10 +47,25 @@ function invalidateAfter(action, data) {
 
 // 只读操作的结果在内存里缓存 60 秒（utils/memo.js）：切换 tab、从子页面返回时不重复调用。
 // 自己的任何写操作、下拉刷新都会作废；别人的操作最长晚 60 秒看到。只能用于 READ_ONLY 里的操作
+const keyOf = (action, data) => 'call:' + action + ':' + JSON.stringify(data || {});
 function cached(action, data) {
   if (!READ_ONLY[action]) throw new Error('只有只读操作可以缓存：' + action);
   const memo = require('./memo');
-  return memo.get('call:' + action + ':' + JSON.stringify(data || {}), memo.ANY, () => call(action, data));
+  return memo.get(keyOf(action, data), memo.ANY, () => call(action, data));
+}
+// 先显示用：同步取 cached / fresh 留下、还在 60 秒内的结果（复制版）；没有返回 undefined。之后仍要实时读一次再更正
+function peek(action, data) {
+  const memo = require('./memo');
+  const v = memo.peek(keyOf(action, data));
+  return v === undefined ? undefined : memo.clone(v);
+}
+// 实时读一次（不用缓存），结果留给 cached / peek：别的页面 60 秒内直接用
+async function fresh(action, data) {
+  if (!READ_ONLY[action]) throw new Error('只有只读操作可以缓存：' + action);
+  const memo = require('./memo');
+  const r = await call(action, data);
+  memo.put(keyOf(action, data), memo.ANY, r);
+  return memo.clone(r);
 }
 
-module.exports = { call, cached };
+module.exports = { call, cached, peek, fresh };

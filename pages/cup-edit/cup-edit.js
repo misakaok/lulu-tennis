@@ -32,7 +32,7 @@ Page({
     try {
       // 身份校验和读数据同时发出（这些接口云端只给管理员，不是管理员会被拒绝），少等一轮云函数
       const drawId = options.drawId ? decodeURIComponent(options.drawId) : '';
-      const data = Promise.all([cloud.call('listMembers'), options.id ? cloud.call('cupList') : null, drawId ? cloud.call('cupFromDraw', { drawId }) : null]);
+      const data = Promise.all([cloud.cached('listMembers'), options.id ? cloud.call('cupList') : null, drawId ? cloud.call('cupFromDraw', { drawId }) : null]);
       data.catch(() => {}); // 不是管理员时这里会失败，下面直接提示，不用再报一次
       const ms = await require('../../utils/member').status();
       if (ms.status !== 'active' || !ms.isAdmin) { this.setData({ loading: false, authError: '只有管理员可以补录积分' }); return; }

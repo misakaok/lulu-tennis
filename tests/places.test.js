@@ -143,7 +143,7 @@ test('选历史地点创建活动：走 createDraw 和地点文字检测，活�
 
   let nav = null;
   const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {}, openLocation(o) { nav = o; } }, 'Page', {
-    '../../utils/db': { fetchDrawDetail: async () => ({ draw: E.publicDraw(detail.draw), profile: null, signups: [] }), fetchMatches: async () => [], myOpenid: async () => 'alice' },
+    '../../utils/db': { fetchDrawDetail: async () => ({ draw: E.publicDraw(detail.draw), profile: null, signups: [] }), matchesShared: async () => [], myOpenid: async () => 'alice' },
     '../../utils/member': { isAdminLocal: () => false },
   });
   v.id = r.id; v.loadSignups = async () => {};

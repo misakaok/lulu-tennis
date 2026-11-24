@@ -43,4 +43,12 @@ function invalidate(colls) {
   });
 }
 
-module.exports = { get, raw, invalidate, clone, TTL_MS, ANY };
+// 同步取一条还在有效期里的结果（不复制，调用方不能修改；没有 / 过期 / 正在读返回 undefined）：只用来先画页面
+function peek(key) {
+  const e = store[key];
+  return e && !e.task && Date.now() - e.at < TTL_MS ? e.value : undefined;
+}
+// 直接放进一条结果（已经从云端拿到的，不用再读）：之后 raw / get / peek 在有效期内都用它
+function put(key, coll, value) { store[key] = { coll, at: Date.now(), value, task: null }; }
+
+module.exports = { get, raw, peek, put, invalidate, clone, TTL_MS, ANY };

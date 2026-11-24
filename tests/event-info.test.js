@@ -6,6 +6,8 @@ const vm = require('vm');
 const { createRequire } = require('module');
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
+// 页面里 cloud.cached / fresh / peek（内存缓存）在测试里都直接走 call
+const viaCall = (c) => Object.assign(c, { cached: (a, d) => c.call(a, d), fresh: (a, d) => c.call(a, d), peek: () => undefined });
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
 function load(file, wx, kind, deps, globals) {
@@ -290,9 +292,9 @@ test('开放报名时先加入的球友：创建后按顺序逐条代报名（ad
     if (action === 'adminAddSignup' && data.playerId === 'c') throw new Error('这是男子组活动，只有男球员可以报名');
     return { ok: true };
   } };
-  const deps = { '../../utils/db': { addDraw: async () => ({ id: 'n1' }) }, '../../utils/cloud': cloud };
-  const wx = { showToast: (t) => toasts.push(t.title), showModal: (o) => { modals.push(o.content); o.complete && o.complete(); }, redirectTo: (o) => { redirected = o.url; }, setStorageSync() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: (f) => f(), console });
+  const deps = { '../../utils/db': { addDraw: async () => ({ id: 'n1' }) }, '../../utils/cloud': viaCall(cloud) };
+  const wx = { showToast: (t) => toasts.push(t.title), showModal: (o) => { modals.push(o.content); o.complete && o.complete(); }, redirectTo: (o) => { redirected = o.url; }, setStorageSync() {}, showLoading() {}, hideLoading() {} };
+  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: (f) => f(), clearTimeout() {}, console });
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
   p.setData({ canPublish: true, title: '周日约球', entry: 'signup', type: 'double', mode: 'bracket' });
   p.onInfo({ detail: { date: '2026-11-30' } });
@@ -611,7 +613,7 @@ test('成员管理：顶部数出没填性别的球友（含还没设置资料�
   const calls = [];
   let sheet, modal;
   const active = [{ uid: 'a', nickname: 'Ann', gender: 'f' }, { uid: 'b', nickname: 'Bob', gender: '' }, { uid: 'c', nickname: '', name: '', gender: '' }, { uid: 'd', nickname: 'Dan' }, { uid: 'j', nickname: '', name: '杰娃儿' }];
-  const cloud = { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active, pending: [], others: [], candidates: [] } : { ok: true }; } };
+  const cloud = viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active, pending: [], others: [], candidates: [] } : { ok: true }; } });
   const v = load('pages/members/members.js', { showToast() {}, showActionSheet: (o) => { sheet = o; }, showModal: (o) => { modal = o; } }, 'Page', { '../../utils/cloud': cloud });
   await v.load();
   assert.deepStrictEqual([v.data.noGender, v.data.activeList.length], [3, 5], '加入时也没留昵称的不算');
@@ -643,7 +645,7 @@ test('管理员代报名：选人弹层里只列还没报名的正式成员；�
   const calls = [], modals = [];
   const wx = { showToast() {}, showModal: (o) => { modals.push(o.content); o.success({ confirm: true }); } };
   const members = [{ uid: 'carl', nickname: 'Carl', gender: 'm' }, { uid: 'ann', nickname: 'Ann', gender: 'f' }, { uid: 'bob', nickname: 'Bob', gender: 'm' }, { uid: 'x', nickname: '' }];
-  const cloud = { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: members } : { ok: true }; } };
+  const cloud = viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: members } : { ok: true }; } });
   const v = load('pages/draw-view/draw-view.js', wx, 'Page', { '../../utils/cloud': cloud });
   let reloaded = 0;
   Object.assign(v, { id: 'd1', signupRows: [{ _openid: 'bob', partnerId: '' }], loadSignups: async () => { reloaded++; } });
@@ -702,7 +704,7 @@ test('调整活动对阵：保留现有签位和双打搭档，手动交换后�
 test('旧活动的种子名单：活动详情按「N 号种子」显示，单打叫种子选手、双打叫种子队伍；活动列表显示种子数', async () => {
   const show = async (d) => {
     const deps = {
-      '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: null, signups: [] }), fetchMatches: async () => [], myOpenid: async () => 'x' },
+      '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: null, signups: [] }), matchesShared: async () => [], myOpenid: async () => 'x' },
       '../../utils/member': { isAdminLocal: () => false },
     };
     const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {} }, 'Page', deps);
@@ -836,7 +838,7 @@ test('活动详情和列表：显示建议水平和报名情况（还差 / 已�
   const show = async (d, signups) => {
     const deps = {
       '../../utils/db': {
-        fetchDrawDetail: async () => ({ draw: d, profile: null, signups }), fetchMatches: async () => [], myOpenid: async () => 'x',
+        fetchDrawDetail: async () => ({ draw: d, profile: null, signups }), matchesShared: async () => [], myOpenid: async () => 'x',
         fetchPlayersFull: async () => [], cachedPlayersFull: () => [], cachedMatches: () => [], profilesOf: () => ({}),
       },
       '../../utils/member': { isAdminLocal: () => false },

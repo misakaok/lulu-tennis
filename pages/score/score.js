@@ -34,70 +34,98 @@ Page({
     this.autoScorer = options.start === 'scorer'; // 从活动详情的「场边记分」进来：加载完直接打开记分器（只打开一次）
     const t = today();
     this.setData({ date: t, today: t });
+    this.preview();
     this.load();
+  },
+
+  // 从活动详情点进来：先用活动详情刚读到的活动和报名（内存里 60 秒，db.peekDrawDetail）+ 本机战绩画出来（2026-11-24 用户嫌打开慢），
+  // 云端读完后这一场没变化就不动（免得冲掉正在填的局分），变了再按最新的重画。提交时云端照样核对对阵版本
+  preview() {
+    const pre = db.peekDrawDetail(this.drawId);
+    if (!pre || !pre.draw) return;
+    const me = pre.profile || db.cachedProfile();
+    try { this.apply(pre.draw, db.cachedMatches(), me, pre.signups || [], db.cachedOpenid() || (me && me._openid) || ''); }
+    catch (e) { this.shownSig = ''; } // 本机数据找不到这一场：不显示错误，等云端
   },
 
   async load() {
     try {
-      const [d, matches, me, players, signups, myId] = await Promise.all([
-        db.getDraw(this.drawId),
-        db.fetchMatches(),
-        db.getMyProfile().catch(() => db.cachedProfile()),
-        db.fetchPlayersFull().catch(() => db.cachedPlayersFull()),
-        db.fetchSignups(this.drawId).catch(() => []),
+      // 活动、报名名单、我的资料：云函数 drawDetail 一次取齐（原来分开读 3 次）；云函数还是旧版本时分开读
+      const [bundle, matches, myId] = await Promise.all([
+        db.fetchDrawDetail(this.drawId),
+        db.matchesShared(), // 共享版（只读，不复制）：这页只拿来找这一场
         db.myOpenid().catch(() => ''),
       ]);
-      const owner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
-      const f = E.findFixture(d, matches, this.key);
-      if (!f) throw new Error('找不到这场比赛，对阵表可能已经重新生成');
-      if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
-
-      const person = (n) => ({ name: n, initial: R.initialOf(n), color: R.colorOf(n) });
-
-      // 参赛者按用户 ID 判断（报名记录 / 签表快照），不看昵称；旧签表里没绑定 ID 的只能由发起人录
-      const uidOf = ID.drawUids(d, signups);
-      this.ids = { a: ID.idsFor(f.aMembers, uidOf), b: ID.idsFor(f.bMembers, uidOf) };
-      const inMatch = !!myId && this.ids.a.concat(this.ids.b).indexOf(myId) >= 0;
-      const myName = me && me.name;
-      const canEdit = owner || inMatch || (!f.done && !E.isRotation(d) && require('../../utils/member').isAdminLocal());
-      const cfg = E.ruleFor(d, this.key); // 这一场所在阶段 / 轮次的规则（如决赛单独用 6 局制）
-      this.d = d; this.f = f; this.cfg = cfg;
-      this.drawVersion = d.drawVersion || 0;
-      this.res = { ok: false, msg: '' };
-      let revocable = false;
-      const scheduled = (f.slot && f.slot.date) || d.date;
-      let date = scheduled && scheduled <= this.data.today ? scheduled : this.data.date;
-      if (f.done && f.recordId) {
-        const rec = matches.find((m) => m._id === f.recordId);
-        if (rec && rec.date) date = rec.date;
-        revocable = owner || (!!rec && !!myId && (rec._openid || rec.recordedBy) === myId); // 只是显示按钮，云函数会再校验
+      let d, me, signups;
+      if (bundle) { d = bundle.draw; me = bundle.profile; signups = bundle.signups || []; }
+      else {
+        [d, me, signups] = await Promise.all([
+          db.getDraw(this.drawId),
+          db.getMyProfile().catch(() => db.cachedProfile()),
+          db.fetchSignups(this.drawId).catch(() => []),
+        ]);
       }
-      wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
-      this.setData({
-        loading: false, error: '', date,
-        title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '', formatText: E.formatText(cfg),
-        ruleStage: cfg.stage, ruleText: E.ruleText(cfg), ruleCustom: !!cfg.custom, typeText: cfg.type === 'double' ? '双打' : '单打',
-        setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
-        sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
-        aLabel: f.a, bLabel: f.b,
-        done: f.done, winner: f.winner, isOwner: !!owner, outcomeText: f.outcomeText || '',
-        unrated: f.done && f.outcome && f.outcome !== 'normal' ? RT.unratedOf(f.outcome) : null, // 弃权 / 退赛（含退赛后判的弃权）：本场未计入水平分
-        resultSets: f.sets.map((s) => ({
-          a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a,
-          tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
-        })),
-        canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
-        reason: canEdit ? '' : (myName ? '只有这场的球员或活动发起人可以录分' : '设置昵称后，这场的球员才能录分'),
-        editing: !f.done && canEdit,
-        init: [],
-      });
-      this.refreshScorer();
-      if (this.autoScorer) { this.autoScorer = false; if (this.data.scorerOk && !this.pendingScorer) this.openScorer(); }
-      if (this.pendingScorer) { const id = this.pendingScorer; this.pendingScorer = ''; this.applyScorer(id); }
+      this.apply(d, matches, me, signups, myId, true);
     } catch (e) {
       console.error(e);
+      this.shownSig = '';
       this.setData({ loading: false, error: e.message || '加载失败，请稍后再试' });
     }
+  },
+
+  // fresh：云端结果。和已经画出来的（本机预览）一样就不重画
+  apply(d, matches, me, signups, myId, fresh) {
+    const owner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
+    const f = E.findFixture(d, matches, this.key);
+    if (!f) throw new Error('找不到这场比赛，对阵表可能已经重新生成');
+    if (!f.ready) throw new Error(f.void ? '这场比赛因退赛已取消（成绩不计）' : '对手还没确定，等上一轮打完再来录分');
+
+    const person = (n) => ({ name: n, initial: R.initialOf(n), color: R.colorOf(n) });
+
+    // 参赛者按用户 ID 判断（报名记录 / 签表快照），不看昵称；旧签表里没绑定 ID 的只能由发起人录
+    const uidOf = ID.drawUids(d, signups);
+    this.ids = { a: ID.idsFor(f.aMembers, uidOf), b: ID.idsFor(f.bMembers, uidOf) };
+    const inMatch = !!myId && this.ids.a.concat(this.ids.b).indexOf(myId) >= 0;
+    const myName = me && me.name;
+    const canEdit = owner || inMatch || (!f.done && !E.isRotation(d) && require('../../utils/member').isAdminLocal());
+    const cfg = E.ruleFor(d, this.key); // 这一场所在阶段 / 轮次的规则（如决赛单独用 6 局制）
+    const rec0 = f.done && f.recordId ? matches.find((m) => m._id === f.recordId) : null;
+    const sig = JSON.stringify([d.drawVersion || 0, d.title, f, cfg, owner, inMatch, canEdit, !!(me && me.name), rec0 && [rec0.date, rec0._openid, rec0.recordedBy]]);
+    if (fresh && sig === this.shownSig) return; // 本机预览画的就是最新的：不重画
+    this.shownSig = sig;
+    this.d = d; this.f = f; this.cfg = cfg;
+    this.drawVersion = d.drawVersion || 0;
+    this.res = { ok: false, msg: '' };
+    let revocable = false;
+    const scheduled = (f.slot && f.slot.date) || d.date;
+    let date = scheduled && scheduled <= this.data.today ? scheduled : this.data.date;
+    if (f.done && f.recordId) {
+      const rec = rec0;
+      if (rec && rec.date) date = rec.date;
+      revocable = owner || (!!rec && !!myId && (rec._openid || rec.recordedBy) === myId); // 只是显示按钮，云函数会再校验
+    }
+    wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
+    this.setData({
+      loading: false, error: '', date,
+      title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '', formatText: E.formatText(cfg),
+      ruleStage: cfg.stage, ruleText: E.ruleText(cfg), ruleCustom: !!cfg.custom, typeText: cfg.type === 'double' ? '双打' : '单打',
+      setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
+      sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
+      aLabel: f.a, bLabel: f.b,
+      done: f.done, winner: f.winner, isOwner: !!owner, outcomeText: f.outcomeText || '',
+      unrated: f.done && f.outcome && f.outcome !== 'normal' ? RT.unratedOf(f.outcome) : null, // 弃权 / 退赛（含退赛后判的弃权）：本场未计入水平分
+      resultSets: f.sets.map((s) => ({
+        a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a,
+        tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
+      })),
+      canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
+      reason: canEdit ? '' : (myName ? '只有这场的球员或活动发起人可以录分' : '设置昵称后，这场的球员才能录分'),
+      editing: !f.done && canEdit,
+      init: [],
+    });
+    this.refreshScorer();
+    if (this.autoScorer) { this.autoScorer = false; if (this.data.scorerOk && !this.pendingScorer) this.openScorer(); }
+    if (this.pendingScorer) { const id = this.pendingScorer; this.pendingScorer = ''; this.applyScorer(id); }
   },
 
   onShow() {

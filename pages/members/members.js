@@ -11,8 +11,11 @@ Page({
   onShow() { this.load(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
+  // 先用 60 秒内读到过的成员列表马上显示（活动详情、创建活动页给管理员预读过），再实时读一次更正（2026-11-24 用户嫌打开慢）
   async load() {
-    try { const d = await cloud.call('listMembers'); this.d = d; this.setData(Object.assign({ d, loading: false }, this.activeView())); }
+    const pre = !this.d && cloud.peek('listMembers');
+    if (pre) { this.d = pre; this.setData(Object.assign({ d: pre, loading: false }, this.activeView())); }
+    try { const d = await cloud.fresh('listMembers'); this.d = d; this.setData(Object.assign({ d, loading: false }, this.activeView())); }
     catch (e) { this.setData({ loading: false }); wx.showModal({ title: '无法打开', content: e.message, showCancel: false, success: () => wx.navigateBack() }); }
   },
   setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },

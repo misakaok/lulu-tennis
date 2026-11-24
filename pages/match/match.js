@@ -23,9 +23,38 @@ function whyView(all, ratings, m, myId) {
   return w || { none: '这场没有可用的局分记录，没有参与水平分计算', noneTitle: '本场未计入水平分' };
 }
 
+// 记分牌：页面上显示的这一场（比分、双方、性别）。本机缓存预览和云端结果共用
+function boardOf(m, players) {
+  const gOf = require('../../utils/stats').genderFinder(players);
+  const side = (k) => (m[k] || []).map((n, i) => ({ name: n, uid: (m[k + 'Ids'] || [])[i] || '', initial: initialOf(n), color: colorOf(n), gender: gOf(n, (m[k + 'Ids'] || [])[i]) }));
+  // 记分牌中间的大比分：多盘显示盘数，只打一盘显示局数；弃权没有比分
+  const sets = (m.sets || []).map((s) => ({ a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a, tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB }));
+  const oc = outcomeOf(m), hasTb = sets.some((s) => s.tbA !== '' || s.tbB !== '');
+  let big = ['-', '-'], bigLbl = oc === 'walkover' ? '弃权' : '';
+  if (sets.length === 1) { big = [sets[0].a, sets[0].b]; bigLbl = oc === 'retired' ? '中途退赛' : '局分'; }
+  else if (sets.length) { big = [sets.filter((s) => s.aw).length, sets.filter((s) => s.bw).length]; bigLbl = oc === 'retired' ? '中途退赛' : '盘分'; }
+  return {
+    _id: m._id, date: m.date, winner: m.winner, drawId: m.drawId || '',
+    event: m.drawTitle ? `${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '',
+    format: E.formatText(E.cfgOf(m)),
+    a: side('a'), b: side('b'), aText: (m.a || []).join(' / '), bText: (m.b || []).join(' / '),
+    sets, typeText: m.type === 'double' ? '双打' : '单打',
+    bigA: big[0], bigB: big[1], bigLbl, showSets: sets.length > 1 || hasTb,
+    loseText: oc === 'walkover' ? '弃权' : oc === 'retired' ? '退赛' : '负',
+  };
+}
+
 Page({
-  data: { loading: true, error: '', m: null, revocable: false, preset: null, changes: [], tags: [], why: null, whyOpen: false },
-  onLoad(o) { this.id = o.id; this.load(); },
+  data: { loading: true, ready: false, error: '', m: null, revocable: false, preset: null, changes: [], tags: [], why: null, whyOpen: false },
+  onLoad(o) { this.id = o.id; this.preview(); this.load(); },
+  // 先用本机战绩里的这一场画记分牌（2026-11-24 用户嫌打开慢），云端 matchState 读完再更正；
+  // 确认 / 改分 / 撤销（match-social）、修改记录、亮点和水平分说明都等云端读完（ready）才显示
+  preview() {
+    try {
+      const m = db.cachedMatchesAll().find((x) => x && x._id === this.id);
+      if (m) this.setData({ loading: false, m: boardOf(m, db.cachedPlayersFull()), status: m.status === 'pending' ? 'pending' : 'official' });
+    } catch (e) { console.warn('[比赛详情] 本机缓存画不出来，等云端', e); }
+  },
   onShow() { if (this.shown) this.load(); this.shown = true; }, // 从改分页回来：比分和修改记录要刷新
 
   async load() {
@@ -34,7 +63,7 @@ Page({
       const [st, players, myId, all] = await Promise.all([
         cloud.call('matchState', { matchId: this.id, detail: true }).catch(() => null),
         db.fetchPlayersFull().catch(() => db.cachedPlayersFull()), db.myOpenid().catch(() => ''),
-        db.fetchMatches().catch(() => db.cachedMatches() || []), // 正式战绩（有缓存）：只用来算这一场的亮点标签
+        db.matchesShared().catch(() => db.cachedMatches() || []), // 正式战绩（共享版，只读）：只用来算这一场的亮点标签和水平分说明
       ]);
       let raw, status, preset = null;
       if (st && st.match !== undefined) {
@@ -46,8 +75,6 @@ Page({
       }
       const m = raw ? ID.normalizeMatches([E.publicMatch(raw)], players)[0] : null; // 有 ID 的位置显示当前昵称
       if (!m) throw new Error('比赛记录不存在，可能已被撤销');
-      const gOf = require('../../utils/stats').genderFinder(players);
-      const side = (k) => (m[k] || []).map((n, i) => ({ name: n, uid: (m[k + 'Ids'] || [])[i] || '', initial: initialOf(n), color: colorOf(n), gender: gOf(n, (m[k + 'Ids'] || [])[i]) }));
       // 录入人可以撤销；日常比赛的参加者也可以；活动发起人由 match-social 按云函数 matchState 返回的 isOwner 判断（不用再读一次活动）
       const inDaily = !m.drawId && (m.aIds || []).concat(m.bIds || []).indexOf(myId) >= 0;
       const revocable = !!myId && ((m._openid || m.recordedBy) === myId || inDaily);
@@ -58,33 +85,19 @@ Page({
         const d = c.at ? new Date(c.at) : null;
         return { i, when: d ? `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}` : '', text: `${c.who}${HOW[c.how] || '修改了比分'}`, from: c.from, to: c.to };
       });
-      // 记分牌中间的大比分：多盘显示盘数，只打一盘显示局数；弃权没有比分
-      const sets = (m.sets || []).map((s) => ({ a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a, tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB }));
-      const oc = outcomeOf(m), hasTb = sets.some((s) => s.tbA !== '' || s.tbB !== '');
-      let big = ['-', '-'], bigLbl = oc === 'walkover' ? '弃权' : '';
-      if (sets.length === 1) { big = [sets[0].a, sets[0].b]; bigLbl = oc === 'retired' ? '中途退赛' : '局分'; }
-      else if (sets.length) { big = [sets.filter((s) => s.aw).length, sets.filter((s) => s.bw).length]; bigLbl = oc === 'retired' ? '中途退赛' : '盘分'; }
       // 亮点标签（爆冷、逆转、终结连胜…）：和战绩列表同一套算法；水平分只算一次，「为什么涨分 / 掉分」也用这一份
       const ratings = R.computeRatings(all || [], R.startLevelsFrom(players || []));
       const tags = H.matchTags(all || [], ratings)[m._id] || [];
       const why = whyView(all, ratings, m, myId);
       this.setData({
-        loading: false, changes, tags, why,
+        loading: false, ready: true, changes, tags, why,
         revocable,
         status, preset,
-        m: {
-          _id: m._id, date: m.date, winner: m.winner, drawId: m.drawId || '',
-          event: m.drawTitle ? `${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '',
-          format: E.formatText(E.cfgOf(m)),
-          a: side('a'), b: side('b'), aText: (m.a || []).join(' / '), bText: (m.b || []).join(' / '),
-          sets, typeText: m.type === 'double' ? '双打' : '单打',
-          bigA: big[0], bigB: big[1], bigLbl, showSets: sets.length > 1 || hasTb,
-          loseText: oc === 'walkover' ? '弃权' : oc === 'retired' ? '退赛' : '负',
-        },
+        m: boardOf(m, players),
       });
     } catch (e) {
       console.error(e);
-      this.setData({ loading: false, error: e.message || '加载失败' });
+      this.setData({ loading: false, ready: false, m: null, error: e.message || '加载失败' });
     }
   },
   toggleWhy() { this.setData({ whyOpen: !this.data.whyOpen }); },

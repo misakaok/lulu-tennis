@@ -72,6 +72,8 @@ function myOpenid() {
   if (!openidTask) openidTask = require('./member').status().then((r) => r.uid).finally(() => { openidTask = null; });
   return openidTask;
 }
+// 同步版：本机记着的用户 ID（24 小时内确认过身份才有），只用来先画页面，权限一律由云端判断
+const cachedOpenid = () => cacheGet('my_openid', '');
 
 /* ---------- 比赛 ---------- */
 // 活动里同一场改过比分时，旧记录不再计入战绩和水平分
@@ -297,7 +299,14 @@ async function fetchDrawDetail(id) {
   }
   cacheSet('my_profile', r.profile || '');
   r.draw = publicDraw(r.draw);
-  return r;
+  memo.put(detailKey(id), memo.ANY, r); // 录分页先用它画出来（只在内存、60 秒，任何写操作、下拉刷新都作废）
+  return memo.clone(r);
+}
+const detailKey = (id) => 'drawDetail:' + id;
+// 活动详情最近一次读到的结果（复制版）：从活动详情点进录分页时先用它显示，云端读完再更正；没有 / 过期返回 null
+function peekDrawDetail(id) {
+  const v = memo.peek(detailKey(id));
+  return v ? memo.clone(v) : null;
 }
 
 // 活动的写入都经云函数（服务端逐个字段校验；只有发起人能改）
@@ -379,7 +388,7 @@ module.exports = {
   myOpenid,
   fetchMatches, cachedMatches, cachedMatchesOrNull, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
-  getMyProfile, cachedProfile, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
+  getMyProfile, cachedProfile, cachedOpenid, saveMyProfile, setShown,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, peekDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

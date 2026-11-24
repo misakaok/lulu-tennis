@@ -72,29 +72,41 @@ Page({
       this.setData({ title: `${d.getMonth() + 1}月${d.getDate()}日 内部赛` }); // 默认填好当天的名称，可以改
       this.loadPlayers();
       this.loadRecentPlaces();
+      cloud.cached('listMembers').catch(() => {}); // 预读成员列表（内存里 60 秒）：点「先加入的球友」时选人弹层马上出来
     }
     this.refresh();
   },
 
+  // 修改活动规则：先用活动详情刚读到的活动（内存里 60 秒，db.peekDrawDetail）填好（2026-11-24 用户嫌打开慢），
+  //   云端读完内容没变就不动（免得冲掉正在改的），变了再重填。保存时云端照样核对 settingsVersion
   async loadSettings() {
+    const pre = db.peekDrawDetail(this.drawId);
+    if (pre && pre.draw && pre.draw.status === 'signup') { try { this.applySettings(pre.draw); } catch (e) { this.settingsSig = ''; } }
     try {
       const d = await db.getDraw(this.drawId);
       if (d.status !== 'signup') throw new Error('对阵生成后不能修改活动规则');
-      const { type } = E.cfgOf(d);
-      const rules = E.stageRules(d), cup = C.drawCupOf(d);
-      this.settingsVersion = d.settingsVersion || 0;
-      wx.setNavigationBarTitle({ title: '修改活动规则' });
-      this.setData({
-        title: d.title, mode: d.mode, size: d.size || 8, groupCount: d.groupCount || 4, advance: d.advance === 1 ? 1 : 2,
-        type, category: E.categoryOf(d), rules, byRound: Object.keys(rules.rounds).length > 0,
-        limit: d.limit || 0, limits: LIMITS[type], fixedRotation: E.isRotation(d),
-        cupOn: !!cup, cupKind: cup ? cup.kind : 'weekly', cupText: C.drawCupText(d),
-      });
-      this.refresh();
-      this.setData({ settingsLoading: false });
+      this.applySettings(d);
     } catch (e) {
       this.setData({ canPublish: false, settingsLoading: false, authError: e.message || '读取活动失败' });
     }
+  },
+  applySettings(d) {
+    const { type } = E.cfgOf(d);
+    const rules = E.stageRules(d), cup = C.drawCupOf(d);
+    const view = {
+      title: d.title, mode: d.mode, size: d.size || 8, groupCount: d.groupCount || 4, advance: d.advance === 1 ? 1 : 2,
+      type, category: E.categoryOf(d), rules, byRound: Object.keys(rules.rounds).length > 0,
+      limit: d.limit || 0, limits: LIMITS[type], fixedRotation: E.isRotation(d),
+      cupOn: !!cup, cupKind: cup ? cup.kind : 'weekly', cupText: C.drawCupText(d),
+    };
+    const sig = JSON.stringify([d.settingsVersion || 0, view]);
+    if (sig === this.settingsSig) return;
+    this.settingsSig = sig;
+    this.settingsVersion = d.settingsVersion || 0;
+    wx.setNavigationBarTitle({ title: '修改活动规则' });
+    this.setData(view);
+    this.refresh();
+    this.setData({ settingsLoading: false });
   },
 
   setPlayers(full) {
@@ -619,15 +631,20 @@ Page({
   //   （云端 adminAddSignup，按本人报名同一套规则校验组别、性别、重名、搭档，留档）；按选的顺序报名，名额满了的进候补。
   //   双打可以带搭档；改成单打 / 四人轮换时，选好的搭档拆成各自单独报名
   async openPre() {
-    if (this.data.saving) return;
+    if (this.data.saving || this.preBusy) return;
     if (!this.prePool) {
+      this.preBusy = true;
+      let shown = false; // 预读还没回来：过 0.3 秒还没好才提示（提示要在 toast 之前关掉，不然会把 toast 一起关掉）
+      const slow = setTimeout(() => { shown = true; wx.showLoading({ title: '读取成员' }); }, 300);
+      const done = () => { clearTimeout(slow); if (shown) wx.hideLoading(); this.preBusy = false; };
       try {
-        const { active } = await cloud.call('listMembers');
+        const { active } = await cloud.cached('listMembers'); // 进页面时预读过
         const G = require('../../utils/stats').GENDER;
         this.prePool = (active || []).filter((m) => m.uid && m.nickname)
           .map((m) => ({ uid: m.uid, name: m.nickname, g: G[m.gender] || '' }))
           .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-      } catch (e) { wx.showToast({ title: e.message || '读取成员失败', icon: 'none' }); return; }
+        done();
+      } catch (e) { done(); wx.showToast({ title: e.message || '读取成员失败', icon: 'none' }); return; }
     }
     this.prePlayer = null;
     const list = this.preFree();

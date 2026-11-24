@@ -7,6 +7,8 @@ const C = require('../utils/cup');
 
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
+// 页面里 cloud.cached / fresh / peek（内存缓存）在测试里都直接走 call
+const viaCall = (c) => Object.assign(c, { cached: (a, d) => c.call(a, d), fresh: (a, d) => c.call(a, d), peek: () => undefined });
 const ok = (r) => { assert.ok(r && r.ok, JSON.stringify(r)); return r; };
 const no = (r, re) => { assert.strictEqual(r && r.ok, false, '应该被拒绝：' + JSON.stringify(r)); if (re) assert.match(r.error, re); return r; };
 const read = (f) => fs.readFileSync(path.resolve(__dirname, '..', f), 'utf8');
@@ -378,7 +380,7 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   const people = [{ uid: 'alice', nickname: 'Alice', gender: 'f' }, { uid: 'bob', nickname: 'Bob', gender: 'm' }, { uid: 'carl', nickname: 'Carl', gender: 'm' }, { uid: 'x', nickname: '' }];
   const def = loadDef('pages/cup-edit/cup-edit.js', {
     '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
-    '../../utils/cloud': { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: people } : { status: 'published', how: 'publish' }; } },
+    '../../utils/cloud': viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: people } : { status: 'published', how: 'publish' }; } }),
   }, wx);
   const p = Object.assign({}, def, { data: plain(def.data), setData(o) { Object.assign(this.data, o); } });
   await p.onLoad({});
@@ -461,7 +463,7 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   await new Promise((r) => setImmediate(r));
   assert.strictEqual(calls.filter((c) => c[0] === 'cupSave').pop()[1].key, key, '再点一次发布还是同一站');
   // 不是管理员：直接打开也不能用
-  const def2 = loadDef('pages/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: false }) }, '../../utils/cloud': { call: async () => ({}) } }, wx);
+  const def2 = loadDef('pages/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: false }) }, '../../utils/cloud': viaCall({ call: async () => ({}) }) }, wx);
   const q = Object.assign({}, def2, { data: plain(def2.data), setData(o) { Object.assign(this.data, o); } });
   await q.onLoad({});
   assert.strictEqual(q.data.ok, false); assert.strictEqual(q.data.authError, '只有管理员可以补录积分');
@@ -475,7 +477,7 @@ test('补录页撤下：已发布的站「撤下这一站」、草稿「删除�
   const def = loadDef('pages/cup-edit/cup-edit.js', {
     '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
     '../../utils/pick': { reason: async (kind) => { calls.push(['pick', kind]); return answer; } },
-    '../../utils/cloud': { call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: [{ uid: 'alice', nickname: 'Alice' }, { uid: 'bob', nickname: 'Bob' }] } : action === 'cupList' ? { list: [published] } : { removed: true }; } },
+    '../../utils/cloud': viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: [{ uid: 'alice', nickname: 'Alice' }, { uid: 'bob', nickname: 'Bob' }] } : action === 'cupList' ? { list: [published] } : { removed: true }; } }),
   }, wx);
   const p = Object.assign({}, def, { data: plain(def.data), setData(o) { Object.assign(this.data, o); } });
   await p.onLoad({ id: 'stop20261122w' });
@@ -991,7 +993,7 @@ test('积分活动页面：创建页默认不计、周赛月赛自动切 8 签�
 
   // 详情页：只有管理员看到结算卡
   cupDraw(env, 'dw5');
-  const viaCloud = { call: async (a, d) => { const r = await asAdmin(env, a, d); if (!r.ok) throw new Error(r.error); return r; } };
+  const viaCloud = viaCall({ call: async (a, d) => { const r = await asAdmin(env, a, d); if (!r.ok) throw new Error(r.error); return r; } });
   const dv = loadDef('pages/draw-view/draw-view.js', { '../../utils/db': {}, '../../utils/cloud': viaCloud, '../../utils/pick': {}, '../../utils/share-card': {} }, {});
   const view = { id: 'dw5', d: env.coll('draws').dw5, items: schOf(env, 'dw5'), data: { cupBox: null }, setData(o) { Object.assign(this.data, plain(o)); }, loadCupBox: dv.loadCupBox };
   await view.loadCupBox(false);

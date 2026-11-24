@@ -173,7 +173,7 @@ test('比赛详情页：只给本人看自己参加的正式比赛；弃权、�
       '../../utils/cloud': { call: async () => ({ match: rows[id], status: id === 'pending' ? 'pending' : 'official' }) },
       '../../utils/db': {
         fetchPlayersFull: async () => players, cachedPlayersFull: () => players, myOpenid: async () => me,
-        fetchMatches: async () => official, cachedMatches: () => official,
+        matchesShared: async () => official, cachedMatches: () => official, cachedMatchesAll: () => [],
       },
     });
     p.id = id;

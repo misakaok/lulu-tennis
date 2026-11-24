@@ -26,7 +26,7 @@ Page({
   data: {
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     cupTag: '', cupBox: null, canEditCup: false, cupKindBusy: false, isRot: false, rotRounds: [],
-    signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
+    ready: false, signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null, adminSheet: null, adminBusy: false, // adminSheet：管理员代报名的选人弹层（components/member-sheet）
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
     schFilter: 'all', wdView: { entrants: [], rows: [] }, wdCount: 0, // 场次：全部 / 退赛／弃权
@@ -37,18 +37,29 @@ Page({
     this.id = options.id;
     // 从活动首页「我的下一场」进来：打开「场次」并定位到这一场（只定位一次，返回本页刷新时不再跳）
     if (options.tab === 'schedule') { this.setData({ tab: 'schedule' }); this.focusKey = decodeURIComponent(options.key || ''); }
+    this.preview();
   },
   onShow() { this.load(); }, // 从录分页 / 资料页 / 抽签页回来时刷新
   onUnload() { this.gone = true; clearTimeout(this.focusTimer); }, // 关闭后不再画分享封面
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
+  // 先用本机已有的数据画出来（活动列表的本机缓存 + 本机战绩），云端 drawDetail 读完再更正（2026-11-24 用户嫌打开慢）。
+  // 本机没有的（报名名单、退赛申请、积分结算）读完前不显示；报名 / 取消 / 生成对阵 / 删除这些按钮也等读完（ready）
+  preview() {
+    let d = null;
+    try { d = db.cachedDraws().find((x) => x && x._id === this.id) || null; } catch (e) { d = null; }
+    if (!d) return;
+    const me = db.cachedProfile();
+    try { this.show(d, db.cachedMatches(), me, db.cachedOpenid() || (me && me._openid) || '', null); } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
+  },
+
   async load() {
     try {
       // 活动、报名名单、我的资料、退赛申请：云函数 drawDetail 一次取齐
       const [bundle, all, myId] = await Promise.all([
         db.fetchDrawDetail(this.id),
-        db.fetchMatches().catch(() => db.cachedMatches()),
+        db.matchesShared().catch(() => db.cachedMatches()), // 共享版（只读，不复制）：这页只拿来算，不改动
         db.myOpenid().catch(() => ''),
       ]);
       let d, me, signups;
@@ -60,48 +71,63 @@ Page({
           db.fetchSignups(this.id).catch(() => []),
         ]);
       }
-      this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
-      d._id = d._id || this.id;
-      this.d = d;
-      this.allMatches = all;
-      wx.setNavigationBarTitle({ title: d.title || '活动' });
-      const signing = d.status === 'signup';
-      const cfg = E.cfgOf(d);
-      const n = (d.entrants || []).length;
-      const unit = cfg.type === 'double' && !E.isRotation(d) ? '队' : '人';
-      const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
-      // 种子名单（旧活动也一样）：单打「种子选手」、双打「种子队伍」，按顺序显示「1 号种子 张三」
-      const seedRows = (Array.isArray(d.seeds) ? d.seeds : []).filter((s) => typeof s === 'string' && s).map((name, i) => ({ no: i + 1, name }));
-      const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
-      const matches = all.filter((m) => m.drawId === this.id);
-      this.setData({
-        draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
-        formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
-      });
-      // 随机生成仍由发起人操作；管理员也可手动排对阵。
-      const isAdmin = require('../../utils/member').isAdminLocal();
-      const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
-      const canEditMatchups = isAdmin && !signing && !E.isRotation(d) && !matches.length &&
-        !Object.keys(d.results || {}).length && !(d.withdrawals || []).length;
-      this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups });
-      this.setData({ info: this.infoOf(d) });
-      if (signing) {
-        this.cupSeq = (this.cupSeq || 0) + 1;
-        this.setData({ canEditCup: isAdmin && !!C.drawCupOf(d), cupBox: null });
-        await this.loadSignups(d, all, bundle ? signups : null);
-      } else {
-        if (this.data.canEditCup) this.setData({ canEditCup: false });
-        this.shareCounts = { entrants: n, unit };
-        this.makeCover();
-        this.renderSchedule();
-        this.loadCupBox(isAdmin);
-        if (!bundle) this.loadRequests();
-        else if (bundle.requests) this.applyRequests(bundle.requests);
-      }
+      await this.show(d, all, me, myId, { bundle, signups });
+      this.loaded = true;
     } catch (e) {
       console.error(e);
-      this.setData({ error: '活动加载失败，可能已被删除' });
+      // 只画过本机缓存、云端没读到：不留着缓存的内容（可能已被删除）
+      this.setData(this.loaded ? { error: '活动加载失败，可能已被删除' } : { error: '活动加载失败，可能已被删除', draw: null, ready: false });
     }
+  },
+
+  // fresh：云端结果 { bundle, signups }；null 表示只是本机缓存的预览
+  async show(d, all, me, myId, fresh) {
+    const signups = fresh ? fresh.signups : [];
+    this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
+    d._id = d._id || this.id;
+    this.d = d;
+    this.allMatches = all;
+    wx.setNavigationBarTitle({ title: d.title || '活动' });
+    const signing = d.status === 'signup';
+    const cfg = E.cfgOf(d);
+    const n = (d.entrants || []).length;
+    const unit = cfg.type === 'double' && !E.isRotation(d) ? '队' : '人';
+    const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
+    // 种子名单（旧活动也一样）：单打「种子选手」、双打「种子队伍」，按顺序显示「1 号种子 张三」
+    const seedRows = (Array.isArray(d.seeds) ? d.seeds : []).filter((s) => typeof s === 'string' && s).map((name, i) => ({ no: i + 1, name }));
+    const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
+    const matches = all.filter((m) => m.drawId === this.id);
+    this.setData({
+      draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
+      formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
+    });
+    // 随机生成仍由发起人操作；管理员也可手动排对阵。
+    const isAdmin = require('../../utils/member').isAdminLocal();
+    const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
+    const canEditMatchups = isAdmin && !signing && !E.isRotation(d) && !matches.length &&
+      !Object.keys(d.results || {}).length && !(d.withdrawals || []).length;
+    this.setData({ isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups });
+    this.setData({ info: this.infoOf(d) });
+    if (!fresh) { // 预览：报名名单等云端；对阵和场次用本机战绩先画
+      if (!signing) this.renderSchedule(true);
+      return;
+    }
+    if (signing) {
+      this.cupSeq = (this.cupSeq || 0) + 1;
+      this.setData({ canEditCup: isAdmin && !!C.drawCupOf(d), cupBox: null });
+      await this.loadSignups(d, all, fresh.bundle ? signups : null);
+      // 管理员：顺手预读成员列表（内存里 60 秒），点「＋ 添加报名」时选人弹层马上出来
+      if (isAdmin && !this.membersAsked) { this.membersAsked = true; cloud.cached('listMembers').catch(() => {}); }
+    } else {
+      if (this.data.canEditCup) this.setData({ canEditCup: false });
+      this.shareCounts = { entrants: n, unit };
+      this.makeCover();
+      this.renderSchedule();
+      this.loadCupBox(isAdmin);
+      if (!fresh.bundle) this.loadRequests();
+      else if (fresh.bundle.requests) this.applyRequests(fresh.bundle.requests);
+    }
+    if (!this.data.ready) this.setData({ ready: true });
   },
 
   /* ---------- LULU 积分活动：管理员结算（全部场次结束后；云端 cupFromDraw / cupSave 再校验管理员和完赛） ---------- */
@@ -320,7 +346,7 @@ Page({
     if (!this.data.canEdit || !this.data.signing || this.data.adminBusy) return;
     this.setData({ adminBusy: true });
     try {
-      const { active } = await cloud.call('listMembers');
+      const { active } = await cloud.cached('listMembers'); // 进页面时预读过；60 秒内的就直接用（报名照样由云端按规则校验）
       const taken = new Set((this.signupRows || []).flatMap((s) => [s._openid, s.partnerId]).filter(Boolean));
       this.adminPool = (active || []).filter((m) => m.uid && m.nickname && !taken.has(m.uid))
         .map((m) => ({ uid: m.uid, name: m.nickname, g: S.GENDER[m.gender] || '' }))
@@ -427,7 +453,7 @@ Page({
   },
 
   /* ---------- 签表 / 赛程 ---------- */
-  renderSchedule() {
+  renderSchedule(preview) {
     const d = this.d, me = this.data.myName;
     const list = E.scheduleOf(d, this.data.matches);
     // 名字后面带性别（读个人资料，按账号找）；双打的队名和成员名对不上时只显示队名
@@ -472,13 +498,16 @@ Page({
       todo: items.filter((x) => x.mine && x.ready && !x.done).length,
       progress: p.champion ? `冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
     });
-    this.focusFixture();
+    this.focusFixture(preview);
   },
-  focusFixture() {
+  // preview：本机缓存画的，找不到这一场先不放弃，等云端读完再找一次
+  focusFixture(preview) {
     const key = this.focusKey;
     if (!key) return;
+    const found = (this.items || []).some((x) => x.key === key);
+    if (!found && preview) return;
     this.focusKey = '';
-    if (!(this.items || []).some((x) => x.key === key)) return;
+    if (!found) return;
     this.setData({ focus: key });
     setTimeout(() => { if (!this.gone) wx.pageScrollTo({ selector: '#sch-' + key, offsetTop: -24, duration: 300, fail() {} }); }, 50); // 等这次渲染完再滚
     this.focusTimer = setTimeout(() => { if (!this.gone) this.setData({ focus: '' }); }, 2400); // 高亮一会儿就恢复

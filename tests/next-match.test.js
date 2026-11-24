@@ -220,7 +220,7 @@ test('活动详情：从「我的下一场」进来打开「场次」页签并�
   const scrolled = [];
   const d = single();
   const v = load('pages/draw-view/draw-view.js', { setNavigationBarTitle() {}, pageScrollTo(o) { scrolled.push(o.selector); } }, {
-    '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: { name: '小明' }, signups: [] }), fetchMatches: async () => [rec('s1', '0-0', '小明', '阿杰', 'a')], myOpenid: async () => 'me', cachedPlayersFull: () => [] },
+    '../../utils/db': { fetchDrawDetail: async () => ({ draw: d, profile: { name: '小明' }, signups: [] }), matchesShared: async () => [rec('s1', '0-0', '小明', '阿杰', 'a')], myOpenid: async () => 'me', cachedPlayersFull: () => [] },
     '../../utils/member': { isAdminLocal: () => false },
   });
   v.onLoad({ id: 's1', tab: 'schedule', key: '1-0' });

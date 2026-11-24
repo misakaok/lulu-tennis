@@ -5,24 +5,40 @@ const E = require('../../utils/event');
 Page({
   data: { loading: true, error: '', title: '', value: null, saving: false },
 
-  onLoad(o) { this.id = o.id; this.load(); },
+  onLoad(o) { this.id = o.id; this.preview(); this.load(); },
+
+  // 从活动详情点「编辑」进来（2026-11-24 用户嫌打开慢）：本机 24 小时内确认过是管理员，就先用活动详情刚读到的活动
+  //   （内存里 60 秒，db.peekDrawDetail）填好表单；云端身份和活动读完后，内容没变就不动（免得冲掉正在改的），
+  //   变了再重填，不是管理员就收起。保存仍由云端 updateDrawInfo 校验
+  preview() {
+    const M = require('../../utils/member');
+    if (!M.knownActive() || !M.isAdminLocal()) return;
+    const pre = db.peekDrawDetail(this.id);
+    if (pre && pre.draw) this.fill(pre.draw, db.cachedOpenid());
+  },
 
   async load() {
     try {
       const [d, member] = await Promise.all([db.getDraw(this.id), require('../../utils/member').status()]);
-      const myId = member.uid;
-      const owner = !!myId && d._openid === myId;
       if (member.status !== 'active' || !member.isAdmin) throw new Error('只有管理员可以编辑活动');
-      if (!owner) wx.setNavigationBarTitle({ title: '编辑活动（管理员）' });
-      this.info = null;
-      this.setData({
-        loading: false, title: d.title || '',
-        value: { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, place: d.place || null, level: E.levelRangeOf(d.level) },
-      });
+      this.fill(d, member.uid);
     } catch (e) {
       console.error(e);
-      this.setData({ loading: false, error: e.message || '加载失败' });
+      this.shownSig = '';
+      this.setData({ loading: false, error: e.message || '加载失败', value: null });
     }
+  },
+
+  fill(d, myId) {
+    const owner = !!myId && d._openid === myId;
+    const title = d.title || '';
+    const value = { date: d.date, startTime: d.startTime || '', venue: d.venue || '', location: d.location || null, place: d.place || null, level: E.levelRangeOf(d.level) };
+    const sig = JSON.stringify([title, value, owner]);
+    if (sig === this.shownSig) return; // 和已经填好的一样：不重填
+    this.shownSig = sig;
+    wx.setNavigationBarTitle({ title: owner ? '编辑活动信息' : '编辑活动（管理员）' });
+    this.info = null;
+    this.setData({ loading: false, error: '', title, value });
   },
 
   onTitle(e) { this.setData({ title: e.detail.value }); },
