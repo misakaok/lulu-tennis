@@ -169,7 +169,7 @@ T.push({ name: '生涯成就徽章：每个徽章都有图标 images/badges/<id>
   assert.ok(/<image class="bd-img" src="\/images\/badges\/\{\{item\.id\}\}\.png" mode="aspectFit" \/>/.test(xml) && !/\{\{item\.icon\}\}/.test(xml));
   assert.ok(/\.bd\.off \.bd-img \{[^}]*grayscale/.test(css));
   // 还没有正式比赛：「我的」照样摆出徽章（都没达成），默认只露前 8 个，告诉本人第一个怎么拿；别人的主页不显示
-  assert.ok(/wx:if="\{\{mine && loaded && !view\.career\.has\}\}"/.test(xml) && /index < 8 \|\| allBadges/.test(xml) && /就能拿到「初登场」/.test(xml));
+  assert.ok(/wx:if="\{\{mine && \(loaded \|\| cached\) && !view\.career\.has\}\}"/.test(xml) && /index < 8 \|\| allBadges/.test(xml) && /就能拿到「初登场」/.test(xml));
   assert.strictEqual(C.career([], 'u1', '小林').badges.filter((b) => b.got).length, 0);
   // 「我的」入口图标用配图，不用 emoji
   const me = read('pages/me/me.wxml');
@@ -187,3 +187,24 @@ T.push({ name: '排行榜前三：金银铜奖牌图标 images/medal-1/2/3.png�
 } });
 
 module.exports = T;
+
+test('「我的」生涯成就空卡：本机有比赛缓存时马上显示（cached），不等云端；没有缓存（第一次打开）才等云端读完', async () => {
+  const run = async (cache) => {
+    let def;
+    let release;
+    const wait = new Promise((r) => { release = r; });
+    const db = {
+      cachedMatchesOrNull: () => cache, cachedProfiles: () => ({}), cachedPlayersFull: () => [],
+      playersShared: () => wait.then(() => []), matchesShared: () => wait.then(() => []), myOpenid: async () => 'u1', profilesOf: () => ({}),
+    };
+    const file = path.resolve(__dirname, '../components/player-home/player-home.js');
+    vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: (id) => (id === '../../utils/db' ? db : createRequire(file)(id)), Component: (d) => { def = d; }, console, wx: {} });
+    const c = Object.assign({}, def.methods, { data: Object.assign(JSON.parse(JSON.stringify(def.data)), { uid: 'u1', mine: true }), setData(o) { Object.assign(this.data, o); } });
+    const p = c.load();
+    const before = { cached: c.data.cached, loaded: c.data.loaded };
+    release(); await p;
+    return [before, c.data.loaded];
+  };
+  assert.deepStrictEqual(await run([]), [{ cached: true, loaded: false }, true], '有缓存（没有比赛）：云端还没回来就显示');
+  assert.deepStrictEqual(await run(null), [{ cached: false, loaded: false }, true], '没有缓存：等云端');
+});

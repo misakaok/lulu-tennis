@@ -171,6 +171,8 @@ const matchesShared = () => matchLists().then((r) => r.official);
 const matchesAllShared = () => matchLists().then((r) => r.all);
 const cachedMatchesAll = () => cacheGet('cache_matches_all', []).map(publicMatch);
 const cachedMatches = () => cacheGet('cache_matches_all', []).filter((m) => m.status !== 'pending').map(publicMatch);
+// 同上，但本机还没有缓存（第一次打开、24 小时没确认过身份）时返回 null：用来区分「确实没有比赛」和「还不知道」
+const cachedMatchesOrNull = () => { const a = cacheGet('cache_matches_all', null); return a ? a.filter((m) => m.status !== 'pending').map(publicMatch) : null; };
 
 function addMatch(data) {
   return db().collection('matches').add({ data: Object.assign({}, data, { createdAt: db().serverDate() }) });
@@ -375,7 +377,7 @@ async function cancelSignup(drawId) {
 
 module.exports = {
   myOpenid,
-  fetchMatches, cachedMatches, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
+  fetchMatches, cachedMatches, cachedMatchesOrNull, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles, fetchPlayers, cachedPlayers, addPlayer,
   getMyProfile, cachedProfile, saveMyProfile, setShown,
   fetchDraws, cachedDraws, getDraw, fetchDrawDetail, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,

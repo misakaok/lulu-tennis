@@ -110,6 +110,38 @@ test('「我的」页：球员卡和成员管理入口按本机记得的身份�
   assert.deepStrictEqual([c.data.myId, c.data.isAdmin], ['', false]);
 });
 
+test('「我的」页：LULU 积分卡先显示本机记着的上一次结果（同一账号、今年），云端读完再更正并记下；成长档案读完前只显示标题，读不到显示入口说明', async () => {
+  const year = new Date().getFullYear();
+  const cupOf = (single) => ({ year, any: true, single, double: '0', encounter: '', last: null });
+  const mk = (stored, deps = {}) => {
+    const saved = [];
+    const wx = { getStorageSync: (k) => (k === 'my_openid' ? 'alice' : k === 'cache_cup_mine' ? stored : ''), setStorage: (o) => saved.push(o), hideShareMenu() {} };
+    const p = load('pages/me/me.js', wx, 'Page', Object.assign({ '../../utils/member': { knownActive: () => true, isAdminLocal: () => false } }, deps));
+    return { p, saved };
+  };
+  const a = mk({ uid: 'alice', cup: cupOf('20') }).p; a.onLoad();
+  assert.deepStrictEqual(a.data.cup && a.data.cup.single, '20', '有本机结果：马上显示');
+  const b = mk({ uid: 'bob', cup: cupOf('20') }).p; b.onLoad();
+  assert.strictEqual(b.data.cup, null, '别的账号的不用');
+  const c = mk({ uid: 'alice', cup: Object.assign(cupOf('20'), { year: year - 1 }) }).p; c.onLoad();
+  assert.strictEqual(c.data.cup, null, '去年的不用');
+  // 云端读完：更正并记下
+  const list = [];
+  const { p: d, saved } = mk({ uid: 'alice', cup: cupOf('20') }, {
+    '../../utils/cloud': { cached: async () => ({ list }) }, '../../utils/db': { myOpenid: async () => 'alice' },
+  });
+  d.onLoad(); await d.loadCup();
+  assert.strictEqual(d.data.cup.any, false, '今年其实没有积分：更正');
+  assert.deepStrictEqual(plain(saved.pop()), { key: 'cache_cup_mine', data: { uid: 'alice', cup: plain(d.data.cup) } });
+  // 成长档案：读完前是 null（模板只显示标题）；读不到显示入口说明
+  const { p: g } = mk(null, { '../../utils/archive': { list: async () => { throw new Error('网络不好'); } } });
+  assert.strictEqual(g.data.gw, null);
+  await g.loadGrowth();
+  assert.deepStrictEqual(plain(g.data.gw), { played: 0 });
+  const xml = fs.readFileSync(path.join(__dirname, '../pages/me/me.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{gw && gw\.played\}\}"/.test(xml) && /wx:elif="\{\{gw\}\}"/.test(xml));
+});
+
 test('活动列表置顶：置顶的排最前（越晚置顶越靠前），带「置顶」标签；其余保持原顺序；「我的活动」同样', () => {
   const p = load('pages/draw/draw.js', { showToast() {} }, 'Page', {
     '../../utils/member': { knownActive: () => false, isAdminLocal: () => false },
@@ -494,14 +526,29 @@ test('补录活动：历史日期和手动调整后的签位原样保存，交�
   p.setData({ title: '上次活动' });
   p.refresh();
   p.doDraw(tap({ manual: 'yes' }));
+  const names = () => plain(p.data.preview.lines.map((line) => line.name || '轮空'));
+  assert.deepStrictEqual(names(), ['A', '轮空', 'B', 'C', 'D', 'E', 'F', 'G'], '起始：1 号种子优先轮空，其余按名单顺序');
   const place = (i, j) => p.setManualSlot({ ...tap({ i }), detail: { value: String(j) } });
   place(3, 0); // 把 A 放在第 4 个位置
-  place(1, 7); // 轮空换到第 2 个位置
+  place(2, 7); // 轮空换到第 3 个位置
   await p.save();
   assert.strictEqual(saved.date, '2026-11-21');
-  assert.deepStrictEqual(plain(saved.lines.map((line) => line.name || '轮空')), ['D', '轮空', 'C', 'A', 'E', 'F', 'G', 'B']);
+  assert.deepStrictEqual(plain(saved.lines.map((line) => line.name || '轮空')), ['C', 'B', '轮空', 'A', 'D', 'E', 'F', 'G']);
   assert.strictEqual(saved.lines[3].seed, 1);
-  assert.deepStrictEqual(plain(p.data.manualIndexes), [3, 7, 2, 0, 4, 5, 6, 1]);
+  assert.deepStrictEqual(plain(p.data.manualIndexes), [2, 1, 7, 0, 3, 4, 5, 6]);
+});
+
+test('手动排对阵的起始位置：轮空分散开（不会两个轮空碰在一起，也没有人连着两轮轮空直接进最后一轮），名字按名单顺序', () => {
+  const { p } = seedPage();
+  p.players = ['A', 'B', 'C', 'D', 'E'];
+  p.selected = p.players.slice();
+  p.seeds = [];
+  p.refresh();
+  p.doDraw(tap({ manual: 'yes' }));
+  const lines = p.data.preview.lines;
+  assert.strictEqual(lines.length, 8);
+  for (let i = 0; i < 8; i += 2) assert.ok(!(lines[i].bye && lines[i + 1].bye), '第一轮没有轮空对轮空');
+  assert.deepStrictEqual(plain(lines.filter((x) => x.name).map((x) => x.name)), ['A', 'B', 'C', 'D', 'E']);
 });
 
 test('种子队伍（双打按队设置）：按队伍点选和推荐，分组按蛇形分配', () => {

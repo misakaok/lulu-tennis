@@ -13,7 +13,7 @@ Component({
     uid: { type: String, value: '', observer: 'load' },
     mine: { type: Boolean, value: false }, // 「我的」页：不显示近期比赛（生涯成就里留一个「全部比赛」入口）
   },
-  data: { loaded: false, isSelf: false, view: null, recent: [], total: 0, allBadges: false, h2h: null },
+  data: { loaded: false, cached: false, isSelf: false, view: null, recent: [], total: 0, allBadges: false, h2h: null },
   lifetimes: { attached() { if (this.data.uid) this.load(); }, detached() { Anim.stop(this); } },
   pageLifetimes: { show() { if (this.loadedOnce) this.load(); } }, // 编辑资料后回来刷新
 
@@ -22,8 +22,14 @@ Component({
       const uid = this.data.uid;
       if (!uid) return;
       this.loadedOnce = true;
-      // 第一次打开（还没画过）先用本机缓存画出来；之后切回来不再读本机存储，直接用内存里的数据
-      if (this.viewUid !== uid) this.render(db.cachedProfiles(), db.cachedPlayersFull(), db.cachedMatches(), uid);
+      // 第一次打开（还没画过）先用本机缓存画出来；之后切回来不再读本机存储，直接用内存里的数据。
+      // 本机有比赛缓存时，「还没有正式比赛」的生涯成就卡也马上显示（cached），不用等云端（2026-11-24 用户嫌「我的」页这块出来慢）；
+      // 没有缓存（第一次打开）才等云端读完，免得有比赛的人先闪一下空卡
+      if (this.viewUid !== uid) {
+        const cm = db.cachedMatchesOrNull();
+        this.render(db.cachedProfiles(), db.cachedPlayersFull(), cm || [], uid);
+        if (cm && !this.data.cached) this.setData({ cached: true });
+      }
       try {
         // 共享数据（不复制，只读）：数据没变时是同一个数组，render 里比较引用就跳过
         const [players, matches, myId] = await Promise.all([

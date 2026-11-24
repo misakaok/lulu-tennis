@@ -29,7 +29,7 @@
       </view>
       <text class="me-go">›</text>
     </view>
-    <block wx:if="{{gw.played}}">
+    <block wx:if="{{gw && gw.played}}">
       <view class="gw-nums">
         <view class="gn"><text class="gn-n">{{gw.played}}</text><text class="gn-l">记录场数</text></view>
         <view class="gn"><text class="gn-n">{{gw.rate}}<text class="gn-u">%</text></text><text class="gn-l">胜率</text></view>
@@ -42,7 +42,7 @@
         </view>
       </view>
     </block>
-    <block wx:else>
+    <block wx:elif="{{gw}}">
       <view class="gw-empty">记录约球、练习赛，看自己的胜率和每月走势</view>
       <view class="btn-line gw-add" hover-class="tap-on" catchtap="addGrowth">记第一场</view>
     </block>

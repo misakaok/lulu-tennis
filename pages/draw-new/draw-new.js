@@ -531,8 +531,14 @@ Page({
           positions = groups.flatMap((g) => g.members);
           manualLabels = groups.flatMap((g) => g.members.map((_, i) => `${g.name} · ${i + 1}`));
         } else {
-          base.lines = sameEntrants && old.lines ? old.lines.map((s) => slot(s && s.name))
-            : Array.from({ length: D.nextPow2(base.size) }, (_, i) => slot(ents[i]));
+          // 第一次手动排：轮空和种子位置照随机生成的分布（轮空分散、种子优先轮空，不会两个轮空碰在一起、有人连着两轮轮空），
+          // 其余签位按名单顺序填，方便对照别的平台的对阵逐个调整
+          const fresh = () => {
+            const rest = ents.filter((x) => base.seeds.indexOf(x) < 0);
+            let k = 0;
+            return D.makeBracket(ents, base.seeds, base.size).map((s) => (s.bye || s.seed ? s : { name: rest[k++] }));
+          };
+          base.lines = sameEntrants && old.lines ? old.lines.map((s) => slot(s && s.name)) : fresh();
           positions = base.lines;
           manualLabels = positions.map((_, i) => `签位 ${i + 1}`);
         }

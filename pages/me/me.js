@@ -2,12 +2,13 @@
 // 不显示近期比赛（player-home 的 mine）；下面是只有自己看得到的：成长档案（带一个小摘要）、成员管理（管理员，放最下面）。
 const G = require('../../utils/growth');
 const C = require('../../utils/cup');
+const CUP_KEY = 'cache_cup_mine'; // 「我的 LULU 积分」卡上次的结果：{ uid, cup }
 
 const pad = (n) => (n < 10 ? '0' : '') + n;
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
 Page({
-  data: { myId: '', isAdmin: false, pendingApply: 0, gw: { played: 0 }, cup: null },
+  data: { myId: '', isAdmin: false, pendingApply: 0, gw: null, cup: null }, // gw：成长档案摘要，读完之前是 null（只显示标题，不先闪「记第一场」）
 
   // 球员卡（按 myId 显示）和成员管理入口先按本机记得的身份显示（24 小时内确认过），不等云端；load 拿到身份后再更正
   onLoad() {
@@ -16,7 +17,10 @@ Page({
     if (!M.knownActive()) return;
     let myId = '';
     try { myId = wx.getStorageSync('my_openid') || ''; } catch (e) {}
-    this.setData({ myId, isAdmin: M.isAdminLocal() });
+    // 我的 LULU 积分：先显示本机记着的上一次结果（同一账号、同一年），云端读完再更正（2026-11-24 用户嫌出来慢）
+    let cup = null;
+    try { const c = wx.getStorageSync(CUP_KEY); if (c && c.uid === myId && c.cup && c.cup.year === C.thisYear()) cup = c.cup; } catch (e) {}
+    this.setData(Object.assign({ myId, isAdmin: M.isAdminLocal() }, cup ? { cup } : {}));
   },
   onShow() { this.load(); this.loadGrowth(); this.loadCup(); },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存（管理员刚更正 / 撤下的积分也马上看到）
@@ -46,7 +50,10 @@ Page({
         single: n(m.single.total), double: n(m.double.total), encounter: m.encounter.stops ? n(m.encounter.total) : '',
         last: l ? { date: l.year === year ? l.date.slice(5) : l.date, kind: C.stopKindText(l), format: C.formatText(l.format), tier: C.tierText(l.tier), total: n(l.total), which: l.board, year: l.year } : null,
       };
-      if (JSON.stringify(cup) !== JSON.stringify(this.data.cup)) this.setData({ cup });
+      if (JSON.stringify(cup) !== JSON.stringify(this.data.cup)) {
+        this.setData({ cup });
+        try { wx.setStorage({ key: CUP_KEY, data: { uid: myId, cup }, fail() {} }); } catch (e) {} // 只存本人这张卡的几个数；退出成员身份时 clearProtected 清掉
+      }
     } catch (e) { console.error(e); }
   },
   openCup() {
@@ -62,7 +69,7 @@ Page({
       const s = G.summary(await require('../../utils/archive').list(), today());
       const gw = { played: s.played, rate: s.rate, month: s.thisMonth.played, trend: s.trend.map((t) => ({ ym: t.ym, label: t.label, h: t.played ? t.h : 0 })) };
       if (JSON.stringify(gw) !== JSON.stringify(this.data.gw)) this.setData({ gw });
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); if (!this.data.gw) this.setData({ gw: { played: 0 } }); } // 读不到：显示入口说明
   },
 
   async load() {
