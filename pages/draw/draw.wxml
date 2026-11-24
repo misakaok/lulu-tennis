@@ -30,7 +30,8 @@
 </view>
 
 <view class="page">
-  <view class="seg tabs">
+  <view class="seg tabs has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:33.3333%;transform:translateX({{(tab === 'all' ? 0 : tab === 'mine' ? 1 : 2) * 100}}%)"></view></view>
     <view class="seg-item {{tab === 'all' ? 'on' : ''}}" data-v="all" bindtap="setTab">全部活动</view>
     <view class="seg-item {{tab === 'mine' ? 'on' : ''}}" data-v="mine" bindtap="setTab">我的活动{{mineCount ? ' ' + mineCount : ''}}</view>
     <view class="seg-item {{tab === 'next' ? 'on' : ''}}" data-v="next" bindtap="setTab">我的下一场</view>
@@ -93,7 +94,7 @@
     <view class="d-body">
       <view class="d-top">
         <view class="d-title">{{item.title}}</view>
-        <text class="ui-tag {{item.status.cls}} d-status">{{item.status.text}}</text>
+        <view class="ui-tag {{item.status.cls}} d-status"><view wx:if="{{item.st === 'sign'}}" class="pulse"></view>{{item.status.text}}</view>
       </view>
       <view wx:if="{{item.pinnedAt || item.cupTag}}" class="d-cup">
         <text wx:if="{{item.pinnedAt}}" class="ui-tag solid d-pin">置顶</text><text wx:if="{{item.cupTag}}" class="ui-tag">{{item.cupTag}}</text>
@@ -104,6 +105,10 @@
           <text wx:for="{{item.roleTags}}" wx:key="*this" wx:for-item="t" class="d-role">{{t}}</text>
         </view>
         <text wx:if="{{item.champion}}" class="d-champ">冠军 {{item.champion}}</text>
+        <view wx:elif="{{item.progressShort}}" class="d-pb">
+          <view class="d-pb-track"><view class="d-pb-fill {{index < 8 ? 'ani-grow-x' : ''}}" style="width:{{item.progressPct}}%"></view></view>
+          <text class="d-pb-t num">{{item.progressShort}}</text>
+        </view>
         <text wx:elif="{{item.progress}}" class="d-prog">{{item.progress}}</text>
       </view>
     </view>

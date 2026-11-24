@@ -17,21 +17,21 @@
         <view class="hs {{m.winner === 'a' ? 'w' : 'l'}}">
           <view class="hs-avs"><pl-av wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
-          <view class="hs-badge {{m.winner === 'a' ? 'win ani-pop' : ''}}" style="animation-delay:220ms">{{m.winner === 'a' ? '胜' : m.loseText}}</view>
+          <view class="hs-badge {{m.winner === 'a' ? 'win ani-pop' : ''}}" style="animation-delay:460ms">{{m.winner === 'a' ? '胜' : m.loseText}}</view>
         </view>
         <view class="hero-mid">
-          <view class="hero-big num ani-score"><text class="{{m.winner === 'a' ? '' : 'dim'}}">{{m.bigA}}</text><text class="colon">:</text><text class="{{m.winner === 'b' ? '' : 'dim'}}">{{m.bigB}}</text></view>
+          <view class="hero-big num ani-score" style="animation-delay:240ms"><text class="{{m.winner === 'a' ? '' : 'dim'}}">{{m.bigA}}</text><text class="colon">:</text><text class="{{m.winner === 'b' ? '' : 'dim'}}">{{m.bigB}}</text></view>
           <view class="hero-sub">{{m.bigLbl}}</view>
         </view>
         <view class="hs {{m.winner === 'b' ? 'w' : 'l'}}">
           <view class="hs-avs"><pl-av wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
-          <view class="hs-badge {{m.winner === 'b' ? 'win ani-pop' : ''}}" style="animation-delay:220ms">{{m.winner === 'b' ? '胜' : m.loseText}}</view>
+          <view class="hs-badge {{m.winner === 'b' ? 'win ani-pop' : ''}}" style="animation-delay:460ms">{{m.winner === 'b' ? '胜' : m.loseText}}</view>
         </view>
       </view>
       <!-- 每盘比分 -->
       <view wx:if="{{m.showSets}}" class="hero-sets">
-        <view wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="hset ani-in" style="animation-delay:{{120 + index * 60}}ms">
+        <view wx:for="{{m.sets}}" wx:key="index" wx:for-item="s" class="hset ani-in" style="animation-delay:{{320 + index * 75}}ms">
           <view class="hset-l">第 {{index + 1}} 盘</view>
           <view class="hset-v num"><text class="{{s.aw ? 'on' : ''}}">{{s.a}}</text><text wx:if="{{s.tbA !== ''}}" class="tb">{{s.tbA}}</text><text class="hset-c">-</text><text class="{{s.bw ? 'on' : ''}}">{{s.b}}</text><text wx:if="{{s.tbB !== ''}}" class="tb">{{s.tbB}}</text></view>
         </view>

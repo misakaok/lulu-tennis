@@ -130,8 +130,16 @@ test('全局动效类：弹出 / 记分 / 高光 / 升起都有等待态；高�
     props.forEach((x) => assert.ok(x === 'transform' || x === 'opacity', k));
   });
   const rank = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
-  assert.match(rank, /class="pod r\{\{item\.rank\}\} [^"]*" style="animation-delay:\{\{item\.rank === 1 \? 260 : item\.rank === 2 \? 150 : 60\}\}ms"/);
-  assert.match(rank, /class="pod-base \{\{play \? 'ani-grow-y' : 'ani-wait-y'\}\}"/);
+  const D = "\\{\\{item\\.rank === 1 \\? 340 : item\\.rank === 2 \\? 200 : 80\\}\\}ms";
+  assert.match(rank, new RegExp('class="pod r\\{\\{item\\.rank\\}\\} [^"]*" style="animation-delay:' + D + '"'));
+  assert.match(rank, new RegExp(`class="pod-base \\{\\{play \\? 'ani-grow-y' : 'ani-wait-y'\\}\\} \\{\\{play \\? 'ani-sheen' : ''\\}\\}" style="animation-delay:` + D + '"'));
+  assert.match(rank, /class="medal-img \{\{play \? 'ani-pop' : 'ani-wait-pop'\}\}" style="animation-delay:\{\{item\.rank === 1 \? 580 : item\.rank === 2 \? 440 : 320\}\}ms"/);
+  // 高光只给冠军台
+  const rcss = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxss'), 'utf8');
+  assert.ok(/\.r2 \.pod-base::after, \.r3 \.pod-base::after \{ display: none; \}/.test(rcss));
+  // 呼吸光点：外圈放大淡出，只动 transform / opacity（上面的 keyframes 检查也覆盖）
+  assert.match(css, /@keyframes ani-pulse \{ 0% \{ opacity: 0\.7; transform: scale\(1\); \} 100% \{ opacity: 0; transform: scale\(2\.2\); \} \}/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'pages', 'draw', 'draw.wxml'), 'utf8'), /<view wx:if="\{\{item\.st === 'sign'\}\}" class="pulse"><\/view>\{\{item\.status\.text\}\}/);
   // .bg-host 卡片的第一个子元素仍是 .bg-img（高光不插子元素）
   ['pages/index/index.wxml', 'pages/match/match.wxml', 'components/player-home/player-home.wxml'].forEach((f) => {
     const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
@@ -157,6 +165,64 @@ test('触觉反馈 utils/haptic.js：没有 wx、没有 vibrateShort、调用抛
     H.light(); H.medium();
     assert.deepStrictEqual(got, ['light', 'medium']);
   } finally { if (had) global.wx = old; else delete global.wx; }
+});
+
+test('滑动胶囊：活动首页、排行（两处）、积分榜、战绩筛选都用同一个滑块，宽度按项数等分、按选中项平移；滑块只过渡 transform', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  const css = read('app.wxss');
+  const thumb = css.match(/\n\.seg-thumb \{([^}]*)\}/)[1];
+  assert.ok(/transition: transform 0\.34s cubic-bezier\(0\.34, 1\.36, 0\.64, 1\);/.test(thumb) && !/transition:[^;]*(left|width|background)/.test(thumb));
+  assert.ok(/\.seg\.has-thumb \.seg-item \{[^}]*background: transparent;/.test(css), '选中项本身不再画白底');
+  const want = [
+    ['pages/draw/draw.wxml', "width:33.3333%;transform:translateX({{(tab === 'all' ? 0 : tab === 'mine' ? 1 : 2) * 100}}%)"],
+    ['pages/rank/rank.wxml', "width:50%;transform:translateX({{view === 'cup' ? 100 : 0}}%)"],
+    ['pages/rank/rank.wxml', "width:33.3333%;transform:translateX({{(filter === 'single' ? 1 : filter === 'double' ? 2 : 0) * 100}}%)"],
+    ['components/cup-board/cup-board.wxml', 'width:{{100 / boards.length}}%;transform:translateX({{whichIdx * 100}}%)'],
+    ['pages/index/index.wxml', "width:33.3333%;transform:translateX({{(filter === 'single' ? 1 : filter === 'double' ? 2 : 0) * 100}}%)"],
+  ];
+  want.forEach(([f, style]) => {
+    const x = read(f);
+    assert.ok(x.indexOf('<view class="seg-track"><view class="seg-thumb" style="' + style + '"></view></view>') >= 0, f + ' ' + style);
+  });
+  // 积分榜：切换时滑块位置跟着选中项
+  const Module = require('module');
+  const vm = require('vm');
+  let def;
+  const file = path.join(__dirname, '..', 'components/cup-board/cup-board.js');
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: (id) => (/utils\/(cloud|db)$/.test(id) ? {} : Module.createRequire(file)(id)), Component: (d) => { def = d; }, console, setTimeout: () => 0, wx: {} });
+  const c = Object.assign({}, def.methods, { data: JSON.parse(JSON.stringify(def.data)), setData(o) { Object.assign(this.data, o); }, render() {} });
+  c.setWhich({ currentTarget: { dataset: { v: 'encounter' } } });
+  assert.strictEqual(c.data.whichIdx, c.data.boards.findIndex((b) => b.value === 'encounter'));
+  c.setWhich({ currentTarget: { dataset: { v: 'single' } } });
+  assert.strictEqual(c.data.whichIdx, 0);
+});
+
+test('活动首页卡片：进行中的活动有进度条（已完成场数 / 总场数，四舍五入成百分比），报名中、已出冠军的没有', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const vm = require('vm');
+  const Module = require('module');
+  const E = require('../utils/event');
+  const file = path.join(__dirname, '..', 'pages/draw/draw.js');
+  let def;
+  vm.runInNewContext(fs.readFileSync(file, 'utf8'), { require: (id) => (/utils\/db$/.test(id) ? {} : Module.createRequire(file)(id)), Page: (d) => { def = d; }, console, setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {}, wx: {}, getCurrentPages: () => [] });
+  const p = Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(o) { Object.assign(this.data, o); } });
+  const drawn = { _id: 'b1', title: '周六单打', mode: 'bracket', size: 4, status: 'drawn', date: '2026-11-20', entrants: ['小明', '阿杰', '小周', '小林'], lines: [{ name: '小明' }, { name: '阿杰' }, { name: '小周' }, { name: '小林' }] };
+  const sign = { _id: 'b2', title: '报名中', mode: 'bracket', size: 4, status: 'signup', date: '2026-11-30', entrants: [] };
+  p.draws = [drawn, sign]; p.matches = []; p.signups = []; p.myId = '';
+  p.render();
+  const pr = E.progressOf(drawn, []);
+  assert.ok(pr.total > 0);
+  const v = p.list.find((x) => x._id === 'b1');
+  assert.strictEqual(v.progressPct, Math.round((pr.done / pr.total) * 100));
+  assert.strictEqual(v.progressShort, pr.done + '/' + pr.total + ' 场');
+  assert.strictEqual(v.st, 'play');
+  const s = p.list.find((x) => x._id === 'b2');
+  assert.deepStrictEqual([s.progressShort, s.st], ['', 'sign']);
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'pages/draw/draw.wxml'), 'utf8');
+  assert.ok(/<view wx:elif="\{\{item\.progressShort\}\}" class="d-pb">[\s\S]*?style="width:\{\{item\.progressPct\}\}%"[\s\S]*?<text class="d-pb-t num">\{\{item\.progressShort\}\}<\/text>/.test(xml));
 });
 
 module.exports = T;

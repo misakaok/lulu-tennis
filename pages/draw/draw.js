@@ -19,12 +19,14 @@ function toView(d, matches, myId, signed) {
   const isG = d.mode === 'groups';
   const signing = d.status === 'signup';
   const cfg = E.cfgOf(d);
-  let champion = '', progress = '', finished = false;
+  let champion = '', progress = '', finished = false, progressPct = 0, progressShort = '';
   if (!signing) {
     const p = E.progressOf(d, matches);
     champion = p.champion;
     finished = !!champion || (p.total > 0 && p.done === p.total);
     if (!champion) progress = p.total && p.done === p.total ? `全部 ${p.total} 场已完赛` : `已完成 ${p.done}/${p.total} 场`;
+    // 卡片底部的细进度条：已完成场数 / 总场数（没有场次、已出冠军的不画）
+    if (!champion && p.total > 0) { progressPct = Math.round((p.done / p.total) * 100); progressShort = p.done + '/' + p.total + ' 场'; }
   }
   const role = roleOf(d, myId, signed);
   // 我和活动的关系（状态另外显示在右上角，这里不再重复「已结束」）
@@ -50,7 +52,7 @@ function toView(d, matches, myId, signed) {
     day: dayOf(d.date),
     status: signing ? { text: '报名中', cls: 'lime' } : finished ? { text: '已结束', cls: '' } : { text: '进行中', cls: 'solid' },
     st: signing ? 'sign' : finished ? 'done' : 'play', // 日期块色带：报名中黄绿 / 进行中淡紫 / 已结束灰
-    champion, progress, isG,
+    champion, progress, progressPct, progressShort, isG,
   };
 }
 

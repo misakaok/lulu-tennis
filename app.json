@@ -31,7 +31,7 @@
     "navigationBarBackgroundColor": "#A3A3CB",
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "LULU 网球",
-    "backgroundColor": "#F6F6FA",
+    "backgroundColor": "#F0F0F7",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {

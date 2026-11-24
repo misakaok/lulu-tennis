@@ -1,5 +1,6 @@
 <view class="cup">
-  <view class="seg cup-seg">
+  <view class="seg cup-seg has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:{{100 / boards.length}}%;transform:translateX({{whichIdx * 100}}%)"></view></view>
     <view wx:for="{{boards}}" wx:key="value" class="seg-item {{which === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setWhich">{{item.label}}</view>
   </view>
   <scroll-view wx:if="{{years.length > 1}}" scroll-x class="cup-years" enhanced show-scrollbar="{{false}}">

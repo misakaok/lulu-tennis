@@ -20,7 +20,7 @@
     </view>
     <view wx:if="{{me.recent.length}}" class="mine-form">
       <text class="mf-l">最近 {{me.recent.length}} 场</text>
-      <view wx:for="{{me.recent}}" wx:key="i" class="mf {{item.w ? 'w' : ''}} {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{200 + index * 45}}ms">{{item.w ? '胜' : '负'}}</view>
+      <view wx:for="{{me.recent}}" wx:key="i" class="mf {{item.w ? 'w' : ''}} {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{240 + index * 55}}ms">{{item.w ? '胜' : '负'}}</view>
     </view>
   </view>
   <view wx:else class="mine club bg-host">
@@ -33,8 +33,9 @@
   </view>
 
   <view class="filters">
-    <view class="chips">
-      <view wx:for="{{types}}" wx:key="value" class="fc {{filter === item.value ? 'on' : ''}}"
+    <view class="seg has-thumb chips">
+      <view class="seg-track"><view class="seg-thumb" style="width:33.3333%;transform:translateX({{(filter === 'single' ? 1 : filter === 'double' ? 2 : 0) * 100}}%)"></view></view>
+      <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
         data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
     </view>
     <input class="search" placeholder="搜索球员" placeholder-class="search-ph" value="{{who}}" bindinput="onSearch" confirm-type="search" />
@@ -48,7 +49,7 @@
 
   <block wx:for="{{groups}}" wx:key="date" wx:for-item="g" wx:for-index="gi">
     <view class="date">{{g.label}}</view>
-    <view wx:for="{{g.items}}" wx:key="_id" class="mc {{gi * 2 + index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{gi * 2 + index < 10 ? (gi * 2 + index) * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
+    <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}} {{gi * 2 + index < 10 ? (play ? 'ani-in' : 'ani-wait') : ''}}" style="animation-delay:{{gi * 2 + index < 10 ? (gi * 2 + index) * 50 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
       <view class="mc-meta">
         <text class="mc-type">{{item.typeText}}</text>
         <text wx:if="{{item.eventText}}" class="mc-ev">{{item.eventText}}</text>

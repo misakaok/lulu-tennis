@@ -31,6 +31,7 @@
 .d-date {
   flex: none; width: 112rpx; border-radius: 20rpx; background: #F3F3F8; overflow: hidden;
   display: flex; flex-direction: column; align-items: center;
+  border: 1rpx solid rgba(132, 132, 182, 0.16); box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.7); /* 台历块：细边 + 顶部受光 */
 }
 .d-band { width: 100%; text-align: center; font-size: 20rpx; font-weight: 700; line-height: 1.6; padding: 4rpx 0; color: #fff; background: linear-gradient(155deg, #A3A3CB, #8484B6); }
 .d-date.sign .d-band { background: #C9E33A; color: #2E3600; }
@@ -52,9 +53,18 @@
 .d-role { font-size: 21rpx; line-height: 1.6; padding: 0 12rpx; border-radius: 8rpx; margin-right: 10rpx; color: #6E6EA3; border: 1rpx solid #C9C9E0; }
 .d-champ { flex: none; margin-left: 16rpx; font-size: 24rpx; font-weight: 700; color: #2E3600; background: #C9E33A; border-radius: 16rpx; padding: 0 14rpx; line-height: 1.6; }
 .d-prog { flex: none; margin-left: 16rpx; font-size: 22rpx; color: #70708C; }
+/* 进行中：细进度槽 + 淡紫到黄绿的填充 + 等宽数字 */
+.d-pb { flex: none; display: flex; align-items: center; margin-left: 16rpx; }
+.d-pb-track { width: 128rpx; height: 6rpx; border-radius: 3rpx; background: #E6E6F0; overflow: hidden; }
+.d-pb-fill { height: 100%; border-radius: 3rpx; background: linear-gradient(90deg, #A3A3CB, #C9E33A); }
+.d-pb-t { margin-left: 12rpx; font-size: 22rpx; font-weight: 700; color: #6E6EA3; }
+/* 已结束但没有冠军的活动（分组循环 / 四人轮换）：进度条和数字一并压淡，突出进行中的活动 */
+.draw.done .d-pb-fill { background: #C5C5D6; }
+.draw.done .d-pb-t { color: #84849E; font-weight: 600; }
+.d-status { display: inline-flex; align-items: center; }
 
 /* 我的下一场：开打时间用记分牌式大数字，待定用灰色 */
-.nx { padding: 28rpx 28rpx 24rpx; border-left: 8rpx solid #A3A3CB; }
+.nx { padding: 28rpx 28rpx 24rpx; border-left: 8rpx solid #A3A3CB; background: linear-gradient(180deg, #F4F4FB, #fff 70%); } /* 顶部一层极淡冷紫 */
 .nx-head { display: flex; align-items: baseline; flex-wrap: wrap; }
 .nx-title { font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #323252; word-break: break-all; margin-right: 16rpx; }
 .nx-stage { font-size: 24rpx; color: #6E6EA3; font-weight: 600; }

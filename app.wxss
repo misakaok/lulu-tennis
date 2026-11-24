@@ -10,7 +10,7 @@
  *   红色：危险操作（撤销 / 作废 / 删除）和警示文字统一砖红 #b34d4d；未读数字角标 #D45B5B；其他状态不用红
  */
 page {
-  background: #F6F6FA;
+  background: #F0F0F7; /* 冷雾灰：和白卡拉开层次 */
   color: #2E2E4A;
   font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
   font-size: 28rpx;
@@ -30,16 +30,23 @@ page {
   padding: 30rpx;
   margin-bottom: 24rpx;
   /* 空气感白卡：极细冷紫描边 + 双层阴影（近处收边、远处轻轻散开） */
-  border: 1rpx solid rgba(132, 132, 182, 0.10);
-  box-shadow: 0 2rpx 8rpx rgba(80, 80, 140, 0.04), 0 12rpx 32rpx rgba(80, 80, 140, 0.06);
+  border: 1rpx solid rgba(132, 132, 182, 0.14);
+  box-shadow: 0 4rpx 12rpx rgba(84, 84, 146, 0.06), 0 16rpx 36rpx rgba(84, 84, 146, 0.09);
 }
 .card-title { font-size: 32rpx; font-weight: 700; margin-bottom: 20rpx; color: #323252; }
 .card-title .sub { font-size: 22rpx; color: #70708C; font-weight: 400; margin-left: 12rpx; }
 .label { font-size: 26rpx; color: #6C6C86; }
 
-.seg { display: flex; background: #EFEFF6; border-radius: 24rpx; padding: 6rpx; }
+.seg { display: flex; background: #E9E9F4; border-radius: 24rpx; padding: 6rpx; } /* 底色比页面（#F0F0F7）深一档，凹槽看得出来 */
 .seg-item { flex: 1; text-align: center; padding: 14rpx 0; border-radius: 20rpx; font-size: 26rpx; color: #5C5C76; }
 .seg-item.on { background: #fff; color: #6E6EA3; font-weight: 600; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06); }
+/* 滑动胶囊：选中的白底是一块单独的滑块，用 transform 平移过去（带一点回弹），不跳变。
+   写法：<view class="seg has-thumb"><view class="seg-track"><view class="seg-thumb" style="width:50%;transform:translateX({{idx * 100}}%)"/></view> + 各个 .seg-item</view>
+   宽度按项数等分（2 项 50%、3 项 33.3333%）；translateX 的百分比按滑块自己的宽度算，正好一格一格对齐。没改造的 .seg 照旧 */
+.seg.has-thumb { position: relative; background: #E9E9F4; }
+.seg-track { position: absolute; left: 6rpx; right: 6rpx; top: 6rpx; bottom: 6rpx; pointer-events: none; z-index: 0; }
+.seg-thumb { height: 100%; border-radius: 18rpx; background: #fff; box-shadow: 0 4rpx 14rpx rgba(80, 80, 140, 0.14), 0 1rpx 3rpx rgba(80, 80, 140, 0.06); transition: transform 0.34s cubic-bezier(0.34, 1.36, 0.64, 1); }
+.seg.has-thumb .seg-item { position: relative; z-index: 1; background: transparent; box-shadow: none; }
 
 .avatar {
   width: 72rpx; height: 72rpx; border-radius: 50%;
@@ -100,7 +107,8 @@ page {
  *   .ani-grow-x  横向进度条从 0 拉开；.ani-grow-y 柱子从底部长出来
  *   hover-class="tap-on"      按钮、卡片按下时略微缩小
  *   hover-class="tap-row-on"  卡片里的行按下时变淡（行不缩放）
- *   .ani-pop     奖牌、胜负标签、最近几场胜负球轻轻弹出来（0.68 → 1.06 → 1）
+ *   .ani-pop     奖牌、胜负标签、最近几场胜负球轻轻弹出来（0.55 → 1.1 → 1）
+ *   .pulse       「报名中」标签里的呼吸光点（外圈 ::after 放大淡出，一直循环；只给报名中这一种状态用）
  *   .ani-score   记分牌大比分聚焦落位
  *   .ani-sheen   紫色头卡入场时一道高光扫过，只播一次、停在看不见（用 ::after 画，不往卡片里加子元素，
  *                不影响 .bg-host 的第一个子元素 .bg-img；宿主卡片不要再用 ::after）
@@ -111,7 +119,8 @@ page {
 @keyframes ani-in { from { opacity: 0; transform: translateY(20rpx) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes ani-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-@keyframes ani-pop { 0% { opacity: 0; transform: scale(0.68); } 60% { opacity: 1; transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes ani-pop { 0% { opacity: 0; transform: scale(0.55); } 60% { opacity: 1; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes ani-pulse { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(2.2); } }
 @keyframes ani-score { from { opacity: 0; transform: translateY(8rpx) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes ani-sheen { 0% { opacity: 0; transform: translateX(-100%); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(100%); } }
 .ani-in { animation: ani-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
@@ -121,14 +130,17 @@ page {
 .ani-grow-y { transform-origin: center bottom; animation: ani-grow-y 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-wait-y { transform-origin: center bottom; transform: scaleY(0); }
 .ani-pop { animation: ani-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
-.ani-wait-pop { opacity: 0; transform: scale(0.68); }
+.ani-wait-pop { opacity: 0; transform: scale(0.55); }
 .ani-score { animation: ani-score 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ani-sheen { position: relative; overflow: hidden; }
 .ani-sheen::after {
   content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 1; opacity: 0;
-  background: linear-gradient(105deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.22) 50%, rgba(255, 255, 255, 0) 70%);
+  background: linear-gradient(112deg, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0.16) 40%, rgba(255, 255, 255, 0.42) 50%, rgba(255, 255, 255, 0.16) 58%, rgba(255, 255, 255, 0) 70%);
   animation: ani-sheen 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
 }
+/* 呼吸光点：实心小圆 + 外圈放大淡出（用 <view class="pulse">，不用 <text>，避免小程序 wx-text 下空节点或 ::after 不显示） */
+.pulse { position: relative; flex: none; display: inline-block; width: 12rpx; height: 12rpx; margin-right: 8rpx; border-radius: 50%; background: #5E7A00; }
+.pulse::after { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 50%; background: #5E7A00; animation: ani-pulse 2.2s ease-out infinite; }
 /* 按下缩小、松手回弹：过渡写在元素本身上，松手时也有过渡（只写在 .tap-on 上松手会一下跳回去） */
 .card, .btn-primary, .btn-line, .btn-danger { transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease; }
 .tap-on { transform: scale(0.97); opacity: 0.86; transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease; }

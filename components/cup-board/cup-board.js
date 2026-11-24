@@ -16,7 +16,7 @@ Component({
     tick: { type: Number, value: 0, observer() { if (this.ready) this.load(); } }, // 排行页 onShow / 下拉刷新时加一，重新读取
   },
   data: {
-    loading: true, error: '', admin: false, which: 'single', boards: C.BOARDS, year: 0, years: [],
+    loading: true, error: '', admin: false, which: 'single', whichIdx: 0, boards: C.BOARDS, year: 0, years: [],
     rows: [], stops: [], drafts: [], open: '', openStop: '', meHidden: false,
   },
   lifetimes: {
@@ -80,7 +80,7 @@ Component({
       const me = this.prof[this.myId];
       this.setData({ rows, stops, drafts, meHidden: meIn && !!me && me.shown !== true });
     },
-    setWhich(e) { if (e.currentTarget.dataset.v !== this.data.which) haptic.light(); this.setData({ which: e.currentTarget.dataset.v, open: '', openStop: '' }); this.render(); },
+    setWhich(e) { if (e.currentTarget.dataset.v !== this.data.which) haptic.light(); this.setData({ which: e.currentTarget.dataset.v, whichIdx: Math.max(0, this.data.boards.findIndex((b) => b.value === e.currentTarget.dataset.v)), open: '', openStop: '' }); this.render(); },
     setYear(e) { if (Number(e.currentTarget.dataset.v) !== this.data.year) haptic.light(); this.setData({ year: Number(e.currentTarget.dataset.v), open: '', openStop: '' }); this.render(); },
     toggleRow(e) { const k = e.currentTarget.dataset.key; this.setData({ open: this.data.open === k ? '' : k }); },
     toggleStop(e) { const k = e.currentTarget.dataset.id; this.setData({ openStop: this.data.openStop === k ? '' : k }); },

@@ -6,15 +6,23 @@
 .medal-img { display: block; width: 64rpx; height: 64rpx; margin-bottom: 4rpx; }
 .r1 .medal-img { width: 76rpx; height: 76rpx; }
 .avatar.big { width: 100rpx; height: 100rpx; font-size: 40rpx; border: 5rpx solid #fff; box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.1); }
-.r1 .avatar.big { width: 124rpx; height: 124rpx; font-size: 48rpx; box-shadow: 0 0 0 6rpx rgba(201, 227, 58, 0.32), 0 8rpx 20rpx rgba(110, 110, 163, 0.18); } /* 第 1 名：淡黄绿外光环 */
+.r1 .avatar.big { width: 124rpx; height: 124rpx; font-size: 48rpx; box-shadow: 0 0 0 5rpx #C9E33A, 0 12rpx 28rpx rgba(110, 110, 163, 0.28); } /* 第 1 名：白内环（头像白边）+ 黄绿外环 */
 /* 名字长时换到第二行（最多两行，居中），不在第一行就截成省略号 */
 .pod-name { font-size: 28rpx; font-weight: 700; margin-top: 12rpx; max-width: 200rpx; text-align: center; line-height: 1.35; word-break: break-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .pod-rec { font-size: 22rpx; color: #70708C; margin: 4rpx 0 12rpx; }
 .pod-base {
+  position: relative; overflow: hidden;
   width: 100%; border-radius: 20rpx 20rpx 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: #fff; background: linear-gradient(180deg, #B3B3D6, #8484B6);
+  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.45), 0 12rpx 26rpx rgba(110, 110, 163, 0.22); /* 顶面受光 + 投影：像立着的台子 */
 }
-.r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #C2C2E0, #8484B6); }
+/* 冠军台：顶部一条黄绿光带、更有纵深的渐变；高光只给冠军台，压轴扫过 */
+.r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #B9B9DF, #7D7DB3); border-top: 5rpx solid #C9E33A; }
+.r1 .pod-base.ani-sheen::after { animation-delay: 0.55s; }
+.r2 .pod-base::after, .r3 .pod-base::after { display: none; }
+/* 底座右下角的大号名次水印 */
+.pod-wm { position: absolute; right: 8rpx; bottom: -16rpx; font-size: 92rpx; font-weight: 900; color: rgba(255, 255, 255, 0.13); line-height: 1; pointer-events: none; z-index: 0; }
+.pod-rate, .pod-lbl { position: relative; z-index: 1; }
 .r2 .pod-base { height: 130rpx; }
 .r3 .pod-base { height: 100rpx; }
 .pod-rate { font-size: 40rpx; font-weight: 800; color: #fff; }
@@ -52,7 +60,7 @@
 /* 赛季筛选 */
 .top-seg { margin-bottom: 18rpx; }
 .season-row { white-space: nowrap; margin-bottom: 14rpx; }
-.season { display: inline-block; font-size: 24rpx; color: #6C6C86; background: #EFEFF6; border-radius: 24rpx; padding: 8rpx 24rpx; margin-right: 14rpx; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.season { display: inline-block; font-size: 24rpx; color: #6C6C86; background: #E9E9F4; border-radius: 24rpx; padding: 8rpx 24rpx; margin-right: 14rpx; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .season.on { color: #fff; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); }
 
 /* 性别（个人资料里填了才显示） */

@@ -1,12 +1,14 @@
 <view class="page">
   <!-- 水平排行（正式战绩）/ LULU 积分（管理员按最终名次补录，单独存储，见 components/cup-board） -->
-  <view class="seg view-seg">
+  <view class="seg view-seg has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:50%;transform:translateX({{view === 'cup' ? 100 : 0}}%)"></view></view>
     <view class="seg-item {{view === 'level' ? 'on' : ''}}" data-v="level" bindtap="setView">水平排行</view>
     <view class="seg-item {{view === 'cup' ? 'on' : ''}}" data-v="cup" bindtap="setView">LULU 积分</view>
   </view>
   <cup-board wx:if="{{view === 'cup'}}" tick="{{cupTick}}" bind:shown="openShown" bind:loaded="onCupLoaded" />
   <block wx:else>
-  <view class="seg top-seg">
+  <view class="seg top-seg has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:33.3333%;transform:translateX({{(filter === 'single' ? 1 : filter === 'double' ? 2 : 0) * 100}}%)"></view></view>
     <view wx:for="{{types}}" wx:key="value" class="seg-item {{filter === item.value ? 'on' : ''}}"
       data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
   </view>
@@ -35,13 +37,14 @@
 
   <!-- 前三名领奖台 -->
   <view wx:if="{{top.length}}" class="podium {{top.length >= 3 ? '' : 'few'}}">
-    <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}} {{play ? 'ani-in' : 'ani-wait'}}" style="animation-delay:{{item.rank === 1 ? 260 : item.rank === 2 ? 150 : 60}}ms" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapPlayer">
-      <image class="medal-img {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{item.rank === 1 ? 460 : item.rank === 2 ? 350 : 260}}ms" src="/images/medal-{{item.rank}}.png" mode="aspectFit" />
+    <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}} {{play ? 'ani-in' : 'ani-wait'}}" style="animation-delay:{{item.rank === 1 ? 340 : item.rank === 2 ? 200 : 80}}ms" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapPlayer">
+      <image class="medal-img {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{item.rank === 1 ? 580 : item.rank === 2 ? 440 : 320}}ms" src="/images/medal-{{item.rank}}.png" mode="aspectFit" />
       <pl-av class="avatar big" uid="{{item.uid}}" name="{{item.name}}" />
       <view class="pod-name">{{item.name}}</view>
       <view wx:if="{{item.gender}}" class="pod-g">{{item.gender}}</view>
       <view class="pod-rec">{{item.win}}胜 {{item.lose}}负</view>
-      <view class="pod-base {{play ? 'ani-grow-y' : 'ani-wait-y'}}" style="animation-delay:{{item.rank === 1 ? 260 : item.rank === 2 ? 150 : 60}}ms">
+      <view class="pod-base {{play ? 'ani-grow-y' : 'ani-wait-y'}} {{play ? 'ani-sheen' : ''}}" style="animation-delay:{{item.rank === 1 ? 340 : item.rank === 2 ? 200 : 80}}ms">
+        <text class="pod-wm num">0{{item.rank}}</text>
         <text class="pod-rate num {{board ? 'sm' : ''}}">{{item.mainText}}</text>
         <text class="pod-lbl">{{item.mainLbl}}</text>
       </view>
