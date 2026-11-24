@@ -121,6 +121,13 @@ test('页面接入：战绩、排行的入场动画类都随 play 切换，并�
   });
   const idx = fs.readFileSync(path.join(__dirname, '..', 'pages', 'index', 'index.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{me\}\}" class="mine bg-host ani-sheen"/.test(idx), '「我的战绩」卡高光只扫一次，不随 play 重播');
+  // 比赛卡片列表不做入场动画（2026-11-25 用户要求取消），只保留按下回弹
+  assert.ok(/class="mc win-\{\{item\.winner\}\}" hover-class="tap-on"/.test(idx), '战绩页比赛卡片不要入场动画');
+  // 排行榜表格（名次行、胜率条）也不做动画（2026-11-25 用户要求取消），领奖台照旧
+  const rkw = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
+  assert.ok(/class="tr \{\{item\.key === myKey \? 'me' : ''\}\}" hover-class/.test(rkw), '排行榜表格行不要入场动画');
+  assert.ok(/class="rate-fill" style/.test(rkw), '胜率条不要生长动画');
+  assert.ok(!/\.rate-fill \{[^}]*transition/.test(fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxss'), 'utf8')), '胜率条不要宽度过渡');
   // 球拍页切 tab 回来不重播（2026-11-25 用户觉得动画太多，只还原战绩、排行）
   const rk = path.join(__dirname, '..', 'pages', 'racket', 'racket');
   assert.ok(!/\bplay\b|ani-wait/.test(fs.readFileSync(rk + '.wxml', 'utf8')));
@@ -169,10 +176,10 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
     props.forEach((x) => assert.ok(x === 'transform' || x === 'opacity', k));
   });
   const rank = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
-  const D = "\\{\\{item\\.rank === 1 \\? 420 : item\\.rank === 2 \\? 250 : 100\\}\\}ms";
+  const D = "\\{\\{item\\.rank === 1 \\? 600 : item\\.rank === 2 \\? 360 : 140\\}\\}ms";
   assert.match(rank, new RegExp('class="pod r\\{\\{item\\.rank\\}\\} [^"]*" style="animation-delay:' + D + '"'));
   assert.match(rank, new RegExp(`class="pod-base \\{\\{play \\? 'ani-grow-y' : 'ani-wait-y'\\}\\} \\{\\{play \\? 'ani-sheen' : ''\\}\\}" style="animation-delay:` + D + '"'));
-  assert.match(rank, /class="medal-img \{\{play \? 'ani-pop' : 'ani-wait-pop'\}\}" style="animation-delay:\{\{item\.rank === 1 \? 720 : item\.rank === 2 \? 550 : 400\}\}ms"/);
+  assert.match(rank, /class="medal-img \{\{play \? 'ani-pop' : 'ani-wait-pop'\}\}" style="animation-delay:\{\{item\.rank === 1 \? 1040 : item\.rank === 2 \? 800 : 580\}\}ms"/);
   // 高光只给冠军台
   const rcss = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxss'), 'utf8');
   assert.ok(/\.r2 \.pod-base::after, \.r3 \.pod-base::after \{ display: none; \}/.test(rcss));
