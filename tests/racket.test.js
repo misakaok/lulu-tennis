@@ -141,7 +141,7 @@ test('云函数：删除球拍连同记录一起删；清除全部只清本人�
 
 test('页面：我的球拍各页不能分享，没有文字输入框（费用只能填数字），只经 utils/rackets.js 读写', () => {
   const fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
-  for (const p of ['pages/racket/racket', 'pages/racket-view/racket-view', 'pages/racket-edit/racket-edit', 'pages/racket-log/racket-log']) {
+  for (const p of ['pages/racket/racket', 'pkg-tools/racket-view/racket-view', 'pkg-tools/racket-edit/racket-edit', 'pkg-tools/racket-log/racket-log']) {
     const js = fs.readFileSync(path.join(root, p + '.js'), 'utf8');
     const xml = fs.readFileSync(path.join(root, p + '.wxml'), 'utf8');
     const cfg = JSON.parse(fs.readFileSync(path.join(root, p + '.json'), 'utf8'));
@@ -327,12 +327,12 @@ test('云函数：使用记录只属于本人；分钟数严格校验；编辑�
 
 test('页面：球拍详情可以记 / 改 / 删使用记录（只经 utils/rackets.js），编辑页有时长提醒且默认关闭', () => {
   const fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
-  const vjs = fs.readFileSync(path.join(root, 'pages/racket-view/racket-view.js'), 'utf8');
-  const vxml = fs.readFileSync(path.join(root, 'pages/racket-view/racket-view.wxml'), 'utf8');
+  const vjs = fs.readFileSync(path.join(root, 'pkg-tools/racket-view/racket-view.js'), 'utf8');
+  const vxml = fs.readFileSync(path.join(root, 'pkg-tools/racket-view/racket-view.wxml'), 'utf8');
   for (const fn of ['playAdd', 'playOpen', 'playSave', 'playRemove']) assert.ok(new RegExp(`bindtap="${fn}"`).test(vxml), fn);
   assert.ok(/API\.saveLog\(/.test(vjs) && /API\.removeLog\(/.test(vjs) && /kind: 'play'/.test(vjs));
   assert.ok(/<input\b[^>]*type="number"[^>]*bindinput="playMinutes"/.test(vxml), '分钟数只能填数字');
-  const ejs = fs.readFileSync(path.join(root, 'pages/racket-edit/racket-edit.js'), 'utf8');
+  const ejs = fs.readFileSync(path.join(root, 'pkg-tools/racket-edit/racket-edit.js'), 'utf8');
   assert.ok(/hours: 0 \}\); return;/.test(ejs), '新球拍默认关闭');
   assert.ok(/hours: K\.REMIND_HOURS\[d\.hi\]/.test(ejs), '保存时总是带上 hours（0 = 关闭）');
   assert.strictEqual(K.REMIND_HOURS[0], 0);
@@ -476,21 +476,21 @@ test('球拍详情：本机记着的球拍列表里有这支拍就直接画出�
   const L2 = { id: 'l2', racketId: 'r1', kind: 'maint', date: '2026-11-10', item: 'overgrip', cost: 15 };
   k.store[k.API.KEY] = { uid: 'alice', rackets: [R1, R2], logs: [L1] };
   k.state.reply = { rackets: [R1, R2], logs: [L1, L2] };
-  const p = k.page('pages/racket-view/racket-view.js');
+  const p = k.page('pkg-tools/racket-view/racket-view.js');
   p.onLoad({ id: 'r1' });
   assert.deepStrictEqual([p.data.loading, p.data.r && p.data.r.no, p.data.shown.length], [false, 1, 1], '第一帧就有这支拍和上次的记录');
   p.onShow();
   await tickR();
   assert.strictEqual(p.data.shown.length, 2, '云端读完更正');
   k.state.fail = new Error('网络异常');
-  const q = k.page('pages/racket-view/racket-view.js');
+  const q = k.page('pkg-tools/racket-view/racket-view.js');
   q.onLoad({ id: 'r1' });
   q.onShow();
   await tickR();
   assert.deepStrictEqual([q.data.error, q.data.loading], ['', false]);
   assert.deepStrictEqual(k.toasts, ['网络异常，显示的是上次的记录']);
   // 本机没有这支拍（别的手机上刚加的）：先空着等云端，失败整页提示
-  const r = k.page('pages/racket-view/racket-view.js');
+  const r = k.page('pkg-tools/racket-view/racket-view.js');
   r.onLoad({ id: 'r9' });
   assert.strictEqual(r.data.loading, true);
   r.onShow();
@@ -509,6 +509,35 @@ test('球拍页顶部卡片：一支球拍都没有时不显示底部那行（�
   assert.ok(!/class="card rk [^"]*"[^>]*hover-class="tap-on"/.test(xml), '球拍卡片点击直接进详情，不做缩放抖动');
   assert.ok(/\.page::before \{[^}]*#A3A3CB 0%/.test(css) && /rgba\(56, 54, 108, 0\.16\)/.test(css), '顶部柔紫幕与烟熏冷紫毛玻璃底条');
   assert.ok(/\.ball-add\.bouncing \.ball-btn \{[^}]*ani-ball-jump/.test(css) && /\.ball-add\.bouncing \.ball-sh \{[^}]*ani-ball-shadow/.test(css) && /\.ball-add\.bouncing \.ball-rk \{[^}]*ani-rk-juggle/.test(css), '拍面颠球按钮原地弹跳且球影、球拍同步颠球');
+  assert.ok(/class="card eq-card"/.test(xml) && /装备统计/.test(xml), '球拍列表页展示装备年度花费与换线统计卡');
+});
+
+test('装备年度花费与换线 / 断线周期统计（K.yearlyStats）：拆解穿线与维护花费、计算相邻穿线平均天数与时长、统计断线与常用球线', () => {
+  const rs = [
+    { id: 'r1', no: 1, brand: 'wilson', model: 'Clash', status: 'active' },
+    { id: 'r2', no: 2, brand: 'yonex', model: 'Percept', status: 'active' },
+  ];
+  const logs = [
+    { id: 'l0', racketId: 'r1', kind: 'string', date: '2025-12-20', main: { brand: 'luxilon', model: 'ALU Power' }, mains: 50, crosses: 50, cost: 150, tags: [] },
+    { id: 'l1', racketId: 'r1', kind: 'string', date: '2026-01-10', main: { brand: 'luxilon', model: 'ALU Power' }, mains: 50, crosses: 50, cost: 160, tags: ['断线了'] },
+    { id: 'l2', racketId: 'r1', kind: 'play', date: '2026-01-10', minutes: 120 }, // 穿线当天算新线
+    { id: 'l3', racketId: 'r1', kind: 'play', date: '2026-01-20', minutes: 180 },
+    { id: 'l4', racketId: 'r1', kind: 'string', date: '2026-02-10', main: { brand: 'yonex', model: 'Poly Tour Pro' }, mains: 48, crosses: 48, cost: 120, tags: ['断线了'] },
+    { id: 'l5', racketId: 'r2', kind: 'maint', date: '2026-03-01', item: 'overgrip', cost: 25 },
+    { id: 'l6', racketId: 'r2', kind: 'play', date: '2026-03-02', minutes: 90 },
+  ];
+  const st = K.yearlyStats(rs, logs, '2026-11-25');
+  assert.strictEqual(st.year, '2026');
+  assert.deepStrictEqual([st.stringCost, st.maintCost, st.yearCost, st.allCost], [280, 25, 305, 455]);
+  assert.deepStrictEqual([st.yearStrings, st.yearMaints, st.yearPlayMin, st.yearPlayHours], [2, 1, 390, '6.5']);
+  assert.deepStrictEqual([st.brokenYear, st.brokenAll], [2, 2]);
+  // r1 两次相邻间隔：2025-12-20 → 2026-01-10 (21 天)、2026-01-10 → 2026-02-10 (31 天) → 平均 26 天；期间时长只有第二段有 300 分钟 = 5h
+  assert.deepStrictEqual([st.avgDays, st.avgHours], [26, '5']);
+  assert.deepStrictEqual(st.topString, { name: 'Luxilon ALU Power', count: 2 });
+  assert.strictEqual(st.hasData, true);
+  // 空记录
+  const empty = K.yearlyStats(rs, [], '2026-11-25');
+  assert.deepStrictEqual([empty.yearCost, empty.avgDays, empty.avgHours, empty.topString, empty.hasData], [0, null, '', null, false]);
 });
 
 test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；中途切走页面取消跳转', async () => {
@@ -530,7 +559,7 @@ test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；�
     assert.strictEqual(nav.length, 0, '弹跳期间还没跳页');
     await clock.wait(330);
     assert.strictEqual(p.data.bouncing, false);
-    assert.deepStrictEqual(nav, ['/pages/racket-edit/racket-edit']);
+    assert.deepStrictEqual(nav, ['/pkg-tools/racket-edit/racket-edit']);
     // 中途切走页面：取消定时器、不误跳页
     p.add();
     p.onHide();

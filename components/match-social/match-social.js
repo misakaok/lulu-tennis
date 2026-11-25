@@ -58,10 +58,10 @@ Component({
       const st = this.data.st;
       // 活动比赛在赛程里改（自动沿用本场规则）；日常比赛到修改页
       if (st.drawId) wx.navigateTo({ url: `/pages/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
-      else wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=edit` });
+      else wx.navigateTo({ url: `/pkg-manage/correct/correct?matchId=${this.data.matchId}&mode=edit` });
     },
-    adminFix() { if (!this.isPreview()) wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
-    requestChange() { if (!this.isPreview()) wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
+    adminFix() { if (!this.isPreview()) wx.navigateTo({ url: `/pkg-manage/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
+    requestChange() { if (!this.isPreview()) wx.navigateTo({ url: `/pkg-manage/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
     async act(action, data, okText) {
       if (this.data.busy) return null; // 防重复点击（云函数里还有原子领取，重复处理只会生效一次）
       this.setData({ busy: true });

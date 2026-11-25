@@ -60,7 +60,7 @@ Page({
     const l = this.data.cup && this.data.cup.last;
     // 今年有积分就看今年；今年没有、但以前有：直接打开最近一站那一年
     const year = this.data.cup && !this.data.cup.any && l ? l.year : C.thisYear();
-    wx.navigateTo({ url: `/pages/cup-mine/cup-mine?year=${year}&which=${l && l.year === year ? l.which : 'single'}` });
+    wx.navigateTo({ url: `/pkg-manage/cup-mine/cup-mine?year=${year}&which=${l && l.year === year ? l.which : 'single'}` });
   },
 
   // 成长档案摘要：只有本人的记录（云函数按 OPENID 读，内存缓存 60 秒）；读不到就显示入口说明
@@ -84,8 +84,11 @@ Page({
   openMembers() { // 先发出成员列表的实时读取（成员管理页 cloud.fresh 接过去，不发两次），利用页面切换的时间
     const cloud = require('../../utils/cloud');
     if (cloud.prefetch) cloud.prefetch('listMembers');
-    wx.navigateTo({ url: '/pages/members/members' });
+    wx.navigateTo({ url: '/pkg-manage/members/members' });
   },
-  openGrowth() { wx.navigateTo({ url: '/pages/growth/growth' }); },
-  addGrowth() { wx.navigateTo({ url: '/pages/growth-edit/growth-edit' }); },
+  openGrowth() { wx.navigateTo({ url: '/pkg-manage/growth/growth' }); },
+  addGrowth() { wx.navigateTo({ url: '/pkg-manage/growth-edit/growth-edit' }); },
+  openScorer() { wx.navigateTo({ url: '/pkg-tools/scorer/scorer' }); },
+  openAA() { wx.navigateTo({ url: '/pkg-tools/aa/aa' }); },
+  openMixer() { wx.navigateTo({ url: '/pkg-tools/mixer/mixer' }); },
 });

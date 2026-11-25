@@ -178,7 +178,7 @@ test('拒绝后主动选照片、地图选点、复制：微信按原有流程�
   PV.copyFail({ errMsg: 'setClipboardData:fail privacy permission is not authorized', errno: 104 });
   PV.copyFail({ errMsg: 'setClipboardData:fail' });
   assert.deepStrictEqual(b.log, ['toast:未同意隐私保护指引，已停止这次操作', 'toast:没有复制成功，请重试']);
-  ['pages/gate/gate.js', 'pages/members/members.js'].forEach((f) => {
+  ['pages/gate/gate.js', 'pkg-manage/members/members.js'].forEach((f) => {
     const s = fs.readFileSync(path.join(root, f), 'utf8');
     const calls = s.match(/wx\.setClipboardData\(\{[^\n]*/g) || [];
     assert.ok(calls.length && calls.every((c) => /fail: copyFail/.test(c)), f + '：每次复制都处理失败');

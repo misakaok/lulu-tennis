@@ -198,14 +198,14 @@ test('内存缓存 peek / put：有效期内同步取到，过期、正在读、
 test('成员管理：60 秒内读到过成员列表（活动详情 / 创建页给管理员预读过）就先显示，再实时读一次更正', async () => {
   const fresh = later();
   const old = { active: [{ uid: 'a', nickname: 'Ann', gender: 'f' }], pending: [], others: [], candidates: [] };
-  const v = load('pages/members/members.js', { showModal() {} }, { '../../utils/cloud': { peek: (a) => (a === 'listMembers' ? old : undefined), fresh: () => fresh.p } });
+  const v = load('pkg-manage/members/members.js', { showModal() {} }, { '../../utils/cloud': { peek: (a) => (a === 'listMembers' ? old : undefined), fresh: () => fresh.p } });
   const loading = v.load();
   assert.strictEqual(v.data.loading, false); assert.strictEqual(v.data.activeList.length, 1);
   fresh.ok({ active: old.active.concat([{ uid: 'b', nickname: 'Bob', gender: '' }]), pending: [], others: [], candidates: [] });
   await loading;
   assert.strictEqual(v.data.activeList.length, 2); assert.strictEqual(v.data.noGender, 1);
   // 没有读到过：照旧等
-  const w = load('pages/members/members.js', { showModal() {} }, { '../../utils/cloud': { peek: () => undefined, fresh: () => new Promise(() => {}) } });
+  const w = load('pkg-manage/members/members.js', { showModal() {} }, { '../../utils/cloud': { peek: () => undefined, fresh: () => new Promise(() => {}) } });
   w.load();
   assert.strictEqual(w.data.loading, true);
 });
@@ -227,13 +227,13 @@ test('活动详情：管理员打开报名中的活动顺手预读成员列表�
   await u.load();
   assert.strictEqual(asked.length, 1, '不是管理员不预读');
   assert.ok(read('pages/draw-view/draw-view.wxml').indexOf("{{adminBusy ? '读取成员…' : '＋ 添加报名'}}") >= 0);
-  assert.ok(/cloud\.cached\('listMembers'\)/.test(read('pages/draw-new/draw-new.js')), '创建页也预读');
+  assert.ok(/cloud\.cached\('listMembers'\)/.test(read('pkg-manage/draw-new/draw-new.js')), '创建页也预读');
 });
 
 test('编辑活动信息：本机记得是管理员就先用活动详情刚读到的活动填好；云端一样不重填（不冲掉正在改的），不是管理员就收起', async () => {
   const mk = (known, member, draw) => {
     const st = later(), got = later();
-    const p = load('pages/event-edit/event-edit.js', { setNavigationBarTitle() {} }, {
+    const p = load('pkg-manage/event-edit/event-edit.js', { setNavigationBarTitle() {} }, {
       '../../utils/db': { peekDrawDetail: () => ({ draw: signupDraw() }), cachedOpenid: () => 'boss', getDraw: () => got.p },
       '../../utils/member': { knownActive: () => known, isAdminLocal: () => known, status: () => st.p },
     });
@@ -259,7 +259,7 @@ test('修改活动规则：先用活动详情刚读到的活动填好；云端�
   const mk = (fresh) => {
     const got = later();
     const draw = { _id: 'd1', title: '周六约球', mode: 'groups', groupCount: 2, type: 'single', status: 'signup', settingsVersion: 3, limit: 8 };
-    const p = load('pages/draw-new/draw-new.js', { setNavigationBarTitle() {} }, { '../../utils/db': { peekDrawDetail: () => ({ draw }), getDraw: () => got.p } });
+    const p = load('pkg-manage/draw-new/draw-new.js', { setNavigationBarTitle() {} }, { '../../utils/db': { peekDrawDetail: () => ({ draw }), getDraw: () => got.p } });
     p.drawId = 'd1'; p.selected = []; p.seeds = []; p.players = [];
     p.setData({ editingSettings: true, settingsLoading: true });
     const t = p.loadSettings();
@@ -561,7 +561,7 @@ test('match-social：预览态挂上后紧接着的第一次 onShow 不再发 ma
   assert.ok(before.preview && !c.data.st.preview && c.data.st.canAdminFix === false, '按云端结果更正');
   assert.strictEqual(n, 0);
   c.edit();
-  assert.deepStrictEqual(nav, ['/pages/correct/correct?matchId=m1&mode=edit'], '拿到云端结果后按钮照常');
+  assert.deepStrictEqual(nav, ['/pkg-manage/correct/correct?matchId=m1&mode=edit'], '拿到云端结果后按钮照常');
   c.show(); await tick();
   assert.strictEqual(n, 1, '从改分页回来照常刷新');
 });
@@ -596,7 +596,7 @@ test('点比赛卡片预读 matchState：比赛详情第一次读取接过去（
   assert.strictEqual((await c.db.fetchMatchState('m1')).n, 11);
   delete global.wx;
   // 三个入口都在跳转前预读
-  [['pages/index/index.js', '  openMatch(e)'], ['pages/history/history.js', '  openMatch(e)'], ['components/player-home/player-home.js', '    openMatch(e)']].forEach(([f, head]) => {
+  [['pages/index/index.js', '  openMatch(e)'], ['pkg-manage/history/history.js', '  openMatch(e)'], ['components/player-home/player-home.js', '    openMatch(e)']].forEach(([f, head]) => {
     const src = read(f);
     const body = src.slice(src.indexOf(head), src.indexOf('},', src.indexOf(head)));
     assert.ok(/db\.prefetchMatchState\(id\);\s*wx\.navigateTo\(\{ url: '\/pages\/match\/match\?id=' \+ id \}\)/.test(body), f);
@@ -664,7 +664,7 @@ function correctPage(rec, over) {
     fetchPlayersFull: async () => { calls.push('fetchPlayersFull'); return []; },
     getDraw: async () => { calls.push('getDraw'); return null; }, peekDrawDetail: () => null,
   }, over || {});
-  const p = load('pages/correct/correct.js', { setNavigationBarTitle() {} }, { '../../utils/db': db, '../../utils/cloud': {} });
+  const p = load('pkg-manage/correct/correct.js', { setNavigationBarTitle() {} }, { '../../utils/db': db, '../../utils/cloud': {} });
   return { p, got, calls };
 }
 test('改分页：先用本机战绩这一场画出表单；云端一样不重画（不冲掉正在改的局分），变了才重画；活动规则先用活动详情刚读到的', async () => {
@@ -698,7 +698,7 @@ test('改分页：先用本机战绩这一场画出表单；云端一样不重�
 
 test('我的积分：60 秒内读过的 cupList 或积分榜存在本机的上次结果（只认同一账号）第一帧就画；云端读不到时保留画面、只轻提示', async () => {
   const toasts = [];
-  const mk = (peek, stored, cached) => load('pages/cup-mine/cup-mine.js', { hideShareMenu() {}, getStorageSync: (k) => (k === 'cache_cup_board' ? stored : undefined), showToast: (o) => toasts.push(o.title) }, {
+  const mk = (peek, stored, cached) => load('pkg-manage/cup-mine/cup-mine.js', { hideShareMenu() {}, getStorageSync: (k) => (k === 'cache_cup_board' ? stored : undefined), showToast: (o) => toasts.push(o.title) }, {
     '../../utils/cloud': { peek: (a) => (a === 'cupList' ? peek : undefined), cached: () => cached.p },
     '../../utils/db': { cachedOpenid: () => 'me', cachedPlayersFull: () => [], profilesOf: () => ({}), playersShared: async () => [], myOpenid: async () => 'me' },
   });
@@ -721,26 +721,26 @@ test('成长档案：从「我的」进来用 60 秒内存里的私人记录第�
   const arch = read('utils/archive.js');
   assert.ok(/cloud\.peek\('growthList'\)/.test(arch) && !/Storage/.test(arch.replace(/\/\/.*$/gm, '')), 'archive 不读写本机存储');
   // 本机只记「上次用的局制」（growth_rules，输入习惯），不存任何记录
-  ['pages/growth/growth.js', 'pages/growth-edit/growth-edit.js'].forEach((f) => {
+  ['pkg-manage/growth/growth.js', 'pkg-manage/growth-edit/growth-edit.js'].forEach((f) => {
     const calls = read(f).match(/[sg]etStorage(Sync)?\([^)]*\)/g) || [];
     assert.ok(calls.every((c) => /\(CFG_KEY/.test(c)), f + '：' + calls.join(' '));
   });
-  assert.ok(/const CFG_KEY = 'growth_rules'/.test(read('pages/growth-edit/growth-edit.js')));
+  assert.ok(/const CFG_KEY = 'growth_rules'/.test(read('pkg-manage/growth-edit/growth-edit.js')));
   const rec = { id: 'g1', date: '2026-11-20', type: 'single', kind: 'practice', result: 'win', setGames: 4, noAd: true, bestOf: 1, sets: [{ a: 4, b: 2 }], tags: [], createdAt: 1 };
   const listed = later();
   let lists = 0;
   const A = { peek: () => [rec], list: () => { lists++; return listed.p; } };
-  const g = load('pages/growth/growth.js', { hideShareMenu() {} }, {
+  const g = load('pkg-manage/growth/growth.js', { hideShareMenu() {} }, {
     '../../utils/archive': A,
     '../../utils/db': { cachedOpenid: () => '', myOpenid: () => new Promise(() => {}), playersShared: async () => [], matchesShared: async () => [] },
   });
   g.onLoad(); g.onShow();
   assert.deepStrictEqual([g.data.loading, g.data.has, g.data.groups.length], [false, true, 1], '第一帧就有记录');
   assert.strictEqual(lists, 1, '照常读云端静默更正');
-  const e = load('pages/growth-edit/growth-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {} }, { '../../utils/archive': A });
+  const e = load('pkg-manage/growth-edit/growth-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {} }, { '../../utils/archive': A });
   e.onLoad({ id: 'g1' });
   assert.deepStrictEqual([e.data.ready, e.data.date, lists], [true, '2026-11-20', 1], '编辑：内存里有这条直接填好，不再读');
-  const f = load('pages/growth-edit/growth-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {} }, { '../../utils/archive': { peek: () => null, list: () => { lists++; return new Promise(() => {}); } } });
+  const f = load('pkg-manage/growth-edit/growth-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {} }, { '../../utils/archive': { peek: () => null, list: () => { lists++; return new Promise(() => {}); } } });
   f.onLoad({ id: 'g1' });
   assert.deepStrictEqual([f.data.ready, lists], [false, 2], '内存里没有：照旧读');
 });
@@ -765,16 +765,16 @@ test('编辑球拍 / 记穿线维护：只用 60 秒内存里刚读过的列表�
   let loads = 0;
   const api = (pre) => ({ peekList: () => pre, load: () => { loads++; return new Promise(() => {}); } });
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {} };
-  const e = load('pages/racket-edit/racket-edit.js', wx, { '../../utils/rackets': api(peekOnly) });
+  const e = load('pkg-tools/racket-edit/racket-edit.js', wx, { '../../utils/rackets': api(peekOnly) });
   e.onLoad({ id: 'r1' });
   assert.deepStrictEqual([e.data.ready, e.data.title, loads], [true, '1 号拍', 0], '编辑球拍：直接填好');
-  const l = load('pages/racket-log/racket-log.js', wx, { '../../utils/rackets': api(peekOnly) });
+  const l = load('pkg-tools/racket-log/racket-log.js', wx, { '../../utils/rackets': api(peekOnly) });
   l.onLoad({ id: 'l1' });
   assert.deepStrictEqual([l.data.ready, l.data.kind, l.data.mitem, loads], [true, 'maint', '换手胶', 0], '编辑维护记录：直接填好');
-  const n = load('pages/racket-log/racket-log.js', wx, { '../../utils/rackets': api(peekOnly) });
+  const n = load('pkg-tools/racket-log/racket-log.js', wx, { '../../utils/rackets': api(peekOnly) });
   n.onLoad({ racket: 'r1', kind: 'string' });
   assert.deepStrictEqual([n.data.ready, loads], [true, 0], '新记穿线：直接填好');
-  const m = load('pages/racket-edit/racket-edit.js', wx, { '../../utils/rackets': api(null) });
+  const m = load('pkg-tools/racket-edit/racket-edit.js', wx, { '../../utils/rackets': api(null) });
   m.onLoad({ id: 'r1' });
   assert.deepStrictEqual([m.data.ready, loads], [false, 1], '内存里没有：照旧读云端');
 });
@@ -783,7 +783,7 @@ function cupEditPage(o) {
   const status = later(), mem = later();
   const people = [{ uid: 'alice', nickname: 'Alice', gender: 'f' }, { uid: 'bob', nickname: 'Bob', gender: 'm' }];
   const calls = [];
-  const p = load('pages/cup-edit/cup-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {} }, {
+  const p = load('pkg-manage/cup-edit/cup-edit.js', { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {} }, {
     '../../utils/member': { status: () => status.p, knownActive: () => o.known !== false, isAdminLocal: () => o.admin !== false },
     '../../utils/cloud': {
       peek: (a) => (a === 'listMembers' ? (o.peekMem === undefined ? { active: people } : o.peekMem) : a === 'cupList' ? o.peekList : undefined),
@@ -840,7 +840,7 @@ test('补录积分：本机记得是管理员、内存里有成员名单就先�
 function drawNewPage(pre) {
   const got = later(), sg = later(), calls = [];
   const players = [{ name: '小明', uid: 'me' }, { name: '阿杰', uid: 'jie' }, { name: '小周', uid: 'zhou' }, { name: '小林', uid: 'lin' }];
-  const p = load('pages/draw-new/draw-new.js', { getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast() {}, pageScrollTo() {}, vibrateShort() {} }, {
+  const p = load('pkg-manage/draw-new/draw-new.js', { getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast() {}, pageScrollTo() {}, vibrateShort() {} }, {
     '../../utils/member': { status: () => new Promise(() => {}), knownActive: () => true, isAdminLocal: () => true },
     '../../utils/db': {
       peekDrawDetail: () => pre, cachedPlayersFull: () => players, cachedMatches: () => [],
@@ -902,8 +902,8 @@ test('成员管理：在「我的」点入口先发出成员列表的实时读�
   delete global.wx;
   const me = read('pages/me/me.js');
   const body = me.slice(me.indexOf('openMembers()'), me.indexOf('openGrowth()'));
-  assert.ok(/cloud\.prefetch\('listMembers'\);\s*wx\.navigateTo\(\{ url: '\/pages\/members\/members' \}\)/.test(body), '跳转前先发');
-  assert.ok(/cloud\.fresh\('listMembers'\)/.test(read('pages/members/members.js')), '成员管理页照旧 fresh（接过预读）');
+  assert.ok(/cloud\.prefetch\('listMembers'\);\s*wx\.navigateTo\(\{ url: '\/pkg-manage\/members\/members' \}\)/.test(body), '跳转前先发');
+  assert.ok(/cloud\.fresh\('listMembers'\)/.test(read('pkg-manage/members/members.js')), '成员管理页照旧 fresh（接过预读）');
 });
 
 module.exports = T;

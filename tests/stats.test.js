@@ -141,11 +141,13 @@ test('等级走势：取最近 30 场，和等级历史一致；刻度和柱子�
   const oddSpan = PV.trendView([{ level: 1.2, delta: 0, date: '2026-01-02' }, { level: 3.5, delta: 0.5, date: '2026-03-04' }]);
   assert.deepStrictEqual(oddSpan.ticks.map((x) => [x.v, x.pos]), [['4.0', 100], ['3.0', 66.7], ['2.0', 33.3], ['1.0', 0]]);
   assert.ok(oddSpan.bars.every((b) => b.h > 0 && b.h <= 100));
-  // 界面：说明文字单独一行图例（不挤在日期那一行），同一天只写一次日期，配色是淡紫 / 淡砖红（不是红绿）
+  // 界面（已迁至二级页 pages/report）：说明文字单独一行图例（不挤在日期那一行），同一天只写一次日期，配色是淡紫 / 淡砖红（不是红绿）
   const fs = require('fs'), path = require('path');
-  const xml = fs.readFileSync(path.join(__dirname, '..', 'components/player-home/player-home.wxml'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '..', 'components/player-home/player-home.wxss'), 'utf8');
-  const card = xml.slice(xml.indexOf('等级走势'), xml.indexOf('近期比赛'));
+  const homeXml = fs.readFileSync(path.join(__dirname, '..', 'components/player-home/player-home.wxml'), 'utf8');
+  assert.ok(!/class="tr-plot"/.test(homeXml), '等级走势已迁入球风与年度数据页，主页不再堆柱状图');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'pkg-tools/report/report.wxml'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'pkg-tools/report/report.wxss'), 'utf8');
+  const card = xml.slice(xml.indexOf('等级走势'), xml.indexOf('打球热力图'));
   assert.ok(!/绿涨红跌/.test(card));
   assert.ok(/<view class="tr-x[^>]*>[^\n]*wx:if="\{\{!view\.trend\.sameDay\}\}">\{\{view\.trend\.to\}\}/.test(card), '同一天只写一次日期');
   assert.ok(/class="tr-legend"/.test(card) && /class="tr-grid/.test(card) && /\{\{view\.trend\.last\}\}/.test(card));

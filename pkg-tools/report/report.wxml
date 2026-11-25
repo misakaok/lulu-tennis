@@ -1,0 +1,186 @@
+<view class="page">
+  <view wx:if="{{loading && !view}}" class="empty-wait"></view>
+  <view wx:elif="{{!view}}" class="card empty-box">
+    <view class="empty-t">暂无球员数据</view>
+    <view class="empty-s">完善资料并完成正式比赛后，这里会自动生成球风与年度统计</view>
+  </view>
+
+  <block wx:else>
+    <!-- 顶部淡紫球风主卡：融合球员摘要、五维球风雷达、球风标签与年度核心 4 项毛玻璃数据条 -->
+    <view class="hero">
+      <view class="hero-court"></view>
+      <view class="hero-in">
+        <view class="hero-top">
+          <pl-av class="h-av" uid="{{view.profile.uid}}" name="{{view.profile.name}}" />
+          <view class="h-m">
+            <view class="h-n">{{view.profile.name}}</view>
+            <view class="h-s"><block wx:if="{{view.level.match !== '待定级'}}"><text>比赛等级</text><text class="h-sn h-lv num">{{view.level.match}}</text></block><text wx:else>待定级</text><text class="h-dot">·</text><block wx:if="{{view.stats.wl !== '暂无'}}"><text class="h-sn num">{{view.stats.win}}</text><text class="h-su">胜</text><text class="h-sn num">{{view.stats.lose}}</text><text class="h-su last">负</text></block><text wx:else>暂无完赛记录</text></view>
+          </view>
+          <view wx:if="{{annual}}" class="h-poster" hover-class="tap-on" bindtap="openPoster">生成战报图</view>
+        </view>
+
+        <!-- 五维球风雷达（满 5 场正式比赛解锁） -->
+        <view class="h-rad-hd">
+          <text class="h-rad-t">五维球风</text>
+          <text class="h-rad-s">{{view.style.unlocked ? '按 ' + view.style.played + ' 场完赛计算' : '已打 ' + view.style.played + ' / ' + view.style.need + ' 场'}}</text>
+        </view>
+        <view class="rad-stage">
+          <view class="rad-svg" style="background-image:url('{{view.style.radarUri}}')"></view>
+          <view class="rad-lbl p0"><text class="rl-k">{{view.style.axes[0].l}}</text><text wx:if="{{view.style.unlocked}}" class="rl-v num {{topAxisIdx === 0 ? 'top' : ''}}">{{view.style.axes[0].v}}</text></view>
+          <view class="rad-lbl p1"><text class="rl-k">{{view.style.axes[1].l}}</text><text wx:if="{{view.style.unlocked}}" class="rl-v num {{topAxisIdx === 1 ? 'top' : ''}}">{{view.style.axes[1].v}}</text></view>
+          <view class="rad-lbl p2"><text class="rl-k">{{view.style.axes[2].l}}</text><text wx:if="{{view.style.unlocked}}" class="rl-v num {{topAxisIdx === 2 ? 'top' : ''}}">{{view.style.axes[2].v}}</text></view>
+          <view class="rad-lbl p3"><text class="rl-k">{{view.style.axes[3].l}}</text><text wx:if="{{view.style.unlocked}}" class="rl-v num {{topAxisIdx === 3 ? 'top' : ''}}">{{view.style.axes[3].v}}</text></view>
+          <view class="rad-lbl p4"><text class="rl-k">{{view.style.axes[4].l}}</text><text wx:if="{{view.style.unlocked}}" class="rl-v num {{topAxisIdx === 4 ? 'top' : ''}}">{{view.style.axes[4].v}}</text></view>
+        </view>
+
+        <view wx:if="{{!view.style.unlocked}}" class="rad-lock">
+          <view class="rad-prog"><view class="rad-prog-in" style="width:{{view.style.pct}}%"></view></view>
+          <view class="rad-lock-t">再打 {{view.style.left}} 场正式比赛，自动解锁完整五维球风与网球标签</view>
+        </view>
+        <block wx:else>
+          <view wx:if="{{view.style.tags.length}}" class="h-tags">
+            <text wx:for="{{view.style.tags}}" wx:key="*this" class="h-tag">{{item}}</text>
+          </view>
+          <view class="rad-note">由得局率、关键盘、对强手表现与今年出勤自动汇总，仅供球友参考</view>
+        </block>
+
+        <!-- 年度核心 4 项：同款烟熏冷紫毛玻璃数据条 -->
+        <view wx:if="{{annual}}" class="h-stats">
+          <view class="hs"><text class="hs-n num">{{annual.played}}</text><text class="hs-l">年度场数</text></view>
+          <view class="hs hs-bl"><text class="hs-n num hs-hi">{{annual.rate}}</text><text class="hs-l">年度胜率</text></view>
+          <view class="hs hs-bl"><text class="hs-n num">{{annual.days}}</text><text class="hs-l">出勤天数</text></view>
+          <view class="hs hs-bl"><text class="hs-n num">{{annual.bestStreak}}</text><text class="hs-l">最长连胜</text></view>
+        </view>
+        <view wx:if="{{annual && annual.racket}}" class="h-rk">
+          年度装备 · 穿线 {{annual.racket.yearStrings}} 次 · 打球 {{annual.racket.yearPlayHours}} · 养护 {{annual.racket.spendText}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 等级走势：最近若干场比赛后的比赛等级。刻度线和柱子同一把尺（utils/player.js 的 trendView），最后一根顶上标当前等级 -->
+    <view wx:if="{{view.trend}}" class="card compact">
+      <view class="card-title row-t"><text>等级走势</text><text class="sum-t">最近 {{view.trend.n}} 场 · {{view.trend.first}} → {{view.trend.last}}</text></view>
+      <view class="tr-plot">
+        <view wx:for="{{view.trend.ticks}}" wx:key="v" class="tr-grid {{item.base ? 'base' : ''}}" style="bottom:{{item.pos}}%"><text class="tr-tick num">{{item.v}}</text></view>
+        <view class="tr-bars {{view.trend.few ? 'few' : ''}}">
+          <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col">
+            <view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view>
+            <view wx:if="{{item.last}}" class="tr-now" style="bottom:{{item.h}}%"><text class="tr-now-v num ani-pop" style="animation-delay:{{index * 30 + 450}}ms">{{view.trend.last}}</text></view>
+          </view>
+        </view>
+      </view>
+      <view class="tr-x {{view.trend.sameDay ? 'one' : ''}}"><text>{{view.trend.from}}</text><text wx:if="{{!view.trend.sameDay}}">{{view.trend.to}}</text></view>
+      <view class="tr-legend"><view class="tr-dot up"></view>涨<view class="tr-dot down"></view>跌<text class="tr-sep">·</text>每根柱子是一场比赛后的等级</view>
+    </view>
+
+    <!-- 年度打球黄绿热力图 -->
+    <view wx:if="{{view.heatmap}}" class="card compact">
+      <view class="card-title row-t">
+        <text>{{view.heatmap.year}} 打球热力图</text>
+        <text class="sum-t">{{view.heatmap.days}} 天 · {{view.heatmap.total}} 场</text>
+      </view>
+      <view class="hm-wrap">
+        <view class="hm-days">
+          <view class="hm-dm"></view>
+          <view class="hm-dl">一</view><view class="hm-dl"></view><view class="hm-dl">三</view><view class="hm-dl"></view><view class="hm-dl">五</view><view class="hm-dl"></view><view class="hm-dl">日</view>
+        </view>
+        <scroll-view class="hm-scroll" scroll-x="true" scroll-into-view="{{view.heatmap.focusId}}">
+          <view class="hm-grid">
+            <view wx:for="{{view.heatmap.weeks}}" wx:key="i" id="{{item.id}}" class="hm-col">
+              <view class="hm-m">{{item.m}}</view>
+              <view wx:for="{{item.cells}}" wx:key="d" wx:for-item="c" class="hm-c hm-lv{{c.lv}} {{c.fut ? 'hm-fut' : ''}}" data-md="{{c.md}}" data-n="{{c.n}}" data-lv="{{c.lv}}" bindtap="hmTap"></view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+      <view class="hm-foot">
+        <text class="hm-info">{{hmPick || (view.heatmap.bestMonth ? '最活跃 ' + view.heatmap.bestMonth + (view.heatmap.streakWeeks >= 2 ? ' · 连续 ' + view.heatmap.streakWeeks + ' 周' : '') : '轻点格子查看日期')}}</text>
+        <view class="hm-leg">
+          <text class="hm-lt">少</text>
+          <view class="hm-lc hm-lv0"></view><view class="hm-lc hm-lv1"></view><view class="hm-lc hm-lv2"></view><view class="hm-lc hm-lv3"></view><view class="hm-lc hm-lv4"></view>
+          <text class="hm-lt">多</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关键分统计（稀疏态自动收紧，不铺三格空壳） -->
+    <view wx:if="{{view.clutch}}" class="card compact">
+      <view class="card-title row-t"><text>关键分统计</text><text class="sum-t">按 {{view.clutch.played}} 场完赛统计</text></view>
+      <view wx:if="{{hasClutchMetrics}}" class="cl-grid">
+        <view class="cl-c">
+          <view class="cl-n num {{view.clutch.tb.played ? '' : 'cl-none'}}">{{view.clutch.tb.rate}}</view>
+          <view class="cl-l">抢七胜率</view>
+          <view class="cl-s">{{view.clutch.tb.sub}}</view>
+        </view>
+        <view class="cl-c cl-bl">
+          <view class="cl-n num {{view.clutch.tight.played ? '' : 'cl-none'}}">{{view.clutch.tight.rate}}</view>
+          <view class="cl-l">胶着盘胜率</view>
+          <view class="cl-s">{{view.clutch.tight.sub}}</view>
+        </view>
+        <view class="cl-c cl-bl">
+          <view class="cl-n num {{view.clutch.comeback.played ? '' : 'cl-none'}}">{{view.clutch.comeback.rate}}</view>
+          <view class="cl-l">丢首盘逆转</view>
+          <view class="cl-s">{{view.clutch.comeback.sub}}</view>
+        </view>
+      </view>
+      <view wx:if="{{view.clutch.single.played || view.clutch.double.played}}" class="cl-cmp {{hasClutchMetrics ? '' : 'cl-cmp-top'}}">
+        <view wx:if="{{view.clutch.single.played}}" class="cl-row">
+          <text class="cl-k">单打</text>
+          <view class="cl-bar"><view class="cl-fill" style="width:{{view.clutch.single.rate}}%"></view></view>
+          <text class="cl-v num">{{view.clutch.single.rate}}% · {{view.clutch.single.win}} 胜 {{view.clutch.single.lose}} 负</text>
+        </view>
+        <view wx:if="{{view.clutch.double.played}}" class="cl-row">
+          <text class="cl-k">双打</text>
+          <view class="cl-bar"><view class="cl-fill cl-dbl" style="width:{{view.clutch.double.rate}}%"></view></view>
+          <text class="cl-v num">{{view.clutch.double.rate}}% · {{view.clutch.double.win}} 胜 {{view.clutch.double.lose}} 负</text>
+        </view>
+      </view>
+      <view wx:if="{{!hasClutchMetrics}}" class="cl-none-bar">
+        <text class="cl-none-t">暂无抢七、胶着盘或丢首盘逆转记录，打出后自动统计</text>
+      </view>
+    </view>
+
+    <!-- 对手与拍档 + 双打搭档（合并为一张紧凑关系卡） -->
+    <view wx:if="{{view.relations || view.partners}}" class="card compact">
+      <block wx:if="{{view.relations}}">
+        <view class="card-title row-t"><text>对手与拍档</text><text class="sum-t">按正式战绩计算</text></view>
+        <view class="rl-row">
+          <view wx:for="{{view.relations}}" wx:key="l" class="rl" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="openPlayer">
+            <text class="rl-l">{{item.l}}</text>
+            <view wx:if="{{item.none}}" class="rl-av none">?</view><pl-av wx:else class="rl-av" uid="{{item.uid}}" name="{{item.name}}" />
+            <text class="rl-n {{item.none ? 'none' : ''}}">{{item.none ? '暂无' : item.name}}</text>
+            <text class="rl-r">{{item.none ? item.d : item.rec}}</text>
+          </view>
+        </view>
+      </block>
+
+      <view wx:if="{{view.partners}}" class="pt-sec {{view.relations ? 'pt-div' : ''}}">
+        <view class="card-title row-t pt-hd"><text>双打搭档</text><text wx:if="{{view.partners.best}}" class="sum-t">最佳 {{view.partners.best.name}} · {{view.partners.best.rate}}%</text></view>
+        <view class="ss-row ss-head"><text class="ss-s">搭档</text><text class="ss-c">场数</text><text class="ss-c">胜-负</text><text class="ss-c">胜率</text></view>
+        <view wx:for="{{view.partners.list}}" wx:key="key" class="ss-row">
+          <text class="ss-s pt-n">{{item.name}}</text><text class="ss-c num">{{item.played}}</text><text class="ss-c b num">{{item.win}}-{{item.lose}}</text><text class="ss-c num">{{item.rate}}%</text>
+        </view>
+        <view class="pt-more">{{view.partners.total > view.partners.list.length ? '只显示场数最多的 ' + view.partners.list.length + ' 位 · ' : ''}}最佳搭档从一起打满 {{view.partners.min}} 场的里面选</view>
+      </view>
+    </view>
+  </block>
+</view>
+
+<!-- 年度战报海报预览弹层（纯本机 Canvas 2D，直接预览并保存到手机相册） -->
+<view wx:if="{{posterOpen}}" class="ps-mask" catchtap="closePoster">
+  <view class="ps-box" catchtap="">
+    <view class="ps-hd">
+      <text class="ps-t">{{annual.year}} 年度球场战报</text>
+      <text class="ps-x" bindtap="closePoster">✕</text>
+    </view>
+    <view class="ps-stage" bindtap="previewPoster">
+      <canvas type="2d" id="poster-cv" class="ps-cv"></canvas>
+      <view wx:if="{{posterBusy}}" class="ps-busy">正在生成战报图…</view>
+    </view>
+    <view class="ps-tip">纯本机绘制，不上传云端 · 点击海报可全屏预览</view>
+    <view class="ps-acts">
+      <view class="btn-line ps-btn" hover-class="tap-on" bindtap="closePoster">关闭</view>
+      <view class="btn-primary ps-btn {{posterReady ? '' : 'disabled'}}" hover-class="tap-on" bindtap="savePoster">保存到相册</view>
+    </view>
+  </view>
+</view>

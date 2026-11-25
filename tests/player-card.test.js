@@ -52,13 +52,13 @@ test('球员卡：比赛等级和自评等级分开标注，没有比赛 / 没�
 });
 
 test('不那么素：全部比赛顶部数字卡、录日常比赛顶部概要卡（日期、双方、规则）；这些页面不用 emoji', () => {
-  const hist = read('pages/history/history.wxml');
+  const hist = read('pkg-manage/history/history.wxml');
   assert.ok(/class="hs"/.test(hist) && ['场数', '胜', '负', '胜率'].every((l) => hist.indexOf(`<text class="hs-l">${l}</text>`) >= 0));
   const add = read('pages/add/add.wxml');
   assert.ok(/<image class="hero-art" src="\/images\/art-ball\.png" mode="aspectFit" \/>/.test(add) && /待选对手/.test(add));
   // 界面上不用彩色 emoji（和 3D 配图风格不搭）：冠军用黄绿标签 / 奖杯插画，名次用金银铜奖牌图标（图片）；✓ ★ ✕ 这类单色符号可以
   const files = [];
-  for (const dir of ['pages', 'components']) {
+  for (const dir of ['pages', 'pkg-tools', 'pkg-manage', 'components']) {
     for (const d of fs.readdirSync(path.join(__dirname, '..', dir))) {
       for (const ext of ['wxml', 'js']) { const f = `${dir}/${d}/${d}.${ext}`; if (fs.existsSync(path.join(__dirname, '..', f))) files.push(f); }
     }
@@ -136,7 +136,7 @@ test('名次口径：球员卡、报名名单、战绩页卡片都和排行榜�
 
 test('球员卡界面：卡面不写标题；头像 / 首字圆（<pl-av>）、昵称、比赛等级在卡面，排名 / 场数 / 胜率在卡片下方；只在站内展示', () => {
   const xml = read('components/player-home/player-home.wxml');
-  const card = xml.slice(xml.indexOf('<view class="pcard'), xml.indexOf('<view class="foot-note'));
+  const card = xml.slice(xml.indexOf('<view class="pcard'), xml.indexOf('class="foot-note"'));
   assert.ok(!/LULU 球员卡/.test(xml), '卡面不写「LULU 球员卡」标题（用户觉得显得 low）');
   assert.ok(/<pl-av wx:if="\{\{view\.profile\}\}" class="pc-photo init" uid="\{\{view\.profile\.uid\}\}" name="\{\{view\.profile\.name\}\}"/.test(card), '照片 / 首字圆走 pl-av（按公开展示授权下发）');
   assert.ok(/\{\{view\.profile\.name\}\}/.test(card));
@@ -294,4 +294,28 @@ test('比赛详情页：点双方头像或名字进入球员主页（点自己�
   assert.deepStrictEqual(nav, ['/pages/player/player?uid=u2']);
   assert.deepStrictEqual(tab, ['/pages/me/me']);
   assert.deepStrictEqual(toast, ['这位球员没有绑定账号']);
+});
+
+test('年度打球黄绿热力格（PV.heatmapView）：按当年每天场数着色、排除赛前弃权与他年；连续活跃周数与最活跃月份准确', () => {
+  const list = [
+    m('h1', ['Ann'], ['Cat'], ['ann'], ['cat'], 'a', '2026-10-05'),
+    m('h2', ['Ann'], ['Cat'], ['ann'], ['cat'], 'a', '2026-10-05'), // 同一天 2 场
+    m('h3', ['Ann'], ['Cat'], ['ann'], ['cat'], 'b', '2026-10-12'), // 下一周
+    Object.assign(m('h4', ['Ann'], ['Cat'], ['ann'], ['cat'], 'a', '2026-10-13'), { outcome: 'walkover' }), // 弃权不算
+    m('h5', ['Ann'], ['Cat'], ['ann'], ['cat'], 'a', '2025-10-05'), // 去年不算
+  ];
+  const norm = ID.normalizeMatches(list, players);
+  const hm = PV.heatmapView(norm, 'ann', 'Ann', '2026-11-25');
+  assert.strictEqual(hm.year, 2026);
+  assert.deepStrictEqual([hm.total, hm.days, hm.streakWeeks, hm.bestMonth], [3, 2, 2, '10月 · 3 场']);
+  const flat = hm.weeks.reduce((a, w) => a.concat(w.cells), []);
+  assert.strictEqual(flat.find((c) => c.d === '2026-10-05').lv, 2);
+  assert.strictEqual(flat.find((c) => c.d === '2026-10-12').lv, 1);
+  assert.strictEqual(flat.find((c) => c.d === '2026-10-13').n, 0, '弃权不计入热力格');
+  assert.strictEqual(flat.find((c) => c.d === '2026-12-01').fut, true);
+  assert.strictEqual(PV.heatmapView(norm, 'eve', 'Eve', '2026-11-25'), null, '当年 0 场返回 null');
+  const xml = read('components/player-home/player-home.wxml');
+  const rpt = read('pkg-tools/report/report.wxml');
+  assert.ok(/球风与年度数据/.test(xml) && /bindtap="openReport"/.test(xml) && /如果和 TA 打一场/.test(xml));
+  assert.ok(/打球热力图/.test(rpt) && /bindtap="hmTap"/.test(rpt) && /五维球风/.test(rpt));
 });

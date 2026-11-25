@@ -26,7 +26,8 @@ Page({
   data: {
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     cupTag: '', cupBox: null, canEditCup: false, cupKindBusy: false, isRot: false, rotRounds: [],
-    ready: false, signing: false, isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
+    ready: false, signing: false, ended: false, endReason: '', canClose: false, canReopen: false, closeBusy: false,
+    isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null, adminSheet: null, adminBusy: false, // adminSheet：管理员代报名的选人弹层（components/member-sheet）
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
     schFilter: 'all', wdView: { entrants: [], rows: [] }, wdCount: 0, // 场次：全部 / 退赛／弃权
@@ -120,10 +121,12 @@ Page({
     this.allMatches = all;
     wx.setNavigationBarTitle({ title: d.title || '活动' });
     const signing = d.status === 'signup';
+    const ended = !!d.endedAt;
+    const endReason = ended && E.REASONS.close.indexOf(d.endReason) >= 0 ? d.endReason : '';
     const cfg = E.cfgOf(d);
     const n = (d.entrants || []).length;
     const unit = cfg.type === 'double' && !E.isRotation(d) ? '队' : '人';
-    const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (signing ? ' · 报名中' : ` · ${n} ${unit}`);
+    const meta = modeText(d) + (E.categoryText(d) ? ' · ' + E.categoryText(d) : '') + (ended ? ' · 已结束' : signing ? ' · 报名中' : ` · ${n} ${unit}`);
     // 种子名单（旧活动也一样）：单打「种子选手」、双打「种子队伍」，按顺序显示「1 号种子 张三」
     const seedRows = (Array.isArray(d.seeds) ? d.seeds : []).filter((s) => typeof s === 'string' && s).map((name, i) => ({ no: i + 1, name }));
     const seedLabel = cfg.type === 'double' ? '种子队伍' : '种子选手';
@@ -131,15 +134,20 @@ Page({
     // 随机生成仍由发起人操作；管理员也可手动排对阵。
     const isAdmin = require('../../utils/member').isAdminLocal();
     const isOwner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
-    const canEditMatchups = isAdmin && !signing && !E.isRotation(d) && !matches.length &&
+    const canManage = isOwner || isAdmin;
+    const p0 = signing ? { done: 0, total: 0, champion: '' } : E.progressOf(d, matches);
+    const naturallyDone = !signing && (!!p0.champion || (p0.total > 0 && p0.done === p0.total));
+    const canClose = canManage && !ended && !naturallyDone;
+    const canReopen = canManage && ended;
+    const canEditMatchups = isAdmin && !signing && !ended && !E.isRotation(d) && !matches.length &&
       !Object.keys(d.results || {}).length && !(d.withdrawals || []).length;
     // 积分标签能不能点（管理员更正类别）：报名中一定还没结算，第一帧就定下来；已生成对阵的由 loadCupBox 按云端结果更正，
     // 这里不先清成 false（否则每次回到这页标签都会先变样再变回来）。顶部所有内容一次 setData，不分几帧蹦出来
     const cupOn = isAdmin && !!C.drawCupOf(d);
     const top = {
-      draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, myName: (me && me.name) || '', myId,
+      draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, ended, endReason, myName: (me && me.name) || '', myId,
       formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
-      isOwner, canManage: isOwner || isAdmin, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups, info: this.infoOf(d),
+      isOwner, canManage, canClose, canReopen, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups, info: this.infoOf(d),
     };
     if (signing) { top.canEditCup = cupOn; top.cupBox = null; this.cupSeq = (this.cupSeq || 0) + 1; } // 报名中：取消还在路上的结算查询
     else if (!cupOn) top.canEditCup = false;
@@ -180,7 +188,8 @@ Page({
     };
     if (!isAdmin || !C.drawCupOf(this.d)) { set(null); return; }
     const items = this.items || [];
-    const wait = { note: '全部场次结束后，可以在这里结算积分', btn: '' };
+    const ended = !!(this.d && this.d.endedAt);
+    const wait = { note: ended ? '活动已提前结束（未打满全部场次）；如需记入积分，可先恢复活动补完或到排行页手动补录一站' : '全部场次结束后，可以在这里结算积分', btn: '' };
     const done = items.length > 0 && items.every((x) => x.done);
     try {
       const r = await cloud.call('cupFromDraw', { drawId: this.id });
@@ -197,7 +206,7 @@ Page({
       set({ note: '暂时读不到积分结算情况，下拉刷新重试', btn: '' });
     }
   },
-  openCupSettle() { wx.navigateTo({ url: '/pages/cup-edit/cup-edit?drawId=' + encodeURIComponent(this.id) }); },
+  openCupSettle() { wx.navigateTo({ url: '/pkg-manage/cup-edit/cup-edit?drawId=' + encodeURIComponent(this.id) }); },
   async editCupKind() {
     if (!this.data.ready || !this.data.canEditCup || this.data.cupKindBusy) return; // 只画了本机缓存时先不让改
     const cup = C.drawCupOf(this.d);
@@ -331,15 +340,30 @@ Page({
     }
   },
   // 点报名名单里的球员 → 球员主页（按用户 ID 打开，和「我的」同一套页面）
+  openAA() {
+    const d = this.d;
+    if (!d) return;
+    let n = 0;
+    if (d.status === 'signup') {
+      n = (this.data.signups || []).filter((s) => !s.waiting).reduce((acc, s) => acc + ((s.members && s.members.length) || 1), 0);
+    } else {
+      const wd = {};
+      (d.withdrawals || []).forEach((w) => { if (w && w.entrant) wd[w.entrant] = 1; });
+      const active = (d.entrants || []).filter((e) => e && !wd[e]);
+      n = active.reduce((acc, e) => acc + String(e).split(' / ').filter(Boolean).length, 0);
+    }
+    const q = `title=${encodeURIComponent(d.title || '')}&date=${encodeURIComponent(d.date || '')}&n=${n || 4}`;
+    wx.navigateTo({ url: '/pkg-tools/aa/aa?' + q });
+  },
   openPlayer(e) {
     const uid = e.currentTarget.dataset.uid;
     if (!uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
     if (uid === this.data.myId) { wx.switchTab({ url: '/pages/me/me' }); return; }
     wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(uid) });
   },
-  goEdit() { if (!this.data.canEdit) return; wx.navigateTo({ url: '/pages/event-edit/event-edit?id=' + this.id }); },
+  goEdit() { if (!this.data.canEdit) return; wx.navigateTo({ url: '/pkg-manage/event-edit/event-edit?id=' + this.id }); },
   goEditSettings() {
-    if (this.data.canEdit && this.data.signing) wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + encodeURIComponent(this.id) + '&settings=1' });
+    if (this.data.canEdit && this.data.signing) wx.navigateTo({ url: '/pkg-manage/draw-new/draw-new?id=' + encodeURIComponent(this.id) + '&settings=1' });
   },
 
   /* ---------- 报名 ---------- */
@@ -518,10 +542,10 @@ Page({
     if (this.data.signups.length < 2) { wx.showToast({ title: '报名的还不够', icon: 'none' }); return; }
     // 四人轮换：要报满 4 位（候补的不算）才能生成
     if (this.data.isRot && this.data.signups.filter((s) => !s.waiting).length < E.ROTATION_SIZE) { wx.showToast({ title: '四人轮换双打要报满 4 位才能生成对阵', icon: 'none' }); return; }
-    wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + encodeURIComponent(this.id) + (this.data.canPublish ? '' : '&manual=1') });
+    wx.navigateTo({ url: '/pkg-manage/draw-new/draw-new?id=' + encodeURIComponent(this.id) + (this.data.canPublish ? '' : '&manual=1') });
   },
   editDrawMatchups() {
-    if (this.data.canEdit && this.data.canEditMatchups) wx.navigateTo({ url: '/pages/draw-new/draw-new?id=' + encodeURIComponent(this.id) + '&manual=1' });
+    if (this.data.canEdit && this.data.canEditMatchups) wx.navigateTo({ url: '/pkg-manage/draw-new/draw-new?id=' + encodeURIComponent(this.id) + '&manual=1' });
   },
 
   /* ---------- 签表 / 赛程 ---------- */
@@ -547,6 +571,7 @@ Page({
     const wv = WV.withdrawView(d, items, (name) => !!my && ID.idsFor(E.membersOf(d, name), this.uidOf).indexOf(my) >= 0);
     const only = this.data.onlyMine;
     // 四人轮换：按轮次显示搭档、对手和状态；「你这轮和谁搭档、对谁」按用户 ID 认
+    const ended = !!d.endedAt;
     let rotRounds = [];
     if (E.isRotation(d)) {
       rotRounds = items.map((x) => {
@@ -554,11 +579,11 @@ Page({
         const side = my && aIds.indexOf(my) >= 0 ? 'a' : my && bIds.indexOf(my) >= 0 ? 'b' : '';
         const mates = side ? (side === 'a' ? x.aMembers : x.bMembers).filter((n, i) => (side === 'a' ? aIds : bIds)[i] !== my) : [];
         const opps = side === 'a' ? x.bMembers : side === 'b' ? x.aMembers : [];
-        const st = x.done ? (x.outcome && x.outcome !== 'normal' ? x.outcomeText || '已完赛' : side ? (x.winner === side ? '你们赢了' : '你们输了') : '已完赛') : side ? '待录分' : '待赛';
+        const st = x.done ? (x.outcome && x.outcome !== 'normal' ? x.outcomeText || '已完赛' : side ? (x.winner === side ? '你们赢了' : '你们输了') : '已完赛') : ended ? '未进行' : side ? '待录分' : '待赛';
         return {
           key: x.key, round: x.round, aP: x.aP, bP: x.bP, winner: x.winner, done: x.done, score: x.score, st, win: !!side && x.done && x.winner === side,
           me: side ? `你和 ${mates.join('、')} 搭档，对手 ${opps.join('、')}` : '',
-          canScore: !x.done && (side !== '' || this.data.isOwner),
+          canScore: !x.done && !ended && (side !== '' || this.data.isOwner),
         };
       });
     }
@@ -567,8 +592,8 @@ Page({
       wdView: { entrants: only ? wv.entrants.filter((x) => x.mine) : wv.entrants, rows: only ? wv.rows.filter((x) => x.mine) : wv.rows },
       wdCount: wv.count,
       schedule: this.data.onlyMine ? items.filter((x) => x.mine) : items,
-      todo: items.filter((x) => x.mine && x.ready && !x.done).length,
-      progress: p.champion ? `冠军：${p.champion}` : `已完成 ${done} / ${items.length} 场`,
+      todo: ended ? 0 : items.filter((x) => x.mine && x.ready && !x.done).length,
+      progress: p.champion ? `冠军：${p.champion}` : ended ? `已提前结束 · 完赛 ${done} / ${items.length} 场` : `已完成 ${done} / ${items.length} 场`,
     });
     this.focusFixture(preview);
   },
@@ -649,6 +674,51 @@ Page({
   openMatch(key, ready) {
     if (!ready) { wx.showToast({ title: '对手还没确定，等上一轮打完', icon: 'none' }); return; }
     wx.navigateTo({ url: `/pages/score/score?drawId=${this.id}&key=${key}` });
+  },
+
+  // 提前结束活动（发起人或管理员）：下雨、时间到了或中途商议不打了，可直接结束；已录比分完整保留，可随时恢复
+  async closeDraw() {
+    if (!this.data.canClose || this.data.closeBusy) return;
+    const reason = await pick.reason('close', '结束原因');
+    if (!reason) return;
+    const go = await new Promise((done) => wx.showModal({
+      title: '提前结束这个活动？',
+      content: `原因：${reason}\n\n已录入的比分和战绩会完整保留，未打场次标记为未进行、不再出现在「我的下一场」。之后如需继续可以随时恢复。`,
+      confirmText: '确认结束',
+      success: (x) => done(x.confirm),
+      fail: () => done(false),
+    }));
+    if (!go) return;
+    this.setData({ closeBusy: true });
+    try {
+      await db.closeDraw(this.id, true, reason);
+      haptic.medium();
+      wx.showToast({ title: '活动已结束', icon: 'success' });
+      await this.load();
+    } catch (e) {
+      wx.showModal({ title: '结束失败', content: e.message || '请稍后再试', showCancel: false });
+    } finally { this.setData({ closeBusy: false }); }
+  },
+
+  async reopenDraw() {
+    if (!this.data.canReopen || this.data.closeBusy) return;
+    const go = await new Promise((done) => wx.showModal({
+      title: '恢复这个活动？',
+      content: '恢复后活动回到原来的状态，未打场次可以继续录分或报名。',
+      confirmText: '恢复活动',
+      success: (x) => done(x.confirm),
+      fail: () => done(false),
+    }));
+    if (!go) return;
+    this.setData({ closeBusy: true });
+    try {
+      await db.closeDraw(this.id, false);
+      haptic.medium();
+      wx.showToast({ title: '活动已恢复', icon: 'success' });
+      await this.load();
+    } catch (e) {
+      wx.showModal({ title: '恢复失败', content: e.message || '请稍后再试', showCancel: false });
+    } finally { this.setData({ closeBusy: false }); }
   },
 
   remove() {

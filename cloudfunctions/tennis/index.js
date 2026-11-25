@@ -424,6 +424,7 @@ async function nameOwnedBy(name, uid) {
 async function signUp({ drawId, partnerId }, uid, addedBy, attempts = 0) {
   const draw = await loadDraw(drawId);
   if (draw.status && draw.status !== 'signup') deny('报名已截止');
+  if (draw.endedAt) deny('这个活动已提前结束，不能再报名');
   const me = await profileOf(uid);
   if (!me || !me.name) deny('请先设置头像和昵称');
   if (!(await nameOwnedBy(me.name, uid))) deny('你的昵称和其他球友重复，请先到个人资料里改一个');
@@ -510,6 +511,7 @@ async function adminAddSignup({ drawId, playerId, partnerId }, uid) {
 async function cancelSignup({ drawId }, uid) {
   const draw = await loadDraw(drawId);
   if (draw.status && draw.status !== 'signup') deny('对阵表已经生成，不能直接取消报名；请在活动页提交退赛申请');
+  if (draw.endedAt) deny('这个活动已提前结束，不能再修改报名');
   const mine = (await db.collection('signups').where({ drawId, _openid: uid }).get()).data;
   if (!mine.length) {
     const asPartner = await db.collection('signups').where({ drawId, partnerId: uid }).limit(1).get();
@@ -1074,6 +1076,7 @@ async function cleanRotation(drawId, ents, p, uid) {
 // 报名截止后生成签表；已经开始录分、登记过退赛的活动不能重新生成（会让已有比分对不上）
 async function generateDraw({ drawId, draw, manual }, uid) {
   const d = manual === true ? (await manageDraw(drawId, uid)).d : await ownDraw(drawId, uid);
+  if (d.endedAt) deny('这个活动已提前结束，如需继续请先恢复活动');
   const p = plainObj(draw) ? draw : {};
   const version = d.settingsVersion || 0;
   const manualDraw = manual === true;
@@ -1114,6 +1117,7 @@ async function updateDrawSettings({ drawId, settings, settingsVersion }, uid) {
     const ref = tx.collection('draws').doc(drawId);
     const d = await readOptionalDoc(ref);
     if (!d || d.deleted || d.status !== 'signup') deny('对阵生成后不能修改活动规则');
+    if (d.endedAt) deny('这个活动已提前结束，不能修改规则');
     const version = d.settingsVersion || 0;
     if (settingsVersion !== version) deny('活动规则已有更新，请重新打开页面后修改');
     if (E.isRotation(d) !== (input.mode === 'rotation')) deny('四人轮换双打的报名方式固定，不能与其他形式互换');
@@ -1158,6 +1162,7 @@ async function updateDrawInfo({ drawId, info }, uid) {
 async function setFixtureSlot({ drawId, key, slot }, uid) {
   const d = await ownDraw(drawId, uid);
   if (d.status === 'signup') deny('对阵表生成后才能安排比赛');
+  if (d.endedAt) deny('这个活动已提前结束，不能再安排时间场地');
   if (typeof key !== 'string' || !key) deny('缺少比赛');
   if (!E.findFixture(d, await officialEventMatches(drawId), key)) deny('找不到这场比赛，对阵表可能已经重新生成');
   if (!/^[\w-]{1,40}$/.test(key)) deny('找不到这场比赛，对阵表可能已经重新生成'); // 只用作 slots 下的字段名
@@ -1206,6 +1211,27 @@ async function restoreDraw({ drawId }, uid) {
   await db.collection('requests').where({ drawId, status: 'cancelled', handleNote: '活动已删除' }).update({ data: { status: 'pending', handleNote: '' } });
   await logAction({ type: 'restoreDraw', drawId, by: uid, byAdmin: d.deletedBy !== uid, deletedBy: d.deletedBy || '', deleteReason: d.deleteReason || '' });
   return { restored: true };
+}
+
+// 提前结束 / 恢复活动（2026-11-25 用户要求：下雨、时间到了或中途商议不打了，可直接结束；已录比分完整保留，未打场次不再继续，可随时恢复）
+async function closeDraw({ drawId, closed, reason }, uid) {
+  const { d, asAdmin } = await manageDraw(drawId, uid);
+  const on = closed === true;
+  if (on) {
+    if (d.endedAt) return { ended: true, endReason: d.endReason || '', same: true };
+    const why = cleanReason(reason, true);
+    if (E.REASONS.close.indexOf(why) < 0) deny('结束原因只能从固定选项里选择');
+    const at = Date.now();
+    await db.collection('draws').doc(drawId).update({ data: { endedAt: at, endReason: why, endedBy: uid } });
+    await db.collection('requests').where({ drawId, type: 'withdraw', status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已提前结束', handledAt: db.serverDate() } });
+    await logAction({ type: 'closeDraw', drawId, by: uid, byAdmin: asAdmin, closed: true, reason: why });
+    return { ended: true, endedAt: at, endReason: why };
+  }
+  if (!d.endedAt) return { ended: false, same: true };
+  await db.collection('draws').doc(drawId).update({ data: { endedAt: _.remove(), endReason: _.remove(), endedBy: _.remove() } });
+  await db.collection('requests').where({ drawId, type: 'withdraw', status: 'cancelled', handleNote: '活动已提前结束' }).update({ data: { status: 'pending', handleNote: '' } });
+  await logAction({ type: 'closeDraw', drawId, by: uid, byAdmin: asAdmin, closed: false, prevReason: d.endReason || '' });
+  return { ended: false };
 }
 
 /* ---------- 共用：审计记录、作废记录、局分校验 ---------- */
@@ -1356,6 +1382,7 @@ async function recordEventMatch({ drawId, key, date, sets, confirmImpact, reason
   const { draw, f } = ctx;
   if (drawVersion !== undefined && drawVersion !== (draw.drawVersion || 0)) deny('对阵已更新，请重新打开场次录分');
   if (!f.ready) deny(f.void ? '这场比赛因退赛已取消' : '对手还没确定，等上一轮打完再录分');
+  if (draw.endedAt && !f.done) deny('这个活动已提前结束，未打场次不再录分');
   const map = await drawUidMap(drawId, {});
   const owner = draw._openid === uid;
   const adminEntry = !f.done && !E.isRotation(draw) && isAdmin(uid);
@@ -1391,6 +1418,7 @@ async function resolveFixture({ drawId, key, kind, loser, reason, sets, date, co
   const { draw, f } = ctx;
   if (draw._openid !== uid) deny('只有活动发起人可以判弃权 / 退赛');
   if (!f.ready) deny(f.void ? '这场比赛因退赛已取消' : '对手还没确定，不能处理');
+  if (draw.endedAt && !f.done) deny('这个活动已提前结束，未打场次不再处理');
   if (kind !== 'walkover' && kind !== 'retired') deny('请选择弃权或中途退赛');
   if (loser !== 'a' && loser !== 'b') deny('请选择弃权 / 退赛的一方');
   const why = cleanReason(reason, true);
@@ -1632,6 +1660,7 @@ async function entrantsOf(draw, uid) {
 async function requestWithdraw({ drawId, reason }, uid) {
   const draw = await loadDraw(drawId);
   if (draw.status === 'signup') deny('还在报名阶段，直接「取消报名」即可');
+  if (draw.endedAt) deny('这个活动已提前结束');
   const ents = await entrantsOf(draw, uid);
   if (!ents.length) deny('你不在这个活动的参加名单里');
   const wd = E.withdrawalsOf(draw);
@@ -1650,6 +1679,7 @@ async function requestWithdraw({ drawId, reason }, uid) {
 async function handleWithdraw({ drawId, entrant, requestId, approve, policy, reason, confirmImpact }, uid) {
   const draw = await loadDraw(drawId);
   if (draw._openid !== uid) deny('只有活动发起人可以处理退赛');
+  if (draw.endedAt) deny('这个活动已提前结束');
   const why = cleanReason(reason, true);
   let req = null;
   if (requestId) {
@@ -2488,7 +2518,7 @@ async function cupList(_d, uid) {
   return { list: admin ? out : await cupMask(out, uid), admin };
 }
 
-const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, clearMemberHistory, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, adminAddSignup, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, clearMemberHistory, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, adminAddSignup, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, closeDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

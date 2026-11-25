@@ -205,4 +205,38 @@ test('比赛详情页：只给本人看自己参加的正式比赛；弃权、�
   assert.ok(!/delta\.toFixed|level\.toFixed|after\.toFixed|before\.toFixed/.test(js));
 });
 
+test('水平分模拟（simulateMatch）与赛前交手预览（matchupPreview）：与正式计算同公式、只按 0.5 档与箭头展示', () => {
+  const { pre, start } = settled({ me: 2.5, op: 3.5, hi: 4.0 });
+  const players = [
+    { name: '我', uid: 'me', self: true, level: 2.5 },
+    { name: '强手', uid: 'op', self: true, level: 3.5 },
+    { name: '高手', uid: 'hi', self: true, level: 4.0 },
+  ];
+  const ratings = R.computeRatings(pre, start);
+  // 输成 4:6 但高于预期 → 水平分上升
+  const simUp = R.simulateMatch(ratings, players, { aKeys: ['me'], bKeys: ['op'], aNames: ['我'], bNames: ['强手'], mySide: 'a', myKey: 'me', gamesA: 4, gamesB: 6 });
+  assert.deepStrictEqual([simUp.dir, simUp.arrow, simUp.beforeTier], ['up', '↑', '2.5']);
+  assert.match(simUp.summary, /虽败犹荣/);
+  assert.ok(!/\d\.\d\d|[+-]\d/.test(simUp.summary + simUp.tierText), '不暴露两位小数或涨跌数字');
+  // 防炸鱼：4.0 打 2.5 赢 6:0 不加分
+  const simFarm = R.simulateMatch(ratings, players, { aKeys: ['hi'], bKeys: ['me'], aNames: ['高手'], bNames: ['我'], mySide: 'a', myKey: 'hi', gamesA: 6, gamesB: 0 });
+  assert.deepStrictEqual([simFarm.dir, simFarm.arrow], ['flat', '']);
+  assert.match(simFarm.summary, /0\.5 以上赢球不加分/);
+  // 赛前预览：历史交手、近 5 场状态、预期得局之和 100%
+  const hist = pre.concat([
+    one(['me'], ['op'], 'a', [{ a: 6, b: 4 }]),
+    one(['op'], ['me'], 'a', [{ a: 6, b: 2 }]),
+  ]);
+  const r2 = R.computeRatings(hist, start);
+  const pv = R.matchupPreview(r2, players, hist, { aKeys: ['me'], bKeys: ['op'], aNames: ['我'], bNames: ['强手'], setGames: 6 });
+  assert.strictEqual(pv.aSharePct + pv.bSharePct, 100);
+  assert.deepStrictEqual([pv.h2h.played, pv.h2h.aWin, pv.h2h.bWin], [2, 1, 1]);
+  assert.strictEqual(pv.formA.length, 5);
+  assert.strictEqual(pv.presets.length, 8);
+  assert.strictEqual(pv.presets[0].label, '6:0');
+  // 活动录分页未开打时有赛前预览与模拟文案
+  const sxml = fs.readFileSync(path.resolve(__dirname, '../pages/score/score.wxml'), 'utf8');
+  assert.ok(/赛前交手预览/.test(sxml) && /bindtap="toggleSim"/.test(sxml));
+});
+
 module.exports = T;

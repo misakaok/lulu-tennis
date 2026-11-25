@@ -112,6 +112,7 @@ const REASONS = {
   drop: ['活动取消', '重复创建', '创建错了', '报名人数不够'], // 删除活动
   member: ['不认识这位球友', '信息不完整，请重新申请', '本人要求退出', '长期不参加活动'], // 拒绝申请、移除成员
   cup: ['录错了这一站', '重复录入', '比赛没有打', '不计入积分'], // 撤下一站 LULU 积分
+  close: ['天气原因', '时间到了', '中途商议结束', '场地原因', '人数不足'], // 提前结束活动
 };
 const ALL_REASONS = Object.keys(REASONS).reduce((all, k) => all.concat(REASONS[k]), []);
 const reasonOf = (v) => (typeof v === 'string' && ALL_REASONS.indexOf(v.trim()) >= 0 ? v.trim() : '');
@@ -128,6 +129,9 @@ function publicDraw(d) {
   // LULU 积分活动（draws.cup，只由管理员创建时设置）：只认三种类别，不合法的按普通活动处理
   const cup = require('./cup').drawCupOf(d);
   if (cup) out.cup = cup; else delete out.cup;
+  // 提前结束状态：原因只保留固定选项，未结束时去掉残留字段
+  if (d.endedAt) out.endReason = REASONS.close.indexOf(d.endReason) >= 0 ? d.endReason : '';
+  else { delete out.endedAt; delete out.endReason; delete out.endedBy; }
   if (Array.isArray(d.withdrawals)) out.withdrawals = d.withdrawals.map((w) => {
     const row = Object.assign({}, w); delete row.reason; return row;
   });

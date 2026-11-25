@@ -6,18 +6,23 @@
   <view class="pc-top">
     <view class="pc-photo-wrap"><pl-av wx:if="{{view.profile}}" class="pc-photo init" uid="{{view.profile.uid}}" name="{{view.profile.name}}" preview /><view wx:else class="pc-photo init" style="background:#C9C9DE"></view></view>
     <view class="pc-main">
-      <!-- 昵称和「编辑资料」同一行：按钮跟名字居中对齐，长昵称自动省略、不压到按钮 -->
+      <!-- 昵称和右侧胶囊同一行：本人显示「编辑资料」，他人主页补球风主标签 / 球风数据入口，长昵称自动省略 -->
       <view class="pc-head">
         <view wx:if="{{view.profile}}" class="pc-name">{{view.profile.name}}</view>
         <view wx:elif="{{isSelf || !loaded}}" class="pc-name">未设置资料</view>
         <view wx:else class="pc-name">球员未设置资料</view>
         <view wx:if="{{isSelf}}" class="pc-edit" hover-class="tap-on" catchtap="edit">{{view.profile ? '编辑资料' : '完善资料'}}</view>
+        <view wx:elif="{{view.profile && report}}" class="pc-style {{report.unlocked ? 'on' : ''}}" hover-class="tap-on" catchtap="openReport">{{report.unlocked ? report.tag : '球风数据 ›'}}</view>
       </view>
       <block wx:if="{{view.profile}}">
         <view class="pc-tags">
           <text class="pc-tag">{{view.profile.gender}}</text>
           <text wx:if="{{view.level.tier}}" class="pc-tag">{{view.level.tier}}</text>
           <text wx:if="{{view.level.provisional}}" class="pc-tag hl">定级中 {{view.level.played}}/{{view.level.need}}</text>
+        </view>
+        <view wx:if="{{form.length}}" class="pc-form">
+          <text class="pc-fl">近 {{form.length}} 场</text>
+          <view wx:for="{{form}}" wx:key="i" class="pc-fd {{item.w ? 'w' : ''}}">{{item.w ? '胜' : '负'}}</view>
         </view>
       </block>
       <block wx:elif="{{isSelf || !loaded}}">
@@ -52,12 +57,8 @@
 </view>
 
 <block wx:if="{{view.profile}}">
-  <view class="foot-note">{{view.ambiguous ? '这个昵称和其他账号重复，统计暂不可用' : (view.stats.wl === '暂无' ? '' : view.stats.wl + ' · ') + '数据根据正式战绩自动计算（日常比赛录入即计入）'}}</view>
+  <view wx:if="{{view.ambiguous}}" class="foot-note">这个昵称和其他账号重复，统计暂不可用</view>
   <view wx:if="{{isSelf && !view.profile.shown}}" class="foot-note">没有开启公开展示：排行榜里不显示你，排名显示「未公开」，可以在「编辑资料」里开启</view>
-
-  <!-- 球员操作 -->
-  <view wx:if="{{loaded && !isSelf}}" class="acts">
-  </view>
 
   <!-- 我和 TA 的交手记录（只在别人的主页显示） -->
   <view wx:if="{{loaded && !isSelf && h2h}}" class="card">
@@ -76,22 +77,41 @@
       <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
     <view wx:if="{{h2h.total > h2h.rows.length}}" class="h2h-more">只显示最近 {{h2h.rows.length}} 场，共 {{h2h.total}} 场</view>
-  </view>
-
-  <!-- 等级走势：最近若干场比赛后的比赛等级。刻度线和柱子同一把尺（utils/player.js 的 trendView），最后一根顶上标当前等级 -->
-  <view wx:if="{{view.trend}}" class="card">
-    <view class="card-title row-t"><text>等级走势</text><text class="h2h-sum">最近 {{view.trend.n}} 场 · {{view.trend.first}} → {{view.trend.last}}</text></view>
-    <view class="tr-plot">
-      <view wx:for="{{view.trend.ticks}}" wx:key="v" class="tr-grid {{item.base ? 'base' : ''}}" style="bottom:{{item.pos}}%"><text class="tr-tick num">{{item.v}}</text></view>
-      <view class="tr-bars {{view.trend.few ? 'few' : ''}}">
-        <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col">
-          <view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view>
-          <view wx:if="{{item.last}}" class="tr-now" style="bottom:{{item.h}}%"><text class="tr-now-v num ani-pop" style="animation-delay:{{index * 30 + 450}}ms">{{view.trend.last}}</text></view>
+    <!-- 「如果和 TA 打一场」水平分模拟 -->
+    <view wx:if="{{simRes}}" class="sim-tog" bindtap="toggleSim">
+      <text class="sim-tog-t">如果和 TA 打一场，水平分会怎么变？</text>
+      <text class="sim-tog-a">{{simOpen ? '收起' : '试算 ›'}}</text>
+    </view>
+    <view wx:if="{{simOpen && simRes}}" class="sim-box">
+      <view class="sim-bar">
+        <text class="sim-who">假设比分（我 : TA）</text>
+        <view class="sim-modes">
+          <text class="sim-mode {{simGames === 4 ? 'sim-on' : ''}}" data-g="4" bindtap="setSimGames">4 局</text>
+          <text class="sim-mode {{simGames === 6 ? 'sim-on' : ''}}" data-g="6" bindtap="setSimGames">6 局</text>
         </view>
       </view>
+      <view class="sim-chips">
+        <view wx:for="{{simPresets}}" wx:key="label" class="sim-chip num {{simIdx === index ? 'sim-on' : ''}}" data-i="{{index}}" bindtap="pickSim">{{item.label}}</view>
+      </view>
+      <view class="sim-res sim-{{simRes.dir}}">
+        <view class="sim-res-top">
+          <text class="sim-res-t">{{simRes.arrow ? simRes.arrow + ' ' : ''}}{{simRes.title}}</text>
+          <text class="sim-res-tier {{simRes.tierUp ? 'sim-tup' : ''}} {{simRes.tierDown ? 'sim-tdown' : ''}}">{{simRes.tierText}}</text>
+        </view>
+        <view class="sim-res-s">{{simRes.summary}}</view>
+        <view class="sim-res-meta">模拟得局 {{simRes.shareText}} · 赛前预期 {{simRes.expectedText}}{{simRes.provText ? ' · ' + simRes.provText : ''}}</view>
+      </view>
     </view>
-    <view class="tr-x {{view.trend.sameDay ? 'one' : ''}}"><text>{{view.trend.from}}</text><text wx:if="{{!view.trend.sameDay}}">{{view.trend.to}}</text></view>
-    <view class="tr-legend"><view class="tr-dot up"></view>涨<view class="tr-dot down"></view>跌<text class="tr-sep">·</text>每根柱子是一场比赛后的等级</view>
+  </view>
+
+  <!-- 球风与年度数据入口卡：五维球风、等级走势、打球热力图、关键分统计、苦主 / 福星与双打搭档收在二级页 pages/report，保持主页清爽 -->
+  <view wx:if="{{report}}" class="card rp-card" hover-class="tap-on" bindtap="openReport">
+    <view class="rp-ic"></view>
+    <view class="rp-m">
+      <view class="rp-t">球风与年度数据<text wx:if="{{report.tag}}" class="rp-tag {{report.unlocked ? 'rp-on' : ''}}">{{report.tag}}</text></view>
+      <view class="rp-s">{{report.sub}}</view>
+    </view>
+    <text class="rp-go">›</text>
   </view>
 
   <!-- 近期比赛（「我的」页不显示） -->
@@ -110,29 +130,6 @@
       </view>
       <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
-  </view>
-
-  <!-- 苦主 / 福星 / 最佳拍档：由正式战绩自动算出 -->
-  <view wx:if="{{view.relations}}" class="card">
-    <view class="card-title">对手与拍档<text class="sub">按正式战绩自动算出</text></view>
-    <view class="rl-row">
-      <view wx:for="{{view.relations}}" wx:key="l" class="rl" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="openPlayer">
-        <text class="rl-l">{{item.l}}</text>
-        <view wx:if="{{item.none}}" class="rl-av none">?</view><pl-av wx:else class="rl-av" uid="{{item.uid}}" name="{{item.name}}" />
-        <text class="rl-n {{item.none ? 'none' : ''}}">{{item.none ? '暂无' : item.name}}</text>
-        <text class="rl-r">{{item.none ? item.d : item.rec}}</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 双打搭档：一起打的场数和胜率 -->
-  <view wx:if="{{view.partners}}" class="card">
-    <view class="card-title row-t"><text>双打搭档</text><text wx:if="{{view.partners.best}}" class="h2h-sum">最佳搭档 {{view.partners.best.name}} · 胜率 {{view.partners.best.rate}}%</text></view>
-    <view class="ss-row ss-head"><text class="ss-s">搭档</text><text class="ss-c">场数</text><text class="ss-c">胜-负</text><text class="ss-c">胜率</text></view>
-    <view wx:for="{{view.partners.list}}" wx:key="key" class="ss-row">
-      <text class="ss-s pt-n">{{item.name}}</text><text class="ss-c">{{item.played}}</text><text class="ss-c b">{{item.win}}-{{item.lose}}</text><text class="ss-c">{{item.rate}}%</text>
-    </view>
-    <view class="h2h-more">{{view.partners.total > view.partners.list.length ? '只显示场数最多的 ' + view.partners.list.length + ' 位 · ' : ''}}最佳搭档从一起打满 {{view.partners.min}} 场的里面选</view>
   </view>
 
   <!-- 生涯成就：由正式战绩自动计算 -->
@@ -162,9 +159,8 @@
       <view wx:if="{{!view.career.got && !allBadges}}" class="bd-none">还没有达成的徽章，点「全部」看看怎么拿</view>
     </view>
 
-    <view wx:if="{{view.career.titles.length || view.career.lines.length || mine}}" class="cr-list">
+    <view wx:if="{{view.career.titles.length || (mine && total)}}" class="cr-list">
       <view wx:for="{{view.career.titles}}" wx:key="index" class="cr-line"><view class="cr-k"><text class="ui-tag lime">冠军</text></view><text class="cr-v">{{item.title}}</text><text class="cr-d">{{item.date}}</text></view>
-      <view wx:for="{{view.career.lines}}" wx:key="k" class="cr-line"><text class="cr-k">{{item.k}}</text><text class="cr-v">{{item.v}}</text></view>
       <view wx:if="{{mine && total}}" class="cr-line cr-all" hover-class="tap-row-on" bindtap="allHistory"><text class="cr-k">全部比赛</text><text class="cr-v">{{total}} 场正式比赛</text><text class="cr-go">›</text></view>
     </view>
   </view>

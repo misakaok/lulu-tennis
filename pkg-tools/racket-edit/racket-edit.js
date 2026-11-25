@@ -95,7 +95,7 @@ Page({
       wx.showToast({ title: '已保存', icon: 'success' });
       setTimeout(() => {
         if (d.id) wx.navigateBack();
-        else wx.redirectTo({ url: '/pages/racket-view/racket-view?id=' + encodeURIComponent(id) });
+        else wx.redirectTo({ url: '/pkg-tools/racket-view/racket-view?id=' + encodeURIComponent(id) });
       }, 500);
     } catch (e) {
       wx.showToast({ title: e.message || '保存失败', icon: 'none' });

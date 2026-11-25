@@ -4,6 +4,10 @@
 .hero-t { margin-top: 8rpx; font-size: 34rpx; font-weight: 800; line-height: 1.35; }
 .hero-s { margin-top: 8rpx; font-size: 24rpx; opacity: 0.92; }
 .hero-art { flex: none; width: 210rpx; height: 148rpx; margin: -10rpx -14rpx -10rpx 8rpx; }
+.dup-bar { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 24rpx; }
+.dup-m { flex: 1; min-width: 0; margin-right: 16rpx; }
+.dup-t { font-size: 25rpx; font-weight: 800; color: #4F4F7D; }
+.dup-s { margin-top: 4rpx; font-size: 21rpx; color: #70708C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .field { margin-top: 26rpx; }
 .field.first { margin-top: 0; }
 .field .label { display: block; margin-bottom: 14rpx; }

@@ -12,6 +12,15 @@
     <image class="hero-art" src="/images/art-net.png" mode="aspectFit" />
   </view>
 
+  <!-- 一键复刻上次活动：复用形式、规则、场地、地图和建议水平，日期保持今天，不自动勾积分 -->
+  <view wx:if="{{!fromSignup && !editingSettings && lastCopy}}" class="card dup-bar">
+    <view class="dup-m">
+      <view class="dup-t">复刻上次活动</view>
+      <view class="dup-s">{{lastCopy.title}} · {{lastCopy.meta}}</view>
+    </view>
+    <view class="btn-line mini" hover-class="tap-on" bindtap="copyLastDraw">一键复用</view>
+  </view>
+
   <!-- 活动设置 -->
   <view wx:if="{{!editingSettings || !fixedRotation}}" class="card">
     <view class="card-title">活动设置</view>
@@ -88,7 +97,7 @@
   <!-- 时间地点（截止报名后不再显示，到活动详情里编辑） -->
   <view wx:if="{{!fromSignup && !editingSettings}}" class="card">
     <view class="card-title">时间地点<text class="sub">创建后可以在活动详情里编辑</text></view>
-    <event-form recent="{{recentPlaces}}" allow-past="{{entry === 'pick'}}" bind:change="onInfo" />
+    <event-form value="{{formInit}}" recent="{{recentPlaces}}" allow-past="{{entry === 'pick'}}" bind:change="onInfo" />
   </view>
 
   <!-- 比赛规则：录分时直接沿用，不用每场再选 -->

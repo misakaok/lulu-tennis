@@ -1,0 +1,228 @@
+/* 顶部淡紫柔幕（与战绩页 / 球拍页同款衔接语言）：导航栏下弧形柔紫托住球风主卡，不再硬切冷灰 */
+page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 520rpx) no-repeat; background-size: 100% 520rpx; }
+.page { position: relative; z-index: 0; }
+.page::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 280rpx; pointer-events: none; z-index: -1;
+  border-radius: 0 0 50% 50% / 0 0 46rpx 46rpx;
+  background: linear-gradient(180deg, #A3A3CB 0%, #C2C2DF 20%, #E1E1F2 70%, #ECECF7 100%);
+}
+
+.empty-wait { height: 240rpx; }
+.empty-box { text-align: center; padding: 56rpx 30rpx; }
+.empty-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
+.empty-s { margin-top: 10rpx; font-size: 23rpx; color: #70708C; }
+
+/* 顶部淡紫球风主卡：承载球员信息、五维雷达、球风标签与年度核心 4 项毛玻璃数据条 */
+.hero {
+  position: relative; overflow: hidden;
+  border-radius: 38rpx; padding: 30rpx 28rpx 26rpx; margin-bottom: 22rpx; color: #fff;
+  background: linear-gradient(154deg, #A8A8D0 0%, #8989BA 58%, #7C7CB0 100%);
+  box-shadow: 0 18rpx 40rpx rgba(102, 102, 158, 0.30);
+}
+.hero::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  border-radius: inherit; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 68% 42% at 50% 44%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 72%),
+    linear-gradient(138deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 44%, rgba(56, 54, 108, 0.16) 100%);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.46), inset 0 0 0 1rpx rgba(255, 255, 255, 0.18);
+}
+/* 右上极淡斜向球场暗纹（SVG 矢量线，无图片文件） */
+.hero-court {
+  position: absolute; right: -44rpx; top: -36rpx; width: 360rpx; height: 320rpx; pointer-events: none; z-index: 0;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMjYwIj48ZyB0cmFuc2Zvcm09InJvdGF0ZSgtMjIgMTcwIDEyMCkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLW9wYWNpdHk9IjAuMDkiIHN0cm9rZS13aWR0aD0iMiI+PHJlY3QgeD0iNDAiIHk9IjIwIiB3aWR0aD0iMjIwIiBoZWlnaHQ9IjIyMCIgcng9IjYiLz48bGluZSB4MT0iNDAiIHkxPSIxMzAiIHgyPSIyNjAiIHkyPSIxMzAiIHN0cm9rZS1kYXNoYXJyYXk9IjUgNSIvPjxyZWN0IHg9IjcyIiB5PSI2OCIgd2lkdGg9IjE1NiIgaGVpZ2h0PSIxMjQiLz48bGluZSB4MT0iMTUwIiB5MT0iNjgiIHgyPSIxNTAiIHkyPSIxOTIiLz48L2c+PC9zdmc+") right top / 100% 100% no-repeat;
+}
+.hero-in { position: relative; z-index: 1; }
+
+.hero-top { display: flex; align-items: center; }
+.h-av { flex: none; width: 88rpx; height: 88rpx; border-radius: 50%; border: 3rpx solid rgba(255, 255, 255, 0.88); box-sizing: border-box; }
+.h-m { flex: 1; min-width: 0; margin: 0 16rpx 0 20rpx; }
+.h-n { font-size: 34rpx; font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-s { display: flex; align-items: baseline; margin-top: 6rpx; font-size: 22rpx; color: rgba(255, 255, 255, 0.88); white-space: nowrap; overflow: hidden; }
+.h-sn { font-size: 24rpx; font-weight: 700; color: #fff; }
+.h-lv { margin-left: 8rpx; }
+.h-su { margin: 0 12rpx 0 6rpx; }
+.h-su.last { margin-right: 0; }
+.h-dot { margin: 0 12rpx; opacity: 0.72; }
+/* 轻透磨砂小胶囊（和球员卡「编辑资料」同款质感） */
+.h-poster {
+  flex: none; height: 54rpx; line-height: 52rpx; padding: 0 22rpx; border-radius: 27rpx; box-sizing: border-box;
+  font-size: 22rpx; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, 0.20); border: 1rpx solid rgba(255, 255, 255, 0.36);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease;
+}
+
+/* 紫卡内五维球风雷达区 */
+.h-rad-hd {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-top: 22rpx; padding-top: 18rpx; border-top: 1rpx solid rgba(255, 255, 255, 0.16);
+}
+.h-rad-t { font-size: 25rpx; font-weight: 800; color: #fff; letter-spacing: 0.5rpx; }
+.h-rad-s { font-size: 21rpx; color: rgba(255, 255, 255, 0.80); font-weight: 600; }
+
+.rad-stage { position: relative; height: 356rpx; margin: 4rpx 0 4rpx; }
+.rad-svg { position: absolute; left: 50%; top: 50%; width: 280rpx; height: 280rpx; margin: -136rpx 0 0 -140rpx; background-size: 100% 100%; background-repeat: no-repeat; }
+.rad-lbl { position: absolute; display: flex; flex-direction: column; align-items: center; width: 124rpx; }
+.rl-k { font-size: 21rpx; font-weight: 700; color: rgba(255, 255, 255, 0.90); white-space: nowrap; }
+.rl-v { font-size: 26rpx; font-weight: 900; color: #fff; line-height: 1.1; margin-top: 2rpx; }
+.rl-v.top { color: #D9F252; }
+.rad-lbl.p0 { left: 50%; top: 4rpx; transform: translateX(-50%); }
+.rad-lbl.p1 { right: 52rpx; top: 124rpx; }
+.rad-lbl.p2 { right: 138rpx; bottom: 4rpx; }
+.rad-lbl.p3 { left: 138rpx; bottom: 4rpx; }
+.rad-lbl.p4 { left: 52rpx; top: 124rpx; }
+
+.rad-lock { margin-top: 8rpx; }
+.rad-prog { height: 10rpx; border-radius: 5rpx; background: rgba(56, 54, 108, 0.22); overflow: hidden; }
+.rad-prog-in { height: 100%; border-radius: 5rpx; background: linear-gradient(90deg, #E2F57A, #C9E33A); }
+.rad-lock-t { margin-top: 10rpx; text-align: center; font-size: 21rpx; color: rgba(255, 255, 255, 0.86); }
+
+.h-tags { display: flex; flex-wrap: wrap; justify-content: center; margin: 10rpx -6rpx 0; }
+.h-tag {
+  margin: 0 6rpx 4rpx; padding: 5rpx 20rpx; border-radius: 18rpx;
+  font-size: 21rpx; font-weight: 800; background: #C9E33A; color: #2E3600;
+  box-shadow: 0 4rpx 12rpx rgba(48, 46, 96, 0.16);
+}
+.rad-note { margin-top: 8rpx; text-align: center; font-size: 19rpx; color: rgba(255, 255, 255, 0.72); }
+
+/* 紫卡底栏：烟熏冷紫毛玻璃 4 格数据条（与球员卡 .pc-stats / 战绩页 .ms 同款） */
+.h-stats {
+  display: flex; margin-top: 20rpx; padding: 16rpx 0; border-radius: 22rpx;
+  background: rgba(56, 54, 108, 0.16);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1rpx solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.26), 0 8rpx 20rpx rgba(48, 46, 96, 0.14);
+}
+.hs { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.hs-bl { border-left: 1rpx solid rgba(255, 255, 255, 0.16); }
+.hs-n { font-size: 36rpx; font-weight: 900; line-height: 1.15; color: #fff; }
+.hs-n.hs-hi { color: #E2F86A; }
+.hs-l { margin-top: 4rpx; font-size: 20rpx; color: rgba(255, 255, 255, 0.86); }
+.h-rk {
+  margin-top: 12rpx; padding: 8rpx 16rpx; border-radius: 14rpx; text-align: center;
+  background: rgba(56, 54, 108, 0.14); font-size: 20rpx; font-weight: 600; color: rgba(255, 255, 255, 0.90);
+}
+
+/* 下方紧凑数据卡 */
+.card.compact { padding: 24rpx 26rpx 22rpx; margin-bottom: 20rpx; border-radius: 32rpx; }
+.card.compact .card-title { font-size: 29rpx; margin-bottom: 16rpx; }
+.row-t { display: flex; justify-content: space-between; align-items: baseline; }
+.sum-t { font-size: 21rpx; color: #6E6EA3; font-weight: 600; }
+
+/* 等级走势 */
+.tr-plot { position: relative; height: 184rpx; margin-top: 38rpx; } /* 上面留出当前等级小标签的位置 */
+.tr-grid { position: absolute; left: 60rpx; right: 0; height: 0; border-top: 1rpx dashed #E0E0EC; }
+.tr-grid.base { border-top: 2rpx solid #E6E6F0; }
+.tr-tick { position: absolute; left: -60rpx; top: -16rpx; line-height: 32rpx; font-size: 20rpx; color: #84849E; }
+.tr-bars { position: absolute; left: 60rpx; right: 0; top: 0; bottom: 0; display: flex; }
+.tr-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.tr-bar { width: 62%; max-width: 22rpx; min-height: 6rpx; border-radius: 6rpx 6rpx 0 0; background: #D6D6E6; }
+.tr-bars.few .tr-bar { width: 44%; max-width: 40rpx; border-radius: 8rpx 8rpx 0 0; }
+.tr-bar.up { background: #9A9AC6; }
+.tr-bar.down { background: #DDA9A9; }
+/* 当前等级小标签：外层铺满这一列再居中（不用 translateX，免得和 .ani-pop 的 transform 打架） */
+.tr-now { position: absolute; left: -40rpx; right: -40rpx; margin-bottom: 8rpx; display: flex; justify-content: center; }
+.tr-now-v { padding: 0 12rpx; line-height: 32rpx; border-radius: 16rpx; font-size: 20rpx; font-weight: 800; color: #6E6EA3; background: #EFEFF8; white-space: nowrap; }
+.tr-x { display: flex; justify-content: space-between; margin: 10rpx 0 0 60rpx; font-size: 20rpx; color: #84849E; }
+.tr-x.one { justify-content: center; }
+.tr-legend { display: flex; align-items: center; margin-top: 12rpx; font-size: 20rpx; color: #84849E; }
+.tr-dot { flex: none; width: 16rpx; height: 16rpx; border-radius: 4rpx; margin-right: 6rpx; }
+.tr-dot.up { background: #9A9AC6; }
+.tr-dot.down { background: #DDA9A9; margin-left: 18rpx; }
+.tr-sep { margin: 0 10rpx; }
+
+/* 年度打球黄绿热力图（收紧单元尺寸与留白） */
+.hm-wrap { display: flex; align-items: flex-start; margin-top: 4rpx; }
+.hm-days { flex: none; width: 28rpx; margin-right: 6rpx; }
+.hm-dm { height: 24rpx; }
+.hm-dl { height: 18rpx; line-height: 18rpx; margin-top: 4rpx; font-size: 17rpx; color: #9A9AB2; }
+.hm-scroll { flex: 1; min-width: 0; white-space: nowrap; }
+.hm-grid { display: inline-flex; padding-right: 10rpx; }
+.hm-col { display: flex; flex-direction: column; width: 18rpx; margin-right: 4rpx; }
+.hm-m { height: 24rpx; line-height: 24rpx; font-size: 17rpx; color: #84849E; overflow: visible; white-space: nowrap; }
+.hm-c { width: 18rpx; height: 18rpx; margin-top: 4rpx; border-radius: 4rpx; background: #F1F1F7; }
+.hm-c.hm-lv-1 { background: transparent; }
+.hm-c.hm-fut { background: #F7F7FB; opacity: 0.55; }
+.hm-lv0 { background: #F1F1F7; }
+.hm-lv1 { background: #E3F396; }
+.hm-lv2 { background: #C9E33A; }
+.hm-lv3 { background: #97BE1B; }
+.hm-lv4 { background: #5F8200; }
+.hm-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
+.hm-info { flex: 1; min-width: 0; font-size: 20rpx; color: #70708C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 12rpx; }
+.hm-leg { flex: none; display: flex; align-items: center; }
+.hm-lt { font-size: 18rpx; color: #9A9AB2; margin: 0 4rpx; }
+.hm-lc { width: 14rpx; height: 14rpx; border-radius: 3rpx; margin: 0 2rpx; }
+
+/* 关键分统计（有数据时三栏，全暂无时折叠成单行轻提示并突出单双打胜率条） */
+.cl-grid { display: flex; border-radius: 20rpx; background: #F8F8FC; padding: 16rpx 0; }
+.cl-c { flex: 1; text-align: center; padding: 0 6rpx; }
+.cl-bl { border-left: 1rpx solid #EAEAF3; }
+.cl-n { font-size: 36rpx; font-weight: 900; line-height: 1.1; color: #4F4F7D; }
+.cl-n.cl-none { font-size: 24rpx; font-weight: 600; color: #C2C2D6; }
+.cl-l { margin-top: 4rpx; font-size: 20rpx; font-weight: 600; color: #5C5C76; }
+.cl-s { margin-top: 2rpx; font-size: 18rpx; color: #84849E; }
+.cl-cmp { margin-top: 16rpx; }
+.cl-cmp.cl-cmp-top { margin-top: 0; }
+.cl-row { display: flex; align-items: center; }
+.cl-row + .cl-row { margin-top: 10rpx; }
+.cl-k { width: 58rpx; flex: none; font-size: 22rpx; font-weight: 700; color: #5C5C76; }
+.cl-bar { flex: 1; height: 12rpx; border-radius: 6rpx; background: #EFEFF6; overflow: hidden; margin: 0 14rpx; }
+.cl-fill { height: 100%; border-radius: 6rpx; background: linear-gradient(90deg, #8484B6, #A8A8D2); }
+.cl-fill.cl-dbl { background: linear-gradient(90deg, #A3C61F, #C9E33A); }
+.cl-v { flex: none; min-width: 184rpx; text-align: right; font-size: 21rpx; font-weight: 700; color: #4F4F7D; white-space: nowrap; }
+.cl-none-bar {
+  margin-top: 14rpx; padding: 10rpx 16rpx; border-radius: 14rpx; background: #F8F8FC;
+  text-align: center;
+}
+.cl-none-t { font-size: 20rpx; color: #84849E; }
+
+/* 对手与拍档 + 双打搭档（合并紧凑排布） */
+.rl-row { display: flex; background: #F8F8FC; border-radius: 20rpx; padding: 16rpx 0; }
+.rl { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 0 8rpx; }
+.rl-l { font-size: 20rpx; color: #70708C; }
+.rl-av { width: 68rpx; height: 68rpx; margin: 10rpx 0 8rpx; border-radius: 50%; color: #fff; font-size: 30rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.rl-av.none { background: #E6E6F0; color: #B7B7CC; }
+.rl-n { max-width: 100%; font-size: 24rpx; font-weight: 700; color: #2E2E4A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rl-n.none { color: #C5C5DA; font-weight: 500; }
+.rl-r { margin-top: 2rpx; font-size: 20rpx; color: #70708C; }
+
+.pt-sec.pt-div { margin-top: 20rpx; padding-top: 18rpx; border-top: 1rpx solid #EFEFF6; }
+.pt-hd { margin-bottom: 10rpx; }
+.ss-row { display: flex; align-items: center; height: 62rpx; font-size: 24rpx; color: #3A3A52; }
+.ss-row + .ss-row { border-top: 1rpx solid #F2F2F8; }
+.ss-row.ss-head { height: 42rpx; font-size: 20rpx; color: #84849E; }
+.ss-s { flex: 1.6; display: flex; align-items: center; }
+.ss-c { flex: 1; text-align: center; }
+.ss-c.b { font-weight: 700; }
+.pt-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-more { margin-top: 10rpx; font-size: 20rpx; color: #84849E; text-align: center; }
+
+/* 年度战报海报预览弹层 */
+.ps-mask {
+  position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 80;
+  background: rgba(24, 24, 46, 0.62); display: flex; align-items: center; justify-content: center; padding: 32rpx;
+}
+.ps-box {
+  width: 630rpx; max-height: 92vh; background: #fff; border-radius: 32rpx; padding: 24rpx 28rpx 28rpx;
+  box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
+}
+.ps-hd { width: 100%; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
+.ps-t { font-size: 29rpx; font-weight: 800; color: #2E2E4A; }
+.ps-x { width: 48rpx; height: 48rpx; line-height: 48rpx; text-align: center; font-size: 28rpx; color: #84849E; }
+.ps-stage {
+  position: relative; width: 480rpx; height: 781rpx; border-radius: 22rpx; overflow: hidden;
+  background: #EFEFF7; box-shadow: 0 10rpx 28rpx rgba(70, 70, 120, 0.18);
+}
+.ps-cv { width: 480rpx; height: 781rpx; display: block; }
+.ps-busy {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: rgba(255, 255, 255, 0.85);
+  display: flex; align-items: center; justify-content: center; font-size: 24rpx; color: #6E6EA3; font-weight: 700;
+}
+.ps-tip { margin-top: 14rpx; font-size: 20rpx; color: #84849E; text-align: center; }
+.ps-acts { width: 100%; display: flex; margin-top: 18rpx; }
+.ps-btn { flex: 1; margin-right: 16rpx; height: 78rpx; line-height: 78rpx; border-radius: 39rpx; font-size: 26rpx; }
+.btn-line.ps-btn { line-height: 72rpx; }
+.ps-btn:last-child { margin-right: 0; }

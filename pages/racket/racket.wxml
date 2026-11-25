@@ -51,6 +51,25 @@
         </view>
         <view wx:if="{{item.alerts.length}}" class="rk-alerts"><text wx:for="{{item.alerts}}" wx:key="k" wx:for-item="a" class="ui-tag {{a.cls}} rk-a">{{a.t}}</text></view>
       </view>
+      <!-- 装备年度花费与换线 / 断线统计（纯私人数据，从穿线 / 维护 / 使用时长自动汇总） -->
+      <view wx:if="{{st}}" class="card eq-card">
+        <view class="eq-hd">
+          <text class="eq-t">{{st.year}} 装备统计</text>
+          <view class="eq-acts">
+            <text wx:if="{{st.badge}}" class="eq-badge">{{st.badge}}</text>
+            <view class="btn-line mini eq-tune" hover-class="tap-on" bindtap="openTune">配重计算</view>
+          </view>
+        </view>
+        <view class="eq-grid">
+          <view class="eq-c"><view class="eq-n num">{{st.costText}}</view><view class="eq-l">今年花费</view></view>
+          <view class="eq-c eq-bl"><view class="eq-n num {{st.avgText === '—' ? 'none' : ''}}">{{st.avgText}}</view><view class="eq-l">平均换线</view></view>
+          <view class="eq-c eq-bl"><view class="eq-n num">{{st.hoursText}}</view><view class="eq-l">今年时长</view></view>
+        </view>
+        <view wx:if="{{st.chips.length}}" class="eq-chips">
+          <text wx:for="{{st.chips}}" wx:key="*this" class="eq-chip">{{item}}</text>
+        </view>
+        <view wx:elif="{{!st.hasData}}" class="eq-hint">记录穿线费用、断线标签和打球时长后，这里会自动统计年度花费与换线周期</view>
+      </view>
       <view class="ball-add {{bouncing ? 'bouncing' : ''}}" bindtap="add"><view class="ball-rk"></view><view class="ball-sh"></view><view class="ball-btn"></view></view>
     </block>
   </block>

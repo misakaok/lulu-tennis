@@ -6,7 +6,7 @@ const H = require('../../utils/highlight');
 const Anim = require('../../utils/anim');
 const haptic = require('../../utils/haptic');
 
-const PAGE = 40;        // 列表每次显示多少场，滑到底再加载
+const PAGE = 5;         // 每页显示 5 场
 const SEARCH_MS = 300;  // 搜索防抖
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
@@ -20,6 +20,55 @@ function dateLabel(str) {
   const [y, m, d] = str.split('-').map(Number);
   const w = WEEK[new Date(y, m - 1, d).getDay()];
   return (y === now.getFullYear() ? '' : `${y}年`) + `${m}月${d}日 ${w}`;
+}
+
+function shortDate(str) {
+  if (!str) return '';
+  const y = String(new Date().getFullYear());
+  return str.indexOf(y + '-') === 0 ? str.slice(5) : str.slice(2);
+}
+
+// 按日期筛选时的当日统计摘要（不改动原数组）：含当日总场数、单双打分布、上场人数、本人胜负与相邻有比赛的日期
+function buildDaySummary(shown, dates, pickDate, myId, shownCount) {
+  if (!pickDate) return null;
+  const dayList = (shown || []).filter((m) => m.date === pickDate);
+  let single = 0, double = 0, myWin = 0, myLose = 0;
+  const names = {};
+  dayList.forEach((m) => {
+    if (m.type === 'double') double++; else single++;
+    (m.a || []).concat(m.b || []).forEach((n) => { if (n) names[n] = 1; });
+    if (myId && m.status !== 'pending' && isNormal(m)) {
+      const inA = (m.aKeys || []).indexOf(myId) >= 0;
+      const inB = !inA && (m.bKeys || []).indexOf(myId) >= 0;
+      if (inA || inB) {
+        if (m.winner === (inA ? 'a' : 'b')) myWin++; else myLose++;
+      }
+    }
+  });
+  const ds = dates || [];
+  const prev = ds.find((d) => d < pickDate) || '';
+  let next = '';
+  for (let i = ds.length - 1; i >= 0; i--) {
+    if (ds[i] > pickDate) { next = ds[i]; break; }
+  }
+  const nearest = dayList.length ? '' : (prev || next);
+  return {
+    date: pickDate,
+    label: dateLabel(pickDate),
+    total: dayList.length,
+    single,
+    double,
+    players: Object.keys(names).length,
+    myPlayed: myWin + myLose,
+    myWin,
+    myLose,
+    shown: shownCount,
+    hasFilter: shownCount !== dayList.length,
+    prev,
+    next,
+    nearest,
+    nearestShort: shortDate(nearest),
+  };
 }
 
 // 记分牌中间的比分：打多盘显示盘分，只打一盘显示局分；下面一行列出每盘（有抢七时带括号）
@@ -72,26 +121,30 @@ Page({
     me: null, // 我的战绩卡：没有账号或还没打过比赛时不显示，顶部改为显示全部比赛的统计
     filter: 'all', canRecordDaily: false,
     who: '',
-    more: false,
+    today: ymd(new Date()),
+    pickDate: '',
+    pickShort: '',
+    daySummary: null,
+    page: 1,
+    totalPages: 1,
+    totalCount: 0,
+    pageOpts: ['第 1 页'],
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
   },
 
   onLoad() {
     wx.hideShareMenu({ fail() {} }); // 战绩、排行、我的（带昵称和战绩）不能转发，菜单里不显示转发；只有活动首页能分享
-    this.limit = PAGE;
+    this.page = 1;
     // 本人 ID 先用本机记着的（资料里没有就用登录时记下的），免得顶部先画「全部比赛」卡、云端读完再换成「我的战绩」卡
     this.setSource(db.cachedMatchesAll(), db.cachedPlayersFull(), db.cachedOpenid() || (db.cachedProfile() || {})._openid || '');
     this.render();
     // 「记一场」按钮先按本机记得的身份显示（24 小时内确认过是正式成员），不等云端；load 里拿到身份后再更正
     if (require('../../utils/member').knownActive()) this.setData({ canRecordDaily: true });
   },
-  onReachBottom() {
-    if (!this.data.more) return;
-    this.limit += PAGE;
-    this.render();
-  },
   onShow() {
     Anim.enter(this); // 切换 tab 回来：重播入场动画和数字滚动（从详情返回不重播）
+    const nowYmd = ymd(new Date());
+    if (nowYmd !== this.data.today) this.setData({ today: nowYmd });
     this.load();
   },
   onHide() { Anim.leave(this); },
@@ -135,8 +188,12 @@ Page({
     this.myId = myId || '';
     // 和排行榜同一套口径（S.playerStats：名次按水平排序，只在同意公开展示的人里排）
     const st = S.playerStats(all, players || [], db.profilesOf(players || []));
+    const dateSet = {};
+    shown.forEach((m) => { if (m.date) dateSet[m.date] = 1; });
+    const dates = Object.keys(dateSet).sort((a, b) => b.localeCompare(a));
     this.src = {
       shown,
+      dates,
       me: this.meCard(all, st, players || []),
       deltas: st.ratings.deltas,
       tags: H.tagsOf(all, st.ratings), // 亮点标签（爆冷、逆转…）：只在数据变化时算一次，和比赛详情共用
@@ -145,25 +202,38 @@ Page({
     return true;
   },
 
-  // 列表显示正式战绩 + 待对手确认的日常比赛；按筛选条件过滤后只渲染前 limit 场
+  // 列表显示正式战绩 + 待对手确认的日常比赛；按筛选条件过滤后按页切片展示（每页 PAGE 场）
   render() {
-    const { shown, deltas, stat, me, tags } = this.src || { shown: [], deltas: {}, stat: this.data.stat, me: null, tags: {} };
+    const { shown, deltas, stat, me, tags, dates } = this.src || { shown: [], deltas: {}, stat: this.data.stat, me: null, tags: {}, dates: [] };
     const who = (this.who !== undefined ? this.who : this.data.who).trim();
     const filter = this.data.filter;
+    const pickDate = this.data.pickDate || '';
     const list = shown.filter((m) =>
+      (!pickDate || m.date === pickDate) &&
       (filter === 'all' || m.type === filter) &&
       (!who || (m.a || []).concat(m.b || []).some((n) => n.indexOf(who) >= 0)));
+    const totalCount = list.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE));
+    const page = Math.min(Math.max(1, this.page || 1), totalPages);
+    this.page = page;
+    const start = (page - 1) * PAGE;
     const groups = [];
-    list.slice(0, this.limit || PAGE).forEach((m) => {
+    list.slice(start, start + PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
       g.items.push(toView(m, deltas, this.gOf, tags));
     });
+    const pageOpts = [];
+    for (let i = 1; i <= totalPages; i++) pageOpts.push(`第 ${i} 页`);
+    const daySummary = pickDate ? buildDaySummary(shown, dates, pickDate, this.myId, totalCount) : null;
     // 顶部卡片的数字第一次显示时从 0 滚到实际值（滚动帧按路径改 data，所以 me / stat 传副本，不动 this.src 里那份）
     const nums = me
       ? { 'me.level': me.level, 'me.played': me.played, 'me.win': me.win, 'me.lose': me.lose, 'me.rate': me.rate }
       : { 'stat.total': stat.total, 'stat.month': stat.month, 'stat.players': stat.players };
-    this.setData(Object.assign({ groups, stat: Object.assign({}, stat), me: me && Object.assign({}, me), more: list.length > (this.limit || PAGE) }, Anim.roll(this, nums)));
+    this.setData(Object.assign({
+      groups, daySummary, page, totalPages, totalCount, pageOpts,
+      stat: Object.assign({}, stat), me: me && Object.assign({}, me),
+    }, Anim.roll(this, nums)));
   },
 
   // 我的战绩卡：水平分、名次、场次、胜负、胜率、最近 6 场（只算正式战绩里正常完赛的）
@@ -183,12 +253,51 @@ Page({
   },
   goMe() { wx.switchTab({ url: '/pages/me/me' }); },
 
-  setFilter(e) { if (e.currentTarget.dataset.v !== this.data.filter) haptic.light(); this.limit = PAGE; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
+  setFilter(e) { if (e.currentTarget.dataset.v !== this.data.filter) haptic.light(); this.page = 1; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
+  onPickDate(e) {
+    const d = e && e.detail && e.detail.value;
+    if (!d) return;
+    haptic.light();
+    this.page = 1;
+    this.setData({ pickDate: d, pickShort: shortDate(d) });
+    this.render();
+  },
+  jumpDate(e) {
+    const d = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.d;
+    if (!d) return;
+    haptic.light();
+    this.page = 1;
+    this.setData({ pickDate: d, pickShort: shortDate(d) });
+    this.render();
+  },
+  clearDate() {
+    if (!this.data.pickDate) return;
+    haptic.light();
+    this.page = 1;
+    this.setData({ pickDate: '', pickShort: '', daySummary: null });
+    this.render();
+  },
+  goPage(next) {
+    const tp = this.data.totalPages || 1;
+    const p = Math.min(Math.max(1, next), tp);
+    if (p === (this.page || 1)) return;
+    haptic.light();
+    this.page = p;
+    this.render();
+    if (typeof wx !== 'undefined' && wx.pageScrollTo) wx.pageScrollTo({ scrollTop: 0, duration: 220 });
+  },
+  prevPage() { this.goPage((this.page || 1) - 1); },
+  nextPage() { this.goPage((this.page || 1) + 1); },
+  pickPage(e) {
+    const idx = Number(e && e.detail && e.detail.value);
+    if (!Number.isFinite(idx)) return;
+    this.goPage(idx + 1);
+  },
   // 输入时只记下关键词，停顿 300ms 再过滤（不在每个字上重新渲染整个列表）
   onSearch(e) {
     this.who = e.detail.value;
     clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => { this.limit = PAGE; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
+    this.searchTimer = setTimeout(() => { this.page = 1; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
   },
   onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
   goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）

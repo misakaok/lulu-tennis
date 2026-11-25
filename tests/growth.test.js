@@ -121,7 +121,7 @@ test('抢11分练习赛（先到 11 分直接赢）：校验完赛比分、保�
 
 test('页面：成长档案和编辑页不能分享、没有文字输入，只经 utils/archive.js 读写', () => {
   const fs = require('fs'), path = require('path'), root = path.resolve(__dirname, '..');
-  for (const p of ['pages/growth/growth', 'pages/growth-edit/growth-edit']) {
+  for (const p of ['pkg-manage/growth/growth', 'pkg-manage/growth-edit/growth-edit']) {
     const js = fs.readFileSync(path.join(root, p + '.js'), 'utf8');
     const xml = fs.readFileSync(path.join(root, p + '.wxml'), 'utf8');
     const cfg = JSON.parse(fs.readFileSync(path.join(root, p + '.json'), 'utf8'));

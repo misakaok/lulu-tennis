@@ -34,7 +34,7 @@ function nextMatch(draws, matches, myId, signups, today) {
   (signups || []).forEach((s) => { if (s && s.drawId) (sigBy[s.drawId] = sigBy[s.drawId] || []).push(s); });
   let best = null;
   (draws || []).forEach((d, di) => {
-    if (!d || d.deleted || d.status === 'signup') return;
+    if (!d || d.deleted || d.status === 'signup' || d.endedAt) return;
     const uidOf = ID.drawUids(d, sigBy[d._id] || []);
     if (!Object.keys(uidOf).some((n) => uidOf[n] === myId)) return; // 这个活动里没有我：不用展开场次
     const wd = E.withdrawalsOf(d);

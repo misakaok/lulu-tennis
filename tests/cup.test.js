@@ -397,14 +397,16 @@ test('界面：排行页顶部「水平排行 / LULU 积分」；补录页只给
   const rank = read('pages/rank/rank.wxml');
   assert.ok(/data-v="cup" bindtap="setView">LULU 积分/.test(rank));
   assert.ok(/<cup-board wx:if="\{\{view === 'cup'\}\}"/.test(rank));
-  assert.ok(JSON.parse(read('app.json')).pages.indexOf('pages/cup-edit/cup-edit') >= 0);
-  assert.ok(/ms\.status !== 'active' \|\| !ms\.isAdmin/.test(read('pages/cup-edit/cup-edit.js')));
+  const appCfg = JSON.parse(read('app.json'));
+  const allAppPages = (appCfg.pages || []).concat((appCfg.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
+  assert.ok(allAppPages.indexOf('pkg-manage/cup-edit/cup-edit') >= 0);
+  assert.ok(/ms\.status !== 'active' \|\| !ms\.isAdmin/.test(read('pkg-manage/cup-edit/cup-edit.js')));
   assert.ok(/cupList: 1/.test(read('utils/cloud.js')));
   const board = read('components/cup-board/cup-board.js');
   assert.ok(/cloud\.cached\('cupList'\)/.test(board) && !/cupSave/.test(board), '积分组件只读');
   assert.ok(/shown === true/.test(board), '榜单只显示同意公开展示的球员');
   assert.ok(/cupSave: 1, cupRemove: 1/.test(read('cloudfunctions/tennis/index.js')), 'cupSave、cupRemove 在 ADMIN_ONLY 里');
-  const edit = read('pages/cup-edit/cup-edit.wxml'), ejs = read('pages/cup-edit/cup-edit.js');
+  const edit = read('pkg-manage/cup-edit/cup-edit.wxml'), ejs = read('pkg-manage/cup-edit/cup-edit.js');
   assert.ok(/class="btn-danger[^"]*"[^>]*bindtap="removeStop">\{\{published \? '撤下这一站' : '删除这份草稿'\}\}/.test(edit), '撤下按钮用 .btn-danger，只在已有的站上出现');
   assert.ok(/wx:if="\{\{editing\}\}" class="btn-danger/.test(edit));
   assert.ok(/pick\.reason\('cup'/.test(ejs), '原因从固定选项里选');
@@ -485,7 +487,7 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   const calls = [];
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {}, showModal: (o) => o.success({ confirm: true }) };
   const people = [{ uid: 'alice', nickname: 'Alice', gender: 'f' }, { uid: 'bob', nickname: 'Bob', gender: 'm' }, { uid: 'carl', nickname: 'Carl', gender: 'm' }, { uid: 'x', nickname: '' }];
-  const def = loadDef('pages/cup-edit/cup-edit.js', {
+  const def = loadDef('pkg-manage/cup-edit/cup-edit.js', {
     '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
     '../../utils/cloud': viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: people } : { status: 'published', how: 'publish' }; } }),
   }, wx);
@@ -570,7 +572,7 @@ test('补录页：只从正式成员里选，预览每条记录的基础分、�
   await new Promise((r) => setImmediate(r));
   assert.strictEqual(calls.filter((c) => c[0] === 'cupSave').pop()[1].key, key, '再点一次发布还是同一站');
   // 不是管理员：直接打开也不能用
-  const def2 = loadDef('pages/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: false }) }, '../../utils/cloud': viaCall({ call: async () => ({}) }) }, wx);
+  const def2 = loadDef('pkg-manage/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: false }) }, '../../utils/cloud': viaCall({ call: async () => ({}) }) }, wx);
   const q = Object.assign({}, def2, { data: plain(def2.data), setData(o) { Object.assign(this.data, o); } });
   await q.onLoad({});
   assert.strictEqual(q.data.ok, false); assert.strictEqual(q.data.authError, '只有管理员可以补录积分');
@@ -586,7 +588,7 @@ test('补录页：手动补录保存草稿后不会凭空出现「来自活动�
     });
   };
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {}, showModal: (o) => o.success && o.success({ confirm: true }) };
-  const def = loadDef('pages/cup-edit/cup-edit.js', {
+  const def = loadDef('pkg-manage/cup-edit/cup-edit.js', {
     '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
     '../../utils/cloud': viaCall({ call: async (action) => (action === 'listMembers' ? { active: [{ uid: 'alice', nickname: 'Alice' }, { uid: 'bob', nickname: 'Bob' }] } : { status: 'draft', id: 'stopX' }) }),
   }, wx);
@@ -603,7 +605,7 @@ test('补录页：手动补录保存草稿后不会凭空出现「来自活动�
   assert.deepStrictEqual(plain(p.data.from), { title: '周赛', notes: [], stale: false });
 
   // 模板：「参加保底」那一块按 showPointGroup / hasFloor 各种组合，按钮和「月赛没有参加保底分」不同时出现
-  const wxml = read('pages/cup-edit/cup-edit.wxml');
+  const wxml = read('pkg-manage/cup-edit/cup-edit.wxml');
   const i = wxml.indexOf('bindtap="addFloor"');
   const block = wxml.slice(wxml.lastIndexOf('<view wx:if="{{hasFloor}}"', i), wxml.indexOf('月赛没有参加保底分', i) + 40);
   const nodes = [...block.matchAll(/<view (wx:if|wx:elif|wx:else)(?:="\{\{([^}]*)\}\}")?[^>]*>/g)].map((m) => ({ kind: m[1], cond: m[2], idx: m.index }));
@@ -632,7 +634,7 @@ test('补录页撤下：已发布的站「撤下这一站」、草稿「删除�
   let answer = '录错了这一站', confirm = true;
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {}, showModal: (o) => o.success && o.success({ confirm }) };
   const published = { id: 'stop20261122w', date: YESTERDAY, year: 2026, kind: 'weekly', format: 'single', status: 'published', fixes: 0, places: { champion: ['alice'], runnerUp: ['bob'], semis: [], floor: [] }, results: [] };
-  const def = loadDef('pages/cup-edit/cup-edit.js', {
+  const def = loadDef('pkg-manage/cup-edit/cup-edit.js', {
     '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) },
     '../../utils/pick': { reason: async (kind) => { calls.push(['pick', kind]); return answer; } },
     '../../utils/cloud': viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active: [{ uid: 'alice', nickname: 'Alice' }, { uid: 'bob', nickname: 'Bob' }] } : action === 'cupList' ? { list: [published] } : { removed: true }; } }),
@@ -792,10 +794,10 @@ test('我的积分：没开公开展示也能看到自己的总分和明细；�
   await me.loadCup();
   assert.deepStrictEqual(plain(me.data.cup), { year: 2026, any: true, single: '40', double: '15', encounter: '', last: { date: '11-22', kind: '周赛', format: '单打', tier: '冠军', total: '40', which: 'single', year: 2026 } });
   me.openCup();
-  assert.strictEqual(nav.pop(), '/pages/cup-mine/cup-mine?year=2026&which=single');
+  assert.strictEqual(nav.pop(), '/pkg-manage/cup-mine/cup-mine?year=2026&which=single');
 
   // 个人明细
-  const page = loadPage('pages/cup-mine/cup-mine.js', deps, wx);
+  const page = loadPage('pkg-manage/cup-mine/cup-mine.js', deps, wx);
   page.onLoad({ year: '2026', which: 'single' });
   await new Promise((r) => setTimeout(r, 0)); await page.load();
   assert.deepStrictEqual(plain(page.data.years), [2026, 2025]);
@@ -826,19 +828,26 @@ test('我的积分：没开公开展示也能看到自己的总分和明细；�
   await me.loadCup();
   assert.deepStrictEqual(plain([me.data.cup.any, me.data.cup.single, me.data.cup.double, me.data.cup.last.date]), [false, '0', '0', '2025-12-30']);
   me.openCup();
-  assert.strictEqual(nav.pop(), '/pages/cup-mine/cup-mine?year=2025&which=single', '今年没有：打开最近一站那一年');
+  assert.strictEqual(nav.pop(), '/pkg-manage/cup-mine/cup-mine?year=2025&which=single', '今年没有：打开最近一站那一年');
   const wxml = read('pages/me/me.wxml');
   assert.ok(/今年暂无积分/.test(wxml) && /单打积分/.test(wxml) && /双打积分/.test(wxml));
 });
 
 test('我的积分：页面只读 cupList、不能分享、只在「我的」进入；没有自由文字', () => {
-  const js = read('pages/cup-mine/cup-mine.js'), json = JSON.parse(read('pages/cup-mine/cup-mine.json'));
+  const js = read('pkg-manage/cup-mine/cup-mine.js'), json = JSON.parse(read('pkg-manage/cup-mine/cup-mine.json'));
   assert.ok(!/cloud\.call\(|cupSave|cupRemove/.test(js) && /cloud\.cached\('cupList'\)/.test(js));
   assert.ok(/hideShareMenu/.test(js) && !/onShareAppMessage|onShareTimeline/.test(js));
   assert.strictEqual(json.enableShareAppMessage, false); assert.strictEqual(json.enableShareTimeline, false);
-  assert.ok(JSON.parse(read('app.json')).pages.includes('pages/cup-mine/cup-mine'));
-  assert.ok(!/<input|<textarea/.test(read('pages/cup-mine/cup-mine.wxml')));
-  const users = fs.readdirSync(path.resolve(__dirname, '..', 'pages')).filter((d) => d !== 'cup-mine' && fs.existsSync(path.resolve(__dirname, '..', 'pages', d, d + '.js')) && /cup-mine/.test(read(`pages/${d}/${d}.js`)));
+  const appCfg = JSON.parse(read('app.json'));
+  const allAppPages = (appCfg.pages || []).concat((appCfg.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
+  assert.ok(allAppPages.includes('pkg-manage/cup-mine/cup-mine'));
+  assert.ok(!/<input|<textarea/.test(read('pkg-manage/cup-mine/cup-mine.wxml')));
+  const users = [];
+  for (const r of ['pages', 'pkg-tools', 'pkg-manage']) {
+    for (const d of fs.readdirSync(path.resolve(__dirname, '..', r))) {
+      if (d !== 'cup-mine' && fs.existsSync(path.resolve(__dirname, '..', r, d, d + '.js')) && /cup-mine/.test(read(`${r}/${d}/${d}.js`))) users.push(d);
+    }
+  }
   assert.deepStrictEqual(users, ['me']);
 });
 
@@ -1213,11 +1222,11 @@ test('积分活动：双打两人平分进双打榜、单打榜不受影响；�
 test('积分活动页面：创建页默认不计、开启 / 换类别不改已选的活动形式（推不出名次只提示）、不匹配不能创建；详情页只给管理员结算入口；结算页按活动预填、类别锁定、发布用云端编号', async () => {
   const env = setup();
   // 创建页
-  const nj = read('pages/draw-new/draw-new.js'), nw = read('pages/draw-new/draw-new.wxml');
+  const nj = read('pkg-manage/draw-new/draw-new.js'), nw = read('pkg-manage/draw-new/draw-new.wxml');
   assert.ok(/cupOn: false/.test(nj) && /计入 LULU 积分/.test(nw) && /不计入/.test(nw));
   assert.ok(!/CFG_KEY[^\n]*cup/.test(nj), '不记住上次的积分设置');
   let toast = '';
-  const dn = loadDef('pages/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { showToast: (o) => { toast = o.title; } });
+  const dn = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { showToast: (o) => { toast = o.title; } });
   const pg = { data: { mode: 'groups', size: 16, cupOn: false, cupKind: 'weekly', fromSignup: false, cupErr: '', cupNote: '' }, setData(o) { Object.assign(this.data, o); }, changed(o) { Object.assign(this.data, o); this.checkCup(); }, refresh() { this.checkCup(); } };
   ['setCup', 'setCupKind', 'checkCup', 'cupOk'].forEach((k) => { pg[k] = dn[k]; });
   assert.ok(!('fitCup' in dn), '不再自动改活动形式');
@@ -1268,7 +1277,7 @@ test('积分活动页面：创建页默认不计、开启 / 换类别不改已�
 
   // 结算页：按活动预填，类别锁定，发布后编号是云端给的；再次打开是原来那一站
   const mkEdit = () => {
-    const def = loadDef('pages/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) }, '../../utils/cloud': viaCloud, '../../utils/pick': {} },
+    const def = loadDef('pkg-manage/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) }, '../../utils/cloud': viaCloud, '../../utils/pick': {} },
       { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {}, showModal: (o) => o.success({ confirm: true }) });
     return Object.assign({}, def, { data: plain(def.data), setData(o) {
       Object.keys(o).forEach((k) => { const ks = k.split('.'); let t = this.data; ks.slice(0, -1).forEach((x) => { t = t[x]; }); t[ks[ks.length - 1]] = plain(o[k]); });

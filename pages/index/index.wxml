@@ -36,16 +36,49 @@
         data-v="{{item.value}}" bindtap="setFilter">{{item.label}}</view>
     </view>
     <input class="search" placeholder="搜索球员" placeholder-class="search-ph" value="{{who}}" bindinput="onSearch" confirm-type="search" />
+    <picker class="dp-wrap" mode="date" value="{{pickDate || today}}" start="2020-01-01" end="{{today}}" bindchange="onPickDate">
+      <view class="dp-btn {{pickDate ? 'on' : ''}}" hover-class="tap-on">
+        <view class="dp-ic"></view>
+        <text class="dp-t">{{pickDate ? pickShort : '日期'}}</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 按日期查看时的当日汇总条 -->
+  <view wx:if="{{daySummary}}" class="day-bar">
+    <view class="day-hd">
+      <picker mode="date" value="{{pickDate}}" start="2020-01-01" end="{{today}}" bindchange="onPickDate">
+        <view class="day-date">{{daySummary.label}}<text class="day-caret">▾</text></view>
+      </picker>
+      <view class="day-acts">
+        <view class="day-nav {{daySummary.prev ? '' : 'off'}}" hover-class="{{daySummary.prev ? 'tap-on' : ''}}" data-d="{{daySummary.prev}}" bindtap="jumpDate">‹</view>
+        <view class="day-nav {{daySummary.next ? '' : 'off'}}" hover-class="{{daySummary.next ? 'tap-on' : ''}}" data-d="{{daySummary.next}}" bindtap="jumpDate">›</view>
+        <view class="day-clr" hover-class="tap-on" bindtap="clearDate">查看全部</view>
+      </view>
+    </view>
+    <view wx:if="{{daySummary.total}}" class="day-stats">
+      <text class="day-st b">共 {{daySummary.total}} 场</text>
+      <text wx:if="{{daySummary.single}}" class="day-st">单打 {{daySummary.single}}</text>
+      <text wx:if="{{daySummary.double}}" class="day-st">双打 {{daySummary.double}}</text>
+      <text class="day-st">{{daySummary.players}} 位球友</text>
+      <text wx:if="{{daySummary.myPlayed}}" class="day-me">我 {{daySummary.myWin}}胜{{daySummary.myLose}}负</text>
+      <text wx:if="{{daySummary.hasFilter}}" class="day-flt">当前显示 {{daySummary.shown}} 场</text>
+    </view>
+    <view wx:else class="day-none">
+      <text class="day-none-t">当天暂无比赛记录</text>
+      <view wx:if="{{daySummary.nearest}}" class="day-near" hover-class="tap-on" data-d="{{daySummary.nearest}}" bindtap="jumpDate">最近比赛日 {{daySummary.nearestShort}} ›</view>
+    </view>
   </view>
 
   <view wx:if="{{!groups.length && !loading}}" class="empty">
     <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
-    <view>{{who || filter !== 'all' ? '没有符合条件的比赛' : '还没有比赛记录'}}</view>
-    <view wx:if="{{canRecordDaily && !who && filter === 'all'}}" class="btn-primary small" hover-class="tap-on" bindtap="goAdd">记录一场日常比赛</view>
+    <view>{{pickDate && !who && filter === 'all' ? daySummary.label + ' 还没有比赛记录' : (who || filter !== 'all' || pickDate ? '没有符合条件的比赛' : '还没有比赛记录')}}</view>
+    <view wx:if="{{pickDate}}" class="btn-line small" hover-class="tap-on" bindtap="clearDate">查看全部比赛</view>
+    <view wx:elif="{{canRecordDaily && !who && filter === 'all'}}" class="btn-primary small" hover-class="tap-on" bindtap="goAdd">记录一场日常比赛</view>
   </view>
 
   <block wx:for="{{groups}}" wx:key="date" wx:for-item="g" wx:for-index="gi">
-    <view class="date">{{g.label}}</view>
+    <block wx:if="{{!pickDate}}"><view class="date">{{g.label}}</view></block>
     <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}}" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
       <view class="mc-meta">
         <text class="mc-type">{{item.typeText}}</text>
@@ -79,8 +112,19 @@
     </view>
   </block>
 
-  <view wx:if="{{more}}" class="foot">上滑加载更多</view>
-  <view wx:elif="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己参加的日常比赛</view>
+  <!-- 翻页条（超过 1 页时显示；点击中间页码可直达任意页） -->
+  <view wx:if="{{totalPages > 1}}" class="pager">
+    <view class="pg-btn {{page <= 1 ? 'off' : ''}}" hover-class="{{page > 1 ? 'tap-on' : ''}}" bindtap="prevPage">‹ 上一页</view>
+    <picker class="pg-mid" mode="selector" range="{{pageOpts}}" value="{{page - 1}}" bindchange="pickPage">
+      <view class="pg-cur num">
+        <text>第 {{page}} / {{totalPages}} 页</text><text class="pg-caret">▾</text>
+      </view>
+      <view class="pg-tot">共 {{totalCount}} 场</view>
+    </picker>
+    <view class="pg-btn {{page >= totalPages ? 'off' : ''}}" hover-class="{{page < totalPages ? 'tap-on' : ''}}" bindtap="nextPage">下一页 ›</view>
+  </view>
+
+  <view wx:if="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己参加的日常比赛</view>
 </view>
 
 <!-- 记录日常比赛（活动比赛在签表里录）；场边记分在「记一场」页里面 -->

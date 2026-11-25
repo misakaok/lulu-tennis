@@ -15,6 +15,12 @@ const DRAFT_KEY = 'scorer_draft';
 const VERSION = 1;
 const MAX_POINTS = 2000; // 防御：坏数据不至于让页面卡死（三盘两胜正常不到 400 分）
 const CALLS = ['0', '15', '30', '40'];
+const TAG_CODES = { A: 'ACE', D: '双误', W: '制胜分', U: '非受迫失误' };
+const cleanTags = (raw, len) => {
+  if (!raw || typeof raw !== 'string') return '';
+  const s = raw.slice(0, len);
+  return /[ADWU]/.test(s) ? s : '';
+};
 
 function cfgOf(raw) {
   const c = R.normCfg(raw || {});
@@ -38,11 +44,11 @@ function tbWinner(p, cfg) {
   return R.checkTb(p[hi], p[other(hi)], cfg) ? '' : hi;
 }
 
-// 从头推一遍：返回已完成的各盘、当前盘局分、当前局 / 抢七的小分、盘分、是否完赛
+// 从头推一遍：返回已完成的各盘、当前盘局分、当前局 / 抢七的小分、盘分、累计局数（发球轮转用）、是否完赛
 function replay(rawCfg, points) {
   const cfg = cfgOf(rawCfg);
   const T = R.tbAt(cfg);
-  const st = { cfg, sets: [], games: { a: 0, b: 0 }, pts: { a: 0, b: 0 }, tb: false, won: { a: 0, b: 0 }, done: false, winner: '', used: 0 };
+  const st = { cfg, sets: [], games: { a: 0, b: 0 }, pts: { a: 0, b: 0 }, tb: false, won: { a: 0, b: 0 }, done: false, winner: '', used: 0, totalGames: 0 };
   const str = String(points || '');
   for (let i = 0; i < str.length && i < MAX_POINTS; i++) {
     const w = str[i];
@@ -52,11 +58,13 @@ function replay(rawCfg, points) {
     let set = null;
     if (st.tb) {
       if (!tbWinner(st.pts, cfg)) continue;
+      st.totalGames++; // 抢七算一局：首球发球方下一盘先接发（ITF 规则）
       set = R.cleanSet({ a: T, b: T, tbA: st.pts.a, tbB: st.pts.b }, cfg); // 3:3 → 4:3（6 局制 6:6 → 7:6）
     } else {
       const gw = gameWinner(st.pts, cfg);
       if (!gw) continue;
       st.games[gw]++;
+      st.totalGames++;
       st.pts = { a: 0, b: 0 };
       if (st.games.a === T && st.games.b === T) { st.tb = true; continue; }
       const g = { a: st.games.a, b: st.games.b };
@@ -70,6 +78,34 @@ function replay(rawCfg, points) {
     if (st.won[r.winner] === need(cfg)) { st.done = true; st.winner = r.winner; }
   }
   return st;
+}
+
+// 当前发球方（按 ITF 规则）：每完成一局交换发球；抢七按 1-2-2-2 轮换，下一盘由抢七首球接发方先发
+function serveOf(st, first) {
+  if (st.done || (first !== 'a' && first !== 'b')) return { server: '', tbServeIdx: 0, tbServeTotal: 0 };
+  const base = st.totalGames % 2 === 0 ? first : other(first);
+  if (!st.tb) return { server: base, tbServeIdx: 0, tbServeTotal: 0 };
+  const tp = st.pts.a + st.pts.b;
+  const server = Math.floor((tp + 1) / 2) % 2 === 0 ? base : other(base);
+  return { server, tbServeIdx: tp === 0 ? 1 : (tp % 2 === 1 ? 1 : 2), tbServeTotal: tp === 0 ? 1 : 2 };
+}
+
+// 换边提醒（按 ITF 规则）：本盘奇数局结束换边；盘间若上一盘总局数为奇数（含抢七盘）换边；抢七每打满 6 分换边
+function changeoverOf(st) {
+  if (st.done) return { changeEnds: false, changeText: '' };
+  if (st.tb) {
+    const tp = st.pts.a + st.pts.b;
+    if (tp > 0 && tp % 6 === 0) return { changeEnds: true, changeText: '抢七每 6 分换边' };
+    return { changeEnds: false, changeText: '' };
+  }
+  if (st.pts.a !== 0 || st.pts.b !== 0) return { changeEnds: false, changeText: '' };
+  const cg = st.games.a + st.games.b;
+  if (cg > 0 && cg % 2 === 1) return { changeEnds: true, changeText: '奇数局结束 · 换边' };
+  if (cg === 0 && st.sets.length > 0) {
+    const prev = st.sets[st.sets.length - 1];
+    if (((prev.a || 0) + (prev.b || 0)) % 2 === 1) return { changeEnds: true, changeText: '盘间换边' };
+  }
+  return { changeEnds: false, changeText: '' };
 }
 
 // 当前这一分的叫法：普通局 0/15/30/40、平分 / 占先 / 金球；抢七用数字
@@ -142,12 +178,20 @@ const sameEv = (state, drawId, key, version) => !!(state && state.ev && state.ev
   (version === undefined || (state.ev.drawVersion || 0) === version));
 const sameCfg = (x, y) => { const a = cfgOf(x), b = cfgOf(y); return a.setGames === b.setGames && a.noAd === b.noAd && a.bestOf === b.bestOf; };
 
-function start(cfg, now, ev) {
+function start(cfg, now, ev, serve) {
   const t = now || Date.now();
   const s = { v: VERSION, id: 'sc' + t.toString(36) + Math.floor(Math.random() * 1296).toString(36), cfg: cfgOf(cfg), points: '', createdAt: t, updatedAt: t };
   const e = evOf(ev);
   if (e) s.ev = e;
+  if (serve === 'a' || serve === 'b') s.serve = serve;
   return s;
+}
+function setServe(state, side, now) {
+  if (!state) return state;
+  const out = Object.assign({}, state, { updatedAt: now || Date.now() });
+  if (side === 'a' || side === 'b') out.serve = side;
+  else delete out.serve;
+  return out;
 }
 // 完赛后锁住：再加分不生效（返回原状态）。撤销最后一分后可以继续
 function addPoint(state, side, now) {
@@ -157,17 +201,153 @@ function addPoint(state, side, now) {
 }
 function undo(state, now) {
   if (!state || !state.points) return state;
-  return Object.assign({}, state, { points: state.points.slice(0, -1), updatedAt: now || Date.now() });
+  const pts = state.points.slice(0, -1);
+  const out = Object.assign({}, state, { points: pts, updatedAt: now || Date.now() });
+  const t = cleanTags(state.tags, pts.length);
+  if (t) out.tags = t; else delete out.tags;
+  return out;
 }
 
-// 给页面用的视图：记分牌（各盘 + 本盘局分 + 本局小分）、叫分、盘点 / 赛点、完赛文字
+// 给刚记完的最后一分打 / 取消技术统计标签（'A' ACE / 'D' 双误 / 'W' 制胜分 / 'U' 非受迫失误；重复点同一项即取消）
+function tagLast(state, code, now) {
+  if (!state || !state.points) return state;
+  const n = state.points.length;
+  const prev = (state.tags || '').padEnd(n, '.').slice(0, n);
+  const ch = TAG_CODES[code] ? (prev[n - 1] === code ? '.' : code) : '.';
+  const next = prev.slice(0, n - 1) + ch;
+  const out = Object.assign({}, state, { updatedAt: now || Date.now() });
+  const t = cleanTags(next, n);
+  if (t) out.tags = t; else delete out.tags;
+  return out;
+}
+
+// 本场技术统计（纯本地计算）：总得分、最长连续得分、发球得分率与破发点兑现（设了先发球方自动算）、
+// 可选标签（ACE / 双误 / 制胜分 / 非受迫失误，双误和非受迫失误归到丢分方）、局势走势条（最多 24 采样点）
+function statsOf(rawCfg, points, firstServe, rawTags) {
+  const cfg = cfgOf(rawCfg);
+  const T = R.tbAt(cfg);
+  const str = String(points || '');
+  const tags = String(rawTags || '');
+  const hasServe = firstServe === 'a' || firstServe === 'b';
+  const st = { games: { a: 0, b: 0 }, pts: { a: 0, b: 0 }, tb: false, won: { a: 0, b: 0 }, done: false, totalGames: 0 };
+  const pts = { a: 0, b: 0 };
+  const streak = { a: 0, b: 0 }, maxStreak = { a: 0, b: 0 };
+  const srvTot = { a: 0, b: 0 }, srvWon = { a: 0, b: 0 };
+  const bpTot = { a: 0, b: 0 }, bpWon = { a: 0, b: 0 };
+  const ace = { a: 0, b: 0 }, df = { a: 0, b: 0 }, win = { a: 0, b: 0 }, ue = { a: 0, b: 0 };
+  const diffs = [];
+  let tagged = 0;
+
+  for (let i = 0; i < str.length && i < MAX_POINTS; i++) {
+    const w = str[i];
+    if ((w !== 'a' && w !== 'b') || st.done) break;
+    const lo = other(w);
+    // 这一分开始前的发球方与是否处于破发点
+    const curSrv = hasServe ? serveOf(st, firstServe).server : '';
+    if (curSrv) {
+      srvTot[curSrv]++;
+      if (w === curSrv) srvWon[curSrv]++;
+      if (!st.tb) {
+        const rec = other(curSrv);
+        const testPts = { a: st.pts.a + (rec === 'a' ? 1 : 0), b: st.pts.b + (rec === 'b' ? 1 : 0) };
+        if (gameWinner(testPts, cfg) === rec) {
+          bpTot[rec]++;
+          if (w === rec) bpWon[rec]++;
+        }
+      }
+    }
+    pts[w]++;
+    streak[w]++; streak[lo] = 0;
+    if (streak[w] > maxStreak[w]) maxStreak[w] = streak[w];
+    diffs.push(pts.a - pts.b);
+
+    const tg = tags[i];
+    if (tg === 'A') { ace[w]++; tagged++; }
+    else if (tg === 'D') { df[lo]++; tagged++; }
+    else if (tg === 'W') { win[w]++; tagged++; }
+    else if (tg === 'U') { ue[lo]++; tagged++; }
+
+    // 推进一分状态
+    st.pts[w]++;
+    let set = null;
+    if (st.tb) {
+      if (!tbWinner(st.pts, cfg)) continue;
+      st.totalGames++;
+      set = R.cleanSet({ a: T, b: T, tbA: st.pts.a, tbB: st.pts.b }, cfg);
+    } else {
+      const gw = gameWinner(st.pts, cfg);
+      if (!gw) continue;
+      st.games[gw]++;
+      st.totalGames++;
+      st.pts = { a: 0, b: 0 };
+      if (st.games.a === T && st.games.b === T) { st.tb = true; continue; }
+      const g = { a: st.games.a, b: st.games.b };
+      if (!R.checkSet(g, cfg).ok) continue;
+      set = g;
+    }
+    const r = R.checkSet(set, cfg);
+    st.won[r.winner]++;
+    st.games = { a: 0, b: 0 }; st.pts = { a: 0, b: 0 }; st.tb = false;
+    if (st.won[r.winner] === need(cfg)) st.done = true;
+  }
+
+  // 局势走势：最多采样 24 根柱子，纵轴按最大分差归一化到 14%～100%
+  const MAX_BARS = 24;
+  let sampled = diffs;
+  if (diffs.length > MAX_BARS) {
+    sampled = [];
+    for (let j = 0; j < MAX_BARS; j++) {
+      const idx = Math.round((j * (diffs.length - 1)) / (MAX_BARS - 1));
+      sampled.push(diffs[idx]);
+    }
+  }
+  const peak = sampled.reduce((m, x) => Math.max(m, Math.abs(x)), 1);
+  const bars = sampled.map((d, i) => ({
+    i, side: d > 0 ? 'a' : d < 0 ? 'b' : 'e',
+    h: d === 0 ? 8 : Math.max(16, Math.round((Math.abs(d) / peak) * 100)),
+  }));
+  const pct = (w, t) => (t ? Math.round((w / t) * 100) + '%' : '—');
+  const bpText = (w, t) => (t ? `${w}/${t}` : '—');
+  const rows = [
+    { k: 'pts', l: '总得分', a: String(pts.a), b: String(pts.b) },
+    { k: 'stk', l: '最长连续得分', a: String(maxStreak.a), b: String(maxStreak.b) },
+  ];
+  if (hasServe && (srvTot.a || srvTot.b)) {
+    rows.push({ k: 'srv', l: '发球得分率', a: pct(srvWon.a, srvTot.a), b: pct(srvWon.b, srvTot.b) });
+    rows.push({ k: 'bp', l: '破发点兑现', a: bpText(bpWon.a, bpTot.a), b: bpText(bpWon.b, bpTot.b) });
+  }
+  if (tagged > 0) {
+    rows.push({ k: 'ace', l: 'ACE', a: String(ace.a), b: String(ace.b) });
+    rows.push({ k: 'df', l: '双误', a: String(df.a), b: String(df.b) });
+    rows.push({ k: 'win', l: '制胜分', a: String(win.a), b: String(win.b) });
+    rows.push({ k: 'ue', l: '非受迫失误', a: String(ue.a), b: String(ue.b) });
+  }
+  return {
+    total: pts.a + pts.b, hasServe, tagged,
+    pts, maxStreak, srvTot, srvWon, bpTot, bpWon, ace, df, win, ue,
+    rows, bars,
+  };
+}
+
+// 给页面用的视图：记分牌（各盘 + 本盘局分 + 本局小分）、叫分、发球权、换边提醒、盘点 / 赛点、完赛文字
 function view(state) {
   const st = replay(state.cfg, state.points);
   const cfg = st.cfg;
   const call = callOf(st);
+  const srv = serveOf(st, state.serve);
+  const ch = changeoverOf(st);
   const cols = st.sets.map((s, i) => ({ k: 's' + i, a: s.a, b: s.b, tbA: s.tbA, tbB: s.tbB, aw: s.a > s.b, bw: s.b > s.a, tbLo: s.tbA !== undefined ? Math.min(s.tbA, s.tbB) : '' }));
   if (!st.done) cols.push({ k: 'cur', a: st.games.a, b: st.games.b, cur: true });
   const res = st.done ? resultOf(state) : null;
+  const elapsedMin = state.createdAt > 0 && state.updatedAt > state.createdAt
+    ? Math.min(600, Math.round((state.updatedAt - state.createdAt) / 60000)) : 0;
+  const tbServeText = st.tb && !st.done && srv.server
+    ? `${srv.server === 'a' ? 'A 方' : 'B 方'}发球（${srv.tbServeTotal === 1 ? '首球' : `连发第 ${srv.tbServeIdx}/2 球`}）`
+    : '';
+  const n = state.points.length;
+  const lastSide = n > 0 ? state.points[n - 1] : '';
+  const lastTag = n > 0 && state.tags && TAG_CODES[state.tags[n - 1]] ? state.tags[n - 1] : '';
+  const stats = n > 0 ? statsOf(cfg, state.points, state.serve, state.tags) : null;
   return {
     cfg,
     rulesText: `${cfg.setGames} 局制 · ${cfg.noAd ? '金球' : '占先'} · ${cfg.bestOf === 3 ? '三盘两胜' : '一盘'}`,
@@ -176,12 +356,18 @@ function view(state) {
     setNo: st.sets.length + (st.done ? 0 : 1),
     tb: st.tb,
     callA: call.a, callB: call.b, callText: call.text,
+    serveFirst: state.serve === 'a' || state.serve === 'b' ? state.serve : '',
+    server: srv.server,
+    tbServeText,
+    changeEnds: ch.changeEnds, changeText: ch.changeText,
     pointA: pointFor(cfg, state.points, st, 'a'), pointB: pointFor(cfg, state.points, st, 'b'),
     won: st.won,
     done: st.done, winner: st.winner,
     resultText: res ? `${res.winner === 'a' ? 'A' : 'B'} 方 ${Math.max(res.won.a, res.won.b)}:${Math.min(res.won.a, res.won.b)} 获胜` : '',
     setsText: (res ? res.sets : st.sets).map(setText).join('  '),
-    count: state.points.length, canUndo: state.points.length > 0,
+    elapsedMin,
+    lastSide, lastTag, stats,
+    count: n, canUndo: n > 0,
   };
 }
 
@@ -192,12 +378,17 @@ function restore(raw) {
   if (typeof raw.id !== 'string' || !/^sc[0-9a-z]{1,20}$/.test(raw.id)) return null;
   if (typeof raw.points !== 'string' || !/^[ab]*$/.test(raw.points) || raw.points.length > MAX_POINTS) return null;
   if (!raw.cfg || [4, 6].indexOf(raw.cfg.setGames) < 0 || typeof raw.cfg.noAd !== 'boolean' || [1, 3].indexOf(raw.cfg.bestOf) < 0) return null;
+  if (raw.serve !== undefined && raw.serve !== 'a' && raw.serve !== 'b') return null;
+  if (raw.tags !== undefined && (typeof raw.tags !== 'string' || !/^[.ADWU]*$/.test(raw.tags) || raw.tags.length > raw.points.length)) return null;
   const cfg = cfgOf(raw.cfg);
   const st = replay(cfg, raw.points);
   if (raw.ev !== undefined && !evOf(raw.ev)) return null;
   const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
   const out = { v: VERSION, id: raw.id, cfg, points: raw.points.slice(0, st.used), createdAt: num(raw.createdAt), updatedAt: num(raw.updatedAt) };
   if (raw.ev !== undefined) out.ev = evOf(raw.ev);
+  if (raw.serve === 'a' || raw.serve === 'b') out.serve = raw.serve;
+  const t = cleanTags(raw.tags, st.used);
+  if (t) out.tags = t;
   return out;
 }
 function loadDraft() {
@@ -207,6 +398,9 @@ function saveDraft(state) {
   const d = { v: VERSION, id: state.id, cfg: state.cfg, points: state.points, createdAt: state.createdAt, updatedAt: state.updatedAt };
   const e = evOf(state.ev);
   if (e) d.ev = e;
+  if (state.serve === 'a' || state.serve === 'b') d.serve = state.serve;
+  const t = cleanTags(state.tags, state.points.length);
+  if (t) d.tags = t;
   try { wx.setStorageSync(DRAFT_KEY, d); return true; } catch (err) { return false; }
 }
 // 只清掉指定的那一场（正式提交成功后）：期间又开了新的一场就不动
@@ -243,6 +437,6 @@ function setLabels(ev, l) {
 function labelsOf(ev) { const e = evOf(ev); return (e && labels[evKey(e)]) || null; }
 
 module.exports = {
-  DRAFT_KEY, cfgOf, replay, callOf, resultOf, flipSets, handoff, start, addPoint, undo, view, setText,
+  DRAFT_KEY, TAG_CODES, cfgOf, replay, callOf, serveOf, changeoverOf, statsOf, resultOf, flipSets, handoff, start, setServe, addPoint, undo, tagLast, view, setText,
   restore, loadDraft, saveDraft, clearDraft, evOf, sameEv, sameCfg, setPending, takePending, setDailyPending, takeDailyPending, setLabels, labelsOf,
 };

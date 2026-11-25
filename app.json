@@ -3,30 +3,92 @@
     "pages/draw/draw",
     "pages/index/index",
     "pages/add/add",
-    "pages/scorer/scorer",
-    "pages/cup-edit/cup-edit",
-    "pages/cup-mine/cup-mine",
     "pages/rank/rank",
     "pages/me/me",
-    "pages/draw-new/draw-new",
     "pages/draw-view/draw-view",
     "pages/profile/profile",
     "pages/challenge/challenge",
     "pages/score/score",
-    "pages/event-edit/event-edit",
     "pages/match/match",
     "pages/player/player",
-    "pages/history/history",
-    "pages/correct/correct",
     "pages/gate/gate",
-    "pages/members/members",
-    "pages/growth/growth",
-    "pages/growth-edit/growth-edit",
-    "pages/racket/racket",
-    "pages/racket-view/racket-view",
-    "pages/racket-edit/racket-edit",
-    "pages/racket-log/racket-log"
+    "pages/racket/racket"
   ],
+  "subpackages": [
+    {
+      "root": "pkg-tools",
+      "name": "tools",
+      "pages": [
+        "scorer/scorer",
+        "report/report",
+        "racket-view/racket-view",
+        "racket-edit/racket-edit",
+        "racket-log/racket-log",
+        "racket-tune/racket-tune",
+        "aa/aa",
+        "mixer/mixer"
+      ]
+    },
+    {
+      "root": "pkg-manage",
+      "name": "manage",
+      "pages": [
+        "draw-new/draw-new",
+        "event-edit/event-edit",
+        "cup-edit/cup-edit",
+        "cup-mine/cup-mine",
+        "members/members",
+        "growth/growth",
+        "growth-edit/growth-edit",
+        "history/history",
+        "correct/correct"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/draw/draw": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/draw-view/draw-view": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/index/index": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/rank/rank": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/racket/racket": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/me/me": {
+      "network": "all",
+      "packages": [
+        "pkg-tools",
+        "pkg-manage"
+      ]
+    }
+  },
   "window": {
     "navigationBarBackgroundColor": "#A3A3CB",
     "navigationBarTextStyle": "white",

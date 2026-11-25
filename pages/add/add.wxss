@@ -52,3 +52,25 @@
 .sc-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; padding: 18rpx 20rpx; background: #F4F4F9; border-radius: 20rpx; }
 .sc-t { flex: 1; min-width: 0; font-size: 23rpx; color: #5C5C76; line-height: 1.5; margin-right: 16rpx; }
 .sc-row .btn-line.mini { flex: none; }
+
+/* 录完顺手记球拍时长弹层 */
+.rk-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 60; background: rgba(34, 34, 62, 0.42); display: flex; align-items: flex-end; }
+.rk-sheet { width: 100%; background: #fff; border-radius: 36rpx 36rpx 0 0; padding: 32rpx 32rpx calc(36rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.rk-hd { display: flex; align-items: center; justify-content: space-between; }
+.rk-t { font-size: 31rpx; font-weight: 800; color: #2E2E4A; }
+.rk-x { width: 52rpx; height: 52rpx; line-height: 52rpx; text-align: center; font-size: 28rpx; color: #84849E; }
+.rk-s { margin-top: 6rpx; font-size: 22rpx; color: #70708C; }
+.rk-lbl { margin: 22rpx 0 12rpx; font-size: 23rpx; font-weight: 700; color: #5C5C76; }
+.rk-list { display: flex; flex-wrap: wrap; margin: 0 -6rpx; }
+.rk-item { margin: 0 6rpx 12rpx; padding: 12rpx 20rpx; border-radius: 18rpx; background: #F4F4FA; border: 2rpx solid transparent; }
+.rk-item.on { background: #EFEFF9; border-color: #8484B6; }
+.rk-in { font-size: 25rpx; font-weight: 800; color: #2E2E4A; }
+.rk-is { margin-left: 10rpx; font-size: 21rpx; color: #70708C; }
+.rk-mins { display: flex; margin: 0 -6rpx 14rpx; }
+.rk-chip { flex: 1; margin: 0 6rpx; height: 60rpx; line-height: 60rpx; text-align: center; border-radius: 16rpx; background: #F4F4FA; font-size: 24rpx; font-weight: 700; color: #5C5C76; }
+.rk-chip.on { background: #8484B6; color: #fff; }
+.rk-ipt { height: 76rpx; padding: 0 22rpx; border-radius: 18rpx; background: #F6F6FB; font-size: 30rpx; font-weight: 800; color: #2E2E4A; }
+.rk-acts { display: flex; margin-top: 26rpx; }
+.rk-btn { flex: 1; margin-right: 16rpx; height: 84rpx; line-height: 84rpx; border-radius: 42rpx; font-size: 28rpx; }
+.btn-line.rk-btn { line-height: 78rpx; }
+.rk-btn:last-child { margin-right: 0; }

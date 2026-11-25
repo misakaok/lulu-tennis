@@ -1,0 +1,76 @@
+<view class="page">
+  <!-- 顶部实时物理结果卡 -->
+  <view class="hero">
+    <view class="hero-top">
+      <text class="hero-k">贴铅片配重模拟</text>
+      <text class="hero-tag">{{r.balTag}}</text>
+    </view>
+    <view class="hero-grid">
+      <view class="hg">
+        <view class="hg-n num">{{r.newWeight}}<text class="hg-u">g</text></view>
+        <view class="hg-l">新总重{{r.added ? ' (+' + r.added + 'g)' : ''}}</view>
+      </view>
+      <view class="hg hg-bl">
+        <view class="hg-n num">{{r.newBalance}}<text class="hg-u">mm</text></view>
+        <view class="hg-l">新平衡点{{r.balDiff ? ' (' + (r.balDiff > 0 ? '+' : '') + r.balDiff + ')' : ''}}</view>
+      </view>
+      <view class="hg hg-bl">
+        <view class="hg-n num">+{{r.swDelta}}</view>
+        <view class="hg-l">预估挥重增量</view>
+      </view>
+    </view>
+    <view class="hero-feel">{{r.feel}}</view>
+  </view>
+
+  <!-- 球拍配重位置示意图（纯 CSS/SVG 矢量，加铅片处高亮黄绿） -->
+  <view class="card diag-card">
+    <view class="diag-wrap">
+      <view class="diag-rk"></view>
+      <view class="spot s-top {{top > 0 ? 'on' : ''}}">12点{{top > 0 ? ' +' + top + 'g' : ''}}</view>
+      <view class="spot s-left {{side > 0 ? 'on' : ''}}">9点</view>
+      <view class="spot s-right {{side > 0 ? 'on' : ''}}">3点{{side > 0 ? ' 共+' + side + 'g' : ''}}</view>
+      <view class="spot s-throat {{throat > 0 ? 'on' : ''}}">拍喉{{throat > 0 ? ' +' + throat + 'g' : ''}}</view>
+      <view class="spot s-handle {{handle > 0 ? 'on' : ''}}">手柄{{handle > 0 ? ' +' + handle + 'g' : ''}}</view>
+    </view>
+  </view>
+
+  <!-- 基础空拍参数 -->
+  <view class="card">
+    <view class="card-title">基础球拍参数<text class="sub">空拍或穿线前实测</text></view>
+    <view class="ps-row">
+      <view wx:for="{{presets}}" wx:key="id" class="ps {{presetId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickPreset">{{item.label}}</view>
+    </view>
+    <view class="b-grid">
+      <view class="b-item">
+        <text class="b-l">原始重量（g）</text>
+        <input class="b-in num" type="digit" maxlength="5" value="{{weight}}" data-k="weight" bindinput="onBase" />
+      </view>
+      <view class="b-item">
+        <text class="b-l">原始平衡点（mm）</text>
+        <input class="b-in num" type="digit" maxlength="5" value="{{balance}}" data-k="balance" bindinput="onBase" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 四个位置增减铅片 -->
+  <view class="card">
+    <view class="card-title row">
+      <text>各位置贴铅片（总克数）</text>
+      <view class="btn-line mini" hover-class="tap-on" bindtap="resetLead">清零</view>
+    </view>
+    <view wx:for="{{spots}}" wx:key="k" class="sp-row">
+      <view class="sp-m">
+        <view class="sp-t">{{item.n}}</view>
+        <view class="sp-s">{{item.d}}</view>
+      </view>
+      <view class="sp-ctrl">
+        <view class="sp-b" hover-class="tap-on" data-k="{{item.k}}" data-d="-1" bindtap="stepSpot">−1</view>
+        <view class="sp-v num">{{item.k === 'top' ? top : item.k === 'side' ? side : item.k === 'throat' ? throat : handle}}g</view>
+        <view class="sp-b" hover-class="tap-on" data-k="{{item.k}}" data-d="1" bindtap="stepSpot">＋1</view>
+        <view class="sp-b hi" hover-class="tap-on" data-k="{{item.k}}" data-d="2" bindtap="stepSpot">＋2</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="foot-tip">按标准 27 英寸球拍（中点 342.9mm、10cm 挥重支点）估算，仅供参考</view>
+</view>

@@ -66,33 +66,37 @@ test('球员主页：渲染层只拿最近 5 场和总场数，全部比赛（ro
   assert.ok(!/view\.rows/.test(read('components/player-home/player-home.wxml')));
 });
 
-test('活动首页：每次显示 30 个，滑到底再加 30 个；数据刷新保持已加载的个数，切换选项卡从头开始', () => {
+test('活动首页：每页显示 5 场并支持翻页 / 跳页；数据刷新保持当前页并防越界，切换选项卡回到第 1 页', () => {
   const def = loadDef('pages/draw/draw.js', { '../../utils/db': {} });
   const p = host(def);
-  p.list = Array.from({ length: 70 }, (_, i) => ({ _id: 'd' + i, mine: i % 2 === 0 }));
+  p.list = Array.from({ length: 12 }, (_, i) => ({ _id: 'd' + i, mine: i % 2 === 0 }));
   p.apply();
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [30, true]);
+  assert.deepStrictEqual([p.data.shown.length, p.data.page, p.data.totalPages, p.data.totalCount], [5, 1, 3, 12]);
   assert.strictEqual(p.data.shown[0]._id, 'd0');
-  p.onReachBottom();
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [60, true]);
-  p.apply(); // 录分 / 报名后回来重新整理：不缩回 30 个
-  assert.strictEqual(p.data.shown.length, 60);
-  p.onReachBottom();
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [70, false]);
-  p.onReachBottom();
-  assert.strictEqual(p.data.shown.length, 70);
-  p.setTab({ currentTarget: { dataset: { v: 'mine' } } }); // 我的活动：35 个
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [30, true]);
+  p.nextPage();
+  assert.deepStrictEqual([p.data.shown.length, p.data.page, p.data.shown[0]._id], [5, 2, 'd5']);
+  p.apply(); // 录分 / 报名后回来重新整理：保持在第 2 页
+  assert.deepStrictEqual([p.data.page, p.data.shown[0]._id], [2, 'd5']);
+  p.nextPage();
+  assert.deepStrictEqual([p.data.shown.length, p.data.page, p.data.shown[0]._id], [2, 3, 'd10']);
+  p.nextPage(); // 尾页不动
+  assert.strictEqual(p.data.page, 3);
+  p.prevPage();
+  assert.strictEqual(p.data.page, 2);
+  p.pickPage({ detail: { value: 2 } }); // 滚轮直达第 3 页
+  assert.strictEqual(p.data.page, 3);
+  p.setTab({ currentTarget: { dataset: { v: 'mine' } } }); // 我的活动：6 个 → 2 页，回到第 1 页
+  assert.deepStrictEqual([p.data.shown.length, p.data.page, p.data.totalPages], [5, 1, 2]);
   assert.ok(p.data.shown.every((x) => x.mine));
-  p.onReachBottom();
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [35, false]);
+  p.nextPage();
+  assert.deepStrictEqual([p.data.shown.length, p.data.page], [1, 2]);
   p.setTab({ currentTarget: { dataset: { v: 'next' } } });
-  assert.deepStrictEqual([p.data.shown.length, p.data.more], [0, false]);
+  assert.deepStrictEqual([p.data.shown.length, p.data.totalPages], [0, 1]);
   p.setTab({ currentTarget: { dataset: { v: 'all' } } });
-  assert.strictEqual(p.data.shown.length, 30);
-  // 朋友圈单页模式不加载
-  p.timeline = true; p.onReachBottom(); assert.strictEqual(p.data.shown.length, 30);
-  assert.match(read('pages/draw/draw.wxml'), /wx:if="\{\{more && tab !== 'next'\}\}" class="d-more">上滑加载更多/);
+  assert.deepStrictEqual([p.data.shown.length, p.data.page], [5, 1]);
+  // 朋友圈单页模式不翻页
+  p.timeline = true; p.nextPage(); assert.strictEqual(p.data.page, 1);
+  assert.match(read('pages/draw/draw.wxml'), /wx:if="\{\{tab !== 'next' && totalPages > 1\}\}" class="pager"/);
 });
 
 test('水平分 / 统计：同一组共享数组只算一次；换了数组、数组长度变了马上重算；结果和不缓存完全一样', () => {

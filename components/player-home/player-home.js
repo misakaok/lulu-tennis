@@ -3,6 +3,7 @@
 //   统计数据都按正式战绩自动计算，页面上不能改。
 const db = require('../../utils/db');
 const PV = require('../../utils/player');
+const RT = require('../../utils/rating');
 const Anim = require('../../utils/anim');
 
 const RECENT = 5;
@@ -13,7 +14,11 @@ Component({
     uid: { type: String, value: '', observer: 'load' },
     mine: { type: Boolean, value: false }, // 「我的」页：不显示近期比赛（生涯成就里留一个「全部比赛」入口）
   },
-  data: { loaded: false, cached: false, isSelf: false, view: null, recent: [], total: 0, allBadges: false, h2h: null },
+  data: {
+    loaded: false, cached: false, isSelf: false, view: null, recent: [], form: [], total: 0, allBadges: false, h2h: null,
+    report: null, // 球风与年度数据二级页入口摘要
+    simOpen: false, simGames: 6, simPresets: [], simIdx: 2, simRes: null, // 别人的主页：「如果和 TA 打一场」水平分模拟
+  },
   lifetimes: { attached() { if (this.data.uid) this.load(); }, detached() { Anim.stop(this); } },
   pageLifetimes: { show() { if (this.loadedOnce) this.load(); } }, // 编辑资料后回来刷新
 
@@ -49,17 +54,65 @@ Component({
       const v = PV.playerView(profiles, players, matches, uid);
       const tagsOf = v.tagsOf; delete v.tagsOf; // 全部比赛的亮点标签：只用来算交手记录，不放进 setData
       this.view = v; this.viewUid = uid;
-      // 看别人的主页时：我和 TA 的交手记录（按用户 ID）
+      // 看别人的主页时：我和 TA 的交手记录（按用户 ID）+ 模拟交手底数
       const me = this.myId && this.myId !== uid && profiles ? profiles[this.myId] : null;
+      this.simCtx = me && v.profile ? {
+        ratings: RT.ratingsOf(matches || [], players || []),
+        players: players || [],
+        myId: this.myId, myName: me.name, oppId: uid, oppName: v.profile.name,
+      } : null;
+      const simPatch = this.simCtx ? this.buildSim(this.data.simGames, this.data.simIdx) : { simPresets: [], simRes: null };
       // 球员卡上的比赛等级、场数、胜率第一次显示时从 0 滚到实际值（排名不滚）
       const nums = v.profile ? { 'view.level.match': v.level.match, 'view.stats.matches': v.stats.matches, 'view.stats.rate': v.stats.rate } : {};
-      // 渲染层只要最近 RECENT 场和总场数：全部比赛（v.rows）留在逻辑层的 this.view，不随 view 传过去（比赛多了 setData 很大）
-      const shown = Object.assign({}, v); delete shown.rows;
+      // 渲染层只要最近 RECENT 场、总场数与报告入口摘要：全部比赛与深度图表（含等级走势）放在二级页 pages/report，减轻主页渲染体积
+      const shown = Object.assign({}, v);
+      delete shown.rows; delete shown.trend; delete shown.heatmap; delete shown.clutch; delete shown.relations; delete shown.partners; delete shown.style;
+      let report = null;
+      if (v.profile && (v.rows.length > 0 || v.trend || v.heatmap || v.relations || v.partners)) {
+        const bits = [];
+        if (v.heatmap) bits.push(`${v.heatmap.year} 出勤 ${v.heatmap.days} 天`);
+        if (v.clutch && v.clutch.tb.played) bits.push(`抢七 ${v.clutch.tb.rate}`);
+        if (v.partners && v.partners.best) bits.push(`最佳拍档 ${v.partners.best.name}`);
+        report = {
+          sub: bits.length ? bits.join(' · ') : '五维球风、等级走势、热力图与关键分',
+          tag: v.style && v.style.unlocked && v.style.tags[0] ? v.style.tags[0]
+            : (v.style ? `${v.style.played}/${v.style.need} 场解锁球风` : ''),
+          unlocked: !!(v.style && v.style.unlocked),
+        };
+      }
+      const form = (v.rows || []).filter((r) => r.outcome === 'normal').slice(0, RECENT).map((r, i) => ({ i, w: r.win }));
       this.setData(Object.assign({
         h2h: me && v.profile ? PV.h2hView(matches, this.myId, me.name, uid, v.profile.name, tagsOf) : null,
-        view: shown, isSelf: !!this.myId && this.myId === uid,
-        recent: v.rows.slice(0, RECENT), total: v.rows.length,
-      }, Anim.roll(this, nums)));
+        view: shown, report, isSelf: !!this.myId && this.myId === uid,
+        recent: v.rows.slice(0, RECENT), form, total: v.rows.length,
+      }, simPatch, Anim.roll(this, nums)));
+    },
+
+    buildSim(setGames, idx) {
+      const c = this.simCtx;
+      if (!c) return { simPresets: [], simRes: null };
+      const sg = setGames === 4 ? 4 : 6;
+      const presets = RT.scorePresets(sg).map(([a, b]) => ({ a, b, label: `${a}:${b}` }));
+      const i = idx >= 0 && idx < presets.length ? idx : 2;
+      const p = presets[i];
+      const res = RT.simulateMatch(c.ratings, c.players, {
+        aKeys: [c.myId], bKeys: [c.oppId], aNames: [c.myName], bNames: [c.oppName],
+        mySide: 'a', myKey: c.myId, gamesA: p.a, gamesB: p.b,
+      });
+      return { simGames: sg, simPresets: presets, simIdx: i, simRes: res };
+    },
+    toggleSim() { this.setData({ simOpen: !this.data.simOpen }); },
+    setSimGames(e) {
+      const g = Number(e.currentTarget.dataset.g) === 4 ? 4 : 6;
+      this.setData(this.buildSim(g, this.data.simIdx));
+    },
+    pickSim(e) {
+      const i = Number(e.currentTarget.dataset.i);
+      this.setData(this.buildSim(this.data.simGames, i));
+    },
+    openReport() {
+      if (!this.data.uid) return;
+      wx.navigateTo({ url: '/pkg-tools/report/report?uid=' + encodeURIComponent(this.data.uid) });
     },
 
     toggleBadges() { this.setData({ allBadges: !this.data.allBadges }); },
@@ -72,12 +125,11 @@ Component({
       if (!this.data.isSelf) return; // 只有本人能编辑
       wx.navigateTo({ url: '/pages/profile/profile' });
     },
-    openPlayer(e) { const u = e.currentTarget.dataset.uid; if (u) wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(u) }); },
     openMatch(e) { // 先发出比赛状态请求（比赛详情第一次读取接过去）
       const id = e.currentTarget.dataset.id;
       db.prefetchMatchState(id);
       wx.navigateTo({ url: '/pages/match/match?id=' + id });
     },
-    allHistory() { wx.navigateTo({ url: '/pages/history/history?uid=' + encodeURIComponent(this.data.uid) }); },
+    allHistory() { wx.navigateTo({ url: '/pkg-manage/history/history?uid=' + encodeURIComponent(this.data.uid) }); },
   },
 });

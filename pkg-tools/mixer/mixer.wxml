@@ -1,0 +1,78 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-k">4～8 人现场工具 · 不建正式活动</view>
+    <view class="hero-t">双打均衡排班</view>
+    <view class="hero-s">按当前水平自动把两队实力拉平，多轮尽量不重复搭档、轮休均衡</view>
+  </view>
+
+  <!-- 选到场球友 -->
+  <view class="card">
+    <view class="card-title row">
+      <text>选择到场球友（{{picked.length}}/8）</text>
+      <view wx:if="{{picked.length}}" class="btn-line mini" hover-class="tap-on" bindtap="clearPick">清空</view>
+    </view>
+    <view class="qk-row">
+      <text class="qk-l">免选人按编号速排：</text>
+      <view class="qk-btn" hover-class="tap-on" data-n="4" bindtap="quickDemo">4 人</view>
+      <view class="qk-btn" hover-class="tap-on" data-n="6" bindtap="quickDemo">6 人</view>
+      <view class="qk-btn" hover-class="tap-on" data-n="8" bindtap="quickDemo">8 人</view>
+    </view>
+    <view wx:if="{{all.length}}" class="chips">
+      <view wx:for="{{all}}" wx:key="id" class="chip {{item.on ? 'on' : ''}}" hover-class="tap-on" data-id="{{item.id}}" bindtap="togglePlayer">
+        <text class="cn">{{item.name}}</text><text class="cl num">{{item.lvText}}</text>
+      </view>
+    </view>
+    <view wx:else class="empty-s">点上面「4 人 / 6 人 / 8 人」可以直接按编号排班</view>
+  </view>
+
+  <!-- 轮数与场地数 -->
+  <view class="card">
+    <view class="opt-row">
+      <text class="opt-l">排几轮</text>
+      <view class="opt-pills">
+        <view wx:for="{{roundOpts}}" wx:key="*this" class="opt-p {{rounds === item ? 'on' : ''}}" data-v="{{item}}" bindtap="setRounds">{{item === 1 ? '单轮' : item + ' 轮'}}</view>
+      </view>
+    </view>
+    <view wx:if="{{canTwo}}" class="opt-row opt-gap">
+      <text class="opt-l">同时开几块场</text>
+      <view class="seg opt-seg">
+        <view class="seg-item {{courts === 1 ? 'on' : ''}}" data-v="1" bindtap="setCourts">1 块场（轮休 4 人）</view>
+        <view class="seg-item {{courts === 2 ? 'on' : ''}}" data-v="2" bindtap="setCourts">2 块场（全员同时打）</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 排班结果 -->
+  <block wx:if="{{res}}">
+    <view class="card">
+      <view class="card-title row">
+        <text>推荐方案（{{res.count}} 人 · {{res.roundCount}} 轮）</text>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="reroll">换一组</view>
+      </view>
+      <view wx:for="{{res.rounds}}" wx:key="round" class="rd">
+        <view class="rd-hd">
+          <text class="rd-n">第 {{item.round}} 轮</text>
+          <text wx:if="{{item.restText}}" class="rd-rest">轮休：{{item.restText}}</text>
+        </view>
+        <view wx:for="{{item.matches}}" wx:key="court" wx:for-item="m" class="mt">
+          <view class="mt-top">
+            <text wx:if="{{res.courts > 1}}" class="mt-ct">{{m.court}} 号场</text>
+            <text class="mt-lv num">均值 {{m.aLv}} vs {{m.bLv}} · 预期 {{m.shareA}}%:{{m.shareB}}%</text>
+            <text class="ui-tag {{m.tagCls}} mt-tag">{{m.tag}}</text>
+          </view>
+          <view class="mt-vs">
+            <text class="mt-sd">{{m.a}}</text>
+            <text class="mt-x">VS</text>
+            <text class="mt-sd r">{{m.b}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="sum-hd">上场次数核对</view>
+      <view class="sum-chips">
+        <view wx:for="{{res.summary}}" wx:key="id" class="sum-c">{{item.name}} <text class="num b">{{item.played}}轮</text></view>
+      </view>
+    </view>
+    <view class="btn-primary" hover-class="tap-on" bindtap="copyPlan">复制排班表发到群里</view>
+  </block>
+  <view wx:else class="need-tip">至少选满 4 位球友（或点上面快捷人数）即可自动生成双打排班</view>
+</view>

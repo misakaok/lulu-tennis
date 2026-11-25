@@ -21,11 +21,12 @@
         </block>
         <view wx:if="{{canEdit}}" class="h-pin {{draw.pinnedAt ? 'on' : ''}} {{pinBusy ? 'busy' : ''}}" hover-class="tap-on" bindtap="togglePin">{{draw.pinnedAt ? '已置顶' : '置顶'}}</view>
       </view>
+      <view wx:if="{{ended}}" class="h-ended">已提前结束{{endReason ? '（' + endReason + '）' : ''}} · 已录比分照常保留，未打场次不再继续</view>
       <view wx:if="{{levelText}}" class="h-level">建议水平 {{levelText}}<text class="h-level-s">仅供参考，不限制报名</text></view>
       <view class="h-rules">
         <view class="hr-title">
           <text>规则 · {{formatText}}</text>
-          <view wx:if="{{signing && canEdit}}" class="hr-edit" hover-class="tap-on" bindtap="goEditSettings">修改规则 ›</view>
+          <view wx:if="{{signing && !ended && canEdit}}" class="hr-edit" hover-class="tap-on" bindtap="goEditSettings">修改规则 ›</view>
         </view>
         <view wx:for="{{rulesSum}}" wx:key="stage" class="hr-row {{item.hl ? 'hl' : ''}}"><text class="hr-k">{{item.stage}}</text><text class="hr-v">{{item.text}}</text></view>
       </view>
@@ -46,7 +47,10 @@
     <view class="card info">
       <view class="card-title row">
         <text>时间地点</text>
-        <view wx:if="{{canEdit}}" class="btn-line mini" hover-class="tap-on" bindtap="goEdit">编辑</view>
+        <view class="in-acts">
+          <view class="btn-line mini" hover-class="tap-on" bindtap="openAA">AA 算账</view>
+          <view wx:if="{{canEdit}}" class="btn-line mini in-edit" hover-class="tap-on" bindtap="goEdit">编辑</view>
+        </view>
       </view>
       <view class="in-row"><text class="in-k">时间</text><text class="in-v">{{info.when || '暂无'}}</text></view>
       <block wx:if="{{!info.empty}}">
@@ -89,7 +93,7 @@
           <view wx:if="{{item.waiting}}" class="su-solo su-wait">候补中：前面有人取消就自动递补</view>
           <view wx:elif="{{isDouble && !isRot && item.solo}}" class="su-solo">找搭档中，由发起人配对</view>
         </view>
-        <view wx:if="{{canEdit && ready}}" class="su-add"><view class="btn-line mini {{adminBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="openAdminSignup">{{adminBusy ? '读取成员…' : '＋ 添加报名'}}</view></view>
+        <block wx:if="{{!ended}}"><view wx:if="{{canEdit && ready}}" class="su-add"><view class="btn-line mini {{adminBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="openAdminSignup">{{adminBusy ? '读取成员…' : '＋ 添加报名'}}</view></view></block>
       </view>
       <!-- 管理员代报名：选人弹层（双打接着选搭档，可以不带） -->
       <member-sheet wx:if="{{adminSheet}}" title="{{adminSheet.title}}" sub="{{adminSheet.sub}}" list="{{adminSheet.list}}" extra="{{adminSheet.extra}}" bind:pick="adminPick" bind:extra="adminSolo" bind:close="closeAdminSheet" />
@@ -98,11 +102,11 @@
         <view class="joined-ic">✓</view>
         <view class="joined-main">
           <view class="joined-t">{{myWaiting ? '你在候补名单里' : '你已报名'}}</view>
-          <view class="joined-s">{{isDouble && !isRot ? '截止报名前可以取消，会连同搭档一起取消' : '截止报名前可以随时取消'}}</view>
+          <view class="joined-s">{{ended ? '活动已提前结束' : (isDouble && !isRot ? '截止报名前可以取消，会连同搭档一起取消' : '截止报名前可以随时取消')}}</view>
         </view>
-        <view class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
+        <view wx:if="{{!ended}}" class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
       </view>
-      <view wx:if="{{ready && canEdit && (!isRot || canPublish)}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">{{canPublish ? '截止报名，生成' : '截止报名，手动排'}}{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view>
+      <block wx:if="{{!ended}}"><view wx:if="{{ready && canEdit && (!isRot || canPublish)}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">{{canPublish ? '截止报名，生成' : '截止报名，手动排'}}{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view></block>
     </block>
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
@@ -170,7 +174,7 @@
         <view wx:for="{{schedule}}" wx:key="key" id="sch-{{item.key}}" class="sch {{item.status}} {{item.mine ? 'mine' : ''}} {{focus === item.key ? 'focus' : ''}}" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapItem">
           <view class="sch-top">
             <text class="sch-stage">{{item.stage}}</text>
-            <text class="sch-st">{{item.status === 'done' ? '已完赛' : item.status === 'ready' ? (item.mine ? '待录分 ›' : '待赛') : '待定'}}</text>
+            <text class="sch-st">{{item.status === 'done' ? '已完赛' : ended ? '未进行' : item.status === 'ready' ? (item.mine ? '待录分 ›' : '待赛') : '待定'}}</text>
           </view>
           <view class="sch-row {{item.winner === 'a' ? 'w' : ''}}">
             <view class="sch-avs">
@@ -196,7 +200,7 @@
           <view wx:if="{{item.slotText && !item.done}}" class="sch-slot">{{item.slotText}}</view>
           <view class="sch-foot">
             <text class="sch-rule {{item.ruleCustom ? 'hl' : ''}}">{{item.ruleCustom ? '★ ' : ''}}{{item.ruleText}}</text>
-            <text wx:if="{{isOwner && !item.done}}" class="sch-plan" data-key="{{item.key}}" catchtap="planSlot">{{item.slotText ? '修改安排' : '安排时间场地'}}</text>
+            <text wx:if="{{isOwner && !item.done && !ended}}" class="sch-plan" data-key="{{item.key}}" catchtap="planSlot">{{item.slotText ? '修改安排' : '安排时间场地'}}</text>
           </view>
         </view>
         </block>
@@ -212,14 +216,14 @@
           <text class="wd-n">{{item.entrant}}</text><text class="wd-t">申请退赛{{item.reason ? '：' + item.reason : ''}}</text>
           <view class="btn-line mini wd-a" hover-class="tap-on" data-i="{{index}}" bindtap="rejectWithdraw">拒绝</view><view class="btn-primary mini wd-a" hover-class="tap-on" data-i="{{index}}" bindtap="approveWithdraw">同意</view>
         </view>
-        <picker wx:if="{{wdCandidates.length}}" range="{{wdCandidates}}" bindchange="ownerWithdraw"><view class="btn-line wd-btn" hover-class="tap-on">登记球员退赛 / 缺席</view></picker>
+        <picker wx:if="{{!ended && wdCandidates.length}}" range="{{wdCandidates}}" bindchange="ownerWithdraw"><view class="btn-line wd-btn" hover-class="tap-on">登记球员退赛 / 缺席</view></picker>
       </block>
       <block wx:else>
         <view wx:if="{{myWd && myWd.status === 'pending'}}" class="wd-t">你的退赛申请等待发起人处理</view>
         <block wx:else>
           <!-- 被拒绝后保留提示，仍可再次申请（等待处理时不显示按钮） -->
           <view wx:if="{{myWd && myWd.status === 'rejected'}}" class="wd-t">发起人拒绝了你的退赛申请{{myWd.note ? '：' + myWd.note : ''}}</view>
-          <view wx:if="{{canWithdraw}}" class="btn-line wd-btn" hover-class="tap-on" bindtap="requestWithdraw">申请退赛</view>
+          <view wx:if="{{!ended && canWithdraw}}" class="btn-line wd-btn" hover-class="tap-on" bindtap="requestWithdraw">申请退赛</view>
         </block>
       </block>
     </view>
@@ -254,15 +258,17 @@
          第 2 行 删除（管理员「管理员删除」/ 发起人「删除活动」）。置顶在顶部积分标签右边 -->
     <view class="acts">
     <view class="act-row">
-      <block wx:if="{{ready && signing && !joined}}">
+      <block wx:if="{{!ended}}"><block wx:if="{{ready && signing && !joined}}">
         <picker wx:if="{{isDouble && !isRot && myName}}" class="act-cell" range="{{partnerOpts}}" bindchange="joinDouble">
           <view class="btn-primary act-btn {{busy ? 'disabled' : ''}}">{{full ? '排队候补' : '我要报名'}}</view>
         </picker>
         <view wx:else class="act-cell"><view class="btn-primary act-btn {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '排队候补' : '我要报名'}}</view></view>
-      </block>
-      <view class="act-cell"><button class="share act-btn" open-type="share">{{signing ? '发给球友报名' : '发给球友'}}</button></view>
+      </block></block>
+      <view class="act-cell"><button class="share act-btn" open-type="share">{{signing && !ended ? '发给球友报名' : '发给球友'}}</button></view>
     </view>
     <view wx:if="{{ready && canManage}}" class="act-row">
+      <view wx:if="{{canClose}}" class="act-cell"><view class="btn-line act-btn {{closeBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="closeDraw">提前结束</view></view>
+      <view wx:elif="{{canReopen}}" class="act-cell"><view class="btn-line act-btn {{closeBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="reopenDraw">恢复活动</view></view>
       <view class="act-cell"><view class="btn-danger act-btn" hover-class="tap-on" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view></view>
     </view>
     </view>

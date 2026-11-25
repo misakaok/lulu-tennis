@@ -85,10 +85,10 @@ Page({
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
 
-  addString() { wx.navigateTo({ url: `/pages/racket-log/racket-log?racket=${encodeURIComponent(this.data.id)}&kind=string` }); },
-  addMaint() { wx.navigateTo({ url: `/pages/racket-log/racket-log?racket=${encodeURIComponent(this.data.id)}&kind=maint` }); },
-  edit() { wx.navigateTo({ url: '/pages/racket-edit/racket-edit?id=' + encodeURIComponent(this.data.id) }); },
-  openLog(e) { wx.navigateTo({ url: '/pages/racket-log/racket-log?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  addString() { wx.navigateTo({ url: `/pkg-tools/racket-log/racket-log?racket=${encodeURIComponent(this.data.id)}&kind=string` }); },
+  addMaint() { wx.navigateTo({ url: `/pkg-tools/racket-log/racket-log?racket=${encodeURIComponent(this.data.id)}&kind=maint` }); },
+  edit() { wx.navigateTo({ url: '/pkg-tools/racket-edit/racket-edit?id=' + encodeURIComponent(this.data.id) }); },
+  openLog(e) { wx.navigateTo({ url: '/pkg-tools/racket-log/racket-log?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
 
   /* ---------- 使用记录（打球时长）：在这一页的弹层里新增、修改、删除 ---------- */
   toggleOld() { this.setData({ showOld: !this.data.showOld }); },

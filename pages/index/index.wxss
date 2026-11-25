@@ -1,14 +1,14 @@
 /* 顶部淡紫柔幕（2026-11-25）：页面底色从冷雾紫过渡到全局冷雾灰 #F0F0F7，导航栏下面一道大弧形淡紫幕布托住「我的战绩」卡上半截，
    不再一刀切进平灰。.page 建立局部层叠，幕布 z-index -1 只垫在页面内容下面（页面外的「记一场」按钮不受影响） */
-page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 100%); }
+page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) no-repeat; background-size: 100% 460rpx; }
 .page { position: relative; z-index: 0; }
 .page::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 228rpx; pointer-events: none; z-index: -1;
   border-radius: 0 0 50% 50% / 0 0 44rpx 44rpx;
   background: linear-gradient(180deg, #A3A3CB 0%, #C4C4E1 16%, #E2E2F2 66%, #EAEAF6 100%);
 }
-/* 底部留白：有「记一场」按钮时刚好让开按钮（距底 40rpx + 高 100rpx + 间隔 10rpx），没有按钮时用普通页面的 60rpx */
-.page.with-fab { padding-bottom: 150rpx; }
+/* 底部留白：有「记一场」按钮时刚好让开按钮（距底 40rpx + 高 100rpx + 间隔 30rpx），没有按钮时用普通页面的 60rpx */
+.page.with-fab { padding-bottom: 170rpx; }
 
 /* 我的战绩卡 */
 .mine.ani-sheen::after { animation-delay: 0.22s; }
@@ -44,14 +44,61 @@ page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 1
 /* 筛选 */
 .filters { display: flex; align-items: center; }
 .chips { display: flex; flex: none; }
-/* 紧凑版滑动胶囊：和右边搜索框一样高（54rpx） */
-.seg.chips { width: 300rpx; height: 54rpx; padding: 4rpx; box-sizing: border-box; border-radius: 27rpx; margin-right: 12rpx; }
+/* 紧凑版滑动胶囊：和右边搜索框、日期按钮一样高（54rpx） */
+.seg.chips { width: 266rpx; height: 54rpx; padding: 4rpx; box-sizing: border-box; border-radius: 27rpx; margin-right: 10rpx; }
 .seg.chips .seg-track { left: 4rpx; right: 4rpx; top: 4rpx; bottom: 4rpx; }
 .seg.chips .seg-thumb { border-radius: 23rpx; }
-.seg.chips .seg-item { padding: 0; height: 46rpx; line-height: 46rpx; border-radius: 23rpx; font-size: 25rpx; }
+.seg.chips .seg-item { padding: 0; height: 46rpx; line-height: 46rpx; border-radius: 23rpx; font-size: 24rpx; }
 /* 搜索框：和左边的筛选按钮同高、同底色，文字居中，不再是一大块白色 */
-.search { flex: 1; min-width: 0; height: 54rpx; margin-left: 4rpx; padding: 0 20rpx; border-radius: 27rpx; background: #E9E9F4; font-size: 25rpx; color: #3a3a52; text-align: center; }
+.search { flex: 1; min-width: 0; height: 54rpx; padding: 0 18rpx; border-radius: 27rpx; background: #E9E9F4; font-size: 24rpx; color: #3a3a52; text-align: center; }
 .search-ph { color: #84849E; }
+/* 日期选择胶囊（和筛选、搜索同高） */
+.dp-wrap { flex: none; margin-left: 10rpx; }
+.dp-btn {
+  display: flex; align-items: center; justify-content: center; height: 54rpx; padding: 0 18rpx;
+  border-radius: 27rpx; background: #E9E9F4; color: #5C5C84; font-size: 24rpx; font-weight: 600;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.dp-btn.on { background: #8484B6; color: #fff; box-shadow: 0 4rpx 12rpx rgba(110, 110, 163, 0.24); }
+.dp-ic {
+  width: 24rpx; height: 24rpx; margin-right: 8rpx; flex: none;
+  background-repeat: no-repeat; background-position: center; background-size: 24rpx 24rpx;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNkU2RUEzIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE3IiByeD0iMyIvPjxsaW5lIHgxPSI4IiB5MT0iMiIgeDI9IjgiIHkyPSI2Ii8+PGxpbmUgeDE9IjE2IiB5MT0iMiIgeDI9IjE2IiB5Mj0iNiIvPjxsaW5lIHgxPSIzIiB5MT0iMTAiIHgyPSIyMSIgeTI9IjEwIi8+PC9zdmc+");
+}
+.dp-btn.on .dp-ic {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iMyIgeT0iNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE3IiByeD0iMyIvPjxsaW5lIHgxPSI4IiB5MT0iMiIgeDI9IjgiIHkyPSI2Ii8+PGxpbmUgeDE9IjE2IiB5MT0iMiIgeDI9IjE2IiB5Mj0iNiIvPjxsaW5lIHgxPSIzIiB5MT0iMTAiIHgyPSIyMSIgeTI9IjEwIi8+PC9zdmc+");
+}
+.dp-t { white-space: nowrap; }
+
+/* 选中日期后的当日数据汇总条 */
+.day-bar {
+  margin: 22rpx 0 18rpx; padding: 20rpx 24rpx; border-radius: 26rpx; background: #fff;
+  border: 1rpx solid rgba(132, 132, 182, 0.16); box-shadow: 0 4rpx 14rpx rgba(84, 84, 146, 0.06);
+}
+.day-hd { display: flex; align-items: center; justify-content: space-between; }
+.day-date { display: inline-flex; align-items: center; font-size: 28rpx; font-weight: 800; color: #2E2E4A; }
+.day-caret { margin-left: 8rpx; font-size: 20rpx; color: #8484B6; }
+.day-acts { display: flex; align-items: center; }
+.day-nav {
+  width: 44rpx; height: 44rpx; line-height: 40rpx; text-align: center; border-radius: 50%;
+  background: #F1F1F8; color: #5C5C84; font-size: 30rpx; font-weight: 700; margin-right: 10rpx;
+}
+.day-nav.off { opacity: 0.35; }
+.day-clr {
+  height: 44rpx; line-height: 44rpx; padding: 0 18rpx; border-radius: 22rpx;
+  background: #EFEFF8; color: #6E6EA3; font-size: 22rpx; font-weight: 700;
+}
+.day-stats { display: flex; flex-wrap: wrap; align-items: center; margin-top: 12rpx; }
+.day-st { font-size: 22rpx; color: #70708C; margin-right: 16rpx; }
+.day-st.b { font-weight: 700; color: #4F4F7D; }
+.day-me {
+  padding: 2rpx 14rpx; border-radius: 14rpx; background: #C9E33A; color: #2E3600;
+  font-size: 21rpx; font-weight: 800; margin-right: 12rpx;
+}
+.day-flt { font-size: 21rpx; color: #8484B6; }
+.day-none { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
+.day-none-t { font-size: 22rpx; color: #84849E; }
+.day-near { font-size: 22rpx; font-weight: 700; color: #6E6EA3; }
 
 .date { display: flex; align-items: center; margin: 34rpx 8rpx 14rpx; font-size: 24rpx; font-weight: 700; color: #70708C; }
 .date::before { content: ''; width: 6rpx; height: 22rpx; border-radius: 3rpx; background: #A3A3CB; margin-right: 12rpx; } /* 日期前的小淡紫竖标 */
@@ -101,7 +148,22 @@ page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 1
 .sc-c { margin: 0 8rpx; color: #B9B9CE; }
 .sc-sets { display: inline-block; margin-top: 8rpx; padding: 3rpx 14rpx; border-radius: 12rpx; background: #F2F2F9; font-size: 20rpx; color: #6E6EA3; white-space: nowrap; }
 
-.foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 30rpx; }
+.pager {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 26rpx; padding: 14rpx 16rpx; border-radius: 28rpx; background: #fff;
+  border: 1rpx solid rgba(132, 132, 182, 0.14); box-shadow: 0 4rpx 14rpx rgba(84, 84, 146, 0.06);
+}
+.pg-btn {
+  flex: none; height: 64rpx; line-height: 64rpx; padding: 0 26rpx; border-radius: 22rpx;
+  background: #EFEFF8; color: #58588A; font-size: 25rpx; font-weight: 700;
+}
+.pg-btn.off { opacity: 0.36; }
+.pg-mid { flex: 1; text-align: center; padding: 0 10rpx; }
+.pg-cur { display: inline-flex; align-items: center; font-size: 26rpx; font-weight: 800; color: #2E2E4A; }
+.pg-caret { margin-left: 6rpx; font-size: 19rpx; color: #8484B6; }
+.pg-tot { margin-top: 2rpx; font-size: 20rpx; color: #84849E; }
+
+.foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 24rpx; }
 
 /* 场边记分 + 记一场：浮在右下角 */
 .fabs { position: fixed; right: 32rpx; bottom: 40rpx; z-index: 10; display: flex; align-items: center; }

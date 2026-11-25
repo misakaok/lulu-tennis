@@ -4,9 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const root = path.resolve(__dirname, '..');
 const T = [];
+const allPages = (app) => (app.pages || []).concat((app.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
+const PAGE_ROOTS = ['pages', 'pkg-tools', 'pkg-manage'];
 
 T.push({ name: '所有注册页面和组件：没有相册、评价、简介、关注、联系人入口；照片只能在资料页（球员照片）上传，只经头像组件显示；球拍只有画的示意图', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const pages = allPages(app);
   // 照片上传入口只有资料页（球员照片，经 utils/photo.js → 云函数 setPhoto 检测）；球拍用按配色画的示意图（组件 rk-art），没有照片
   const UPLOAD = { 'pages/profile/profile': 1 };
   const SHOW = { 'pages/profile/profile': 1, 'components/pl-av/pl-av': 1 }; // 动态图片只有资料页预览和头像组件
@@ -30,8 +33,8 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   };
   inspect(path.join(root, 'components/pl-av/pl-av')); // app.json 里的全局组件
   Object.values(app.usingComponents || {}).forEach((t) => inspect(path.join(root, t.slice(1))));
-  app.pages.forEach((page) => inspect(path.join(root, page)));
-  assert.ok(seen.size >= app.pages.length);
+  pages.forEach((page) => inspect(path.join(root, page)));
+  assert.ok(seen.size >= pages.length);
   // 照片的选取、上传只在 utils/photo.js；上传到本人目录后一律交给云函数 setPhoto 检测
   const photo = fs.readFileSync(path.join(root, 'utils/photo.js'), 'utf8');
   assert.ok(/call\('setPhoto'/.test(photo) && /cloudPath: `avatars\/\$\{uid\}\//.test(photo));
@@ -41,7 +44,7 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   // 例外只有包里的静态界面配图（/images/ 下的固定图片，不是用户上传的）：空状态插画
   const FIXED_ART = /<image class="[\w-]+" src="\/images\/[\w-]+\.(?:png|jpg)" mode="aspectFit" \/>/g;
   assert.ok(!/racket-hero\.png/.test(fs.readFileSync(path.join(root, 'pages/racket/racket.wxml'), 'utf8')), '球拍页顶部卡片不再放重复的球拍插图');
-  for (const p of ['pages/racket/racket', 'pages/racket-view/racket-view', 'pages/racket-edit/racket-edit', 'pages/racket-log/racket-log']) {
+  for (const p of ['pages/racket/racket', 'pkg-tools/racket-view/racket-view', 'pkg-tools/racket-edit/racket-edit', 'pkg-tools/racket-log/racket-log']) {
     const code = fs.readFileSync(path.join(root, p + '.js'), 'utf8') + fs.readFileSync(path.join(root, p + '.wxml'), 'utf8').replace(FIXED_ART, '');
     assert.ok(!/utils\/photo|chooseMedia|chooseImage|racketPhoto|setPhoto|<canvas\b|<image\b|rk-photo/.test(code), p + ' 不能有照片');
   }
@@ -50,7 +53,7 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
 
 T.push({ name: '活动首页顶部轮播：只换背景（固定底图 + 2 张淡入淡出），文字按钮不动；只有活动首页有；切走页面停、朋友圈单页不转', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
-  app.pages.forEach((page) => {
+  allPages(app).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
     if (page !== 'pages/draw/draw') assert.ok(!/hero-slide/.test(xml), page + '：轮播只在活动首页（每页最多一张背景图的唯一例外）');
   });
@@ -70,13 +73,14 @@ T.push({ name: '活动首页顶部轮播：只换背景（固定底图 + 2 张�
 
 T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host 卡片里的 .bg-img），文件存在、压缩过；文字和按钮仍是页面组件', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const pages = allPages(app);
   const used = {};
   const comps = fs.readdirSync(path.join(root, 'components')).filter((c) => fs.existsSync(path.join(root, 'components', c, c + '.wxml'))).map((c) => 'components/' + c + '/' + c);
-  app.pages.concat(comps).forEach((page) => {
+  pages.concat(comps).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
     (xml.match(/<image\b[^>]*class="bg-img"[^>]*>/g) || []).forEach((tag) => {
       const src = (tag.match(/\bsrc="([^"]*)"/) || [])[1] || '';
-      assert.ok(/^\/images\/[\w-]+\.(?:jpg|png)$/.test(src), page + ' 背景图只能是包里的静态图片：' + src);
+      assert.ok(/^\/(?:(?:pkg-[\w-]+\/)?images)\/[\w-]+\.(?:jpg|png)$/.test(src), page + ' 背景图只能是包里的静态图片：' + src);
       assert.ok(/mode="aspectFill"/.test(tag), page + ' 背景图铺满卡片');
       used[src] = 1;
     });
@@ -86,9 +90,9 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
   });
   // 主包有 2MB 上限：配图压缩后放进来，单张不超过 80KB
   // 空状态插画和其他静态配图也一起查：文件存在、不超过 80KB
-  app.pages.concat(comps).forEach((page) => {
+  pages.concat(comps).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
-    (xml.match(/<image\b[^>]*\bsrc="\/images\/[^"{]+"/g) || []).forEach((tag) => { used[tag.match(/src="([^"]+)"/)[1]] = 1; }); // 按编号取的（徽章）在 player-card 测试里逐个查
+    (xml.match(/<image\b[^>]*\bsrc="\/(?:pkg-[\w-]+\/)?images\/[^"{]+"/g) || []).forEach((tag) => { used[tag.match(/src="([^"]+)"/)[1]] = 1; }); // 按编号取的（徽章）在 player-card 测试里逐个查
     assert.ok(!/empty-ball/.test(xml), page + ' 空状态用插画 .empty-art');
   });
   Object.keys(used).forEach((src) => {
@@ -96,8 +100,8 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
     assert.ok(fs.existsSync(f), src + ' 不存在');
     assert.ok(fs.statSync(f).size < 80 * 1024, src + ' 太大');
   });
-  ['hero-court.jpg', 'hero-2.jpg', 'hero-3.jpg', 'bg-score.jpg', 'bg-mine.jpg', 'bg-event.jpg', 'bg-card.jpg', 'bg-gate.jpg', 'bg-growth.jpg', 'art-ball.png', 'art-net.png', 'art-basket.png', 'art-trophy.png']
-    .forEach((f) => assert.ok(used['/images/' + f], f + ' 没用上'));
+  ['/images/hero-court.jpg', '/images/hero-2.jpg', '/images/hero-3.jpg', '/images/bg-score.jpg', '/images/bg-mine.jpg', '/images/bg-event.jpg', '/images/bg-card.jpg', '/images/bg-gate.jpg', '/pkg-manage/images/bg-growth.jpg', '/images/art-ball.png', '/images/art-net.png', '/images/art-basket.png', '/images/art-trophy.png', '/images/art-tools.png']
+    .forEach((f) => assert.ok(used[f], f + ' 没用上'));
   const draw = fs.readFileSync(path.join(root, 'pages/draw/draw.wxml'), 'utf8');
   assert.ok(/class="hero-title">活动</.test(draw) && /class="hero-btn"[^>]*bindtap="goNew"/.test(draw), '标题和按钮不放进图片里');
   const css = fs.readFileSync(path.join(root, 'app.wxss'), 'utf8');
@@ -108,9 +112,9 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   // 仍然允许文字输入的页面：比赛名称（创建 / 编辑活动，各 1 个）、昵称（资料页）、准入页、搜索球员（首页；选人弹层 member-sheet，只在本机筛选，不保存）
-  const allowed = { 'pages/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pages/draw-new/draw-new': 1, 'pages/event-edit/event-edit': 1, 'components/member-sheet/member-sheet': 1 };
+  const allowed = { 'pages/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pkg-manage/draw-new/draw-new': 1, 'pkg-manage/event-edit/event-edit': 1, 'components/member-sheet/member-sheet': 1 };
   const comps = fs.readdirSync(path.join(root, 'components')).map((c) => `components/${c}/${c}`).filter((c) => fs.existsSync(path.join(root, c + '.wxml')));
-  app.pages.concat(comps).forEach((page) => {
+  allPages(app).concat(comps).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');
     const code = fs.readFileSync(path.join(root, page + '.js'), 'utf8');
     const texts = (xml.match(/<input\b[^>]*>/g) || []).filter((tag) => !/type\s*=\s*['"](?:number|digit)['"]/.test(tag));
@@ -136,7 +140,7 @@ T.push({ name: '所有注册页面和组件：没有多行文字框和可输入�
       inspect(target.startsWith('/') ? path.join(root, target.slice(1)) : path.resolve(path.dirname(base), target));
     });
   };
-  app.pages.forEach((page) => inspect(path.join(root, page)));
+  allPages(app).forEach((page) => inspect(path.join(root, page)));
 } });
 
 T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（小组赛、淘汰赛、签表、抽签、赛程、决赛、晋级等）和社交圈子用语（球友圈、社区、交友等）；「种子」只出现在种子设置相关的界面', fn() {
@@ -144,7 +148,7 @@ T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（�
   const banned = /小组赛|淘汰赛|签表|分开排位|抽签|赛程|出线|决赛|晋级|赛制|参赛|赛事|球友圈|圈子|社区|社群|交友/; // 「球友圈」2026-11-19 未过审核；「比赛名称」按用户要求用在创建 / 编辑活动的名称栏
   // 「种子」只用在种子设置相关的界面（2026-11-22 用户要求把「分开排位」改成看得懂的种子设置）：
   // 创建 / 生成对阵页的种子区块、活动详情的种子名单、活动列表卡片的种子数，且只用下面几种固定说法
-  const SEED_PAGES = ['pages/draw-new/draw-new', 'pages/draw-view/draw-view', 'pages/draw/draw'].map((p) => path.join(root, p));
+  const SEED_PAGES = ['pkg-manage/draw-new/draw-new', 'pages/draw-view/draw-view', 'pages/draw/draw'].map((p) => path.join(root, p));
   const seedOk = /种子(选手|队伍|优先轮空)|号种子/g;
   const seedUsed = new Set();
   const seen = new Set();
@@ -173,7 +177,7 @@ T.push({ name: '所有注册页面和组件：界面文字不用赛事用语（�
       inspect(target.startsWith('/') ? path.join(root, target.slice(1)) : path.resolve(path.dirname(base), target));
     });
   };
-  app.pages.forEach((page) => inspect(path.join(root, page)));
+  allPages(app).forEach((page) => inspect(path.join(root, page)));
   SEED_PAGES.forEach((p) => assert.ok(seedUsed.has(p), path.relative(root, p) + ' 应显示种子设置（不再用「分开排位」）'));
 } });
 
@@ -185,7 +189,7 @@ T.push({ name: '界面：卡片里带分隔线的列表行，第一行上面不�
     const f = path.join(dir, e.name);
     if (e.isDirectory()) walk(f); else if (e.name.endsWith('.wxss')) files.push(f);
   });
-  ['pages', 'components'].forEach((d) => walk(path.join(root, d)));
+  PAGE_ROOTS.concat(['components']).forEach((d) => walk(path.join(root, d)));
   const missing = [];
   files.forEach((f) => {
     const css = fs.readFileSync(f, 'utf8');
@@ -218,7 +222,7 @@ T.push({ name: '只有活动首页能分享：战绩、排行、球拍、我的�
 
 T.push({ name: '读取期间不放「正在读取 / 读取中 / 加载中」之类的占位文字（2026-11-25 用户要求）：先空着，读完直接出现', fn() {
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.wxml') ? [path.join(d, e.name)] : []));
-  ['pages', 'components'].flatMap((d) => walk(path.join(root, d))).forEach((f) => {
+  PAGE_ROOTS.concat(['components']).flatMap((d) => walk(path.join(root, d))).forEach((f) => {
     const xml = fs.readFileSync(f, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
     assert.ok(!/正在读取|读取中…|加载中…/.test(xml), path.relative(root, f) + ' 里还有读取中的占位文字');
   });
@@ -228,7 +232,7 @@ module.exports = T;
 
 T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.wxml') ? [path.join(d, e.name)] : []));
-  const files = ['pages', 'components'].flatMap((d) => walk(path.join(root, d)));
+  const files = PAGE_ROOTS.concat(['components']).flatMap((d) => walk(path.join(root, d)));
   assert.ok(files.length > 10);
   for (const f of files) {
     const src = fs.readFileSync(f, 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/\{\{[\s\S]*?\}\}/g, 'X');
@@ -264,7 +268,7 @@ T.push({ name: '界面上的名称统一写「LULU 网球」（中间有空格�
     if (f.isDirectory()) walk(p);
     else if (/\.(js|json|wxml|wxss)$/.test(f.name) && fs.readFileSync(p, 'utf8').indexOf('LULU网球') >= 0) bad.push(path.relative(root, p));
   });
-  ['pages', 'components', 'utils'].forEach((d) => walk(path.join(root, d)));
+  PAGE_ROOTS.concat(['components', 'utils']).forEach((d) => walk(path.join(root, d)));
   if (fs.readFileSync(path.join(root, 'app.json'), 'utf8').indexOf('LULU网球') >= 0) bad.push('app.json');
   assert.deepStrictEqual(bad, []);
 } });

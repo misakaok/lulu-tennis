@@ -113,6 +113,16 @@
       </view>
     </view>
   </view>
-  <view wx:if="{{more && tab !== 'next'}}" class="d-more">上滑加载更多</view>
+  <!-- 翻页条（超过 1 页时显示；点击中间页码可直达任意页） -->
+  <view wx:if="{{tab !== 'next' && totalPages > 1}}" class="pager">
+    <view class="pg-btn {{page <= 1 ? 'off' : ''}}" hover-class="{{page > 1 ? 'tap-on' : ''}}" bindtap="prevPage">‹ 上一页</view>
+    <picker class="pg-mid" mode="selector" range="{{pageOpts}}" value="{{page - 1}}" bindchange="pickPage">
+      <view class="pg-cur num">
+        <text>第 {{page}} / {{totalPages}} 页</text><text class="pg-caret">▾</text>
+      </view>
+      <view class="pg-tot">共 {{totalCount}} 场</view>
+    </picker>
+    <view class="pg-btn {{page >= totalPages ? 'off' : ''}}" hover-class="{{page < totalPages ? 'tap-on' : ''}}" bindtap="nextPage">下一页 ›</view>
+  </view>
 </view>
 </block>

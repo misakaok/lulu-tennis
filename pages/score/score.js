@@ -26,6 +26,9 @@ Page({
     recordId: '', revocable: false,
     isOwner: false, outcomeText: '', unrated: null, retire: null, busy: false,
     scorerOk: false, scorerResume: false, fromScorer: false,
+    // 未开打场次的赛前交手预览 & 「如果打成 X:Y」水平分模拟
+    pre: null, simOpen: false, simSide: 'a', simSideLabel: '', simIdx: 2, simRes: null, simCanSwitch: false,
+    rkOpen: false, rkBusy: false, rkList: [], rkId: '', rkMin: '60', rkDate: '', // 首次录分完成后顺手记球拍时长
   },
 
   onLoad(options) {
@@ -45,17 +48,19 @@ Page({
     const pre = db.peekDrawDetail(this.drawId);
     if (!pre || !pre.draw) return;
     const me = pre.profile || db.cachedProfile();
-    try { this.apply(pre.draw, db.cachedMatches(), me, pre.signups || [], db.cachedOpenid() || (me && me._openid) || ''); }
+    const players = db.cachedPlayersFull ? db.cachedPlayersFull() : [];
+    try { this.apply(pre.draw, db.cachedMatches(), me, pre.signups || [], db.cachedOpenid() || (me && me._openid) || '', false, players); }
     catch (e) { this.shownSig = ''; } // 本机数据找不到这一场：不显示错误，等云端
   },
 
   async load() {
     try {
       // 活动、报名名单、我的资料：云函数 drawDetail 一次取齐（原来分开读 3 次）；云函数还是旧版本时分开读
-      const [bundle, matches, myId] = await Promise.all([
+      const [bundle, matches, myId, players] = await Promise.all([
         db.fetchDrawDetail(this.drawId),
         db.matchesShared(), // 共享版（只读，不复制）：这页只拿来找这一场
         db.myOpenid().catch(() => ''),
+        db.playersShared ? db.playersShared().catch(() => []) : Promise.resolve([]),
       ]);
       let d, me, signups;
       if (bundle) { d = bundle.draw; me = bundle.profile; signups = bundle.signups || []; }
@@ -66,7 +71,7 @@ Page({
           db.fetchSignups(this.drawId).catch(() => []),
         ]);
       }
-      this.apply(d, matches, me, signups, myId, true);
+      this.apply(d, matches, me, signups, myId, true, players);
     } catch (e) {
       console.error(e);
       this.shownSig = '';
@@ -75,7 +80,7 @@ Page({
   },
 
   // fresh：云端结果。和已经画出来的（本机预览）一样就不重画
-  apply(d, matches, me, signups, myId, fresh) {
+  apply(d, matches, me, signups, myId, fresh, players) {
     const owner = !!myId && d._openid === myId; // 活动文档已经读到了，不用再查一次
     const f = E.findFixture(d, matches, this.key);
     if (!f) throw new Error('找不到这场比赛，对阵表可能已经重新生成');
@@ -87,11 +92,15 @@ Page({
     const uidOf = ID.drawUids(d, signups);
     this.ids = { a: ID.idsFor(f.aMembers, uidOf), b: ID.idsFor(f.bMembers, uidOf) };
     const inMatch = !!myId && this.ids.a.concat(this.ids.b).indexOf(myId) >= 0;
+    const endedUnplayed = !!d.endedAt && !f.done;
+    this.inMatch = inMatch;
+    if (!f.done && !endedUnplayed && inMatch) this.warmRackets();
     const myName = me && me.name;
-    const canEdit = owner || inMatch || (!f.done && !E.isRotation(d) && require('../../utils/member').isAdminLocal());
+    const canEdit = !endedUnplayed && (owner || inMatch || (!f.done && !E.isRotation(d) && require('../../utils/member').isAdminLocal()));
     const cfg = E.ruleFor(d, this.key); // 这一场所在阶段 / 轮次的规则（如决赛单独用 6 局制）
     const rec0 = f.done && f.recordId ? matches.find((m) => m._id === f.recordId) : null;
-    const sig = JSON.stringify([d.drawVersion || 0, d.title, f, cfg, owner, inMatch, canEdit, !!(me && me.name), rec0 && [rec0.date, rec0._openid, rec0.recordedBy]]);
+    const ps = players || [];
+    const sig = JSON.stringify([d.drawVersion || 0, d.title, f, cfg, owner, inMatch, canEdit, !!(me && me.name), rec0 && [rec0.date, rec0._openid, rec0.recordedBy], (matches || []).length, ps.length]);
     if (fresh && sig === this.shownSig) return; // 本机预览画的就是最新的：不重画
     this.shownSig = sig;
     this.d = d; this.f = f; this.cfg = cfg;
@@ -105,6 +114,33 @@ Page({
       if (rec && rec.date) date = rec.date;
       revocable = owner || (!!rec && !!myId && (rec._openid || rec.recordedBy) === myId); // 只是显示按钮，云函数会再校验
     }
+    // 未开打场次：算赛前交手预览和水平分模拟底数（纯算力，复用共享战绩）
+    let pre = null, simSide = 'a', simSideLabel = f.a, simIdx = 2, simRes = null, simCanSwitch = true;
+    this.simCtx = null;
+    if (!f.done) {
+      const aKeys = f.aMembers.map((n, i) => this.ids.a[i] || ID.keyOf(ps, n));
+      const bKeys = f.bMembers.map((n, i) => this.ids.b[i] || ID.keyOf(ps, n));
+      const ratings = RT.ratingsOf(matches || [], ps);
+      pre = RT.matchupPreview(ratings, ps, matches || [], { aKeys, bKeys, aNames: f.aMembers, bNames: f.bMembers, setGames: cfg.setGames });
+      if (pre) {
+        const myInA = !!myId && this.ids.a.indexOf(myId) >= 0;
+        const myInB = !!myId && this.ids.b.indexOf(myId) >= 0;
+        simSide = myInB ? 'b' : 'a';
+        simCanSwitch = !(myInA || myInB);
+        simSideLabel = myInA || myInB ? '你' : (simSide === 'a' ? f.a : f.b);
+        this.simCtx = {
+          ratings, players: ps, aKeys, bKeys, aNames: f.aMembers, bNames: f.bMembers,
+          myKey: myInA || myInB ? myId : '', aLabel: f.a, bLabel: f.b, presets: pre.presets,
+        };
+        const def = pre.presets[simIdx] || pre.presets[0];
+        if (def) {
+          simRes = RT.simulateMatch(ratings, ps, {
+            aKeys, bKeys, aNames: f.aMembers, bNames: f.bMembers,
+            mySide: simSide, myKey: this.simCtx.myKey, gamesA: def.a, gamesB: def.b,
+          });
+        }
+      }
+    }
     wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
     this.setData({
       loading: false, error: '', date,
@@ -113,20 +149,44 @@ Page({
       setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
       sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
       aLabel: f.a, bLabel: f.b,
-      done: f.done, winner: f.winner, isOwner: !!owner, outcomeText: f.outcomeText || '',
+      done: f.done, winner: f.winner, isOwner: !!owner && !endedUnplayed, outcomeText: f.outcomeText || '',
       unrated: f.done && f.outcome && f.outcome !== 'normal' ? RT.unratedOf(f.outcome) : null, // 弃权 / 退赛（含退赛后判的弃权）：本场未计入水平分
       resultSets: f.sets.map((s) => ({
         a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a,
         tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB,
       })),
       canEdit, recordId: f.done ? f.recordId || '' : '', revocable,
-      reason: canEdit ? '' : (myName ? '只有这场的球员或活动发起人可以录分' : '设置昵称后，这场的球员才能录分'),
+      reason: canEdit ? '' : (endedUnplayed ? '这个活动已提前结束，未打场次不再录分（如需继续可由发起人或管理员在活动详情恢复）' : (myName ? '只有这场的球员或活动发起人可以录分' : '设置昵称后，这场的球员才能录分')),
       editing: !f.done && canEdit,
       init: [],
+      pre, simSide, simSideLabel, simIdx, simRes, simCanSwitch,
     });
     this.refreshScorer();
     if (this.autoScorer) { this.autoScorer = false; if (this.data.scorerOk && !this.pendingScorer) this.openScorer(); }
     if (this.pendingScorer) { const id = this.pendingScorer; this.pendingScorer = ''; this.applyScorer(id); }
+  },
+
+  /* ---------- 赛前水平分模拟 ---------- */
+  toggleSim() { this.setData({ simOpen: !this.data.simOpen }); },
+  pickSim(e) {
+    const i = Number(e.currentTarget.dataset.i);
+    if (!this.simCtx || !this.simCtx.presets[i]) return;
+    this.runSim(i, this.data.simSide);
+  },
+  switchSimSide() {
+    if (!this.simCtx || !this.data.simCanSwitch) return;
+    this.runSim(this.data.simIdx, this.data.simSide === 'a' ? 'b' : 'a');
+  },
+  runSim(idx, side) {
+    const c = this.simCtx;
+    const p = c && c.presets[idx];
+    if (!p) return;
+    const res = RT.simulateMatch(c.ratings, c.players, {
+      aKeys: c.aKeys, bKeys: c.bKeys, aNames: c.aNames, bNames: c.bNames,
+      mySide: side, myKey: c.myKey, gamesA: p.a, gamesB: p.b,
+    });
+    const label = c.myKey ? '你' : (side === 'a' ? c.aLabel : c.bLabel);
+    this.setData({ simIdx: idx, simSide: side, simSideLabel: label, simRes: res });
   },
 
   onShow() {
@@ -149,7 +209,7 @@ Page({
     const ev = { drawId: this.drawId, key: this.key };
     if (this.drawVersion) ev.drawVersion = this.drawVersion;
     SC.setLabels(ev, { a: f.a, b: f.b, title: f.stage });
-    const go = () => wx.navigateTo({ url: '/pages/scorer/scorer?go=1' });
+    const go = () => wx.navigateTo({ url: '/pkg-tools/scorer/scorer?go=1' });
     const d = SC.loadDraft();
     if (SC.sameEv(d, this.drawId, this.key, this.drawVersion || 0) && SC.sameCfg(d.cfg, this.cfg)) { go(); return; } // 这一场已经在记：接着记
     const fresh = () => { SC.saveDraft(SC.start(this.cfg, Date.now(), ev)); go(); };
@@ -204,8 +264,10 @@ Page({
         drawId: this.drawId, key: this.key, drawVersion: this.drawVersion || 0, date: this.data.date, sets: r.sets,
       });
       if (!res) return;
+      const draftBefore = this.scorerId ? SC.loadDraft() : null;
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉场边记分草稿
       haptic.medium();
+      if (!f.done && this.inMatch && this.openRkPrompt(r.sets, this.data.date || today(), draftBefore)) return;
       wx.showToast({ title: f.done ? '比分已更新' : '比分已保存', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 700);
     } catch (e) {
@@ -213,6 +275,64 @@ Page({
       wx.showModal({ title: '保存失败', content: e.message || '请稍后再试', showCancel: false });
     } finally {
       this.setData({ submitting: false });
+    }
+  },
+
+  /* ---------- 本人首次录分完成后顺手记入球拍时长（有在役球拍时弹出，纯可选） ---------- */
+  warmRackets() {
+    try {
+      const API = require('../../utils/rackets');
+      const K = require('../../utils/racket');
+      const c = API.cachedList && API.cachedList();
+      if (c && Array.isArray(c.rackets)) { this.liveRks = K.liveRackets(c.rackets); return; }
+      if (API.load) API.load().then((r) => { if (r && Array.isArray(r.rackets)) this.liveRks = K.liveRackets(r.rackets); }, () => {});
+    } catch (e) {}
+  },
+  openRkPrompt(sets, date, draft) {
+    let list = this.liveRks;
+    if (!list) {
+      try {
+        const API = require('../../utils/rackets');
+        const K = require('../../utils/racket');
+        const c = API.cachedList && API.cachedList();
+        if (c && Array.isArray(c.rackets)) list = K.liveRackets(c.rackets);
+      } catch (e) {}
+    }
+    if (!list || !list.length) return false;
+    const K = require('../../utils/racket');
+    const el = draft && draft.startedAt && draft.endedAt ? Math.round((draft.endedAt - draft.startedAt) / 60000) : 0;
+    const est = el >= 5 && el <= 600 ? el : K.estimateMatchMins(sets);
+    this.setData({ rkOpen: true, rkBusy: false, rkList: list, rkId: list[0].id, rkMin: String(est), rkDate: date });
+    return true;
+  },
+  pickRk(e) { this.setData({ rkId: e.currentTarget.dataset.id }); },
+  rkMinQuick(e) { this.setData({ rkMin: e.currentTarget.dataset.m }); },
+  rkMinInput(e) { this.setData({ rkMin: String(e.detail.value || '').replace(/\D/g, '').slice(0, 3) }); },
+  skipRkLog() {
+    if (this.data.rkBusy) return;
+    this.setData({ rkOpen: false });
+    wx.navigateBack();
+  },
+  async saveRkLog() {
+    if (this.data.rkBusy) return;
+    if (!this.data.rkId) { wx.showToast({ title: '请先选择球拍', icon: 'none' }); return; }
+    if (!/^\d+$/.test(this.data.rkMin)) { wx.showToast({ title: '请填打球分钟数', icon: 'none' }); return; }
+    const K = require('../../utils/racket');
+    const API = require('../../utils/rackets');
+    const d = this.data.rkDate || today();
+    const chk = K.cleanLog({ kind: 'play', date: d, minutes: Number(this.data.rkMin) }, today());
+    if (!chk.ok) { wx.showToast({ title: chk.msg, icon: 'none' }); return; }
+    this.setData({ rkBusy: true });
+    try {
+      await API.saveLog('', this.data.rkId, chk.rec);
+      this.setData({ rkOpen: false, rkBusy: false });
+      haptic.medium();
+      wx.showToast({ title: '已记入球拍时长', icon: 'success' });
+      if (API.refreshBadge) API.refreshBadge();
+      setTimeout(() => wx.navigateBack(), 600);
+    } catch (err) {
+      this.setData({ rkBusy: false });
+      wx.showToast({ title: (err && err.message) || '保存失败', icon: 'none' });
     }
   },
 

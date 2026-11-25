@@ -98,11 +98,11 @@ Page({
     await official;
   },
 
-  add() { wx.navigateTo({ url: '/pages/growth-edit/growth-edit' }); },
-  open(e) { wx.navigateTo({ url: '/pages/growth-edit/growth-edit?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  add() { wx.navigateTo({ url: '/pkg-manage/growth-edit/growth-edit' }); },
+  open(e) { wx.navigateTo({ url: '/pkg-manage/growth-edit/growth-edit?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
   goHistory() {
-    db.myOpenid().then((uid) => wx.navigateTo({ url: '/pages/history/history?uid=' + encodeURIComponent(uid) })).catch(() => {});
+    db.myOpenid().then((uid) => wx.navigateTo({ url: '/pkg-manage/history/history?uid=' + encodeURIComponent(uid) })).catch(() => {});
   },
 
   // 清除本人的全部私人记录（两次确认；正式战绩不受影响）

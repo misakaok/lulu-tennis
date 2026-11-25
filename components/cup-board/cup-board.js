@@ -139,8 +139,8 @@ Component({
         });
       });
     },
-    addStop() { wx.navigateTo({ url: '/pages/cup-edit/cup-edit' }); },
-    fixStop(e) { wx.navigateTo({ url: '/pages/cup-edit/cup-edit?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+    addStop() { wx.navigateTo({ url: '/pkg-manage/cup-edit/cup-edit' }); },
+    fixStop(e) { wx.navigateTo({ url: '/pkg-manage/cup-edit/cup-edit?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
     openShown() { this.triggerEvent('shown'); },
   },
 });

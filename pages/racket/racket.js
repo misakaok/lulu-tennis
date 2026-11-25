@@ -17,8 +17,31 @@ function cardOf(r, logs, t) {
   };
 }
 
+function statsView(rackets, logs, t) {
+  const y = K.yearlyStats(rackets, logs, t);
+  const chips = [];
+  if (y.yearCost > 0) {
+    const parts = [];
+    if (y.stringCost > 0) parts.push(`穿线 ¥${y.stringCost}`);
+    if (y.maintCost > 0) parts.push(`维护 ¥${y.maintCost}`);
+    if (parts.length) chips.push(parts.join(' · '));
+  }
+  if (y.avgHours) chips.push(`每条线均打 ${y.avgHours}h`);
+  if (!y.brokenYear && y.brokenAll > 0) chips.push(`累计断线 ${y.brokenAll} 次`);
+  if (y.topString) chips.push(`常用 ${y.topString.name}（${y.topString.count} 次）`);
+  return {
+    year: y.year,
+    costText: y.yearCost > 0 ? `¥${y.yearCost}` : '¥0',
+    avgText: y.avgDays !== null ? `${y.avgDays} 天` : '—',
+    hoursText: y.yearPlayMin > 0 ? `${y.yearPlayHours}h` : '0h',
+    badge: y.brokenYear > 0 ? `今年断线 ${y.brokenYear} 次` : (y.allCost > y.yearCost ? `累计 ¥${y.allCost}` : ''),
+    chips,
+    hasData: y.hasData,
+  };
+}
+
 Page({
-  data: { loading: true, error: '', cards: [], o: null, bouncing: false },
+  data: { loading: true, error: '', cards: [], o: null, st: null, bouncing: false },
 
   onLoad() {
     wx.hideShareMenu(); // 私人数据不能分享
@@ -61,7 +84,7 @@ Page({
     const list = rackets.slice().sort((a, b) => (a.status === 'retired') - (b.status === 'retired') || a.no - b.no);
     this.drawn = true;
     // 顶部卡片不做动画（2026-11-25 用户觉得动画太多）：数字直接显示，不滚
-    this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
+    this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t), st: statsView(rackets, logs, t) });
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
   // 点击先原地 Q 弹一下再进入添加球拍页；防连点、切走页面时取消未触发的跳转
@@ -73,8 +96,9 @@ Page({
       this.addTimer = null;
       this.adding = false;
       this.setData({ bouncing: false });
-      wx.navigateTo({ url: '/pages/racket-edit/racket-edit' });
+      wx.navigateTo({ url: '/pkg-tools/racket-edit/racket-edit' });
     }, 320);
   },
-  open(e) { wx.navigateTo({ url: '/pages/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  open(e) { wx.navigateTo({ url: '/pkg-tools/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  openTune() { wx.navigateTo({ url: '/pkg-tools/racket-tune/racket-tune' }); },
 });

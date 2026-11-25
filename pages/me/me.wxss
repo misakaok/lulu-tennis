@@ -10,26 +10,24 @@
 .hd-s.warn { color: #b34d4d; font-weight: 600; }
 .me-go { flex: none; margin-left: 12rpx; font-size: 36rpx; line-height: 1; color: #C5C5DA; }
 
-/* 成长档案：三个数字 + 最近 6 个月场数小柱图 */
-.gw-nums { display: flex; margin-top: 26rpx; padding: 20rpx 0; border-radius: 22rpx; background: #F8F8FC; }
-.gn { flex: 1; display: flex; flex-direction: column; align-items: center; }
-.gn + .gn { border-left: 1rpx solid #E9E9F2; }
-.gn-n { height: 56rpx; line-height: 56rpx; font-size: 40rpx; font-weight: 900; color: #4F4F7D; }
-.gn-u { font-size: 24rpx; font-weight: 700; margin-left: 2rpx; }
-.gn-l { margin-top: 4rpx; font-size: 21rpx; color: #70708C; }
-.gw-chart { display: flex; margin-top: 22rpx; }
-.gc { flex: 1; display: flex; flex-direction: column; align-items: center; }
-.gc-box { width: 100%; height: 88rpx; display: flex; align-items: flex-end; justify-content: center; border-bottom: 2rpx solid #ECECF5; }
-.gc-bar { width: 28rpx; min-height: 6rpx; border-radius: 6rpx 6rpx 0 0; background: #D6D6E8; }
-.gc-bar.now { background: #A3A3CB; }
-.gc-l { margin-top: 8rpx; font-size: 20rpx; color: #84849E; }
-.gc-l.now { color: #6E6EA3; font-weight: 700; }
-.gw-empty { margin-top: 22rpx; font-size: 24rpx; color: #70708C; }
-.gw-add { margin-top: 20rpx; height: 72rpx; line-height: 68rpx; font-size: 26rpx; }
+/* 紧凑单行入口卡（我的 LULU 积分、成长档案、成员管理共用统一高度与对齐） */
+.me-ent { padding: 24rpx 30rpx; }
+.me-yr { margin-left: 12rpx; font-size: 21rpx; font-weight: 600; color: #84849E; }
 
-/* 我的 LULU 积分（数字格沿用成长档案的 .gw-nums） */
-.cup-last { margin-top: 18rpx; font-size: 23rpx; color: #70708C; }
-.cup-pts { font-weight: 800; color: #4F4F7D; }
+/* 场边工具（前缀 me-tl-，避免与 player-home 组件类名重名；顶行复用 .hd 和左右 30rpx 留白，和上方入口卡对齐） */
+.me-tl-card { padding: 30rpx 30rpx 26rpx; }
+.me-tl-grid { display: flex; margin: 22rpx -6rpx 0; }
+.me-tl-it {
+  flex: 1; margin: 0 6rpx; padding: 20rpx 10rpx 18rpx; border-radius: 22rpx;
+  background: #F7F7FC; text-align: center;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease;
+}
+.me-tl-ic { width: 56rpx; height: 56rpx; margin: 0 auto 12rpx; border-radius: 18rpx; background-color: #EBEBF7; background-repeat: no-repeat; background-position: center; background-size: 34rpx 34rpx; }
+.me-tl-ic1 { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNkU2RUEzIiBzdHJva2Utd2lkdGg9IjIuMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSI0IiB3aWR0aD0iMTgiIGhlaWdodD0iMTYiIHJ4PSIzIi8+PGxpbmUgeDE9IjEyIiB5MT0iNCIgeDI9IjEyIiB5Mj0iMjAiLz48Y2lyY2xlIGN4PSI3LjUiIGN5PSIxMiIgcj0iMS42IiBmaWxsPSIjQzlFMzNBIiBzdHJva2U9Im5vbmUiLz48bGluZSB4MT0iMTUiIHkxPSIxMCIgeDI9IjE4IiB5Mj0iMTAiLz48bGluZSB4MT0iMTUiIHkxPSIxNCIgeDI9IjE4IiB5Mj0iMTQiLz48L3N2Zz4="); }
+.me-tl-ic2 { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNkU2RUEzIiBzdHJva2Utd2lkdGg9IjIuMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSI0IiB5PSIzIiB3aWR0aD0iMTYiIGhlaWdodD0iMTgiIHJ4PSIzIi8+PGxpbmUgeDE9IjgiIHkxPSI4IiB4Mj0iMTYiIHkyPSI4Ii8+PGxpbmUgeDE9IjgiIHkxPSIxMyIgeDI9IjExIiB5Mj0iMTMiLz48bGluZSB4MT0iMTMiIHkxPSIxMyIgeDI9IjE2IiB5Mj0iMTMiLz48bGluZSB4MT0iOCIgeTE9IjE3IiB4Mj0iMTYiIHkyPSIxNyIgc3Ryb2tlPSIjN0M5ODAwIi8+PC9zdmc+"); }
+.me-tl-ic3 { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNkU2RUEzIiBzdHJva2Utd2lkdGg9IjIuMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI3LjUiIGN5PSI3LjUiIHI9IjIuNSIvPjxjaXJjbGUgY3g9IjE2LjUiIGN5PSI3LjUiIHI9IjIuNSIvPjxjaXJjbGUgY3g9IjcuNSIgY3k9IjE2LjUiIHI9IjIuNSIvPjxjaXJjbGUgY3g9IjE2LjUiIGN5PSIxNi41IiByPSIyLjUiIHN0cm9rZT0iIzdDOTgwMCIvPjxwYXRoIGQ9Ik0xMC41IDcuNUgxMy41TTEwLjUgMTYuNUgxMy41TTcuNSAxMC41VjEzLjVNMTYuNSAxMC41VjEzLjUiLz48L3N2Zz4="); }
+.me-tl-n { font-size: 25rpx; font-weight: 800; color: #2E2E4A; }
+.me-tl-d { margin-top: 4rpx; font-size: 19rpx; color: #84849E; }
 
 /* 成员管理 */
 .adm-only { margin-left: 12rpx; font-size: 20rpx; }

@@ -257,9 +257,143 @@ function overview(rackets, logs, today) {
   };
 }
 
+/**
+ * 装备年度花费与换线 / 断线周期统计（纯私人统计，直接复用现有 rackets / racket_logs，不加新集合）：
+ * - 当年花费（总花费 / 穿线花费 / 维护花费）、当年穿线 / 维护次数、当年打球总时长、当年断线次数（标签含「断线了」）
+ * - 全部记录里的平均换线周期（按每支拍相邻两次穿线的间隔天数与期间打球时长平均）、最常用球线
+ */
+function yearlyStats(rackets, logs, today) {
+  const year = String(today || '').slice(0, 4) || String(new Date().getFullYear());
+  const prefix = year + '-';
+  const ids = {};
+  (rackets || []).forEach((r) => { ids[r.id] = 1; });
+  const mine = (logs || []).filter((l) => ids[l.racketId]);
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  let stringCost = 0, maintCost = 0, allCost = 0;
+  let yearStrings = 0, yearMaints = 0, yearPlayMin = 0, brokenYear = 0, brokenAll = 0;
+  const strFreq = {};
+
+  mine.forEach((l) => {
+    const inYear = String(l.date || '').indexOf(prefix) === 0;
+    const cost = typeof l.cost === 'number' ? l.cost : 0;
+    allCost += cost;
+    if (l.kind === 'string') {
+      const broken = Array.isArray(l.tags) && l.tags.indexOf('断线了') >= 0;
+      if (broken) brokenAll++;
+      if (inYear) { yearStrings++; stringCost += cost; if (broken) brokenYear++; }
+      const sn = stringText(l);
+      if (sn) {
+        const cur = strFreq[sn] || { name: sn, count: 0, last: '' };
+        cur.count++;
+        if (String(l.date || '') > cur.last) cur.last = String(l.date || '');
+        strFreq[sn] = cur;
+      }
+    } else if (l.kind === 'maint') {
+      if (inYear) { yearMaints++; maintCost += cost; }
+    } else if (l.kind === 'play') {
+      if (inYear) yearPlayMin += l.minutes || 0;
+    }
+  });
+
+  // 换线周期：按每支拍的时间升序找相邻两次穿线间隔（天数 + 期间累计打球分钟数）
+  const dayGaps = [], minGaps = [];
+  (rackets || []).forEach((r) => {
+    const rLogs = mine.filter((l) => l.racketId === r.id);
+    const strs = rLogs.filter((l) => l.kind === 'string').sort((x, y) => String(x.date).localeCompare(String(y.date)) || (x.createdAt || 0) - (y.createdAt || 0));
+    const pLogs = rLogs.filter((l) => l.kind === 'play');
+    for (let i = 1; i < strs.length; i++) {
+      const a = strs[i - 1].date, b = strs[i].date;
+      const d = daysBetween(a, b);
+      if (d > 0) dayGaps.push(d);
+      const mins = pLogs.filter((p) => p.date >= a && p.date < b).reduce((s, p) => s + (p.minutes || 0), 0);
+      if (mins > 0) minGaps.push(mins);
+    }
+  });
+  const avgDays = dayGaps.length ? Math.round(dayGaps.reduce((s, x) => s + x, 0) / dayGaps.length) : null;
+  const avgHours = minGaps.length ? hoursText(Math.round(minGaps.reduce((s, x) => s + x, 0) / minGaps.length)) : '';
+  const topString = Object.keys(strFreq).map((k) => strFreq[k])
+    .sort((x, y) => y.count - x.count || y.last.localeCompare(x.last))[0] || null;
+
+  stringCost = round2(stringCost);
+  maintCost = round2(maintCost);
+  const yearCost = round2(stringCost + maintCost);
+  allCost = round2(allCost);
+  return {
+    year, yearCost, stringCost, maintCost, allCost,
+    yearStrings, yearMaints, yearPlayMin, yearPlayHours: hoursText(yearPlayMin),
+    avgDays, avgHours, brokenYear, brokenAll,
+    topString: topString ? { name: topString.name, count: topString.count } : null,
+    hasData: !!(yearCost || yearStrings || yearMaints || yearPlayMin || avgDays !== null || topString),
+  };
+}
+
+// 球拍贴铅片配重计算（标准 27 英寸 = 685.8mm 球拍力学公式；纯前端工具，无存储）
+// 四个经典配重位置距拍底距离（mm）：12 点拍顶 665、3/9 点拍框两侧 510、拍喉三角区 340、手柄内部 60
+const TUNE_POS = { top: 665, side: 510, throat: 340, handle: 60 };
+const RACKET_MID_MM = 342.9; // 27 英寸球拍中点（13.5 英寸）
+const PT_MM = 3.175;         // 1 pt = 1/8 英寸
+function tuneRacket(input) {
+  const x = input || {};
+  const clampN = (v, lo, hi, def) => {
+    const n = Number(v);
+    return isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : def;
+  };
+  const lead = (v) => {
+    const n = Number(v);
+    return isFinite(n) && n > 0 ? Math.min(40, Math.round(n * 10) / 10) : 0;
+  };
+  const r1 = (n) => Math.round(n * 10) / 10;
+  const weight = r1(clampN(x.weight, 200, 400, 300));
+  const balance = r1(clampN(x.balance, 280, 380, 320));
+  const top = lead(x.top), side = lead(x.side), throat = lead(x.throat), handle = lead(x.handle);
+  const added = r1(top + side + throat + handle);
+  const newWeight = r1(weight + added);
+  const newBalance = r1((weight * balance + top * TUNE_POS.top + side * TUNE_POS.side + throat * TUNE_POS.throat + handle * TUNE_POS.handle) / newWeight);
+  const balDiff = r1(newBalance - balance);
+  const ptsRaw = (RACKET_MID_MM - newBalance) / PT_MM;
+  const ptsHalf = Math.round(Math.abs(ptsRaw) * 2) / 2;
+  const balTag = Math.abs(ptsRaw) < 0.25 ? '均衡' : ptsRaw > 0 ? `${ptsHalf} pts 头轻` : `${ptsHalf} pts 头重`;
+  // 挥重增量 ΔSW (kg·cm²，标准 10cm 支点)：(m / 1000) * (d_cm - 10)^2
+  const swOf = (g, mm) => (g / 1000) * Math.pow(mm / 10 - 10, 2);
+  const swDelta = r1(swOf(top, TUNE_POS.top) + swOf(side, TUNE_POS.side) + swOf(throat, TUNE_POS.throat) + swOf(handle, TUNE_POS.handle));
+
+  let feel;
+  if (added === 0) feel = '调节下方 4 个位置的铅片克数，实时看总重、平衡点和挥重变化';
+  else {
+    const notes = [];
+    if (balDiff >= 3) notes.push('明显偏向头重，发力更穿透');
+    else if (balDiff <= -3) notes.push('更偏头轻，挥拍与网前更灵活');
+    else notes.push('平衡点基本保持原手感');
+    if (side >= 2) notes.push('3/9 点增稳、甜区扩大');
+    if (swDelta >= 12) notes.push('挥重涨幅较大，建议循序渐进试打');
+    else if (swDelta >= 5) notes.push('挥重适度提升，击球更扎实');
+    feel = notes.join('；');
+  }
+  return { weight, balance, top, side, throat, handle, added, newWeight, newBalance, balDiff, balTag, swDelta, feel };
+}
+
+// 按比赛局分估算打球时长（分钟，5 分钟取整，25～180 分钟，兜底 60 分钟）：用于录完比赛后顺手记入球拍打球时长
+function estimateMatchMins(sets) {
+  const arr = Array.isArray(sets) ? sets : [];
+  let games = 0;
+  arr.forEach((s) => { games += (Number(s && s.a) || 0) + (Number(s && s.b) || 0); });
+  if (!games) return 60;
+  return Math.max(25, Math.min(180, Math.round((games * 4.5) / 5) * 5));
+}
+
+// 在役球拍精简列表（按编号升序）：给录分后的顺手记时长弹层用
+function liveRackets(rackets) {
+  return (rackets || [])
+    .filter((r) => r && r.status !== 'retired')
+    .sort((a, b) => (a.no || 0) - (b.no || 0))
+    .map((r) => ({ id: r.id, title: racketTitle(r), name: racketName(r) }));
+}
+
 module.exports = {
   OTHER, RACKET_BRANDS, STRING_BRANDS, STATUS, MAINT_ITEMS, REMIND_ITEMS, REMIND_DAYS, REMIND_HOURS, RACKET_TAGS, STRING_TAGS,
   TENSION_MIN, TENSION_MAX, COST_MAX, MAX_TAGS, MAX_RACKETS, MAX_LOGS, SOON_DAYS, PLAY_MIN, PLAY_MAX, SOON_RATIO,
   validDate, addDays, daysBetween, modelsOf, cleanRacket, cleanLog,
-  racketName, racketTitle, stringText, tensionText, everyText, agoText, hoursText, minutesText, hoursEveryText, summary, overview,
+  racketName, racketTitle, stringText, tensionText, everyText, agoText, hoursText, minutesText, hoursEveryText, summary, overview, yearlyStats, tuneRacket,
+  estimateMatchMins, liveRackets,
 };

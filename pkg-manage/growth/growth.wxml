@@ -11,7 +11,7 @@
     <!-- 私人记录总览（本页唯一的渐变块） -->
     <!-- 背景：傍晚斜光的场地，右上角一个网球（images/bg-growth.jpg） -->
     <view class="hero bg-host ani-in">
-      <image class="bg-img" src="/images/bg-growth.jpg" mode="aspectFill" />
+      <image class="bg-img" src="/pkg-manage/images/bg-growth.jpg" mode="aspectFill" />
       <view class="hero-k">私人比赛记录</view>
       <view class="hero-main">
         <view class="hero-big"><text class="hb-n">{{s.played}}</text><text class="hb-u">场</text></view>

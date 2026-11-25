@@ -1,0 +1,89 @@
+<view class="page">
+  <!-- 顶部结果头卡：实时展示人均金额 -->
+  <view class="hero">
+    <view class="hero-top">
+      <text class="hero-k">{{title ? title : '网球费用均摊'}}{{date ? ' · ' + date : ''}}</text>
+      <text class="hero-s">纯本地计算 · 不涉及收款</text>
+    </view>
+    <view class="hero-main">
+      <view class="hm-col">
+        <view class="hm-lbl">全勤每人</view>
+        <view class="hm-val num"><text class="hm-y">¥</text>{{r && r.ready && r.full ? r.perFullText : '0'}}</view>
+      </view>
+      <view wx:if="{{half > 0}}" class="hm-col hm-bl">
+        <view class="hm-lbl">半场每人（0.5 份）</view>
+        <view class="hm-val num"><text class="hm-y">¥</text>{{r && r.ready ? r.perHalfText : '0'}}</view>
+      </view>
+      <view wx:else class="hm-col hm-bl">
+        <view class="hm-lbl">费用合计</view>
+        <view class="hm-val num"><text class="hm-y">¥</text>{{r ? r.totalText : '0'}}</view>
+      </view>
+    </view>
+    <view class="hero-foot">
+      <text wx:if="{{r && r.ready}}">总计 ¥{{r.totalText}} · 共 {{r.people}} 人（{{r.shares}} 份）{{r.diffText ? ' · ' + r.diffText : ''}}</text>
+      <text wx:else>填好场地费或用球费，自动算出每人应付</text>
+    </view>
+  </view>
+
+  <!-- 费用输入（全数字键盘） -->
+  <view class="card">
+    <view class="card-title row">
+      <text>费用明细</text>
+      <view class="btn-line mini" hover-class="tap-on" bindtap="resetAll">清空费用</view>
+    </view>
+    <view class="f-row">
+      <text class="f-l">场地费</text>
+      <view class="f-in-w"><text class="f-y">¥</text><input class="f-in num" type="digit" maxlength="8" placeholder="0" placeholder-class="f-ph" value="{{court}}" data-k="court" bindinput="onMoney" /></view>
+    </view>
+    <view class="f-row">
+      <text class="f-l">用球费</text>
+      <view class="f-in-w"><text class="f-y">¥</text><input class="f-in num" type="digit" maxlength="8" placeholder="0" placeholder-class="f-ph" value="{{balls}}" data-k="balls" bindinput="onMoney" /></view>
+    </view>
+    <view class="can-row">
+      <text class="can-k">快捷按桶（¥{{ballUnit}}/桶）</text>
+      <view class="can-list">
+        <view wx:for="{{cans}}" wx:key="*this" class="can {{balls === (item ? '' + item * ballUnit : '') ? 'on' : ''}}" data-c="{{item}}" bindtap="pickCan">{{item ? item + ' 桶' : '无'}}</view>
+      </view>
+    </view>
+    <view class="f-row">
+      <text class="f-l">其他（灯光 / 饮水）</text>
+      <view class="f-in-w"><text class="f-y">¥</text><input class="f-in num" type="digit" maxlength="8" placeholder="选填" placeholder-class="f-ph" value="{{extra}}" data-k="extra" bindinput="onMoney" /></view>
+    </view>
+  </view>
+
+  <!-- 人数与取整 -->
+  <view class="card">
+    <view class="card-title">参与人数与取整</view>
+    <view class="p-row">
+      <view class="p-m"><view class="p-t">全勤人数</view><view class="p-s">每人按 1 份算</view></view>
+      <view class="stepper">
+        <view class="st-b" hover-class="tap-on" data-k="full" data-d="-1" bindtap="stepPeople">−</view>
+        <input class="st-in num" type="number" maxlength="2" value="{{full}}" data-k="full" bindinput="onPeople" />
+        <view class="st-b" hover-class="tap-on" data-k="full" data-d="1" bindtap="stepPeople">＋</view>
+      </view>
+    </view>
+    <view class="p-row">
+      <view class="p-m"><view class="p-t">半场 / 早退人数</view><view class="p-s">每人按 0.5 份算</view></view>
+      <view class="stepper">
+        <view class="st-b" hover-class="tap-on" data-k="half" data-d="-1" bindtap="stepPeople">−</view>
+        <input class="st-in num" type="number" maxlength="2" value="{{half}}" data-k="half" bindinput="onPeople" />
+        <view class="st-b" hover-class="tap-on" data-k="half" data-d="1" bindtap="stepPeople">＋</view>
+      </view>
+    </view>
+    <view class="m-row">
+      <text class="m-l">金额取整</text>
+      <view class="seg m-seg">
+        <view wx:for="{{modes}}" wx:key="v" class="seg-item {{mode === item.v ? 'on' : ''}}" data-v="{{item.v}}" bindtap="setMode">{{item.t}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 群账单预览与一键复制 -->
+  <view wx:if="{{bill}}" class="card">
+    <view class="card-title">账单预览</view>
+    <view class="bill-box">{{bill}}</view>
+  </view>
+
+  <view class="btn-primary {{bill ? '' : 'disabled'}}" hover-class="tap-on" bindtap="copyBill">复制账单发到群里</view>
+  <view class="foot-tip">纯本地计算工具，不涉及收款或支付，数据不上传</view>
+</view>

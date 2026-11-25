@@ -40,6 +40,57 @@
       </view>
     </view>
 
+    <!-- 未开打场次：赛前交手预览 & 水平分模拟 -->
+    <view wx:if="{{!done && pre}}" class="card pre-card">
+      <view class="pre-hd">
+        <text class="card-title pre-title">赛前交手预览</text>
+        <text class="pre-h2h">{{pre.h2h.text}}</text>
+      </view>
+      <view class="pre-vs">
+        <view class="pre-sd">
+          <view class="pre-lv num">{{pre.aLv}}</view>
+          <view class="pre-sub">{{pre.double ? '队伍均值' : '当前水平'}}</view>
+          <view wx:if="{{pre.formA.length}}" class="pre-fm">
+            <view wx:for="{{pre.formA}}" wx:key="index" class="pre-dot {{item}}">{{item === 'w' ? '胜' : '负'}}</view>
+          </view>
+        </view>
+        <view class="pre-mid">
+          <view class="pre-pcts num"><text>{{pre.aSharePct}}%</text><text class="pre-pct-lbl">预期得局</text><text>{{pre.bSharePct}}%</text></view>
+          <view class="pre-bar"><view class="pre-fill" style="width:{{pre.aSharePct}}%"></view></view>
+        </view>
+        <view class="pre-sd r">
+          <view class="pre-lv num">{{pre.bLv}}</view>
+          <view class="pre-sub">{{pre.double ? '队伍均值' : '当前水平'}}</view>
+          <view wx:if="{{pre.formB.length}}" class="pre-fm r">
+            <view wx:for="{{pre.formB}}" wx:key="index" class="pre-dot {{item}}">{{item === 'w' ? '胜' : '负'}}</view>
+          </view>
+        </view>
+      </view>
+      <view class="pre-out">{{pre.outlook}}</view>
+
+      <view class="sim-tog" bindtap="toggleSim">
+        <text class="sim-tog-t">如果这场打成 X:Y，水平分会怎么变？</text>
+        <text class="sim-tog-a">{{simOpen ? '收起' : '试算 ›'}}</text>
+      </view>
+      <view wx:if="{{simOpen && simRes}}" class="sim-box">
+        <view class="sim-bar">
+          <text class="sim-who">假设局分（{{aLabel}} : {{bLabel}}）· 看 <text class="b">{{simSideLabel}}</text></text>
+          <view wx:if="{{simCanSwitch}}" class="sim-sw" bindtap="switchSimSide">换看另一方</view>
+        </view>
+        <view class="sim-chips">
+          <view wx:for="{{pre.presets}}" wx:key="label" class="sim-chip num {{simIdx === index ? 'on' : ''}}" data-i="{{index}}" bindtap="pickSim">{{item.label}}</view>
+        </view>
+        <view class="sim-res {{simRes.dir}}">
+          <view class="sim-res-top">
+            <text class="sim-res-t">{{simRes.arrow ? simRes.arrow + ' ' : ''}}{{simRes.title}}</text>
+            <text class="sim-res-tier {{simRes.tierUp ? 'up' : ''}} {{simRes.tierDown ? 'down' : ''}}">{{simRes.tierText}}</text>
+          </view>
+          <view class="sim-res-s">{{simRes.summary}}</view>
+          <view class="sim-res-meta">模拟得局 {{simRes.shareText}} · 赛前预期 {{simRes.expectedText}}{{simRes.provText ? ' · ' + simRes.provText : ''}}</view>
+        </view>
+      </view>
+    </view>
+
     <!-- 已有结果 -->
     <view wx:if="{{done && !editing}}" class="card">
       <view class="card-title">比分</view>
@@ -116,4 +167,31 @@
     <match-social wx:if="{{done && !editing && recordId}}" match-id="{{recordId}}" revocable="{{revocable}}" bind:revoked="onRevoked" />
     <view wx:if="{{reason}}" class="foot">{{reason}}</view>
   </block>
+</view>
+
+<!-- 录完比赛顺手记入球拍时长弹层（仅本人首次录分且有在役球拍时弹出，纯可选） -->
+<view wx:if="{{rkOpen}}" class="rk-mask" catchtap="skipRkLog">
+  <view class="rk-sheet" catchtap="">
+    <view class="rk-hd">
+      <text class="rk-t">比分已保存 · 顺手记入球拍时长？</text>
+      <text class="rk-x" bindtap="skipRkLog">✕</text>
+    </view>
+    <view class="rk-s">自动累计到所选球拍本次球线的打球时长（{{rkDate}}）</view>
+    <view class="rk-lbl">选择球拍</view>
+    <view class="rk-list">
+      <view wx:for="{{rkList}}" wx:key="id" class="rk-item {{rkId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickRk">
+        <text class="rk-in">{{item.title}}</text>
+        <text wx:if="{{item.name}}" class="rk-is">{{item.name}}</text>
+      </view>
+    </view>
+    <view class="rk-lbl">本次打球时长（分钟）</view>
+    <view class="rk-mins">
+      <view wx:for="{{['30','45','60','90','120']}}" wx:key="*this" class="rk-chip num {{rkMin === item ? 'on' : ''}}" data-m="{{item}}" bindtap="rkMinQuick">{{item}}分</view>
+    </view>
+    <input class="rk-ipt num" type="number" maxlength="3" value="{{rkMin}}" placeholder="输入 1~600 分钟" bindinput="rkMinInput" />
+    <view class="rk-acts">
+      <view class="btn-line rk-btn" hover-class="tap-on" bindtap="skipRkLog">暂不记录</view>
+      <view class="btn-primary rk-btn {{rkBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="saveRkLog">{{rkBusy ? '记录中…' : '记入 +' + (rkMin || '0') + ' 分'}}</view>
+    </view>
+  </view>
 </view>

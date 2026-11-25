@@ -215,7 +215,160 @@ function ratingsOf(matches, players) {
   return r;
 }
 
+/* ---------- 赛前交手预览 & 「如果打成 X:Y」水平分模拟（纯计算，不改正式算法，不暴露两位小数或涨跌数字） ---------- */
+function curStateOf(ratings, startLevels, key, name) {
+  const r = ratings && ratings.players && key ? ratings.players[key] : null;
+  if (r) return { rating: typeof r.rating === 'number' ? r.rating : r.level, played: r.played || 0 };
+  if (key && typeof startLevels[key] === 'number') return { rating: startLevels[key], played: 0 };
+  if (name && (!key || key === name || key.indexOf('n:') === 0) && typeof startLevels[name] === 'number') {
+    return { rating: startLevels[name], played: 0 };
+  }
+  return { rating: DEFAULT_LEVEL, played: 0 };
+}
+
+function teamKeysOf(m, side) {
+  const ks = m[side + 'Keys'];
+  return (ks && ks.length ? ks : (m[side] || [])).slice().sort().join('\x00');
+}
+
+function scorePresets(setGames) {
+  return setGames === 4
+    ? [[4, 0], [4, 1], [4, 2], [4, 3], [3, 4], [2, 4], [1, 4], [0, 4]]
+    : [[6, 0], [6, 2], [6, 4], [7, 6], [6, 7], [4, 6], [2, 6], [0, 6]];
+}
+
+/**
+ * 模拟一场假设比分对某一方水平分的影响（严格复用 computeRatings 的公式、防炸鱼和定级期规则）。
+ * 界面只展示 fmt 的 0.5 档位和 ↑ / ↓ 箭头，不暴露两位小数或涨跌数字。
+ */
+function simulateMatch(ratings, players, opts) {
+  if (!opts) return null;
+  const aKeys = (opts.aKeys || []).filter(Boolean);
+  const bKeys = (opts.bKeys || []).filter(Boolean);
+  if (!aKeys.length || !bKeys.length) return null;
+  const ga = Math.max(0, Number(opts.gamesA) || 0);
+  const gb = Math.max(0, Number(opts.gamesB) || 0);
+  const total = ga + gb;
+  if (!total) return null;
+
+  const start = startLevelsFrom(players);
+  const aNames = opts.aNames || [], bNames = opts.bNames || [];
+  const A = aKeys.map((k, i) => curStateOf(ratings, start, k, aNames[i]));
+  const B = bKeys.map((k, i) => curStateOf(ratings, start, k, bNames[i]));
+  const ra = avg(A.map((x) => x.rating)), rb = avg(B.map((x) => x.rating));
+
+  const side = opts.mySide === 'b' ? 'b' : opts.mySide === 'a' ? 'a'
+    : (opts.myKey && bKeys.indexOf(opts.myKey) >= 0 ? 'b' : 'a');
+  const idx = side === 'a' ? aKeys.indexOf(opts.myKey) : bKeys.indexOf(opts.myKey);
+  const me = side === 'a' ? (A[idx >= 0 ? idx : 0]) : (B[idx >= 0 ? idx : 0]);
+  const mine = side === 'a' ? ra : rb;
+  const opp = side === 'a' ? rb : ra;
+  const gMine = side === 'a' ? ga : gb;
+  const won = opts.winner ? opts.winner === side : gMine > total - gMine;
+
+  const S = gMine / total;
+  const E = expectedShare(mine, opp);
+  const weight = Math.min(1, total / 10);
+  const prov = me.played < PROVISIONAL;
+  const K = prov ? K_NEW : K_EST;
+  const raw = K * (S - E) * weight;
+  let delta = raw;
+  if (won && mine - opp > NO_FARM_GAP) delta = Math.min(delta, 0);
+  const before = me.rating;
+  const after = clamp(before + delta);
+  const farm = delta !== raw;
+  const clamped = after !== before + delta;
+  const d = clamped ? round2(after - before) : round2(delta);
+  const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const t0 = fmt(before), t1 = fmt(after);
+  const tierUp = Number(t1) > Number(t0);
+  const tierDown = Number(t1) < Number(t0);
+  const digits = Math.round(S * 100) === Math.round(E * 100) && S !== E ? 1 : 0;
+
+  let summary;
+  if (clamped && dir === 'flat') summary = `已到${raw > 0 ? '上限 ' + MAX_LEVEL.toFixed(1) : '下限 ' + MIN_LEVEL.toFixed(1)}，水平分不再变化`;
+  else if (dir === 'up') summary = won ? '得局率高于赛前预期，水平分上升' : '虽败犹荣：得局率高于赛前预期，水平分仍会上升';
+  else if (dir === 'down') summary = won ? '赢了但拿到的局数低于赛前预期，水平分下降' : '得局率低于赛前预期，水平分下降';
+  else if (farm) summary = `赛前高出对方 ${NO_FARM_GAP} 以上赢球不加分，水平分不变`;
+  else summary = '得局率接近赛前预期，水平分基本不变';
+
+  const tierText = t0 !== t1
+    ? `${tierUp ? '升档' : '降档'} ${t0} → ${t1}`
+    : dir === 'flat' ? `显示档位仍为 ${t0}` : `水平分微调，显示档位仍为 ${t0}`;
+
+  return {
+    side, dir, arrow: fmtDelta(d),
+    title: dir === 'up' ? '水平分上升' : dir === 'down' ? '水平分下降' : '水平分不变',
+    summary, beforeTier: t0, afterTier: t1, tierUp, tierDown, tierText,
+    shareText: `${gMine}/${total} 局 · ${pctOf(S, digits)}`,
+    expectedText: pctOf(E, digits),
+    mineLv: fmt(mine), oppLv: fmt(opp),
+    prov, provText: prov ? `定级中 ${me.played + 1}/${PROVISIONAL}` : '',
+    shortNote: weight < 1 ? `不足 10 局，变化幅度按 ${total}/10 折算` : '',
+  };
+}
+
+/**
+ * 赛前交手预览：双方水平档位、预期得局比例、局势参考、历史交手与近 5 场状态（单打）。
+ */
+function matchupPreview(ratings, players, matches, opts) {
+  if (!opts) return null;
+  const aKeys = (opts.aKeys || []).filter(Boolean);
+  const bKeys = (opts.bKeys || []).filter(Boolean);
+  if (!aKeys.length || !bKeys.length) return null;
+  const aNames = opts.aNames || [], bNames = opts.bNames || [];
+  const start = startLevelsFrom(players);
+  const A = aKeys.map((k, i) => curStateOf(ratings, start, k, aNames[i]));
+  const B = bKeys.map((k, i) => curStateOf(ratings, start, k, bNames[i]));
+  const ra = avg(A.map((x) => x.rating)), rb = avg(B.map((x) => x.rating));
+  const E = expectedShare(ra, rb);
+  const aSharePct = Math.round(E * 100), bSharePct = 100 - aSharePct;
+  const gap = Math.abs(ra - rb);
+  const sg = opts.setGames === 4 ? 4 : 6;
+  const aLabel = aNames.join(' / ') || 'A 方';
+  const bLabel = bNames.join(' / ') || 'B 方';
+  const fav = ra >= rb ? aLabel : bLabel;
+
+  let outlook;
+  if (gap < 0.15) outlook = '双方水平接近，预计会打得比较胶着';
+  else if (gap < 0.45) outlook = `${fav} 略占上风，预计在 ${sg === 4 ? '4:2' : '6:4'} 左右`;
+  else if (gap < 0.85) outlook = `${fav} 纸面占优，预计在 ${sg === 4 ? '4:1 ~ 4:2' : '6:2 ~ 6:3'} 左右`;
+  else outlook = `${fav} 纸面优势较大，下风方多拿几局也能涨分`;
+
+  const normal = (matches || []).filter((m) => (!m.outcome && !m.walkover) || m.outcome === 'normal');
+  const akSig = aKeys.slice().sort().join('\x00');
+  const bkSig = bKeys.slice().sort().join('\x00');
+  let aWin = 0, bWin = 0;
+  normal.forEach((m) => {
+    const mkA = teamKeysOf(m, 'a'), mkB = teamKeysOf(m, 'b');
+    if (mkA === akSig && mkB === bkSig) { if (m.winner === 'a') aWin++; else if (m.winner === 'b') bWin++; }
+    else if (mkA === bkSig && mkB === akSig) { if (m.winner === 'b') aWin++; else if (m.winner === 'a') bWin++; }
+  });
+  const h2hPlayed = aWin + bWin;
+
+  const formOf = (key) => {
+    const out = [];
+    const sorted = normal.slice().sort((x, y) => String(x.date || '').localeCompare(String(y.date || '')) || timeOf(x) - timeOf(y));
+    sorted.forEach((m) => {
+      const ksA = m.aKeys || m.a || [], ksB = m.bKeys || m.b || [];
+      if (ksA.indexOf(key) >= 0) out.push(m.winner === 'a' ? 'w' : 'l');
+      else if (ksB.indexOf(key) >= 0) out.push(m.winner === 'b' ? 'w' : 'l');
+    });
+    return out.slice(-5);
+  };
+  const single = aKeys.length === 1 && bKeys.length === 1;
+  return {
+    aLv: fmt(ra), bLv: fmt(rb),
+    aSharePct, bSharePct, outlook, double: !single,
+    h2h: { played: h2hPlayed, aWin, bWin, text: h2hPlayed ? `历史交手 ${h2hPlayed} 场 · ${aWin} - ${bWin}` : '此前还没有正式交手记录' },
+    formA: single ? formOf(aKeys[0]) : [],
+    formB: single ? formOf(bKeys[0]) : [],
+    presets: scorePresets(sg).map(([a, b]) => ({ a, b, label: `${a}:${b}` })),
+  };
+}
+
 module.exports = {
   DEFAULT_LEVEL, PROVISIONAL, NO_FARM_GAP, SELF_LEVELS,
   expectedShare, computeRatings, ratingsOf, startLevelsFrom, ratingOf, levelOf, tierOf, fmt, fmtDelta, whyOf, unratedOf,
+  simulateMatch, matchupPreview, scorePresets,
 };

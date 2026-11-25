@@ -42,17 +42,17 @@ test('发布页面：普通成员直接进入创建和编辑页不会显示表�
     },
   };
   const wx = { getStorageSync: () => ({}), setNavigationBarTitle() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps);
   await p.onLoad({});
   assert.strictEqual(p.data.canPublish, false);
   assert.match(p.data.authError, /管理员/);
   await p.publishSignup(); await p.save();
   assert.strictEqual(submitted, 0); assert.strictEqual(loaded, 0);
-  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps);
+  const e = load('pkg-manage/event-edit/event-edit.js', wx, 'Page', deps);
   e.id = 'legacy'; await e.load();
   assert.match(e.data.error, /管理员/); assert.strictEqual(e.data.value, null);
   member = { status: 'active', isAdmin: true, uid: 'admin' };
-  const a = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const a = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps);
   await a.onLoad({});
   assert.strictEqual(a.data.canPublish, true); assert.strictEqual(a.data.authError, '');
 });
@@ -215,7 +215,7 @@ test('创建活动 / 记一场：本机记得身份就先显示、不等云端�
   };
   const wx = { getStorageSync: () => ({}), setNavigationBarTitle() {} };
   // 创建活动：校验还没回来，表单已经显示；回来说不是管理员 → 收起
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps);
   const done = p.onLoad({});
   await Promise.resolve();
   assert.strictEqual(p.data.canPublish, true);
@@ -223,7 +223,7 @@ test('创建活动 / 记一场：本机记得身份就先显示、不等云端�
   assert.strictEqual(p.data.canPublish, false); assert.match(p.data.authError, /管理员/);
   // 本机不记得是管理员：照旧等校验
   deps['../../utils/member'].isAdminLocal = () => false;
-  const q = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const q = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps);
   const done2 = q.onLoad({});
   await Promise.resolve();
   assert.strictEqual(q.data.canPublish, false);
@@ -242,7 +242,7 @@ test('创建活动 / 记一场：本机记得身份就先显示、不等云端�
 });
 
 test('创建活动顶部概要：形式、签数 / 组数、参加方式，日期、时间、单双打、组别，选项一改就跟着变', () => {
-  const p = load('pages/draw-new/draw-new.js', { setStorageSync() {} }, 'Page');
+  const p = load('pkg-manage/draw-new/draw-new.js', { setStorageSync() {} }, 'Page');
   p.selected = []; p.seeds = []; p.players = [];
   const pick = (v) => ({ currentTarget: { dataset: { v } } });
   p.onInfo({ detail: { date: '2026-11-22', startTime: '' } });
@@ -254,14 +254,14 @@ test('创建活动顶部概要：形式、签数 / 组数、参加方式，日�
   p.onInfo({ detail: { date: '2026-11-22', startTime: '14:00' } });
   assert.strictEqual(p.data.heroTop, '分组循环 · 大循环 · 我来选人');
   assert.strictEqual(p.data.heroSub, '11月22日 周日 · 14:00 · 双打 · 混双');
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxml'), 'utf8');
   assert.ok(/<image class="hero-art" src="\/images\/art-net\.png" mode="aspectFit" \/>/.test(xml) && /<view class="card-title">活动设置<\/view>/.test(xml));
-  assert.ok(!/\.pill\.on \{[^}]*background: #6E6EA3/.test(fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxss'), 'utf8')), '签数等选中样式和分段选择一致，不用深紫实心块');
+  assert.ok(!/\.pill\.on \{[^}]*background: #6E6EA3/.test(fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxss'), 'utf8')), '签数等选中样式和分段选择一致，不用深紫实心块');
 });
 
 test('创建和编辑：名称手动输入，改日期、单双打、组别、赛制都不会覆盖', () => {
   const wx = { setStorageSync() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page');
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page');
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-14';
   assert.strictEqual(p.data.title, '');
   p.onTitle({ detail: { value: '周末球友赛' } });
@@ -276,7 +276,7 @@ test('创建和编辑：名称手动输入，改日期、单双打、组别、�
   assert.strictEqual(p.data.title, '周末球友赛');
   p.setType(pick('single'));
   assert.strictEqual(p.data.title, '周末球友赛');
-  const e = load('pages/event-edit/event-edit.js', wx, 'Page');
+  const e = load('pkg-manage/event-edit/event-edit.js', wx, 'Page');
   e.onTitle({ detail: { value: '女子双打友谊赛' } });
   e.onInfo({ detail: { date: '2026-11-16' } });
   assert.strictEqual(e.data.title, '女子双打友谊赛');
@@ -294,7 +294,7 @@ test('开放报名时先加入的球友：创建后按顺序逐条代报名（ad
   } };
   const deps = { '../../utils/db': { addDraw: async () => ({ id: 'n1' }) }, '../../utils/cloud': viaCall(cloud) };
   const wx = { showToast: (t) => toasts.push(t.title), showModal: (o) => { modals.push(o.content); o.complete && o.complete(); }, redirectTo: (o) => { redirected = o.url; }, setStorageSync() {}, showLoading() {}, hideLoading() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: (f) => f(), clearTimeout() {}, console });
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: (f) => f(), clearTimeout() {}, console });
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
   p.setData({ canPublish: true, title: '周日约球', entry: 'signup', type: 'double', mode: 'bracket' });
   p.onInfo({ detail: { date: '2026-11-30' } });
@@ -327,10 +327,10 @@ test('名称为空时创建和编辑都不提交', async () => {
   let submitted = 0;
   const deps = { '../../utils/db': { addDraw() { submitted++; }, updateDrawInfo() { submitted++; } } };
   const wx = { showToast() {}, showModal() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps);
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps);
   p.data.title = '   ';
   await p.publishSignup();
-  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps);
+  const e = load('pkg-manage/event-edit/event-edit.js', wx, 'Page', deps);
   e.info = { date: '2026-11-14' };
   await e.save();
   assert.strictEqual(submitted, 0); assert.strictEqual(p.data.saving, false); assert.strictEqual(e.data.saving, false);
@@ -367,7 +367,8 @@ test('活动首页转发和朋友圈：只分享首页，标题和封面固定�
   }
   // 其他页面不开朋友圈
   const app = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'app.json'), 'utf8'));
-  app.pages.filter((p) => p !== 'pages/draw/draw').forEach((p) => {
+  const allP = (app.pages || []).concat((app.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
+  allP.filter((p) => p !== 'pages/draw/draw').forEach((p) => {
     assert.ok(!/onShareTimeline/.test(fs.readFileSync(path.resolve(__dirname, '..', p + '.js'), 'utf8')), p + ' 不开朋友圈');
   });
 });
@@ -447,7 +448,7 @@ test('分享封面：只画日期、时间和人数（不画活动名称、昵�
   // 活动详情页：报名人数变了才重画，分享时没画好就等它（微信最多等 3 秒），否则用固定封面
   const view = fs.readFileSync(path.join(__dirname, '../pages/draw-view/draw-view.js'), 'utf8');
   assert.ok(/imageUrl: this\.cover \|\| Card\.FALLBACK/.test(view) && /promise: this\.coverJob/.test(view));
-  for (const p of ['pages/gate/gate.js', 'pages/members/members.js']) assert.ok(/imageUrl: SHARE_IMAGE/.test(fs.readFileSync(path.join(__dirname, '..', p), 'utf8')), p);
+  for (const p of ['pages/gate/gate.js', 'pkg-manage/members/members.js']) assert.ok(/imageUrl: SHARE_IMAGE/.test(fs.readFileSync(path.join(__dirname, '..', p), 'utf8')), p);
   assert.ok(fs.existsSync(path.join(__dirname, '..', Card.FALLBACK)));
   // 有底图（界面配图 share-bg）：先铺底图，不再画渐变和左上的小球，文字照旧
   assert.ok(fs.existsSync(path.join(__dirname, '..', Card.BG)) && fs.statSync(path.join(__dirname, '..', Card.BG)).size < 80 * 1024);
@@ -477,7 +478,7 @@ function seedPage(extraDeps) {
   const toasts = [];
   const fail = (t) => { throw new Error('不应出错：' + (t.content || t.title)); };
   const wx = { setStorageSync() {}, getStorageSync: () => ({}), setNavigationBarTitle() {}, showToast: (t) => toasts.push(t.title), showModal: fail, vibrateShort() {}, pageScrollTo() {}, redirectTo() {}, navigateBack() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', extraDeps, { setTimeout: () => {}, console });
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', extraDeps, { setTimeout: () => {}, console });
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
   p.setData({ canPublish: true, entry: 'pick' });
   return { p, toasts };
@@ -514,7 +515,7 @@ test('种子选手（单打手选）：点选、取消、上移调整顺序，1�
   }
   p.autoSeeds();
   assert.strictEqual(toasts.pop(), '已按水平推荐 2 位种子选手');
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxml'), 'utf8');
   assert.ok(/\{\{type === 'double' \? '种子队伍' : '种子选手'\}\}/.test(xml) && /\{\{item\.seed\}\} 号种子/.test(xml) && !/分开排位|号位/.test(xml));
 });
 
@@ -614,7 +615,7 @@ test('成员管理：顶部数出没填性别的球友（含还没设置资料�
   let sheet, modal;
   const active = [{ uid: 'a', nickname: 'Ann', gender: 'f' }, { uid: 'b', nickname: 'Bob', gender: '' }, { uid: 'c', nickname: '', name: '', gender: '' }, { uid: 'd', nickname: 'Dan' }, { uid: 'j', nickname: '', name: '杰娃儿' }];
   const cloud = viaCall({ call: async (action, data) => { calls.push([action, data]); return action === 'listMembers' ? { active, pending: [], others: [], candidates: [] } : { ok: true }; } });
-  const v = load('pages/members/members.js', { showToast() {}, showActionSheet: (o) => { sheet = o; }, showModal: (o) => { modal = o; } }, 'Page', { '../../utils/cloud': cloud });
+  const v = load('pkg-manage/members/members.js', { showToast() {}, showActionSheet: (o) => { sheet = o; }, showModal: (o) => { modal = o; } }, 'Page', { '../../utils/cloud': cloud });
   await v.load();
   assert.deepStrictEqual([v.data.noGender, v.data.activeList.length], [3, 5], '加入时也没留昵称的不算');
   v.toggleNoGender();
@@ -785,7 +786,7 @@ test('创建和编辑：建议水平随表单提交；编辑时明确带上（�
   } };
   const toasts = [];
   const wx = { showToast: (t) => toasts.push(t.title), showModal() {}, redirectTo() {}, navigateBack() {}, setStorageSync() {} };
-  const p = load('pages/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: () => {}, console });
+  const p = load('pkg-manage/draw-new/draw-new.js', wx, 'Page', deps, { setTimeout: () => {}, console });
   p.selected = []; p.seeds = []; p.players = []; p.date = '2026-11-22';
   p.setData({ canPublish: true, title: '周日约球' });
   p.onInfo({ detail: { date: '2026-11-30', level: { min: 2.5, max: 3 } } });
@@ -798,7 +799,7 @@ test('创建和编辑：建议水平随表单提交；编辑时明确带上（�
   await p.publishSignup();
   assert.strictEqual(sent.length, 0); assert.match(toasts.pop(), /最低不能高于最高/);
 
-  const e = load('pages/event-edit/event-edit.js', wx, 'Page', deps, { setTimeout: () => {}, console });
+  const e = load('pkg-manage/event-edit/event-edit.js', wx, 'Page', deps, { setTimeout: () => {}, console });
   e.id = 'd1'; e.setData({ title: '周日约球' });
   e.info = { date: '2026-11-30', level: { min: 3, max: 3 } };
   await e.save();
@@ -830,7 +831,7 @@ test('双打报名上限：多一个「2 队」（4 人），组数跟着减到�
   assert.strictEqual(require('../utils/event').capacityOf(s), 4);
   p.setType(pick('single'));
   assert.ok(p.data.limits.indexOf(2) < 0); assert.strictEqual(p.data.limit, 0, '切回单打，2 队的上限作废');
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxml'), 'utf8');
   assert.ok(/2 队 = 4 人/.test(xml));
 });
 

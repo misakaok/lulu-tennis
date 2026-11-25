@@ -398,7 +398,7 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
   // 球拍详情
   let queue = [];
   const api = { cachedList: () => null, load: () => { const d = deferred(); queue.push(d); return d.p; } };
-  const v = page(loadDef('pages/racket-view/racket-view.js', { '../../utils/rackets': api }, wx));
+  const v = page(loadDef('pkg-tools/racket-view/racket-view.js', { '../../utils/rackets': api }, wx));
   v.onLoad({ id: 'r1' });
   const a = v.load(), b = v.load();
   queue[1].resolve(racket(2)); await b;
@@ -407,7 +407,7 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
   const c = v.load();
   queue[2].reject(new Error('网络异常')); await c;
   assert.deepStrictEqual([v.data.error, v.data.r.no, toasts.length], ['', 2, 1], '画过：保留画面，只轻提示');
-  const w = page(loadDef('pages/racket-view/racket-view.js', { '../../utils/rackets': { cachedList: () => null, load: async () => { throw new Error('网络异常'); } } }, wx));
+  const w = page(loadDef('pkg-tools/racket-view/racket-view.js', { '../../utils/rackets': { cachedList: () => null, load: async () => { throw new Error('网络异常'); } } }, wx));
   w.onLoad({ id: 'r1' });
   await w.load();
   assert.strictEqual(w.data.error, '网络异常', '从没画过：整页显示读取失败');
@@ -416,7 +416,7 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
   const rec = (id) => ({ id, date: '2026-11-20', type: 'single', kind: 'practice', result: 'win', setGames: 4, noAd: true, bestOf: 1, sets: [{ a: 4, b: 2 }], tags: [], createdAt: 1 });
   const A = { peek: () => null, list: () => { const d = deferred(); queue.push(d); return d.p; } };
   const db = { cachedOpenid: () => '', myOpenid: async () => '', playersShared: async () => [], matchesShared: async () => [], profilesOf: () => ({}) };
-  const g = page(loadDef('pages/growth/growth.js', { '../../utils/archive': A, '../../utils/db': db }, wx));
+  const g = page(loadDef('pkg-manage/growth/growth.js', { '../../utils/archive': A, '../../utils/db': db }, wx));
   g.onLoad();
   const g1 = g.load(), g2 = g.load();
   queue[1].resolve([rec('new1'), rec('new2')]); await flush();
@@ -425,13 +425,13 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
   const g3 = g.load();
   queue[2].reject(new Error('网络异常')); await Promise.all([g1, g2, g3]);
   assert.deepStrictEqual([g.data.error, g.data.groups[0].rows.length], ['', 2], '画过：保留画面');
-  const h = page(loadDef('pages/growth/growth.js', { '../../utils/archive': { peek: () => null, list: async () => { throw new Error('网络异常'); } }, '../../utils/db': db }, wx));
+  const h = page(loadDef('pkg-manage/growth/growth.js', { '../../utils/archive': { peek: () => null, list: async () => { throw new Error('网络异常'); } }, '../../utils/db': db }, wx));
   h.onLoad();
   await h.load();
   assert.strictEqual(h.data.error, '网络异常', '从没画过：整页显示读取失败');
   // 成长档案清除全部后读不到：不留着已清除的记录（球拍页已去掉「清除全部」按钮，改在单支球拍详情里删）
-  assert.ok(/this\.drawn = false;[^\n]*\n?\s*return this\.load\(\)/.test(read('pages/growth/growth.js')), 'pages/growth/growth.js');
-  for (const f of ['pages/racket/racket.js', 'pages/history/history.js']) assert.ok(/const seq = this\.loadSeq = \(this\.loadSeq \|\| 0\) \+ 1;/.test(read(f)) && /seq !== this\.loadSeq/.test(read(f)), f + ' 防乱序');
+  assert.ok(/this\.drawn = false;[^\n]*\n?\s*return this\.load\(\)/.test(read('pkg-manage/growth/growth.js')), 'pkg-manage/growth/growth.js');
+  for (const f of ['pages/racket/racket.js', 'pkg-manage/history/history.js']) assert.ok(/const seq = this\.loadSeq = \(this\.loadSeq \|\| 0\) \+ 1;/.test(read(f)) && /seq !== this\.loadSeq/.test(read(f)), f + ' 防乱序');
 });
 
 test('资料页：删照片、开关公开展示后的预热只读共享版球员（不复制全部球员）', () => {

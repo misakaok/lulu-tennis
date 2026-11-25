@@ -27,6 +27,7 @@ function matchRow(m, key, name, deltaOf, tagsOf) {
   const h = deltaOf[m._id];
   return {
     id: m._id, date: m.date || '', md: (m.date || '').slice(5),
+    type: m.type === 'double' ? 'double' : 'single',
     event: m.drawId ? `${m.drawTitle || '活动'}${m.stage ? ' · ' + m.stage : ''}` : '日常比赛',
     isEvent: !!m.drawId,
     opp: (m[o] || []).join(' / '),
@@ -121,27 +122,259 @@ function partnersView(matches, key, name) {
 function careerView(matches, uid, name, history, pre) {
   const c = CA.career(matches, uid, name, history, pre);
   const cur = SE.current();
-  const lines = [];
-  if (c.single.played) lines.push({ k: '单打', v: `${c.single.win}胜 ${c.single.played - c.single.win}负` });
-  if (c.double.played) lines.push({ k: '双打', v: `${c.double.win}胜 ${c.double.played - c.double.win}负` });
-  if (c.rival) lines.push({ k: '老对手', v: `${c.rival.name} · 交手 ${c.rival.played} 场 ${c.rival.win}胜 ${c.rival.lose}负` });
-  if (c.first) lines.push({ k: '首场比赛', v: c.first });
+  // 精简为 1 行 3 格（去掉常年为 0 的「最后一轮 / 当前连胜」）；有冠军时首格高亮「冠军」，未夺冠时显示「参加活动」
+  const cells = [
+    c.titles.length ? { n: String(c.titles.length), l: '冠军' } : { n: String(c.events), l: '参加活动' },
+    { n: String(c.bestStreak), l: '最长连胜' },
+    { n: c.peak === null ? NONE : R.fmt(c.peak), l: '最高等级' },
+  ].map((x, i) => Object.assign(x, { cls: [i ? 'bl' : '', i === 0 && c.titles.length ? 'hot' : ''].join(' ').trim() }));
   return {
     has: c.played > 0 || c.finals > 0,
     // 原始数字（成长档案的正式战绩摘要用；和 computeRank 同一口径）
     played: c.played, win: c.win, lose: c.lose, rate: c.rate,
     single: { played: c.single.played, win: c.single.win }, double: { played: c.double.played, win: c.double.win },
-    // 3 × 2 的数字格；cls 给格子画分隔线（bl 左边线、bt 上边线），拿过冠军的格子高亮（hot）
-    cells: [
-      { n: String(c.titles.length), l: '冠军' }, { n: String(c.finals), l: '最后一轮' }, { n: String(c.events), l: '参加活动' },
-      { n: String(c.bestStreak), l: '最长连胜' }, { n: String(c.streak), l: '当前连胜' }, { n: c.peak === null ? NONE : R.fmt(c.peak), l: '最高等级' },
-    ].map((x, i) => Object.assign(x, { cls: [i % 3 ? 'bl' : '', i >= 3 ? 'bt' : '', i === 0 && c.titles.length ? 'hot' : ''].join(' ').trim() })),
-    lines, got: c.got, total: c.badges.length, pct: c.badges.length ? Math.round((c.got / c.badges.length) * 100) : 0,
+    cells,
+    lines: [], got: c.got, total: c.badges.length, pct: c.badges.length ? Math.round((c.got / c.badges.length) * 100) : 0,
     // 徽章进度条：progress 是「已有/需要」，达成的是 100
     badges: c.badges.map((b) => { const [v, need] = String(b.progress).split('/').map(Number); return Object.assign({}, b, { pct: b.got ? 100 : need ? Math.min(100, Math.round((v / need) * 100)) : 0 }); }),
     nemesis: c.nemesis, prey: c.prey,
     titles: c.titles.map((t) => ({ title: t.title, date: t.date })),
     seasons: c.seasons.map((s) => ({ season: s.season, now: s.season === cur, played: s.played, wl: `${s.win}-${s.lose}`, rate: s.played ? s.rate + '%' : NONE, titles: s.titles })),
+  };
+}
+
+// 年度打球黄绿热力格：统计当年（1 月～12 月）每天实际在场打球的正式比赛场数（排除赛前弃权），按周一为一周首日排成网格
+const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function heatmapView(matches, key, name, nowDate) {
+  const today = nowDate && /^\d{4}-\d{2}-\d{2}$/.test(nowDate) ? nowDate : todayIso();
+  const year = Number(today.slice(0, 4));
+  const prefix = year + '-';
+  const byDay = {};
+  const byMonth = {};
+  let total = 0;
+  (matches || []).forEach((m) => {
+    if (!m || !m.date || m.date.indexOf(prefix) !== 0) return;
+    if (outcomeOf(m) === 'walkover') return;
+    if (!sideOf(m, key, name)) return;
+    byDay[m.date] = (byDay[m.date] || 0) + 1;
+    const mo = Number(m.date.slice(5, 7));
+    byMonth[mo] = (byMonth[mo] || 0) + 1;
+    total++;
+  });
+  if (!total) return null;
+
+  const days = Object.keys(byDay).length;
+  let bestMo = 0, bestMoCnt = 0;
+  Object.keys(byMonth).forEach((m) => {
+    const c = byMonth[m];
+    if (c > bestMoCnt) { bestMoCnt = c; bestMo = Number(m); }
+  });
+
+  const DAY_MS = 86400000;
+  const jan1 = Date.UTC(year, 0, 1);
+  const dec31 = Date.UTC(year, 11, 31);
+  const startDow = (new Date(jan1).getUTCDay() + 6) % 7; // 周一 = 0，周日 = 6
+  const weeks = [];
+  let curStreak = 0, maxStreak = 0, todayWeek = -1;
+
+  for (let ws = jan1 - startDow * DAY_MS, wi = 0; ws <= dec31; ws += 7 * DAY_MS, wi++) {
+    const cells = [];
+    let monthLbl = '';
+    let wSum = 0;
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(ws + d * DAY_MS);
+      const iso = dt.toISOString().slice(0, 10);
+      const inYear = dt.getUTCFullYear() === year;
+      const n = inYear ? (byDay[iso] || 0) : 0;
+      const mo = dt.getUTCMonth() + 1;
+      const dd = dt.getUTCDate();
+      if (inYear && dd === 1) monthLbl = `${mo}月`;
+      if (iso === today) todayWeek = wi;
+      wSum += n;
+      cells.push({
+        d: iso, md: `${mo}月${dd}日`, n,
+        lv: !inYear ? -1 : n >= 4 ? 4 : n,
+        fut: inYear && iso > today,
+      });
+    }
+    if (wSum > 0) { curStreak++; if (curStreak > maxStreak) maxStreak = curStreak; }
+    else curStreak = 0;
+    weeks.push({ i: wi, id: 'hmw' + wi, m: monthLbl, cells });
+  }
+  const focusIdx = Math.max(0, (todayWeek >= 0 ? todayWeek : weeks.length - 1) - 21);
+  return {
+    year, total, days,
+    bestMonth: bestMo ? `${bestMo}月 · ${bestMoCnt} 场` : '',
+    streakWeeks: maxStreak,
+    focusId: 'hmw' + focusIdx,
+    weeks,
+  };
+}
+
+// 关键分画像（纯从正式战绩实时算，不加新字段）：抢七胜率、胶着盘（7:5 / 抢七 / 4:3）胜率、先丢首盘逆转、单双打胜率对比
+function clutchView(matches, key, name) {
+  const normal = (matches || []).filter((m) => isNormal(m) && sideOf(m, key, name));
+  if (normal.length < 2) return null;
+  let tbTot = 0, tbWon = 0, tightTot = 0, tightWon = 0, cbTot = 0, cbWon = 0;
+  let sTot = 0, sWin = 0, dTot = 0, dWin = 0;
+  normal.forEach((m) => {
+    const side = sideOf(m, key, name), opp = side === 'a' ? 'b' : 'a';
+    const won = m.winner === side;
+    const isDbl = m.type === 'double' || (m.a && m.a.length > 1);
+    if (isDbl) { dTot++; if (won) dWin++; } else { sTot++; if (won) sWin++; }
+    const sets = m.sets || [];
+    sets.forEach((s) => {
+      const a = Number(s.a) || 0, b = Number(s.b) || 0;
+      const mine = side === 'a' ? a : b, theirs = side === 'a' ? b : a;
+      const setWin = mine > theirs;
+      const hasTb = s.tbA !== undefined && s.tbB !== undefined;
+      if (hasTb) { tbTot++; if (setWin) tbWon++; }
+      const diff = Math.abs(a - b), hi = Math.max(a, b);
+      if (hasTb || (hi >= 4 && diff === 1) || (hi >= 7 && diff === 2)) {
+        tightTot++; if (setWin) tightWon++;
+      }
+    });
+    if (sets.length >= 2) {
+      const s0m = Number(sets[0][side]) || 0, s0o = Number(sets[0][opp]) || 0;
+      if (s0m < s0o) { cbTot++; if (won) cbWon++; }
+    }
+  });
+  const pct = (w, t) => (t ? Math.round((w / t) * 100) + '%' : NONE);
+  return {
+    played: normal.length,
+    tb: { played: tbTot, win: tbWon, rate: pct(tbWon, tbTot), sub: tbTot ? `${tbWon}胜 ${tbTot - tbWon}负` : '暂无抢七' },
+    tight: { played: tightTot, win: tightWon, rate: pct(tightWon, tightTot), sub: tightTot ? `${tightWon}胜 ${tightTot - tightWon}负` : '暂无胶着盘' },
+    comeback: { played: cbTot, win: cbWon, rate: pct(cbWon, cbTot), sub: cbTot ? `${cbWon}/${cbTot} 场逆转` : '暂无多盘落后' },
+    single: { played: sTot, win: sWin, lose: sTot - sWin, rate: sTot ? Math.round((sWin / sTot) * 100) : 0 },
+    double: { played: dTot, win: dWin, lose: dTot - dWin, rate: dTot ? Math.round((dWin / dTot) * 100) : 0 },
+  };
+}
+
+// 纯 ASCII 转 Base64（不依赖 Node Buffer / 浏览器 btoa，小程序与单测通用，用来生成纯矢量五维雷达图）
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function toBase64(ascii) {
+  let out = '';
+  for (let i = 0; i < ascii.length; i += 3) {
+    const a = ascii.charCodeAt(i);
+    const b = i + 1 < ascii.length ? ascii.charCodeAt(i + 1) : 0;
+    const c = i + 2 < ascii.length ? ascii.charCodeAt(i + 2) : 0;
+    const n = (a << 16) | (b << 8) | c;
+    out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63]
+      + (i + 1 < ascii.length ? B64[(n >> 6) & 63] : '=')
+      + (i + 2 < ascii.length ? B64[n & 63] : '=');
+  }
+  return out;
+}
+
+// 五边形雷达图 SVG（面向淡紫球风主卡：半透白网格 + 柔白数据面 + 网球黄绿顶点；中文标签由 WXML 摆在周围）
+function radarSvgUri(scores, unlocked) {
+  const cx = 120, cy = 126, maxR = 96;
+  const pt = (idx, ratio) => {
+    const ang = (-90 + idx * 72) * Math.PI / 180;
+    return [Math.round((cx + Math.cos(ang) * maxR * ratio) * 10) / 10, Math.round((cy + Math.sin(ang) * maxR * ratio) * 10) / 10];
+  };
+  const poly = (ratios) => ratios.map((r, i) => pt(i, r).join(',')).join(' ');
+  const outer = `<polygon points="${poly([1, 1, 1, 1, 1])}" fill="rgba(56,54,108,0.14)" stroke="rgba(255,255,255,0.38)" stroke-width="1.4"/>`;
+  const innerRings = [0.66, 0.33].map((r) => `<polygon points="${poly([r, r, r, r, r])}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>`).join('');
+  const spokes = [0, 1, 2, 3, 4].map((i) => {
+    const [x, y] = pt(i, 1);
+    return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>`;
+  }).join('');
+  let dataLayer = '';
+  if (unlocked) {
+    const rs = scores.map((s) => Math.max(0.22, Math.min(1, s / 100)));
+    let topIdx = 0;
+    for (let i = 1; i < scores.length; i++) if (scores[i] > scores[topIdx]) topIdx = i;
+    const dots = rs.map((r, i) => {
+      const [x, y] = pt(i, r);
+      const halo = i === topIdx ? `<circle cx="${x}" cy="${y}" r="8.2" fill="rgba(201,227,58,0.34)"/>` : '';
+      return `${halo}<circle cx="${x}" cy="${y}" r="${i === topIdx ? '5.2' : '4.4'}" fill="#C9E33A" stroke="#FFFFFF" stroke-width="1.8"/>`;
+    }).join('');
+    dataLayer = `<polygon points="${poly(rs)}" fill="rgba(255,255,255,0.24)" stroke="#FFFFFF" stroke-width="2.4" stroke-linejoin="round"/>${dots}`;
+  } else {
+    dataLayer = `<polygon points="${poly([0.52, 0.52, 0.52, 0.52, 0.52])}" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.48)" stroke-width="1.6" stroke-dasharray="4 4"/>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">${outer}${innerRings}${spokes}${dataLayer}</svg>`;
+  return 'data:image/svg+xml;base64,' + toBase64(svg);
+}
+
+// 五维球风数据（纯从正式比赛局分与出勤计算，满 STYLE_MIN 场解锁；只用客观正向网球词，不做主观评价）
+const STYLE_MIN = 5;
+function styleView(matches, key, name, ratings, clutch, heatmap) {
+  const normal = (matches || []).filter((m) => isNormal(m) && sideOf(m, key, name));
+  const played = normal.length;
+  const unlocked = played >= STYLE_MIN;
+  if (!unlocked) {
+    return {
+      unlocked: false, played, need: STYLE_MIN, left: STYLE_MIN - played,
+      pct: Math.round((played / STYLE_MIN) * 100),
+      radarUri: radarSvgUri([50, 50, 50, 50, 50], false),
+      axes: [
+        { k: 'dom', l: '局分压制', v: 0 }, { k: 'cl', l: '关键分', v: 0 },
+        { k: 'grit', l: '硬仗韧性', v: 0 }, { k: 'stb', l: '稳定发挥', v: 0 }, { k: 'act', l: '出勤活跃', v: 0 },
+      ],
+      tags: [],
+    };
+  }
+  let wins = 0, gWon = 0, gTot = 0, toughMine = 0, toughTot = 0, curSt = 0, bestSt = 0;
+  const preMap = (ratings && ratings.pre) || {};
+  const sorted = normal.slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  sorted.forEach((m) => {
+    const side = sideOf(m, key, name), opp = side === 'a' ? 'b' : 'a';
+    const w = m.winner === side;
+    if (w) { wins++; curSt++; if (curSt > bestSt) bestSt = curSt; } else curSt = 0;
+    let mg = 0, og = 0;
+    (m.sets || []).forEach((s) => { mg += Number(s[side]) || 0; og += Number(s[opp]) || 0; });
+    gWon += mg; gTot += mg + og;
+    const pre = m._id ? preMap[m._id] : null;
+    if (pre && mg + og > 0) {
+      const mineLv = side === 'a' ? pre.a : pre.b;
+      const oppLv = side === 'a' ? pre.b : pre.a;
+      if (oppLv >= mineLv - 0.15) { toughMine += mg; toughTot += mg + og; }
+    }
+  });
+  const clampS = (x) => Math.max(18, Math.min(99, Math.round(x)));
+  const winRate = (wins / played) * 100;
+  const gameRate = gTot ? (gWon / gTot) * 100 : winRate;
+  const dom = clampS(gameRate * 0.65 + winRate * 0.35);
+  const tightTot = clutch ? clutch.tight.played : 0;
+  const tightWon = clutch ? clutch.tight.win : 0;
+  const clScore = clampS(((tightWon + 1.5) / (tightTot + 3)) * 100);
+  const toughRate = toughTot ? (toughMine / toughTot) * 100 : gameRate;
+  const cbBonus = clutch && clutch.comeback.win > 0 ? Math.min(12, clutch.comeback.win * 6) : 0;
+  const grit = clampS(toughRate * 0.85 + 10 + cbBonus);
+  const stb = clampS(winRate * 0.6 + Math.min(100, bestSt * 18) * 0.4);
+  const actDays = heatmap ? heatmap.days : 0;
+  const act = clampS(Math.min(100, (actDays / 24) * 80 + (played >= 15 ? 20 : (played / 15) * 20)));
+
+  const axes = [
+    { k: 'dom', l: '局分压制', v: dom },
+    { k: 'cl', l: '关键分', v: clScore },
+    { k: 'grit', l: '硬仗韧性', v: grit },
+    { k: 'stb', l: '稳定发挥', v: stb },
+    { k: 'act', l: '出勤活跃', v: act },
+  ];
+  // 客观正向网球标签（最多 3 个，按真实指标触发）
+  const tags = [];
+  if (tightTot >= 2 && clScore >= 62) tags.push('关键分稳健');
+  if (dom >= 68) tags.push('火力占优');
+  if (toughTot >= 10 && grit >= 64) tags.push('硬仗顽强');
+  if (act >= 65) tags.push('出勤活跃');
+  if (clutch && clutch.double.played >= 3 && clutch.double.rate >= 60) tags.push('双打配合佳');
+  if (clutch && clutch.single.played >= 3 && clutch.double.played === 0) tags.push('单打专注');
+  if (!tags.length) {
+    const top = axes.slice().sort((a, b) => b.v - a.v)[0];
+    tags.push(top ? `${top.l}突出` : '全面发展');
+  }
+  return {
+    unlocked: true, played, need: STYLE_MIN, left: 0, pct: 100,
+    radarUri: radarSvgUri(axes.map((a) => a.v), true),
+    axes,
+    tags: tags.slice(0, 3),
   };
 }
 
@@ -178,6 +411,9 @@ function playerView(profiles, players, matches, uid) {
   const selfLv = typeof p.level === 'number' ? p.level : null;
   const played = st ? st.played : 0;
   const shown = p.shown === true;
+  const hm = heatmapView(matches || [], uid, p.name);
+  const cl = clutchView(matches || [], uid, p.name);
+  const stv = styleView(matches || [], uid, p.name, stats.ratings, cl, hm);
   return {
     profile: { uid, name: p.name, initial: initialOf(p.name), color: colorOf(p.name), gender: S.GENDER[p.gender] || '性别未填', shown },
     ambiguous,
@@ -199,10 +435,85 @@ function playerView(profiles, players, matches, uid) {
     rows,
     career: cv,
     trend: trendView(r ? r.history : []),
+    heatmap: hm,
+    clutch: cl,
+    style: stv,
     partners: pv,
     relations: relationsView(cv.nemesis, cv.prey, pv && pv.best, profiles),
     tagsOf,
   };
 }
 
-module.exports = { playerView, matchRow, sideOf, careerView, trendView, h2hView, partnersView, relationsView, NONE };
+// 某一年（默认当年）的年度网球战报摘要：纯从正式比赛（及本人可选的球拍年度统计）计算，客观展示不做主观评价
+function annualView(view, matches, key, name, yearStr, racketStats) {
+  const year = String(yearStr || (view && view.heatmap && view.heatmap.year) || new Date().getFullYear());
+  const prefix = year + '-';
+  const mine = (matches || []).filter((m) => String(m.date || '').indexOf(prefix) === 0 && sideOf(m, key, name));
+  const normal = mine.filter((m) => isNormal(m)).sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  let win = 0, lose = 0, gamesWon = 0, gamesLost = 0, curSt = 0, bestStreak = 0;
+  const daySet = {}, monthCnt = {}, oppMap = {};
+  mine.forEach((m) => {
+    const d = String(m.date || '');
+    if (d) {
+      daySet[d] = 1;
+      const mo = Number(d.slice(5, 7));
+      if (mo >= 1 && mo <= 12) monthCnt[mo] = (monthCnt[mo] || 0) + 1;
+    }
+  });
+  normal.forEach((m) => {
+    const side = sideOf(m, key, name), opp = side === 'a' ? 'b' : 'a';
+    const w = m.winner === side;
+    if (w) { win++; curSt++; if (curSt > bestStreak) bestStreak = curSt; } else { lose++; curSt = 0; }
+    (m.sets || []).forEach((s) => { gamesWon += Number(s[side]) || 0; gamesLost += Number(s[opp]) || 0; });
+    const oppNames = m[opp] || [];
+    const oppKeys = m[opp + 'Keys'] || oppNames;
+    oppNames.forEach((on, i) => {
+      const ok = oppKeys[i] || on;
+      if (!on || ok === key) return;
+      const cur = oppMap[ok] || { name: on, count: 0, win: 0, lose: 0 };
+      cur.name = on; cur.count++; if (w) cur.win++; else cur.lose++;
+      oppMap[ok] = cur;
+    });
+  });
+  const played = win + lose;
+  const days = Object.keys(daySet).length;
+  let bestMo = 0, bestMoCnt = 0;
+  Object.keys(monthCnt).forEach((m) => { if (monthCnt[m] > bestMoCnt) { bestMoCnt = monthCnt[m]; bestMo = Number(m); } });
+  const mostOpp = Object.keys(oppMap).map((k) => oppMap[k]).sort((a, b) => b.count - a.count || b.win - a.win)[0] || null;
+  const bestMate = view && view.partners && view.partners.best ? view.partners.best : null;
+  const tb = view && view.clutch && view.clutch.tb && view.clutch.tb.played ? view.clutch.tb : null;
+  const rk = racketStats && racketStats.hasData ? {
+    spendText: `¥${racketStats.yearCost || 0}`,
+    yearStrings: racketStats.yearStrings || 0,
+    yearPlayHours: racketStats.yearPlayHours || '0 小时',
+    topString: racketStats.topString ? racketStats.topString.name : '',
+  } : null;
+  const prof = (view && view.profile) || { name: name || '', initial: initialOf(name || ''), color: colorOf(name || '') };
+  const lv = (view && view.level) || { match: UNRATED, tier: '' };
+  const style = (view && view.style) || { unlocked: false, played: 0, need: STYLE_MIN, axes: [], tags: [] };
+  return {
+    year,
+    name: prof.name,
+    initial: prof.initial,
+    color: prof.color,
+    level: lv.match,
+    tier: lv.tier,
+    played, win, lose,
+    rate: played ? Math.round((win / played) * 100) + '%' : '—',
+    days,
+    gamesWon, gamesLost,
+    bestStreak,
+    bestMonth: bestMo ? `${bestMo}月 · ${bestMoCnt} 场` : '',
+    mostOpp: mostOpp && mostOpp.count >= 2 ? mostOpp : null,
+    bestMate: bestMate ? { name: bestMate.name, rate: bestMate.rate, played: bestMate.played } : null,
+    tbRate: tb ? tb.rate : '',
+    tbSub: tb ? `${tb.win}胜${tb.lose}负` : '',
+    style,
+    racket: rk,
+    headline: played
+      ? `${year} 年出勤 ${days} 天 · 完赛 ${played} 场 · 赢下 ${gamesWon} 局`
+      : `${year} 球场记录已就绪 · 期待下一场正式对局`,
+  };
+}
+
+module.exports = { playerView, matchRow, sideOf, careerView, trendView, heatmapView, clutchView, styleView, STYLE_MIN, annualView, h2hView, partnersView, relationsView, NONE };

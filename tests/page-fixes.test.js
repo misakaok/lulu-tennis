@@ -155,7 +155,7 @@ test('战绩页长按删除：非发起人管理员撤销会推翻后续场次�
 test('球员战绩页第一次打开：用这次从云端拿到的资料和比赛，不等本机缓存落盘（不空白）', async () => {
   const env = createEnv(); env.load(); seed(env);
   const c = realClient(env, 'alice');
-  const p = loadPage('pages/history/history.js', c.wx, {});
+  const p = loadPage('pkg-manage/history/history.js', c.wx, {});
   p.onLoad({ uid: 'alice' });
   assert.strictEqual(p.data.sum, null, '本机没有缓存时先空着');
   await p.load();
@@ -163,13 +163,13 @@ test('球员战绩页第一次打开：用这次从云端拿到的资料和比�
   assert.ok(!c.storage.cache_profiles && !c.storage.cache_matches_all);
   assert.strictEqual(p.data.name, 'Alice');
   assert.deepStrictEqual(plain(p.data.sum), { matches: '6', win: '4', lose: '2', rate: '67%' });
-  assert.strictEqual(p.data.shown.length, 6);
+  assert.deepStrictEqual([p.data.shown.length, p.data.totalCount, p.data.totalPages], [5, 6, 2]);
   assert.strictEqual(p.data.loading, false);
 });
 test('成长档案第一次打开：正式战绩摘要用这次从云端拿到的资料和比赛，不等本机缓存落盘', async () => {
   const env = createEnv(); env.load(); seed(env);
   const c = realClient(env, 'alice');
-  const p = loadPage('pages/growth/growth.js', c.wx, {});
+  const p = loadPage('pkg-manage/growth/growth.js', c.wx, {});
   p.onLoad();
   await p.load();
   assert.ok(!c.storage.cache_profiles && !c.storage.cache_matches_all, '本机缓存还没写完');
@@ -183,7 +183,7 @@ test('成长档案第一次打开：正式战绩摘要用这次从云端拿到�
   const before = JSON.stringify([players, matches]);
   await p.load();
   assert.strictEqual(JSON.stringify([await c.db.playersShared(), await c.db.matchesShared()]), before);
-  for (const f of ['pages/history/history.js', 'pages/growth/growth.js']) {
+  for (const f of ['pkg-manage/history/history.js', 'pkg-manage/growth/growth.js']) {
     const code = read(f).replace(/\/\/.*$/gm, '');
     assert.ok(!/cachedProfiles\(\)|cachedPlayersFull\(\)|cachedMatches\(\)/.test(code.slice(code.indexOf('load()'))), f + '：读完云端后不再同步读本机缓存');
   }
@@ -233,7 +233,7 @@ test('改分页：比赛所属活动已删除（读不到）时不报错，沿�
   const c = realClient(env, 'alice');
   await assert.rejects(() => c.db.getDraw('dd'), '已删除的活动网关读不到');
   for (const mode of ['request', 'admin']) {
-    const p = loadPage('pages/correct/correct.js', c.wx, {});
+    const p = loadPage('pkg-manage/correct/correct.js', c.wx, {});
     p.onLoad({ matchId: 'evm', mode });
     await flush(60);
     assert.strictEqual(p.data.error, '', mode);
@@ -244,7 +244,7 @@ test('改分页：比赛所属活动已删除（读不到）时不报错，沿�
   // 活动还在：照旧按活动这一场的规则
   const E = require('../utils/event');
   env.coll('draws').dd.deleted = false;
-  const p = loadPage('pages/correct/correct.js', c.wx, {});
+  const p = loadPage('pkg-manage/correct/correct.js', c.wx, {});
   p.onLoad({ matchId: 'evm', mode: 'request' });
   await flush(60);
   const d = Object.assign({ _id: 'dd' }, env.coll('draws').dd);

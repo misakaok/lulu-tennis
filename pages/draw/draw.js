@@ -4,7 +4,7 @@ const C = require('../../utils/cup');
 const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
 const haptic = require('../../utils/haptic');
-const PAGE = 30; // 活动列表每次显示多少个，滑到底再加载（和战绩页、排行页一样）
+const PAGE = 5; // 活动列表每页显示 5 场（和战绩页统一翻页节奏）
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
 function roleOf(d, myId, signed) {
@@ -18,22 +18,28 @@ function roleOf(d, myId, signed) {
 function toView(d, matches, myId, signed) {
   const isG = d.mode === 'groups';
   const signing = d.status === 'signup';
+  const ended = !!d.endedAt;
   const cfg = E.cfgOf(d);
-  let champion = '', progress = '', finished = false, progressPct = 0, progressShort = '';
-  if (!signing) {
+  let champion = '', progress = '', finished = ended, progressPct = 0, progressShort = '';
+  if (signing) {
+    if (ended) progress = d.endReason ? `提前结束 · ${d.endReason}` : '已提前结束';
+  } else {
     const p = E.progressOf(d, matches);
     champion = p.champion;
-    finished = !!champion || (p.total > 0 && p.done === p.total);
-    if (!champion) progress = p.total && p.done === p.total ? `全部 ${p.total} 场已完赛` : `已完成 ${p.done}/${p.total} 场`;
-    // 卡片底部的细进度条：已完成场数 / 总场数（没有场次、已出冠军的不画）
-    if (!champion && p.total > 0) { progressPct = Math.round((p.done / p.total) * 100); progressShort = p.done + '/' + p.total + ' 场'; }
+    finished = ended || !!champion || (p.total > 0 && p.done === p.total);
+    if (!champion) {
+      if (ended && p.done < p.total) progress = `提前结束 · 已完赛 ${p.done}/${p.total} 场`;
+      else progress = p.total && p.done === p.total ? `全部 ${p.total} 场已完赛` : `已完成 ${p.done}/${p.total} 场`;
+    }
+    // 卡片底部的细进度条：已完成场数 / 总场数（没有场次、已出冠军、已提前结束的不画）
+    if (!champion && !ended && p.total > 0) { progressPct = Math.round((p.done / p.total) * 100); progressShort = p.done + '/' + p.total + ' 场'; }
   }
   const role = roleOf(d, myId, signed);
   // 我和活动的关系（状态另外显示在右上角，这里不再重复「已结束」）
   const roleTags = [];
   if (role) {
     if (role.owner) roleTags.push('我发起');
-    if (signing && role.signed) roleTags.push('已报名');
+    if (signing && !ended && role.signed) roleTags.push('已报名');
     if (!signing && role.entrant) roleTags.push(finished ? '参加过' : '参加中');
   }
   const modeText = E.isRotation(d) ? E.MODES.rotation : d.mode === 'groups_ko' ? `${E.MODES.groups_ko} · ${d.groupCount} 组` : isG ? `${E.MODES.groups} · ${d.groupCount} 组` : `${E.MODES.bracket} · ${d.size} 签`;
@@ -43,15 +49,15 @@ function toView(d, matches, myId, signed) {
   if (!signing) meta.push(`${(d.entrants || []).length} ${cfg.type === 'double' && d.mode !== 'rotation' ? '队' : '人'}`);
   if ((d.seeds || []).length) meta.push(cfg.type === 'double' ? `种子队伍 ${d.seeds.length} 支` : `种子选手 ${d.seeds.length} 位`);
   return {
-    _id: d._id, signing, mine: !!role, roleTags,
+    _id: d._id, signing, ended, mine: !!role, roleTags,
     cupTag: C.drawCupText(d), // LULU 积分活动：报名阶段就显示「LULU 积分 · 周赛」
     pinnedAt: Number(d.pinnedAt) || 0, // 置顶（管理员设置）：排在最前面，越晚置顶越靠前
     title: d.title,
     meta: meta.map((x) => x.replace(/ /g, '\u00a0')).join(' · '), // 每一项内部用不换行空格：只在项与项之间换行，「2 个」不会拆开
     date: d.date || '',
     day: dayOf(d.date),
-    status: signing ? { text: '报名中', cls: 'lime' } : finished ? { text: '已结束', cls: '' } : { text: '进行中', cls: 'solid' },
-    st: signing ? 'sign' : finished ? 'done' : 'play', // 日期块色带：报名中黄绿 / 进行中淡紫 / 已结束灰
+    status: ended ? { text: '已结束', cls: '' } : signing ? { text: '报名中', cls: 'lime' } : finished ? { text: '已结束', cls: '' } : { text: '进行中', cls: 'solid' },
+    st: ended ? 'done' : signing ? 'sign' : finished ? 'done' : 'play', // 日期块色带：报名中黄绿 / 进行中淡紫 / 已结束灰
     champion, progress, progressPct, progressShort, isG,
   };
 }
@@ -69,7 +75,7 @@ const HERO_SLIDES = 3; // 顶部背景轮播张数（hero-court + hero-2 + hero-
 const HERO_MS = 3000; // 每张停 3 秒（2026-11-23 用户嫌 4 秒慢）
 
 Page({
-  data: { list: [], shown: [], more: false, loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
+  data: { list: [], shown: [], page: 1, totalPages: 1, totalCount: 0, pageOpts: ['第 1 页'], loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
@@ -141,18 +147,36 @@ Page({
     this.setData({ mineCount: list.filter((x) => x.mine).length, next: NX.nextMatch(this.draws, this.matches, this.myId, this.signups, this.today) });
     this.apply();
   },
-  // 只把前 limit 个交给渲染层：数据刷新（录分、报名后回来）保持已经加载的个数，切换选项卡从头开始
+  // 按页切片交给渲染层（每页 PAGE 场）：数据刷新（录分、报名后回来）保持当前页并防越界，切换选项卡回到第 1 页
   apply() {
     const tab = this.data.tab;
     const all = tab === 'all' ? this.list : tab === 'mine' ? this.list.filter((x) => x.mine) : [];
-    const limit = this.limit || PAGE;
-    this.setData({ shown: all.slice(0, limit), more: all.length > limit });
+    const totalCount = all.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE));
+    const page = Math.min(Math.max(1, this.page || 1), totalPages);
+    this.page = page;
+    const start = (page - 1) * PAGE;
+    const pageOpts = [];
+    for (let i = 1; i <= totalPages; i++) pageOpts.push(`第 ${i} 页`);
+    this.setData({ shown: all.slice(start, start + PAGE), page, totalPages, totalCount, pageOpts });
   },
-  setTab(e) { if (e.currentTarget.dataset.v !== this.data.tab) haptic.light(); this.limit = PAGE; this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
-  onReachBottom() {
-    if (this.timeline || !this.data.more) return;
-    this.limit = (this.limit || PAGE) + PAGE;
+  setTab(e) { if (e.currentTarget.dataset.v !== this.data.tab) haptic.light(); this.page = 1; this.setData({ tab: e.currentTarget.dataset.v }); this.apply(); },
+  goPage(next) {
+    if (this.timeline) return;
+    const tp = this.data.totalPages || 1;
+    const p = Math.min(Math.max(1, next), tp);
+    if (p === (this.page || 1)) return;
+    haptic.light();
+    this.page = p;
     this.apply();
+    if (typeof wx !== 'undefined' && wx.pageScrollTo) wx.pageScrollTo({ scrollTop: 0, duration: 220 });
+  },
+  prevPage() { this.goPage((this.page || 1) - 1); },
+  nextPage() { this.goPage((this.page || 1) + 1); },
+  pickPage(e) {
+    const idx = Number(e && e.detail && e.detail.value);
+    if (!Number.isFinite(idx)) return;
+    this.goPage(idx + 1);
   },
 
   async load() {
@@ -186,7 +210,7 @@ Page({
     if (this.data.loading) this.setData({ loading: false });
     await showNew;
   },
-  goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pages/draw-new/draw-new' }); },
+  goNew() { if (!this.data.canPublish) return; wx.navigateTo({ url: '/pkg-manage/draw-new/draw-new' }); },
   // 点卡片先把活动详情请求发出去（页面切换动画期间并行读），详情页第一次读取直接接过来
   open(e) {
     const id = e.currentTarget.dataset.id;

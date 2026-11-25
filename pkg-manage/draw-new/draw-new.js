@@ -30,7 +30,7 @@ Page({
     info: '', seedInfo: '', canDraw: false, preview: null, manualOpts: [], manualIndexes: [], manualLabels: [], saving: false,
     manualOnly: false, editingMatchups: false,
     pre: [], preSheet: null, // 开放报名时先加入的球友：[{ key, ids, who, playerId, partnerId, text, names }]；preSheet 是选人弹层
-    recentPlaces: [], heroTop: '', heroSub: '',
+    recentPlaces: [], lastCopy: null, formInit: null, heroTop: '', heroSub: '',
     cupOn: false, cupKind: 'weekly', cupKinds: C.ACTIVE_KINDS, cupPointGroup: 'open', cupPointGroups: C.POINT_GROUPS, cupErr: '', cupNote: '', cupText: '',
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
     editingSettings: false, settingsLoading: false, fixedRotation: false,
@@ -117,10 +117,59 @@ Page({
     this.players = names;
   },
 
-  // 最近使用的地点：先用本机缓存的活动马上显示，再用最新的活动列表更新（读不到就保持缓存的）
+  // 最近使用的地点 + 最近一次活动（用于「复刻上次活动」一键复用设置，不带 LULU 积分和旧日期）
+  pickLastDraw(list) {
+    const arr = (list || []).filter((d) => d && !d.deleted && d.mode);
+    if (!arr.length) return null;
+    const latest = arr.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || String(b.date || '').localeCompare(String(a.date || '')))[0];
+    this.lastDrawRaw = latest;
+    const cfg = E.cfgOf(latest);
+    const modeLabel = E.MODES[latest.mode] || '活动';
+    return {
+      title: latest.title || '上次活动',
+      meta: `${modeLabel} · ${cfg.type === 'double' ? '双打' : '单打'} · ${E.ruleText(cfg)}`,
+    };
+  },
   loadRecentPlaces() {
-    this.setData({ recentPlaces: PL.recentPlaces(db.cachedDraws()) });
-    return db.drawsShared().then((list) => { this.setData({ recentPlaces: PL.recentPlaces(list) }); }).catch(() => {});
+    const c = db.cachedDraws ? db.cachedDraws() : [];
+    this.setData({ recentPlaces: PL.recentPlaces(c), lastCopy: this.pickLastDraw(c) });
+    if (!db.drawsShared) return Promise.resolve();
+    return db.drawsShared().then((list) => {
+      this.setData({ recentPlaces: PL.recentPlaces(list), lastCopy: this.pickLastDraw(list) });
+    }).catch(() => {});
+  },
+  copyLastDraw() {
+    const d = this.lastDrawRaw;
+    if (!d || this.data.fromSignup || this.data.editingSettings) return;
+    const isRot = E.isRotation(d);
+    const type = isRot ? 'double' : E.cfgOf(d).type;
+    const rules = E.stageRules(d);
+    const limits = LIMITS[type === 'double' ? 'double' : 'single'];
+    const limit = limits.indexOf(d.limit || 0) >= 0 ? (d.limit || 0) : 0;
+    const formInit = {
+      date: this.date,
+      startTime: d.startTime || '',
+      venue: d.venue || '',
+      location: E.locationOf(d.location),
+      place: d.location ? E.placeOf(d.place) : null,
+      level: E.levelRangeOf(d.level),
+    };
+    this.setData({
+      mode: d.mode,
+      size: SIZES.indexOf(d.size) >= 0 ? d.size : 8,
+      groupCount: GROUPS.indexOf(d.groupCount) >= 0 ? d.groupCount : 4,
+      advance: d.advance === 1 ? 1 : 2,
+      type,
+      category: isRot && E.categoryOf(d) === 'mixed' ? '' : E.categoryOf(d),
+      limit: isRot || d.mode === 'bracket' ? 0 : limit,
+      limits,
+      rules,
+      byRound: Object.keys(rules.rounds || {}).length > 0,
+      cupOn: false, // 积分默认不计，不沿用上次的积分设置
+      formInit,
+    });
+    this.refresh();
+    wx.showToast({ title: '已复用上次活动设置，日期保持今天', icon: 'none' });
   },
 
   // 球员和比赛用共享版（和排行榜、活动详情同一个数组，不复制）；水平分用 R.ratingsOf 按数组引用只算一次。这一页只读它们

@@ -227,7 +227,7 @@ test('活动详情：按轮次显示我这轮的搭档、对手和状态；还�
 
 test('创建页：选「四人轮换」后固定双打、开放报名，不显示签数 / 分组 / 报名上限 / LULU 积分；按报名名单正好 4 位才能排三轮', () => {
   let stored = null;
-  const def = loadDef('pages/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { setStorageSync: (k, v) => { stored = v; }, showToast() {}, vibrateShort() {}, pageScrollTo() {} });
+  const def = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { setStorageSync: (k, v) => { stored = v; }, showToast() {}, vibrateShort() {}, pageScrollTo() {} });
   const p = Object.assign({}, def, { data: plain(def.data), setData(o) { Object.assign(this.data, plain(o)); } });
   Object.assign(p, { players: ['Alice', 'Bob', 'Carl', 'Dora', 'Eve'], selected: [], seeds: [], info: {}, date: '2026-11-23' });
   p.setData({ cupOn: true, entry: 'pick', type: 'single' });
@@ -256,7 +256,7 @@ test('创建页：选「四人轮换」后固定双打、开放报名，不显�
   p.doDraw();
   assert.deepStrictEqual(p.data.preview.rotRounds, ['Alice / Bob 对 Carl / Dora', 'Alice / Carl 对 Bob / Dora', 'Alice / Dora 对 Bob / Carl']);
   assert.deepStrictEqual(p.data.preview.entrants, ['Alice', 'Bob', 'Carl', 'Dora']);
-  const w = read('pages/draw-new/draw-new.wxml');
+  const w = read('pkg-manage/draw-new/draw-new.wxml');
   ['参加方式', '分几组', '报名上限', '计入 LULU 积分'].forEach((label) => {
     const at = w.indexOf(`<text class="label">${label}</text>`);
     const head = w.slice(w.lastIndexOf('<view', at), at);

@@ -8,7 +8,9 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 
 function scripts() {
-  const out = require(path.join(root, 'app.json')).pages.map((p) => p + '.js');
+  const app = require(path.join(root, 'app.json'));
+  const pages = (app.pages || []).concat((app.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
+  const out = pages.map((p) => p + '.js');
   const dir = path.join(root, 'components');
   fs.readdirSync(dir).forEach((c) => { const f = `components/${c}/${c}.js`; if (fs.existsSync(path.join(root, f))) out.push(f); });
   return out;

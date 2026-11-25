@@ -97,14 +97,14 @@ test('表单：点选历史地点直接填回 location 和 place，不打开地�
 
   const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
   assert.ok(/最近使用的地点/.test(xml) && /bindtap="pickRecent"/.test(xml) && /bindtap="pickLocation"/.test(xml) && /bindtap="clearLocation"/.test(xml));
-  assert.ok(/<event-form\b[^>]*\brecent="\{\{recentPlaces\}\}"[^>]*\bbind:change="onInfo"/.test(fs.readFileSync(path.join(__dirname, '../pages/draw-new/draw-new.wxml'), 'utf8')));
+  assert.ok(/<event-form\b[^>]*\brecent="\{\{recentPlaces\}\}"[^>]*\bbind:change="onInfo"/.test(fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxml'), 'utf8')));
   // 编辑页不传历史地点：不显示这一块
-  assert.ok(!/recent=/.test(fs.readFileSync(path.join(__dirname, '../pages/event-edit/event-edit.wxml'), 'utf8')));
+  assert.ok(!/recent=/.test(fs.readFileSync(path.join(__dirname, '../pkg-manage/event-edit/event-edit.wxml'), 'utf8')));
 });
 
 test('新建活动页：先用本机缓存的活动显示历史地点，再换成最新的活动列表；读取失败保留缓存的', async () => {
   let fresh = draws().slice(0, 2);
-  const p = load('pages/draw-new/draw-new.js', {}, 'Page', {
+  const p = load('pkg-manage/draw-new/draw-new.js', {}, 'Page', {
     '../../utils/db': { cachedDraws: () => draws().slice(2, 4), drawsShared: async () => { if (!fresh) throw new Error('offline'); return fresh; } },
   });
   const pending = p.loadRecentPlaces();
@@ -122,7 +122,7 @@ test('选历史地点创建活动：走 createDraw 和地点文字检测，活�
   env.members([['owner', 'Owner'], ['alice', 'Alice']]);
   // 表单 → 新建活动页的提交字段
   const c = load('components/event-form/event-form.js', {}, 'Component');
-  const page = load('pages/draw-new/draw-new.js', {}, 'Page', { '../../utils/db': {} });
+  const page = load('pkg-manage/draw-new/draw-new.js', {}, 'Page', { '../../utils/db': {} });
   c.triggerEvent = (_, v) => page.onInfo({ detail: plain(v) });
   c.data.recent = PL.recentPlaces(draws());
   c.init({ date: '2026-11-29' });

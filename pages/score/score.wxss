@@ -66,3 +66,80 @@
 .sc-t { flex: 1; min-width: 0; font-size: 23rpx; color: #5C5C76; line-height: 1.5; margin-right: 16rpx; }
 .sc-row .btn-line.mini { flex: none; }
 .sc-from { font-size: 23rpx; color: #6E6EA3; background: #EFEFF6; border-radius: 16rpx; padding: 12rpx 18rpx; margin-bottom: 12rpx; line-height: 1.5; }
+
+/* 未开打场次：赛前交手预览 & 水平分模拟 */
+.pre-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18rpx; }
+.pre-title { margin-bottom: 0; }
+.pre-h2h { font-size: 22rpx; color: #6E6EA3; font-weight: 600; }
+.pre-vs { display: flex; align-items: center; }
+.pre-sd { width: 148rpx; flex: none; }
+.pre-sd.r { text-align: right; }
+.pre-lv { font-size: 46rpx; font-weight: 900; line-height: 1.05; color: #4F4F7D; }
+.pre-sub { margin-top: 4rpx; font-size: 20rpx; color: #84849E; }
+.pre-fm { display: flex; margin-top: 10rpx; }
+.pre-fm.r { justify-content: flex-end; }
+.pre-dot {
+  width: 26rpx; height: 26rpx; line-height: 26rpx; text-align: center; border-radius: 8rpx;
+  font-size: 18rpx; font-weight: 800; margin-right: 4rpx;
+}
+.pre-fm.r .pre-dot { margin: 0 0 0 4rpx; }
+.pre-dot.w { background: #E9F6C4; color: #425B00; }
+.pre-dot.l { background: #F4ECEE; color: #A65A5A; }
+.pre-mid { flex: 1; min-width: 0; padding: 0 18rpx; }
+.pre-pcts { display: flex; align-items: baseline; justify-content: space-between; font-size: 24rpx; font-weight: 800; color: #4F4F7D; }
+.pre-pct-lbl { font-size: 20rpx; font-weight: 500; color: #84849E; }
+.pre-bar { margin-top: 10rpx; height: 12rpx; border-radius: 6rpx; background: #E3E3F1; overflow: hidden; }
+.pre-fill { height: 100%; border-radius: 6rpx; background: linear-gradient(90deg, #8484B6, #A8A8D2); }
+.pre-out { margin-top: 18rpx; padding: 12rpx 18rpx; border-radius: 16rpx; background: #F6F6FB; font-size: 23rpx; color: #5C5C76; text-align: center; }
+
+.sim-tog {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 18rpx; padding-top: 18rpx; border-top: 1rpx solid #F0F0F7;
+}
+.sim-tog-t { font-size: 24rpx; font-weight: 700; color: #4F4F7D; }
+.sim-tog-a { font-size: 23rpx; font-weight: 700; color: #6E6EA3; }
+.sim-box { margin-top: 16rpx; }
+.sim-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
+.sim-who { font-size: 22rpx; color: #70708C; }
+.sim-who .b { color: #2E2E4A; font-weight: 700; }
+.sim-sw { font-size: 21rpx; font-weight: 700; color: #6E6EA3; padding: 4rpx 14rpx; border-radius: 16rpx; background: #EFEFF7; }
+.sim-chips { display: flex; flex-wrap: wrap; margin: 0 -5rpx 10rpx; }
+.sim-chip {
+  width: calc(25% - 10rpx); box-sizing: border-box; margin: 0 5rpx 10rpx; height: 58rpx; line-height: 58rpx;
+  text-align: center; border-radius: 16rpx; font-size: 25rpx; font-weight: 700; color: #5C5C76; background: #F4F4FA;
+}
+.sim-chip.on { background: #8484B6; color: #fff; }
+.sim-res { padding: 18rpx 20rpx; border-radius: 20rpx; background: #F6F6FB; }
+.sim-res.up { background: #F4F9E3; }
+.sim-res.down { background: #FBF2F2; }
+.sim-res-top { display: flex; align-items: center; justify-content: space-between; }
+.sim-res-t { font-size: 26rpx; font-weight: 800; color: #2E2E4A; }
+.sim-res.up .sim-res-t { color: #3F5B00; }
+.sim-res.down .sim-res-t { color: #A64848; }
+.sim-res-tier { padding: 4rpx 14rpx; border-radius: 14rpx; font-size: 21rpx; font-weight: 700; color: #6E6EA3; background: rgba(132, 132, 182, 0.14); }
+.sim-res-tier.up { background: #C9E33A; color: #2E3600; }
+.sim-res-tier.down { background: rgba(179, 77, 77, 0.14); color: #9E3D3D; }
+.sim-res-s { margin-top: 8rpx; font-size: 23rpx; color: #4F4F7D; line-height: 1.5; }
+.sim-res-meta { margin-top: 6rpx; font-size: 20rpx; color: #84849E; }
+
+/* 录完顺手记球拍时长弹层 */
+.rk-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 60; background: rgba(34, 34, 62, 0.42); display: flex; align-items: flex-end; }
+.rk-sheet { width: 100%; background: #fff; border-radius: 36rpx 36rpx 0 0; padding: 32rpx 32rpx calc(36rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.rk-hd { display: flex; align-items: center; justify-content: space-between; }
+.rk-t { font-size: 31rpx; font-weight: 800; color: #2E2E4A; }
+.rk-x { width: 52rpx; height: 52rpx; line-height: 52rpx; text-align: center; font-size: 28rpx; color: #84849E; }
+.rk-s { margin-top: 6rpx; font-size: 22rpx; color: #70708C; }
+.rk-lbl { margin: 22rpx 0 12rpx; font-size: 23rpx; font-weight: 700; color: #5C5C76; }
+.rk-list { display: flex; flex-wrap: wrap; margin: 0 -6rpx; }
+.rk-item { margin: 0 6rpx 12rpx; padding: 12rpx 20rpx; border-radius: 18rpx; background: #F4F4FA; border: 2rpx solid transparent; }
+.rk-item.on { background: #EFEFF9; border-color: #8484B6; }
+.rk-in { font-size: 25rpx; font-weight: 800; color: #2E2E4A; }
+.rk-is { margin-left: 10rpx; font-size: 21rpx; color: #70708C; }
+.rk-mins { display: flex; margin: 0 -6rpx 14rpx; }
+.rk-chip { flex: 1; margin: 0 6rpx; height: 60rpx; line-height: 60rpx; text-align: center; border-radius: 16rpx; background: #F4F4FA; font-size: 24rpx; font-weight: 700; color: #5C5C76; }
+.rk-chip.on { background: #8484B6; color: #fff; }
+.rk-ipt { height: 76rpx; padding: 0 22rpx; border-radius: 18rpx; background: #F6F6FB; font-size: 30rpx; font-weight: 800; color: #2E2E4A; }
+.rk-acts { display: flex; margin-top: 26rpx; }
+.rk-btn { flex: 1; margin-right: 16rpx; height: 84rpx; line-height: 84rpx; border-radius: 42rpx; font-size: 28rpx; }
+.btn-line.rk-btn { line-height: 78rpx; }
+.rk-btn:last-child { margin-right: 0; }

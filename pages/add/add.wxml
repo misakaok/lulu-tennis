@@ -96,4 +96,31 @@
   <view class="btn-primary {{check.ok && !submitting ? '' : 'disabled'}}" hover-class="tap-on" bindtap="submit">{{submitting ? '保存中…' : '保存比分'}}</view>
 </view>
 
+<!-- 录完比赛顺手记入球拍时长弹层（仅有在役球拍时弹出，纯可选） -->
+<view wx:if="{{rkOpen}}" class="rk-mask" catchtap="skipRkLog">
+  <view class="rk-sheet" catchtap="">
+    <view class="rk-hd">
+      <text class="rk-t">比分已保存 · 顺手记入球拍时长？</text>
+      <text class="rk-x" bindtap="skipRkLog">✕</text>
+    </view>
+    <view class="rk-s">自动累计到所选球拍本次球线的打球时长（{{rkDate}}）</view>
+    <view class="rk-lbl">选择球拍</view>
+    <view class="rk-list">
+      <view wx:for="{{rkList}}" wx:key="id" class="rk-item {{rkId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickRk">
+        <text class="rk-in">{{item.title}}</text>
+        <text wx:if="{{item.name}}" class="rk-is">{{item.name}}</text>
+      </view>
+    </view>
+    <view class="rk-lbl">本次打球时长（分钟）</view>
+    <view class="rk-mins">
+      <view wx:for="{{['30','45','60','90','120']}}" wx:key="*this" class="rk-chip num {{rkMin === item ? 'on' : ''}}" data-m="{{item}}" bindtap="rkMinQuick">{{item}}分</view>
+    </view>
+    <input class="rk-ipt num" type="number" maxlength="3" value="{{rkMin}}" placeholder="输入 1~600 分钟" bindinput="rkMinInput" />
+    <view class="rk-acts">
+      <view class="btn-line rk-btn" hover-class="tap-on" bindtap="skipRkLog">暂不记录</view>
+      <view class="btn-primary rk-btn {{rkBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="saveRkLog">{{rkBusy ? '记录中…' : '记入 +' + (rkMin || '0') + ' 分'}}</view>
+    </view>
+  </view>
+</view>
+
 </block>

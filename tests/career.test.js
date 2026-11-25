@@ -82,7 +82,12 @@ test('球员主页：带出生涯和赛季（按用户 ID，同名的人不会�
   const v = PV.playerView({ ua: { name: 'A' } }, [{ name: 'A', uid: 'ua' }], ms, 'ua');
   assert.strictEqual(v.career.has, true);
   assert.deepStrictEqual(v.career.seasons.map((s) => [s.season, s.played, s.wl]), [['2026', 1, '1-0']]);
+  assert.deepStrictEqual(v.career.cells.map((x) => x.l), ['参加活动', '最长连胜', '最高等级']);
   assert.strictEqual(v.career.cells.find((x) => x.l === '最高等级').n !== '暂无', true);
+  assert.deepStrictEqual(v.career.lines, []);
+  const champView = PV.playerView({ ua: { name: 'A' } }, [{ name: 'A', uid: 'ua' }], [mk('2026-03-01', 'a', { drawId: 'd1', drawTitle: '春季活动', stage: '最后一轮' })], 'ua');
+  assert.deepStrictEqual(champView.career.cells.map((x) => x.l), ['冠军', '最长连胜', '最高等级']);
+  assert.strictEqual(champView.career.cells[0].cls, 'hot');
   assert.strictEqual(PV.playerView({}, [], ms, 'ua').profile, null);
 });
 

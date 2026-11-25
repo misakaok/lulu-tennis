@@ -11,7 +11,28 @@
     <view class="seg-item {{filter === 'event' ? 'on' : ''}}" data-v="event" bindtap="setFilter">活动</view>
     <view class="seg-item {{filter === 'daily' ? 'on' : ''}}" data-v="daily" bindtap="setFilter">日常比赛</view>
   </view>
-  <view wx:if="{{!shown.length && !loading}}" class="muted">没有比赛记录</view>
+
+  <!-- 细筛：单双打 / 胜负 / 日期 -->
+  <view class="h-flt">
+    <view class="h-chips">
+      <view class="h-chip {{typeFilter === 'single' ? 'on' : ''}}" data-v="single" bindtap="toggleType">单打</view>
+      <view class="h-chip {{typeFilter === 'double' ? 'on' : ''}}" data-v="double" bindtap="toggleType">双打</view>
+      <view class="h-chip {{resFilter === 'win' ? 'on w' : ''}}" data-v="win" bindtap="toggleRes">只看胜</view>
+      <view class="h-chip {{resFilter === 'lose' ? 'on l' : ''}}" data-v="lose" bindtap="toggleRes">只看负</view>
+    </view>
+    <picker class="h-dp-wrap" mode="date" value="{{pickDate || today}}" start="2020-01-01" end="{{today}}" bindchange="onPickDate">
+      <view class="h-dp {{pickDate ? 'on' : ''}}" hover-class="tap-on">
+        <text>{{pickDate ? pickShort : '选日期'}}</text>
+      </view>
+    </picker>
+  </view>
+
+  <view wx:if="{{hasFilter}}" class="h-bar">
+    <text class="h-bar-t">共 {{totalCount}} 场{{fltWin || fltLose ? ' · ' + fltWin + '胜 ' + fltLose + '负' : ''}}{{pickDate ? ' · ' + pickDate : ''}}</text>
+    <text class="h-bar-rst" bindtap="resetFilters">重置筛选</text>
+  </view>
+
+  <view wx:if="{{!shown.length && !loading}}" class="muted">{{hasFilter ? '没有符合条件的比赛记录' : '没有比赛记录'}}</view>
   <view class="card list">
     <view wx:for="{{shown}}" wx:key="id" class="mr {{index < 12 ? 'ani-in' : ''}}" style="animation-delay:{{index < 12 ? index * 45 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openMatch">
       <view class="mr-top"><text class="mr-date">{{item.date}}</text><text class="mr-ev {{item.isEvent ? 'ev' : ''}}">{{item.event}}</text></view>
@@ -26,5 +47,18 @@
       <view wx:if="{{item.tags.length}}" class="mr-tags"><text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mr-tag">{{t.t}}</text></view>
     </view>
   </view>
+
+  <!-- 翻页条（超过 1 页时显示） -->
+  <view wx:if="{{totalPages > 1}}" class="pager">
+    <view class="pg-btn {{page <= 1 ? 'off' : ''}}" hover-class="{{page > 1 ? 'tap-on' : ''}}" bindtap="prevPage">‹ 上一页</view>
+    <picker class="pg-mid" mode="selector" range="{{pageOpts}}" value="{{page - 1}}" bindchange="pickPage">
+      <view class="pg-cur num">
+        <text>第 {{page}} / {{totalPages}} 页</text><text class="pg-caret">▾</text>
+      </view>
+      <view class="pg-tot">共 {{totalCount}} 场</view>
+    </picker>
+    <view class="pg-btn {{page >= totalPages ? 'off' : ''}}" hover-class="{{page < totalPages ? 'tap-on' : ''}}" bindtap="nextPage">下一页 ›</view>
+  </view>
+
   <view class="foot">只列正式战绩；待对手确认的日常比赛在「战绩」页</view>
 </view>

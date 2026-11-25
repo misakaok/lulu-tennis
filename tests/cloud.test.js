@@ -1536,6 +1536,63 @@ test('置顶活动：只有管理员；置顶写 pinnedAt、取消去掉；留�
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
 });
 
+test('提前结束 / 恢复活动：发起人或管理员可按固定原因提前结束，保留已录比分、拦截未打场次录分并从「我的下一场」移出，可随时恢复', async () => {
+  const env = setup();
+  const NX = require('../utils/next-match');
+  const ents = ['Alice', 'Bob', 'Carl', 'Eve'];
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'admin';
+  try {
+    env.put('members', { _id: 'admin', status: 'active' });
+    env.put('draws', {
+      _id: 'd10', _openid: 'owner', title: '雨天周赛', status: 'drawn', type: 'single', mode: 'bracket', size: 4,
+      date: '2026-11-25', entrants: ents, lines: ents.map((n) => ({ name: n })),
+      uidOf: { Alice: 'alice', Bob: 'bob', Carl: 'carl', Eve: 'eve' },
+    });
+    // 先打完一场半决赛（0-0）
+    const m1 = ok(await env.call('alice', 'recordEventMatch', { drawId: 'd10', key: '0-0', sets: [{ a: 4, b: 1 }], date: '2026-11-25' }));
+    // Carl 提交了一条待处理的退赛申请
+    const wr = ok(await env.call('carl', 'requestWithdraw', { drawId: 'd10', reason: '天气原因' }));
+    // 结束前：Carl 在「我的下一场」能看到 0-1
+    assert.ok(NX.nextMatch([Object.assign({}, env.coll('draws').d10)], Object.values(env.coll('matches')), 'carl', [], '2026-11-25'));
+
+    // 普通成员不能提前结束；手写原因不能通过
+    no(await env.call('alice', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' }), /发起人或管理员/);
+    no(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '随便手写' }), /固定选项/);
+
+    // 发起人按「天气原因」提前结束
+    const r1 = ok(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' }));
+    assert.strictEqual(r1.ended, true);
+    assert.strictEqual(r1.endReason, '天气原因');
+    assert.ok(env.coll('draws').d10.endedAt > 0);
+    assert.strictEqual(env.coll('requests')[wr.requestId].status, 'cancelled');
+    assert.strictEqual(ok(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' })).same, true);
+
+    // 已录比分完整保留，未打场次（0-1）不能录分 / 排场 / 退赛，也不再出现在「我的下一场」
+    assert.ok(env.coll('matches')[m1.matchId], '已录比分照常保留');
+    no(await env.call('carl', 'recordEventMatch', { drawId: 'd10', key: '0-1', sets: [{ a: 4, b: 2 }] }), /已提前结束/);
+    no(await env.call('owner', 'resolveFixture', { drawId: 'd10', key: '0-1', kind: 'walkover', loser: 'a', reason: '天气原因' }), /已提前结束/);
+    no(await env.call('owner', 'setFixtureSlot', { drawId: 'd10', key: '0-1', slot: { time: '10:00' } }), /已提前结束/);
+    no(await env.call('eve', 'requestWithdraw', { drawId: 'd10', reason: '天气原因' }), /已提前结束/);
+    assert.strictEqual(NX.nextMatch([Object.assign({}, env.coll('draws').d10)], Object.values(env.coll('matches')), 'carl', [], '2026-11-25'), null);
+
+    // 管理员恢复活动：去掉 endedAt，挂起退赛申请恢复，未打场次重新可录分
+    ok(await env.call('admin', 'closeDraw', { drawId: 'd10', closed: false }));
+    assert.strictEqual(env.coll('draws').d10.endedAt, undefined);
+    assert.strictEqual(env.coll('draws').d10.endReason, undefined);
+    assert.strictEqual(env.coll('requests')[wr.requestId].status, 'pending');
+    ok(await env.call('carl', 'recordEventMatch', { drawId: 'd10', key: '0-1', sets: [{ a: 4, b: 2 }], date: '2026-11-25' }));
+    assert.strictEqual(Object.values(env.coll('requests')).filter((x) => x.type === 'closeDraw').length, 2);
+
+    // 报名中提前结束：不能再报名，也不能取消报名
+    env.coll('draws').d11 = { _id: 'd11', _openid: 'owner', title: '报名中活动', date: '2026-11-26', mode: 'bracket', size: 4, status: 'signup', rules: { group: { bestOf: 1, setGames: 4, noAd: true, tb: 7 } } };
+    ok(await env.call('alice', 'signUp', { drawId: 'd11' }));
+    ok(await env.call('owner', 'closeDraw', { drawId: 'd11', closed: true, reason: '天气原因' }));
+    no(await env.call('bob', 'signUp', { drawId: 'd11' }), /已提前结束/);
+    no(await env.call('alice', 'cancelSignup', { drawId: 'd11' }), /已提前结束/);
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
 test('订阅消息已移除：没有 notifyTemplates 操作；录分、申请、审核照常', async () => {
   const env = setup();
   assert.strictEqual((await env.call('alice', 'notifyTemplates')).error, '未知操作');

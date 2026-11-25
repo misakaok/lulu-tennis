@@ -21,6 +21,7 @@ Page({
     aLabel: 'A 方', bLabel: 'B 方',
     check: { ok: false, msg: '' }, submitting: false, rulesText: '', dayText: '',
     fromScorer: false, initSets: [], scorerResume: false, // 从场边记分带过来的规则和盘分（只预填，仍要选球员、核对后提交）
+    rkOpen: false, rkBusy: false, rkList: [], rkId: '', rkMin: '60', rkDate: '', // 录完顺手记球拍时长弹层
   },
 
   onLoad(options) {
@@ -69,6 +70,7 @@ Page({
       if (sc) { this.setData({ setGames: sc.setGames, noAd: sc.noAd, bestOf: sc.bestOf, initSets: sc.sets, fromScorer: true }); this.refresh(); }
     }
     this.refreshScorer();
+    this.warmRackets();
     // 每次打开都实时校验；本机记得是正式成员（24 小时内确认过）就先显示、同时读球员，不等校验（不通过再收起，提交仍由云端校验）
     const M = require('../../utils/member');
     const check = M.status();
@@ -91,7 +93,7 @@ Page({
     const resume = !!(d && !d.ev && d.points && !SC.resultOf(d));
     if (resume !== this.data.scorerResume) this.setData({ scorerResume: resume });
   },
-  openScorer() { wx.navigateTo({ url: '/pages/scorer/scorer' }); },
+  openScorer() { wx.navigateTo({ url: '/pkg-tools/scorer/scorer' }); },
 
   // 只有已注册（设置过资料、昵称唯一）的球员可选：战绩按账号累计
   setPlayers(full) {
@@ -235,11 +237,15 @@ Page({
         sets: r.sets, winner: r.winner, setsWon: r.won,
       });
       haptic.medium();
-      wx.showToast({ title: '已记录，计入战绩', icon: 'success' });
+      const draftBefore = this.scorerId ? SC.loadDraft() : null;
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉对应的场边记分草稿
+      const nextUrl = '/pages/match/match?id=' + res._id;
+      const playDate = this.data.date || today();
       this.resetSets();
+      if (this.openRkPrompt(r.sets, playDate, draftBefore, nextUrl)) return;
+      wx.showToast({ title: '已记录，计入战绩', icon: 'success' });
       // 去比赛详情：录错了可以在那里直接改
-      setTimeout(() => wx.redirectTo({ url: '/pages/match/match?id=' + res._id }), 700);
+      setTimeout(() => wx.redirectTo({ url: nextUrl }), 700);
     } catch (e) {
       console.error(e);
       wx.showModal({
@@ -249,6 +255,67 @@ Page({
       });
     } finally {
       this.setData({ submitting: false });
+    }
+  },
+
+  /* ---------- 录完比赛顺手记入球拍打球时长（有在役球拍时弹出，纯可选） ---------- */
+  warmRackets() {
+    try {
+      const API = require('../../utils/rackets');
+      const K = require('../../utils/racket');
+      const c = API.cachedList && API.cachedList();
+      if (c && Array.isArray(c.rackets)) { this.liveRks = K.liveRackets(c.rackets); return; }
+      if (API.load) API.load().then((r) => { if (r && Array.isArray(r.rackets)) this.liveRks = K.liveRackets(r.rackets); }, () => {});
+    } catch (e) {}
+  },
+  openRkPrompt(sets, date, draft, nextUrl) {
+    let list = this.liveRks;
+    if (!list) {
+      try {
+        const API = require('../../utils/rackets');
+        const K = require('../../utils/racket');
+        const c = API.cachedList && API.cachedList();
+        if (c && Array.isArray(c.rackets)) list = K.liveRackets(c.rackets);
+      } catch (e) {}
+    }
+    if (!list || !list.length) return false;
+    const K = require('../../utils/racket');
+    const el = draft && draft.startedAt && draft.endedAt ? Math.round((draft.endedAt - draft.startedAt) / 60000) : 0;
+    const est = el >= 5 && el <= 600 ? el : K.estimateMatchMins(sets);
+    this.afterRkUrl = nextUrl;
+    this.setData({ rkOpen: true, rkBusy: false, rkList: list, rkId: list[0].id, rkMin: String(est), rkDate: date });
+    return true;
+  },
+  pickRk(e) { this.setData({ rkId: e.currentTarget.dataset.id }); },
+  rkMinQuick(e) { this.setData({ rkMin: e.currentTarget.dataset.m }); },
+  rkMinInput(e) { this.setData({ rkMin: String(e.detail.value || '').replace(/\D/g, '').slice(0, 3) }); },
+  skipRkLog() {
+    if (this.data.rkBusy) return;
+    const url = this.afterRkUrl;
+    this.setData({ rkOpen: false });
+    if (url) wx.redirectTo({ url });
+  },
+  async saveRkLog() {
+    if (this.data.rkBusy) return;
+    if (!this.data.rkId) { wx.showToast({ title: '请先选择球拍', icon: 'none' }); return; }
+    if (!/^\d+$/.test(this.data.rkMin)) { wx.showToast({ title: '请填打球分钟数', icon: 'none' }); return; }
+    const K = require('../../utils/racket');
+    const API = require('../../utils/rackets');
+    const d = this.data.rkDate || today();
+    const chk = K.cleanLog({ kind: 'play', date: d, minutes: Number(this.data.rkMin) }, today());
+    if (!chk.ok) { wx.showToast({ title: chk.msg, icon: 'none' }); return; }
+    this.setData({ rkBusy: true });
+    try {
+      await API.saveLog('', this.data.rkId, chk.rec);
+      const url = this.afterRkUrl;
+      this.setData({ rkOpen: false, rkBusy: false });
+      haptic.medium();
+      wx.showToast({ title: '已记入球拍时长', icon: 'success' });
+      if (API.refreshBadge) API.refreshBadge();
+      if (url) setTimeout(() => wx.redirectTo({ url }), 600);
+    } catch (err) {
+      this.setData({ rkBusy: false });
+      wx.showToast({ title: (err && err.message) || '保存失败', icon: 'none' });
     }
   },
 });

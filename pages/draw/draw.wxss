@@ -106,5 +106,18 @@
 .undo-bar .btn-line.mini { flex: none; margin-left: 16rpx; }
 .undo-x { flex: none; width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center; margin-left: 4rpx; font-size: 26rpx; color: #70708C; }
 
-/* 列表底部「上滑加载更多」（和战绩页一样） */
-.d-more { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 30rpx; }
+/* 列表底部分页器（和战绩页统一风格） */
+.pager {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 24rpx; padding: 14rpx 16rpx; border-radius: 28rpx; background: #fff;
+  border: 1rpx solid rgba(132, 132, 182, 0.14); box-shadow: 0 4rpx 14rpx rgba(84, 84, 146, 0.06);
+}
+.pg-btn {
+  flex: none; height: 64rpx; line-height: 64rpx; padding: 0 26rpx; border-radius: 22rpx;
+  background: #EFEFF8; color: #58588A; font-size: 25rpx; font-weight: 700;
+}
+.pg-btn.off { opacity: 0.36; }
+.pg-mid { flex: 1; text-align: center; padding: 0 10rpx; }
+.pg-cur { display: inline-flex; align-items: center; font-size: 26rpx; font-weight: 800; color: #2E2E4A; }
+.pg-caret { margin-left: 6rpx; font-size: 19rpx; color: #8484B6; }
+.pg-tot { margin-top: 2rpx; font-size: 20rpx; color: #84849E; }

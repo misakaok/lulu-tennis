@@ -1,0 +1,317 @@
+<!-- 记分牌：已完成的各盘 + 本盘局分 + 本局小分（抢七用数字） -->
+<template name="board">
+  <view class="bd">
+    <view class="bd-row bd-head">
+      <text class="bd-side"></text>
+      <text wx:for="{{v.cols}}" wx:key="k" class="bd-g">{{item.cur ? '本盘' : '第' + (index + 1) + '盘'}}</text>
+      <text wx:if="{{!v.done}}" class="bd-p">{{v.tb ? '抢七' : '本局'}}</text>
+    </view>
+    <view class="bd-row">
+      <view class="bd-side"><view class="bd-srv {{v.server === 'a' ? 'on' : ''}}"></view><text class="bd-sn">{{names.a}}</text></view>
+      <view wx:for="{{v.cols}}" wx:key="k" class="bd-g num {{item.cur ? 'cur' : ''}} {{item.aw ? 'w' : ''}}">{{item.a}}<text wx:if="{{item.tbLo !== '' && item.aw === false}}" class="bd-tb">{{item.tbLo}}</text></view>
+      <view wx:if="{{!v.done}}" class="bd-p num">{{v.callA}}</view>
+    </view>
+    <view class="bd-row">
+      <view class="bd-side"><view class="bd-srv {{v.server === 'b' ? 'on' : ''}}"></view><text class="bd-sn">{{names.b}}</text></view>
+      <view wx:for="{{v.cols}}" wx:key="k" class="bd-g num {{item.cur ? 'cur' : ''}} {{item.bw ? 'w' : ''}}">{{item.b}}<text wx:if="{{item.tbLo !== '' && item.bw === false}}" class="bd-tb">{{item.tbLo}}</text></view>
+      <view wx:if="{{!v.done}}" class="bd-p num">{{v.callB}}</view>
+    </view>
+  </view>
+</template>
+
+<view wx:if="{{authError}}" class="page muted">{{authError}}</view>
+<view wx:else class="page">
+
+  <!-- 选规则 -->
+  <block wx:if="{{mode === 'setup'}}">
+    <view class="hero ani-sheen">
+      <view class="hero-main">
+        <view class="hero-k">场边记分</view>
+        <view class="hero-t">A 方 <text class="hero-x">vs</text> B 方</view>
+        <view class="hero-s">逐分记分，只保存在这台手机上</view>
+      </view>
+      <image class="hero-art" src="/images/art-ball.png" mode="aspectFit" />
+    </view>
+    <view wx:if="{{hasDraft}}" class="card draft">
+      <text class="draft-t">本机还有一场记分</text>
+      <view class="btn-line mini" hover-class="tap-on" bindtap="backToDraft">回到上一场</view>
+    </view>
+    <view class="card">
+      <view class="card-title">规则</view>
+      <view class="field">
+        <text class="label">每盘局数</text>
+        <view class="seg">
+          <view class="seg-item {{cfg.setGames === 4 ? 'on' : ''}}" data-k="setGames" data-v="4" bindtap="setOpt">4 局制（3:3 抢七）</view>
+          <view class="seg-item {{cfg.setGames === 6 ? 'on' : ''}}" data-k="setGames" data-v="6" bindtap="setOpt">6 局制（6:6 抢七）</view>
+        </view>
+      </view>
+      <view class="field">
+        <text class="label">金球 / 占先</text>
+        <view class="seg">
+          <view class="seg-item {{cfg.noAd ? 'on' : ''}}" data-k="noAd" data-v="1" bindtap="setOpt">金球</view>
+          <view class="seg-item {{cfg.noAd ? '' : 'on'}}" data-k="noAd" data-v="0" bindtap="setOpt">占先</view>
+        </view>
+      </view>
+      <view class="field">
+        <text class="label">盘数</text>
+        <view class="seg">
+          <view class="seg-item {{cfg.bestOf === 1 ? 'on' : ''}}" data-k="bestOf" data-v="1" bindtap="setOpt">一盘</view>
+          <view class="seg-item {{cfg.bestOf === 3 ? 'on' : ''}}" data-k="bestOf" data-v="3" bindtap="setOpt">三盘两胜</view>
+        </view>
+      </view>
+      <view class="rules-tip">{{cfg.noAd ? '金球：40:40 时下一分定局；抢七先到 7 分即赢（7:6 结束）' : '占先：40:40 后要连赢 2 分；抢七先到 7 分且净胜 2 分'}}{{cfg.setGames === 6 ? '；6 局制可以 7:5' : ''}}</view>
+      <view class="toss-entry">
+        <view class="te-m">
+          <view class="te-t">赛前准备<text wx:if="{{setupServe}}" class="te-v">{{setupServe === 'a' ? 'A 方先发' : 'B 方先发'}}</text></view>
+          <view class="te-s">转球拍底盖选发球权，或开 5 分钟热身计时</view>
+        </view>
+        <view class="te-acts">
+          <view class="btn-line mini" hover-class="tap-on" bindtap="openToss">转球拍</view>
+          <view class="btn-line mini te-btn" hover-class="tap-on" data-sec="300" data-label="热身倒计时" bindtap="startTimer">5分热身</view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{tmr}}" class="card tmr-card {{tmr.done ? 'done' : ''}}">
+      <view class="tmr-top">
+        <view class="tmr-l"><view class="tmr-dot {{tmr.done ? 'done' : ''}}"></view><text>{{tmr.done ? tmr.label + '结束 · 回到场上' : tmr.label}}</text></view>
+        <view class="tmr-time num">{{tmr.text}}</view>
+      </view>
+      <view class="tmr-prog"><view class="tmr-fill" style="width:{{tmr.pct}}%"></view></view>
+      <view class="tmr-acts">
+        <view wx:if="{{!tmr.done}}" class="tmr-act" bindtap="toggleTimerPause">{{tmr.paused ? '继续' : '暂停'}}</view>
+        <view class="tmr-act" bindtap="stopTimer">关闭</view>
+      </view>
+    </view>
+    <view class="btn-primary" hover-class="tap-on" bindtap="startNew">开始记分</view>
+    <view class="note">球员在带入日常录分时再选，这里只记 A、B 双方</view>
+  </block>
+
+  <!-- 有草稿：继续还是新一场 -->
+  <block wx:elif="{{mode === 'resume'}}">
+    <view class="sb ani-sheen">
+      <view class="sb-k">{{v.done ? '上一场已完赛' : '上一场还没打完'}}{{ev ? ' · ' + evTitle : ''}} · {{v.rulesText}}</view>
+      <template is="board" data="{{v, names}}" />
+      <view wx:if="{{v.done}}" class="sb-res">{{v.resultText}}</view>
+    </view>
+    <view class="btn-primary" hover-class="tap-on" bindtap="resume">继续记分</view>
+    <view class="btn-line gap" hover-class="tap-on" bindtap="goSetup">开始新一场</view>
+  </block>
+
+  <!-- 记分中 -->
+  <block wx:else>
+    <view class="sb ani-sheen">
+      <view class="sb-k">{{ev ? evTitle + ' · ' : ''}}{{v.rulesText}}{{v.done ? '' : ' · 第 ' + v.setNo + ' 盘'}}</view>
+      <template is="board" data="{{v, names}}" />
+      <view wx:if="{{v.done}}" class="sb-res"><text class="ui-tag lime">完赛</text> {{v.resultText}}</view>
+      <view wx:elif="{{v.callText || v.pointA || v.pointB}}" class="sb-call">
+        <text wx:if="{{v.callText}}">{{v.callText}}</text>
+        <text wx:if="{{v.pointA}}" class="sb-pt">{{names.a}} {{v.pointA}}</text>
+        <text wx:if="{{v.pointB}}" class="sb-pt">{{names.b}} {{v.pointB}}</text>
+      </view>
+      <view wx:if="{{v.changeEnds && !v.done}}" class="sb-swap">
+        <view class="sb-swap-l"><view class="sb-swap-dot"></view><text>{{v.changeText}}</text></view>
+        <view class="sb-swap-go" hover-class="tap-on" data-sec="90" data-label="换边倒计时" bindtap="startTimer">90s 计时</view>
+      </view>
+      <view wx:if="{{v.tb && !v.done}}" class="sb-tip">{{v.tbServeText ? v.tbServeText + ' · ' : ''}}{{v.tbText}}</view>
+    </view>
+
+    <!-- 倒计时条（5 分钟热身 / 90 秒换边） -->
+    <view wx:if="{{tmr}}" class="card tmr-card {{tmr.done ? 'done' : ''}}">
+      <view class="tmr-top">
+        <view class="tmr-l"><view class="tmr-dot {{tmr.done ? 'done' : ''}}"></view><text>{{tmr.done ? tmr.label + '结束 · 回到场上' : tmr.label}}</text></view>
+        <view class="tmr-time num">{{tmr.text}}</view>
+      </view>
+      <view class="tmr-prog"><view class="tmr-fill" style="width:{{tmr.pct}}%"></view></view>
+      <view class="tmr-acts">
+        <view wx:if="{{!tmr.done}}" class="tmr-act" bindtap="toggleTimerPause">{{tmr.paused ? '继续' : '暂停'}}</view>
+        <view class="tmr-act" bindtap="stopTimer">关闭</view>
+      </view>
+    </view>
+
+    <view wx:if="{{!v.done}}" class="srv-bar">
+      <view class="srv-top">
+        <view class="srv-info">
+          <view class="srv-dot {{v.server ? 'on' : ''}}"></view>
+          <text wx:if="{{v.server}}">{{v.server === 'a' ? names.a : names.b}} 正在发球</text>
+          <text wx:else class="srv-muted">可设先发球方，自动标发球权与破发点</text>
+        </view>
+        <view class="srv-btn" hover-class="tap-on" bindtap="toggleBig">大字板</view>
+      </view>
+      <view class="srv-tools">
+        <view class="srv-chip" hover-class="tap-on" bindtap="openToss">转球拍</view>
+        <view class="srv-chip" hover-class="tap-on" bindtap="toggleServe">{{v.serveFirst ? '换先发' : 'A 先发'}}</view>
+        <view class="srv-chip" hover-class="tap-on" data-sec="90" data-label="换边倒计时" bindtap="startTimer">90s 换边</view>
+        <view class="srv-chip" hover-class="tap-on" data-sec="300" data-label="热身倒计时" bindtap="startTimer">5分热身</view>
+        <view class="srv-chip {{statOn ? 'on' : ''}}" hover-class="tap-on" bindtap="toggleStat">统计{{statOn ? '开' : ''}}</view>
+      </view>
+    </view>
+
+    <view class="pts">
+      <view class="pt a {{v.done ? 'dis' : ''}}" hover-class="tap-on" data-side="a" bindtap="point">
+        <view class="pt-k">{{names.a}}得分</view>
+        <view class="pt-n num">+1</view>
+      </view>
+      <view class="pt b {{v.done ? 'dis' : ''}}" hover-class="tap-on" data-side="b" bindtap="point">
+        <view class="pt-k">{{names.b}}得分</view>
+        <view class="pt-n num">+1</view>
+      </view>
+    </view>
+
+    <!-- 可选极简技术统计：开启后每记一分可顺手补记上一分标签 -->
+    <view wx:if="{{statOn && !v.done}}" class="card tag-bar">
+      <view class="tag-hd">
+        <text wx:if="{{v.count}}">上一分（{{v.lastSide === 'a' ? names.a : names.b}}得分）顺手记一下：</text>
+        <text wx:else>记完一分后，可顺手点选 ACE / 双误 / 制胜分 / 非受迫失误</text>
+      </view>
+      <view wx:if="{{v.count}}" class="tag-chips">
+        <view wx:for="{{tagList}}" wx:key="c" class="tag-chip {{v.lastTag === item.c ? 'on' : ''}}" hover-class="tap-on" data-c="{{item.c}}" bindtap="tagPoint">{{item.t}}</view>
+      </view>
+    </view>
+
+    <view wx:if="{{v.done}}" class="card fin">
+      <view class="fin-t">{{v.resultText}}</view>
+      <view class="fin-s">{{v.setsText}}</view>
+      <view class="btn-primary" hover-class="tap-on" bindtap="handoff">{{ev ? '带入这一场录分' : '带入日常录分'}}</view>
+      <view wx:if="{{rkLogged}}" class="fin-rk-done">✓ 已记入 {{rkLogged.title}} 打球时长 · {{rkLogged.text}}</view>
+      <view wx:else class="fin-rk">
+        <view class="fin-rk-m">
+          <view class="fin-rk-t">顺手记入球拍打球时长</view>
+          <view class="fin-rk-s">{{v.elapsedMin >= 5 ? '本次记分约 ' + v.elapsedMin + ' 分钟，可调整' : '更新当前球线已打时长'}}</view>
+        </view>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="openRkLog">记时长</view>
+      </view>
+      <view wx:if="{{ev}}" class="fin-n">回到这一场的录分页，局分已经填好，核对后点「提交比分」才会保存。点错了可以先撤销上一分</view>
+      <view wx:else class="fin-n">带入后选好球员、核对比分再保存；日常比赛只能由参加的正式成员记录，在录分页里你固定在 A 方。点错了可以先撤销上一分</view>
+    </view>
+
+    <!-- 本场技术统计卡（完赛自动呈现，或开启技术统计后实时可见；只存本机） -->
+    <view wx:if="{{v.stats && (v.done || statOn)}}" class="card st-card">
+      <view class="st-hd">
+        <text class="st-t">本场技术统计</text>
+        <text class="st-sub">共 {{v.stats.total}} 分 · 只存本机</text>
+      </view>
+      <view class="st-sides">
+        <text class="st-sa">{{names.a}}</text>
+        <text class="st-sm">局势走势</text>
+        <text class="st-sb">{{names.b}}</text>
+      </view>
+      <view class="mom">
+        <view class="mom-mid"></view>
+        <view class="mom-cols">
+          <view wx:for="{{v.stats.bars}}" wx:key="i" class="mom-col">
+            <view class="mom-up"><view wx:if="{{item.side === 'a'}}" class="mom-bar a" style="height:{{item.h}}%"></view></view>
+            <view class="mom-dn"><view wx:if="{{item.side === 'b'}}" class="mom-bar b" style="height:{{item.h}}%"></view></view>
+          </view>
+        </view>
+      </view>
+      <view class="st-rows">
+        <view wx:for="{{v.stats.rows}}" wx:key="k" class="st-row">
+          <text class="st-v num">{{item.a}}</text>
+          <text class="st-l">{{item.l}}</text>
+          <text class="st-v r num">{{item.b}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="ops">
+      <view class="btn-line op {{v.canUndo ? '' : 'disabled'}}" hover-class="tap-on" bindtap="undo">撤销上一分</view>
+      <view class="btn-line op" hover-class="tap-on" bindtap="goSetup">新一场</view>
+    </view>
+    <view class="note">已记 {{v.count}} 分 · 自动保存在本机，离开后回来可以继续</view>
+  </block>
+
+  <!-- 常亮大字计分板模式：手机放长椅 / 球包上远距离可读，直接点上下半区记分 -->
+  <view wx:if="{{bigBoard && v}}" class="big-wrap">
+    <view class="big-top">
+      <text class="big-rule">{{ev ? evTitle + ' · ' : ''}}{{v.rulesText}}</text>
+      <view class="big-exit" hover-class="tap-on" bindtap="toggleBig">退出大字</view>
+    </view>
+    <view wx:if="{{tmr}}" class="big-tmr {{tmr.done ? 'done' : ''}}" bindtap="toggleTimerPause">
+      <text>{{tmr.done ? tmr.label + '结束' : tmr.label}}</text>
+      <text class="big-tmr-n num">{{tmr.text}}</text>
+      <text class="big-tmr-x" catchtap="stopTimer">✕</text>
+    </view>
+    <view class="big-half a {{v.done ? 'dis' : ''}}" hover-class="tap-on" data-side="a" bindtap="point">
+      <view class="big-info">
+        <view class="big-name-row"><view class="bd-srv {{v.server === 'a' ? 'on' : ''}}"></view><text class="big-name">{{names.a}}</text><text wx:if="{{v.pointA}}" class="big-pt">{{v.pointA}}</text></view>
+        <view class="big-sets num">
+          <text wx:for="{{v.cols}}" wx:key="k" class="big-g {{item.cur ? 'cur' : ''}}">{{item.a}}</text>
+        </view>
+      </view>
+      <view class="big-call num">{{v.done ? (v.winner === 'a' ? '胜' : '—') : v.callA}}</view>
+    </view>
+    <view class="big-mid">
+      <text wx:if="{{v.done}}" class="big-mid-t">{{v.resultText}} · {{v.setsText}}</text>
+      <text wx:elif="{{v.changeEnds}}" class="big-mid-swap">{{v.changeText}}</text>
+      <text wx:elif="{{v.callText}}" class="big-mid-t">{{v.callText}}</text>
+      <text wx:else class="big-mid-t">轻点上方或下方区域加分</text>
+    </view>
+    <view class="big-half b {{v.done ? 'dis' : ''}}" hover-class="tap-on" data-side="b" bindtap="point">
+      <view class="big-info">
+        <view class="big-name-row"><view class="bd-srv {{v.server === 'b' ? 'on' : ''}}"></view><text class="big-name">{{names.b}}</text><text wx:if="{{v.pointB}}" class="big-pt">{{v.pointB}}</text></view>
+        <view class="big-sets num">
+          <text wx:for="{{v.cols}}" wx:key="k" class="big-g {{item.cur ? 'cur' : ''}}">{{item.b}}</text>
+        </view>
+      </view>
+      <view class="big-call num">{{v.done ? (v.winner === 'b' ? '胜' : '—') : v.callB}}</view>
+    </view>
+    <view class="big-foot">
+      <view class="big-fbtn {{v.canUndo ? '' : 'dis'}}" hover-class="tap-on" bindtap="undo">撤销</view>
+      <view class="big-fbtn" hover-class="tap-on" data-sec="90" data-label="换边倒计时" bindtap="startTimer">90s 换边</view>
+      <view class="big-fbtn" hover-class="tap-on" data-sec="300" data-label="热身倒计时" bindtap="startTimer">5分热身</view>
+      <view class="big-fbtn" hover-class="tap-on" bindtap="openToss">转球拍</view>
+    </view>
+  </view>
+
+  <!-- 转球拍选发球权弹层 -->
+  <view wx:if="{{tossOpen}}" class="sheet-mask" bindtap="closeToss"></view>
+  <view wx:if="{{tossOpen}}" class="sheet toss-sheet">
+    <view class="sheet-t">转球拍选发球</view>
+    <view class="sheet-s">先猜「正」或「反」，轻点拍柄底盖开始旋转</view>
+    <view class="toss-stage" bindtap="spinCap">
+      <view class="toss-cap {{tossSpin ? 'spinning' : ''}} {{tossRes === 'down' ? 'flip' : ''}}">
+        <view class="toss-mark">L</view>
+      </view>
+    </view>
+    <view wx:if="{{tossSpin}}" class="toss-res">正在旋转…</view>
+    <view wx:elif="{{tossRes}}" class="toss-res hi">{{tossRes === 'up' ? '结果：正（L 朝上）' : '结果：反（L 倒立）'}}</view>
+    <view wx:else class="toss-res">轻点上面底盖或下方按钮旋转</view>
+    <view class="btn-primary toss-go {{tossSpin ? 'disabled' : ''}}" hover-class="tap-on" bindtap="spinCap">{{tossRes ? '再转一次' : '转一下球拍'}}</view>
+    <view class="toss-pick-t">选择先发球的一方</view>
+    <view class="toss-picks">
+      <view class="btn-line toss-p" hover-class="tap-on" data-side="a" bindtap="pickServe">{{names.a}} 先发</view>
+      <view class="btn-line toss-p" hover-class="tap-on" data-side="b" bindtap="pickServe">{{names.b}} 先发</view>
+    </view>
+  </view>
+
+  <!-- 完赛顺手记入球拍时长弹层 -->
+  <view wx:if="{{rkOpen}}" class="sheet-mask" bindtap="closeRkLog"></view>
+  <view wx:if="{{rkOpen}}" class="sheet rk-sheet">
+    <view class="sheet-t">顺手记入球拍时长</view>
+    <view class="sheet-s">只保存在你自己的球拍档案里，用于累计球线使用时长</view>
+    <view wx:if="{{rkLoading}}" class="rk-empty"></view>
+    <view wx:elif="{{!rkList.length}}" class="rk-empty">
+      <view class="rk-et">还没有添加球拍</view>
+      <view class="btn-line mini rk-add-btn" hover-class="tap-on" bindtap="goAddRacket">去添加一支球拍</view>
+    </view>
+    <block wx:else>
+      <view class="rk-lbl">选择本场使用的球拍</view>
+      <view class="rk-chips">
+        <view wx:for="{{rkList}}" wx:key="id" class="rk-chip {{rkId === item.id ? 'on' : ''}}" hover-class="tap-on" data-id="{{item.id}}" bindtap="pickRk">
+          <text class="rk-cn">{{item.title}}</text><text class="rk-cm">{{item.name}}</text>
+        </view>
+      </view>
+      <view class="rk-row">
+        <text class="label">打球分钟数</text>
+        <view class="rk-in-r"><input class="rk-in" type="number" maxlength="3" placeholder="1～600" placeholder-class="rk-ph" value="{{rkMin}}" bindinput="rkMinInput" /><text class="rk-u">分钟</text></view>
+      </view>
+      <view class="rk-qk">
+        <view wx:for="{{rkQuick}}" wx:key="m" class="rk-qi {{rkMin === item.m ? 'on' : ''}}" hover-class="tap-on" data-m="{{item.m}}" bindtap="rkMinQuick">{{item.t}}</view>
+      </view>
+      <view class="rk-acts">
+        <view class="btn-line rk-a" hover-class="tap-on" bindtap="closeRkLog">取消</view>
+        <view class="btn-primary rk-a {{rkBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="saveRkLog">{{rkBusy ? '保存中…' : '保存时长'}}</view>
+      </view>
+    </block>
+  </view>
+</view>
