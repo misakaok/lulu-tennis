@@ -273,3 +273,25 @@ test('「我的」生涯成就空卡：本机有比赛缓存时马上显示（ca
   assert.deepStrictEqual(await run([]), [{ cached: true, loaded: false }, true], '有缓存（没有比赛）：云端还没回来就显示');
   assert.deepStrictEqual(await run(null), [{ cached: false, loaded: false }, true], '没有缓存：等云端');
 });
+
+test('比赛详情页：点双方头像或名字进入球员主页（点自己跳「我的」，没绑定账号轻提示）', () => {
+  const xml = read('pages/match/match.wxml'), css = read('pages/match/match.wxss');
+  assert.strictEqual((xml.match(/class="hs-av-w" data-uid="\{\{p\.uid\}\}" bindtap="openPlayer"/g) || []).length, 2, '双方头像外层都绑 openPlayer');
+  assert.strictEqual((xml.match(/class="hs-n" data-uid="\{\{p\.uid\}\}" bindtap="openPlayer"/g) || []).length, 2, '双方名字也都绑 openPlayer');
+  assert.ok(/\.hs-av-w \+ \.hs-av-w \{ margin-left: -28rpx; \}/.test(css), '双打两张头像重叠间距保持不变');
+  const nav = [], tab = [], toast = [];
+  const file = path.resolve(__dirname, '../pages/match/match.js');
+  let def;
+  vm.runInNewContext(read('pages/match/match.js'), {
+    require: (id) => (id === '../../utils/db' ? { cachedOpenid: () => 'u1' } : id === '../../utils/cloud' || id === '../../utils/member' ? {} : createRequire(file)(id)),
+    wx: { navigateTo: (o) => nav.push(o.url), switchTab: (o) => tab.push(o.url), showToast: (o) => toast.push(o.title) },
+    Page: (d) => { def = d; }, console, setTimeout: () => 0,
+  });
+  const p = Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(o) { Object.assign(this.data, o); } });
+  p.openPlayer({ currentTarget: { dataset: { uid: 'u2' } } });
+  p.openPlayer({ currentTarget: { dataset: { uid: 'u1' } } });
+  p.openPlayer({ currentTarget: { dataset: { uid: '' } } });
+  assert.deepStrictEqual(nav, ['/pages/player/player?uid=u2']);
+  assert.deepStrictEqual(tab, ['/pages/me/me']);
+  assert.deepStrictEqual(toast, ['这位球员没有绑定账号']);
+});

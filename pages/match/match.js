@@ -28,7 +28,11 @@ function whyView(all, ratings, m, myId) {
 // 记分牌：页面上显示的这一场（比分、双方、性别）。本机缓存预览和云端结果共用
 function boardOf(m, players) {
   const gOf = require('../../utils/stats').genderFinder(players);
-  const side = (k) => (m[k] || []).map((n, i) => ({ name: n, uid: (m[k + 'Ids'] || [])[i] || '', initial: initialOf(n), color: colorOf(n), gender: gOf(n, (m[k + 'Ids'] || [])[i]) }));
+  const side = (k) => (m[k] || []).map((n, i) => {
+    const key = (m[k + 'Keys'] || [])[i] || '';
+    const uid = (m[k + 'Ids'] || [])[i] || (key && key.indexOf(ID.NAME_KEY) !== 0 ? key : '');
+    return { name: n, uid, initial: initialOf(n), color: colorOf(n), gender: gOf(n, uid) };
+  });
   // 记分牌中间的大比分：多盘显示盘数，只打一盘显示局数；弃权没有比分
   const sets = (m.sets || []).map((s) => ({ a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a, tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB }));
   const oc = outcomeOf(m), hasTb = sets.some((s) => s.tbA !== '' || s.tbB !== '');
@@ -94,6 +98,7 @@ Page({
       const players = db.cachedPlayersFull();
       const board = boardOf(m, players);
       const myId = (db.cachedOpenid && db.cachedOpenid()) || '';
+      if (myId) this.myId = myId;
       let extra = {};
       try {
         extra = extrasOf(list.filter((x) => x && x.status !== 'pending'), players, board, myId);
@@ -118,6 +123,7 @@ Page({
         db.matchesShared().catch(() => db.cachedMatches() || []), // 只用来算这一场的亮点标签和水平分说明
       ]);
       if (seq !== this.loadSeq) return;
+      if (myId) this.myId = myId;
       let raw, status, preset = null;
       if (st && st.match !== undefined) {
         raw = st.match; status = st.status || '';
@@ -155,5 +161,13 @@ Page({
   },
   toggleWhy() { this.setData({ whyOpen: !this.data.whyOpen }); },
   openEvent() { if (this.data.m.drawId) wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + this.data.m.drawId }); },
+  // 点头像或名字 → 球员主页（点自己直接跳「我的」，旧记录没绑定账号轻提示）
+  openPlayer(e) {
+    const uid = e.currentTarget.dataset.uid || '';
+    if (!uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
+    const me = this.myId || (db.cachedOpenid && db.cachedOpenid()) || '';
+    if (me && uid === me) { wx.switchTab({ url: '/pages/me/me' }); return; }
+    wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(uid) });
+  },
   onRevoked() { setTimeout(() => wx.navigateBack(), 600); },
 });

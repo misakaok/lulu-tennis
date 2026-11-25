@@ -22,8 +22,9 @@
 .hs { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
 .hs.l { opacity: 0.78; }
 .hs-avs { display: flex; justify-content: center; margin-bottom: 14rpx; }
+.hs-av-w { flex: none; }
+.hs-av-w + .hs-av-w { margin-left: -28rpx; }
 .hs-av { width: 96rpx; height: 96rpx; border-radius: 50%; border: 4rpx solid rgba(255, 255, 255, 0.9); display: flex; align-items: center; justify-content: center; font-size: 38rpx; font-weight: 800; color: #2E2E4A; flex: none; box-sizing: border-box; }
-.hs-av + .hs-av { margin-left: -28rpx; }
 .hs-n { max-width: 100%; font-size: 28rpx; font-weight: 700; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero .gd { color: rgba(255, 255, 255, 0.78); }
 .hs-badge { margin-top: 12rpx; padding: 2rpx 20rpx; border-radius: 20rpx; font-size: 21rpx; font-weight: 700; color: rgba(255, 255, 255, 0.85); background: rgba(255, 255, 255, 0.16); }

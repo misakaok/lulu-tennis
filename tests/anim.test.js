@@ -121,8 +121,8 @@ test('页面接入：战绩、排行的入场动画类都随 play 切换，并�
   });
   const idx = fs.readFileSync(path.join(__dirname, '..', 'pages', 'index', 'index.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{me\}\}" class="mine bg-host ani-sheen"/.test(idx), '「我的战绩」卡高光只扫一次，不随 play 重播');
-  // 比赛卡片列表不做入场动画（2026-11-25 用户要求取消），只保留按下回弹
-  assert.ok(/class="mc win-\{\{item\.winner\}\}" hover-class="tap-on"/.test(idx), '战绩页比赛卡片不要入场动画');
+  // 比赛卡片列表不做入场动画也不做按下缩放回弹（2026-11-25 用户要求取消）
+  assert.ok(/class="mc win-\{\{item\.winner\}\}" data-id/.test(idx) && !/class="mc [^"]*"[^>]*hover-class="tap-on"/.test(idx), '战绩页比赛卡片不要入场动画和按下缩放');
   // 排行榜表格（名次行、胜率条）也不做动画（2026-11-25 用户要求取消），领奖台照旧
   const rkw = fs.readFileSync(path.join(__dirname, '..', 'pages', 'rank', 'rank.wxml'), 'utf8');
   assert.ok(/class="tr \{\{item\.key === myKey \? 'me' : ''\}\}" hover-class/.test(rkw), '排行榜表格行不要入场动画');
@@ -296,6 +296,7 @@ test('排行榜领奖台包在「舞台卡」里（2026-11-25）：透视网球�
   assert.ok(/<view class="podium \{\{top\.length >= 3 \? '' : 'few'\}\}">/.test(stage), '领奖台本身不再单独判断 top.length');
   assert.strictEqual((stage.match(/<image /g) || []).length, 1, '舞台卡里只有奖牌图标，不加图片');
   assert.ok(/\.stage \{[^}]*padding: 34rpx 20rpx 0;/.test(css) && /ellipse 46% 36% at 50% 29%/.test(css), '底部不留内边距，底座长在卡片底边；聚光对齐球网中点与第 1 名头像');
+  assert.ok(!/\.stage \{[^}]*201,\s*227,\s*58/.test(css), '舞台卡静置背景不放黄绿底光，避免第 1 名延迟入场前空白处发绿');
   assert.ok(/\.stage-court \{[^}]*height: 520rpx; pointer-events: none; z-index: 0;/.test(css) && /\.podium \{ position: relative; z-index: 1;/.test(css));
   // 第 1 名头像外双波水纹细环：外层 .pod-av 承载 ::before / ::after（头像本身不缩放），关键帧只在 app.wxss 动 transform / opacity
   assert.ok(/<view class="pod-av"><pl-av class="avatar big"/.test(stage), '头像包在 .pod-av 里给光环留位置');
@@ -327,7 +328,7 @@ test('战绩页背景与记分牌（2026-11-25）：顶部淡紫柔幕、我的�
   assert.ok(/stroke-dasharray="4 4"/.test(mcSvg), '正中是球网虚线');
   assert.ok(/pointer-events: none; z-index: 0;/.test(rule('.mc-court')) && /\n\.mc-body \.sd, \.mc-body \.sc \{ position: relative; z-index: 1; \}/.test(css));
   assert.ok(!/\.mc\.win-[ab]::before/.test(css) && /\.mc\.win-a \.mc-body::before, \.mc\.win-b \.mc-body::before \{[^}]*#C6C6E4, #9E9EC8/.test(css) && /rgba\(163, 163, 203, 0\.09\)/.test(rule('.mc.win-a')), '胜方一侧用内缩浅淡紫圆头短竖条 + 冷雾紫微光，不放荧光黄绿通长竖条');
-  assert.ok(/class="mc win-\{\{item\.winner\}\}" hover-class="tap-on"/.test(xml) && !/class="mc [^"]*ani-/.test(xml));
+  assert.ok(/class="mc win-\{\{item\.winner\}\}" data-id/.test(xml) && !/class="mc [^"]*ani-/.test(xml) && !/class="mc [^"]*"[^>]*hover-class="tap-on"/.test(xml));
   const cards = xml.slice(xml.indexOf('<view class="date">'));
   assert.ok(!/<image /.test(cards.slice(0, cards.indexOf('class="fabs"'))), '比赛卡里不放图片');
 });

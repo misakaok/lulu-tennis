@@ -46,7 +46,7 @@
 
   <block wx:for="{{groups}}" wx:key="date" wx:for-item="g" wx:for-index="gi">
     <view class="date">{{g.label}}</view>
-    <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}}" hover-class="tap-on" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
+    <view wx:for="{{g.items}}" wx:key="_id" class="mc win-{{item.winner}}" data-id="{{item._id}}" bindtap="openMatch" bindlongpress="onLong">
       <view class="mc-meta">
         <text class="mc-type">{{item.typeText}}</text>
         <text wx:if="{{item.eventText}}" class="mc-ev">{{item.eventText}}</text>

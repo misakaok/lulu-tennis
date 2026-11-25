@@ -15,8 +15,8 @@
       </view>
       <view class="hero-main">
         <view class="hs {{m.winner === 'a' ? 'w' : 'l'}}">
-          <view class="hs-avs"><pl-av wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
-          <view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
+          <view class="hs-avs"><view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-av-w" data-uid="{{p.uid}}" bindtap="openPlayer"><pl-av class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view></view>
+          <view wx:for="{{m.a}}" wx:key="name" wx:for-item="p" class="hs-n" data-uid="{{p.uid}}" bindtap="openPlayer">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
           <view class="hs-badge {{m.winner === 'a' ? 'win ani-pop' : ''}}" style="animation-delay:460ms">{{m.winner === 'a' ? '胜' : m.loseText}}</view>
         </view>
         <view class="hero-mid">
@@ -24,8 +24,8 @@
           <view class="hero-sub">{{m.bigLbl}}</view>
         </view>
         <view class="hs {{m.winner === 'b' ? 'w' : 'l'}}">
-          <view class="hs-avs"><pl-av wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
-          <view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-n">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
+          <view class="hs-avs"><view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-av-w" data-uid="{{p.uid}}" bindtap="openPlayer"><pl-av class="hs-av" uid="{{p.uid}}" name="{{p.name}}" /></view></view>
+          <view wx:for="{{m.b}}" wx:key="name" wx:for-item="p" class="hs-n" data-uid="{{p.uid}}" bindtap="openPlayer">{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></view>
           <view class="hs-badge {{m.winner === 'b' ? 'win ani-pop' : ''}}" style="animation-delay:460ms">{{m.winner === 'b' ? '胜' : m.loseText}}</view>
         </view>
       </view>
