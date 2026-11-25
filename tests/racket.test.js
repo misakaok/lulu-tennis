@@ -498,4 +498,11 @@ test('球拍详情：本机记着的球拍列表里有这支拍就直接画出�
   assert.deepStrictEqual([r.data.loading, r.data.error], [false, '网络异常']);
 });
 
+test('球拍页顶部卡片：一支球拍都没有时不显示底部那行（和下面「还没有球拍」重复）；有球拍才显示上次穿线 / 到期提醒', () => {
+  const fs = require('fs'), path = require('path');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'pages/racket/racket.wxml'), 'utf8');
+  assert.ok(/<view wx:if="\{\{cards\.length\}\}" class="hero-foot">/.test(xml));
+  assert.ok(/还没有球拍/.test(xml));
+});
+
 module.exports = T;

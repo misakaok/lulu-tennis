@@ -166,7 +166,7 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
     const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
     ks.forEach((k) => {
       const rule = x.match(new RegExp('\\n\\.' + k + ' \\{([^}]*)\\}'))[1];
-      if (k !== 'hero-tag') assert.ok(/background: rgba\(56, 54, 108, 0\.22\)/.test(rule), k + ' 是烟熏冷紫底（三张紫色头卡的数据块统一）');
+      if (k !== 'hero-tag') assert.ok(/background: rgba\(56, 54, 108, 0\.16\)/.test(rule), k + ' 是烟熏冷紫底（三张紫色头卡的数据块统一；0.22 偏沉，2026-11-25 调浅到 0.16）');
       assert.ok(/backdrop-filter: blur/.test(rule), k);
       const bg = rule.match(/background: rgba\((?:255, ?255, ?255|56, ?54, ?108), ?([\d.]+)\)/);
       assert.ok(bg && Number(bg[1]) >= 0.16, k);
@@ -225,7 +225,7 @@ test('滑动胶囊：活动首页、排行（两处）、积分榜、战绩筛�
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
   const css = read('app.wxss');
   const thumb = css.match(/\n\.seg-thumb \{([^}]*)\}/)[1];
-  assert.ok(/transition: transform 0\.34s cubic-bezier\(0\.34, 1\.36, 0\.64, 1\);/.test(thumb) && !/transition:[^;]*(left|width|background)/.test(thumb));
+  assert.ok(/transition: transform 0\.42s cubic-bezier\(0\.34, 1\.24, 0\.64, 1\);/.test(thumb) && !/transition:[^;]*(left|width|background)/.test(thumb));
   assert.ok(/\.seg\.has-thumb \.seg-item \{[^}]*background: transparent;/.test(css), '选中项本身不再画白底');
   const want = [
     ['pages/draw/draw.wxml', "width:33.3333%;transform:translateX({{(tab === 'all' ? 0 : tab === 'mine' ? 1 : 2) * 100}}%)"],

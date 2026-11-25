@@ -45,7 +45,7 @@ page {
    宽度按项数等分（2 项 50%、3 项 33.3333%）；translateX 的百分比按滑块自己的宽度算，正好一格一格对齐。没改造的 .seg 照旧 */
 .seg.has-thumb { position: relative; background: #E9E9F4; }
 .seg-track { position: absolute; left: 6rpx; right: 6rpx; top: 6rpx; bottom: 6rpx; pointer-events: none; z-index: 0; }
-.seg-thumb { height: 100%; border-radius: 18rpx; background: #fff; box-shadow: 0 4rpx 14rpx rgba(80, 80, 140, 0.14), 0 1rpx 3rpx rgba(80, 80, 140, 0.06); transition: transform 0.34s cubic-bezier(0.34, 1.36, 0.64, 1); }
+.seg-thumb { height: 100%; border-radius: 18rpx; background: #fff; box-shadow: 0 4rpx 14rpx rgba(80, 80, 140, 0.14), 0 1rpx 3rpx rgba(80, 80, 140, 0.06); transition: transform 0.42s cubic-bezier(0.34, 1.24, 0.64, 1); } /* 2026-11-25 用户嫌快：0.34s → 0.42s、回弹 1.36 → 1.24 */
 .seg.has-thumb .seg-item { position: relative; z-index: 1; background: transparent; box-shadow: none; }
 
 .avatar {
@@ -99,7 +99,7 @@ page {
 .num { font-family: "DIN Alternate", "Avenir Next Condensed", "Roboto Condensed", -apple-system, Roboto, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
 /* 小控件切换：底色、文字色平滑过渡（只给分段、筛选这类小块用） */
-.seg-item { transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.seg-item { transition: background-color 0.28s ease, color 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease; } /* 和滑块差不多同时到（滑块 0.42s，回弹前约 0.28s 到位） */
 
 /*
  * 动画（只用 transform / opacity，都写成全局类，页面和组件直接加类名）

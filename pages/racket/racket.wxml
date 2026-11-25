@@ -17,7 +17,8 @@
           <view class="hc"><view class="hc-n num">{{o.stringCount}}</view><view class="hc-l">累计穿线</view></view>
           <view class="hc"><view class="hc-n num">{{o.maintCount}}</view><view class="hc-l">累计维护</view></view>
         </view>
-        <view class="hero-foot">
+        <!-- 一支球拍都没有时不显示这行（和下面「还没有球拍」重复，2026-11-25 用户要求） -->
+        <view wx:if="{{cards.length}}" class="hero-foot">
           <text wx:if="{{o.due}}" class="hero-due">{{o.due}} 项到期或快到了</text>
           <text wx:else>{{o.lastString ? '上次穿线 ' + o.lastString : '还没有穿线记录'}}</text>
         </view>
