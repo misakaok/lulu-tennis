@@ -501,8 +501,13 @@ test('球拍详情：本机记着的球拍列表里有这支拍就直接画出�
 test('球拍页顶部卡片：一支球拍都没有时不显示底部那行（和下面「还没有球拍」重复）；有球拍才显示上次穿线 / 到期提醒', () => {
   const fs = require('fs'), path = require('path');
   const xml = fs.readFileSync(path.join(__dirname, '..', 'pages/racket/racket.wxml'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'pages/racket/racket.wxss'), 'utf8');
   assert.ok(/<view wx:if="\{\{cards\.length\}\}" class="hero-foot">/.test(xml));
   assert.ok(/还没有球拍/.test(xml));
+  assert.ok(!/clearAll|清除全部球拍|danger-zone/.test(xml + css), '球拍列表页不放清除全部按钮，在每支球拍详情里按拍删除');
+  assert.ok(/class="rk-n num"/.test(xml), '穿线和维护次数用记分牌窄体数字');
+  assert.ok(!/class="card rk [^"]*"[^>]*hover-class="tap-on"/.test(xml), '球拍卡片点击直接进详情，不做缩放抖动');
+  assert.ok(/\.page::before \{[^}]*#A3A3CB 0%/.test(css) && /rgba\(56, 54, 108, 0\.16\)/.test(css), '顶部柔紫幕与烟熏冷紫毛玻璃底条');
 });
 
 module.exports = T;

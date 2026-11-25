@@ -20,7 +20,7 @@
         <!-- 一支球拍都没有时不显示这行（和下面「还没有球拍」重复，2026-11-25 用户要求） -->
         <view wx:if="{{cards.length}}" class="hero-foot">
           <text wx:if="{{o.due}}" class="hero-due">{{o.due}} 项到期或快到了</text>
-          <text wx:else>{{o.lastString ? '上次穿线 ' + o.lastString : '还没有穿线记录'}}</text>
+          <text wx:else>{{o.lastString ? '上次穿线 ' + o.lastString : '暂无穿线记录'}}</text>
         </view>
       </view>
       <image class="hero-art" src="/images/racket-hero.png" mode="aspectFit" />
@@ -30,11 +30,12 @@
       <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
       <view class="ec-t">还没有球拍</view>
       <view class="ec-s">添加球拍后可以记录每次穿线、换手胶，设置提醒间隔，到期时这里会提示</view>
-      <view class="btn-primary small" hover-class="tap-on" bindtap="add">＋ 添加球拍</view>
+      <view class="btn-primary add-btn empty-add" hover-class="tap-on" bindtap="add"><view class="add-ball"><view class="add-plus"></view></view><text class="add-t">添加球拍</text></view>
     </view>
 
     <block wx:else>
-      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 62 : 0}}ms" hover-class="tap-on" data-id="{{item.id}}" bindtap="open">
+      <view class="sec-hd"><text class="sec-t">球拍列表</text><text class="sec-c num">{{cards.length}} 支</text></view>
+      <view wx:for="{{cards}}" wx:key="id" class="card rk {{item.retired ? 'off' : ''}} {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 62 : 0}}ms" data-id="{{item.id}}" bindtap="open">
         <view class="rk-main">
           <rk-art class="rk-ph" brand="{{item.brand}}" model="{{item.model}}" />
           <view class="rk-body">
@@ -44,19 +45,15 @@
               <text class="ui-tag {{item.retired ? '' : 'solid'}}">{{item.status}}</text>
             </view>
             <view class="rk-mid">
-              <text class="rk-n">{{item.stringCount}}</text><text class="rk-u">次穿线</text>
-              <text class="rk-n">{{item.maintCount}}</text><text class="rk-u">次维护</text>
+              <text class="rk-n num">{{item.stringCount}}</text><text class="rk-u">次穿线</text>
+              <text class="rk-n num">{{item.maintCount}}</text><text class="rk-u">次维护</text>
             </view>
-            <view class="rk-last">{{item.last}}</view>
+            <view class="rk-last {{item.hasString ? '' : 'hint'}}">{{item.last}}</view>
           </view>
         </view>
         <view wx:if="{{item.alerts.length}}" class="rk-alerts"><text wx:for="{{item.alerts}}" wx:key="k" wx:for-item="a" class="ui-tag {{a.cls}} rk-a">{{a.t}}</text></view>
       </view>
-      <view class="btn-primary" hover-class="tap-on" bindtap="add">＋ 添加球拍</view>
-      <view class="danger-zone">
-        <view class="dz-t">数据只保存在小程序的云端，按你的账号隔离。</view>
-        <view class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部球拍数据'}}</view>
-      </view>
+      <view class="btn-primary add-btn" hover-class="tap-on" bindtap="add"><view class="add-ball"><view class="add-plus"></view></view><text class="add-t">添加球拍</text></view>
     </block>
   </block>
 </view>

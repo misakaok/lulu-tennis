@@ -429,8 +429,8 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
   h.onLoad();
   await h.load();
   assert.strictEqual(h.data.error, '网络异常', '从没画过：整页显示读取失败');
-  // 清除全部后读不到：不留着已清除的记录（球拍列表、成长档案都一样）
-  for (const f of ['pages/racket/racket.js', 'pages/growth/growth.js']) assert.ok(/this\.drawn = false;[^\n]*\n?\s*return this\.load\(\)/.test(read(f)), f);
+  // 成长档案清除全部后读不到：不留着已清除的记录（球拍页已去掉「清除全部」按钮，改在单支球拍详情里删）
+  assert.ok(/this\.drawn = false;[^\n]*\n?\s*return this\.load\(\)/.test(read('pages/growth/growth.js')), 'pages/growth/growth.js');
   for (const f of ['pages/racket/racket.js', 'pages/history/history.js']) assert.ok(/const seq = this\.loadSeq = \(this\.loadSeq \|\| 0\) \+ 1;/.test(read(f)) && /seq !== this\.loadSeq/.test(read(f)), f + ' 防乱序');
 });
 

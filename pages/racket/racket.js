@@ -11,13 +11,14 @@ function cardOf(r, logs, t) {
   return {
     id: r.id, no: r.no, brand: r.brand, model: r.model, title: K.racketTitle(r), name: K.racketName(r), status: K.STATUS[r.status] || '', retired: r.status === 'retired',
     stringCount: s.stringCount, maintCount: s.maintCount,
-    last: s.lastString ? `上次穿线 ${s.lastString.ago} · ${s.lastString.tension}` : '还没有穿线记录',
-    alerts: s.reminders.filter((x) => x.state !== 'ok').slice(0, 3).map((x) => ({ k: x.item, t: `${x.label}${x.state === 'none' ? '：还没有记录' : x.state === 'over' ? '：已到期' : '：快到了'}`, cls: x.state === 'over' ? 'bad' : x.state === 'soon' ? 'warn' : '' })),
+    hasString: !!s.lastString,
+    last: s.lastString ? `上次穿线 ${s.lastString.ago} · ${s.lastString.tension}` : '点击记录穿线、换手胶或打球时长 ›',
+    alerts: s.reminders.filter((x) => x.state !== 'ok').slice(0, 3).map((x) => ({ k: x.item, t: `${x.label} · ${x.state === 'none' ? '待记录' : x.state === 'over' ? '已到期' : '快到了'}`, cls: x.state === 'over' ? 'bad' : x.state === 'soon' ? 'warn' : 'idle' })),
   };
 }
 
 Page({
-  data: { loading: true, error: '', cards: [], o: null, clearing: false },
+  data: { loading: true, error: '', cards: [], o: null },
 
   onLoad() {
     wx.hideShareMenu(); // 私人数据不能分享
@@ -58,19 +59,4 @@ Page({
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
   add() { wx.navigateTo({ url: '/pages/racket-edit/racket-edit' }); },
   open(e) { wx.navigateTo({ url: '/pages/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
-
-  clearAll() {
-    if (this.data.clearing) return;
-    wx.showModal({
-      title: '清除全部球拍数据？', content: '会永久删除你的全部球拍、穿线和维护记录，无法恢复。',
-      confirmText: '清除', confirmColor: '#b34d4d',
-      success: (r) => {
-        if (!r.confirm) return;
-        this.setData({ clearing: true });
-        API.clear().then(() => { wx.showToast({ title: '已清除', icon: 'none' }); this.drawn = false; return this.load(); }) // 清除后读不到：不留着已清除的球拍
-          .catch((e) => wx.showToast({ title: e.message || '清除失败', icon: 'none' }))
-          .then(() => this.setData({ clearing: false }));
-      },
-    });
-  },
 });
