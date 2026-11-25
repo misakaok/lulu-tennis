@@ -145,4 +145,61 @@ test('共享的统计结果只读：球员主页、报名名单、排行榜都�
   assert.strictEqual(JSON.stringify(PV.playerView(profiles, players, matches, 'alice')), v1);
 });
 
+test('亮点标签：H.tagsOf 按数组引用只算一次（核对水平分结果和条数），结果和 matchTags 一样、不改动输入', () => {
+  const H = require('../utils/highlight');
+  const { players, matches } = fixture(60);
+  const ratings = R.ratingsOf(matches, players);
+  const before = JSON.stringify(matches);
+  const t1 = H.tagsOf(matches, ratings);
+  assert.strictEqual(H.tagsOf(matches, ratings), t1, '同一组：直接用上次的结果');
+  assert.deepStrictEqual(t1, H.matchTags(matches, ratings));
+  assert.ok(Object.keys(t1).length > 0, '这组数据有亮点');
+  assert.strictEqual(JSON.stringify(matches), before, '不改动共享的比赛数组');
+  const r2 = R.computeRatings(matches, R.startLevelsFrom(players));
+  assert.notStrictEqual(H.tagsOf(matches, r2), t1, '换了水平分结果：重算');
+  const mut = matches.slice();
+  const a = H.tagsOf(mut, ratings);
+  mut.push(Object.assign({}, matches[0], { _id: 'extra', date: '2026-12-30', winner: 'b' }));
+  const b = H.tagsOf(mut, ratings);
+  assert.notStrictEqual(b, a, '条数变了：重算');
+  assert.deepStrictEqual(b, H.matchTags(mut, ratings));
+});
+
+test('战绩页、比赛详情、排行榜共用同一次水平分和亮点计算（传的都是共享的正式战绩数组）', async () => {
+  const H = require('../utils/highlight');
+  const { players, matches } = fixture(60);
+  const pending = [Object.assign({}, matches[0], { _id: 'p1', status: 'pending' })];
+  const all = matches.concat(pending);
+  const ratings = R.ratingsOf(matches, players); // 排行榜：R.ratingsOf(matchesShared, playersShared)
+  const tags = H.tagsOf(matches, ratings);
+  // 战绩页：setSource 拿到共享的正式战绩就直接用它（不再自己 filter 出新数组）
+  const idx = loadDef('pages/index/index.js', { '../../utils/db': { profilesOf: () => profilesOf(players) } });
+  const ih = host(idx);
+  assert.strictEqual(ih.setSource(all, players, 'alice', matches), true);
+  assert.strictEqual(ih.src.deltas, ratings.deltas, '和排行榜同一次水平分');
+  assert.strictEqual(ih.src.tags, tags, '亮点标签同一次');
+  assert.strictEqual(ih.src.shown, all, '列表照样含待确认的');
+  assert.strictEqual(ih.setSource(all, players, 'alice', matches), false, '引用都没变：不重算');
+  // 本机缓存先画（还没有共享的正式战绩）：自己筛
+  const ih2 = host(idx);
+  ih2.setSource(all, players, 'alice');
+  assert.deepStrictEqual(ih2.src.tags, tags);
+  assert.ok(/db\.matchesShared \? db\.matchesShared\(\) : null/.test(read('pages/index/index.js')), 'load 里取共享的正式战绩');
+  // 比赛详情：同样的共享数组 → 同一次计算
+  const id = Object.keys(tags)[0];
+  const rec = matches.find((m) => m._id === id);
+  const md = loadDef('pages/match/match.js', {
+    '../../utils/db': {
+      cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedOpenid: () => '',
+      fetchMatchState: async () => ({ match: rec, status: 'official', matchId: id, changes: [] }),
+      playersShared: async () => players, myOpenid: async () => 'alice', matchesShared: async () => matches,
+    },
+    '../../utils/member': { knownActive: () => false, isAdminLocal: () => false },
+  });
+  const mh = host(md);
+  mh.id = id;
+  await mh.load();
+  assert.strictEqual(mh.data.tags, tags[id], '比赛详情的亮点就是战绩页那一份');
+});
+
 module.exports = T;

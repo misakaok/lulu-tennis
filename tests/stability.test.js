@@ -270,8 +270,9 @@ test('活动详情防连点：报名在第一个 await 前上锁；取消报名�
 });
 
 /* ---------- 资料页 ---------- */
-function profilePage(db) {
-  const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showModal: (o) => { if (o.complete) o.complete(); if (o.success) o.success({ confirm: true }); }, showLoading() {}, hideLoading() {}, navigateBack() {}, switchTab() {} };
+// 第一次建资料保存时的「是否开启公开展示？」按 consent 回答（默认「暂不开启」），其他弹窗一律点确定
+function profilePage(db, consent) {
+  const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showModal: (o) => { if (o.complete) o.complete(); if (o.success) o.success({ confirm: o.title === '是否开启公开展示？' ? !!consent : true }); }, showLoading() {}, hideLoading() {}, navigateBack() {}, switchTab() {} };
   const def = loadDef('pages/profile/profile.js', {
     '../../utils/db': Object.assign({ cachedProfile: () => null, myOpenid: async () => 'me', setShown: async () => {}, fetchPlayersFull: async () => [] }, db),
     '../../utils/cloud': { call: async () => ({ url: '', state: '' }) },
@@ -309,7 +310,7 @@ test('资料页：第一次保存资料成功、照片没传上去，之后按�
   p.uploadPhoto = async () => { throw new Error('网络异常'); };
   await p.save();
   assert.strictEqual(saved.length, 1);
-  assert.strictEqual(saved[0].shown, false, '第一次带上授权勾选结果');
+  assert.strictEqual(saved[0].shown, false, '第一次带上授权勾选结果（问了一次，选了「暂不开启」）');
   assert.strictEqual(p.data.isNew, false, '资料已经建好');
   assert.strictEqual(p.data.saving, false);
   await p.save();
@@ -359,6 +360,84 @@ test('资料页：无缓存打开已有资料时，云端返回前提前勾选�
   memStatus.resolve({ name: '准入昵称' });
   await flush();
   assert.strictEqual(q.data.name, '', '用户改过又清空的昵称不被 prefill 填回去');
+
+  // 弹窗询问「是否开启公开展示？」期间云端资料晚到（把 isNew 改成 false），点「开启展示」仍带上 shown: true
+  const late = deferred(), saved2 = [];
+  let modalDone = null;
+  const wx2 = {
+    hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showLoading() {}, hideLoading() {}, navigateBack() {}, switchTab() {},
+    showModal(o) { if (o.title === '是否开启公开展示？') modalDone = (c) => o.success({ confirm: c }); else if (o.success) o.success({ confirm: true }); },
+  };
+  const def2 = loadDef('pages/profile/profile.js', {
+    '../../utils/db': { cachedProfile: () => null, getMyProfile: () => late.p, myOpenid: async () => 'me', saveMyProfile: async (x) => { saved2.push(x); }, fetchPlayersFull: async () => [] },
+    '../../utils/cloud': { call: async () => ({ url: '', state: '' }) },
+    '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {}, setMine() {} },
+    '../../utils/member': { statusCached: async () => ({ name: '' }) },
+  }, wx2);
+  const r = page(def2);
+  r.onLoad({});
+  r.onName({ detail: { value: '老球友' } });
+  r.pickGender({ currentTarget: { dataset: { v: 'm' } } });
+  const saving = r.save();
+  assert.strictEqual(typeof modalDone, 'function', '弹出询问框');
+  late.resolve({ name: '老球友', gender: 'm', level: 3, shown: false });
+  await flush();
+  assert.strictEqual(r.data.isNew, false, '弹窗期间云端资料返回把 isNew 改成 false');
+  modalDone(true);
+  await saving;
+  assert.strictEqual(saved2.length, 1);
+  assert.strictEqual(saved2[0].shown, true, '点「开启展示」的授权不能因为 isNew 变 false 而丢失');
+  assert.strictEqual(r.data.saving, false);
+});
+
+/* ---------- 防乱序 + 刷新失败保留画面（2026-11-25） ---------- */
+test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最后一次；画过以后刷新失败保留画面只轻提示，从没画过才整页报错', async () => {
+  const toasts = [];
+  const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast: (o) => toasts.push(o.title), stopPullDownRefresh() {} };
+  const racket = (no) => ({ rackets: [{ id: 'r1', no, brand: 'wilson', model: 'Blade', status: 'active', remind: {} }], logs: [] });
+  // 球拍详情
+  let queue = [];
+  const api = { cachedList: () => null, load: () => { const d = deferred(); queue.push(d); return d.p; } };
+  const v = page(loadDef('pages/racket-view/racket-view.js', { '../../utils/rackets': api }, wx));
+  v.onLoad({ id: 'r1' });
+  const a = v.load(), b = v.load();
+  queue[1].resolve(racket(2)); await b;
+  queue[0].resolve(racket(1)); await a;
+  assert.strictEqual(v.data.r.no, 2, '先发后到的旧结果不覆盖');
+  const c = v.load();
+  queue[2].reject(new Error('网络异常')); await c;
+  assert.deepStrictEqual([v.data.error, v.data.r.no, toasts.length], ['', 2, 1], '画过：保留画面，只轻提示');
+  const w = page(loadDef('pages/racket-view/racket-view.js', { '../../utils/rackets': { cachedList: () => null, load: async () => { throw new Error('网络异常'); } } }, wx));
+  w.onLoad({ id: 'r1' });
+  await w.load();
+  assert.strictEqual(w.data.error, '网络异常', '从没画过：整页显示读取失败');
+  // 成长档案
+  queue = [];
+  const rec = (id) => ({ id, date: '2026-11-20', type: 'single', kind: 'practice', result: 'win', setGames: 4, noAd: true, bestOf: 1, sets: [{ a: 4, b: 2 }], tags: [], createdAt: 1 });
+  const A = { peek: () => null, list: () => { const d = deferred(); queue.push(d); return d.p; } };
+  const db = { cachedOpenid: () => '', myOpenid: async () => '', playersShared: async () => [], matchesShared: async () => [], profilesOf: () => ({}) };
+  const g = page(loadDef('pages/growth/growth.js', { '../../utils/archive': A, '../../utils/db': db }, wx));
+  g.onLoad();
+  const g1 = g.load(), g2 = g.load();
+  queue[1].resolve([rec('new1'), rec('new2')]); await flush();
+  queue[0].resolve([rec('old')]); await flush();
+  assert.strictEqual(g.data.groups[0].rows.length, 2, '旧结果不覆盖新结果');
+  const g3 = g.load();
+  queue[2].reject(new Error('网络异常')); await Promise.all([g1, g2, g3]);
+  assert.deepStrictEqual([g.data.error, g.data.groups[0].rows.length], ['', 2], '画过：保留画面');
+  const h = page(loadDef('pages/growth/growth.js', { '../../utils/archive': { peek: () => null, list: async () => { throw new Error('网络异常'); } }, '../../utils/db': db }, wx));
+  h.onLoad();
+  await h.load();
+  assert.strictEqual(h.data.error, '网络异常', '从没画过：整页显示读取失败');
+  // 清除全部后读不到：不留着已清除的记录（球拍列表、成长档案都一样）
+  for (const f of ['pages/racket/racket.js', 'pages/growth/growth.js']) assert.ok(/this\.drawn = false;[^\n]*\n?\s*return this\.load\(\)/.test(read(f)), f);
+  for (const f of ['pages/racket/racket.js', 'pages/history/history.js']) assert.ok(/const seq = this\.loadSeq = \(this\.loadSeq \|\| 0\) \+ 1;/.test(read(f)) && /seq !== this\.loadSeq/.test(read(f)), f + ' 防乱序');
+});
+
+test('资料页：删照片、开关公开展示后的预热只读共享版球员（不复制全部球员）', () => {
+  const js = read('pages/profile/profile.js');
+  assert.strictEqual((js.match(/\(db\.playersShared \|\| db\.fetchPlayersFull\)\(\)\.catch\(\(\) => \{\}\)/g) || []).length, 2);
+  assert.ok(!/db\.fetchPlayersFull\(\)\.catch\(\(\) => \{\}\)/.test(js));
 });
 
 module.exports = T;

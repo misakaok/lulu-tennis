@@ -66,9 +66,10 @@
       </block>
     </view>
 
-    <!-- 先用本机缓存画的记分牌（ready 为假）：确认 / 改分 / 撤销等云端读完再出来，免得组件自己再调一次 matchState；
-         读的期间不放占位文字（2026-11-25 用户要求），读完卡片直接出现 -->
-    <view wx:if="{{ready}}" class="late"><match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" /></view>
+    <!-- 普通日常比赛：第一帧就用本机身份画好「比分状态」（previewSocial，不淡入），云端 matchState 回来原样替换；
+         其他比赛（活动、弃权 / 退赛、管理员更正过的）等云端读完再出来、淡入，免得组件自己再调一次 matchState；
+         读的期间不放占位文字（2026-11-25 用户要求） -->
+    <view wx:if="{{ready || preset}}" class="{{previewSocial ? '' : 'late'}}"><match-social match-id="{{m._id}}" preset="{{preset}}" revocable="{{revocable}}" bind:revoked="onRevoked" /></view>
 
     <view wx:if="{{changes.length}}" class="card late">
       <view class="card-title">比分修改记录<text class="sub">{{changes.length}} 次</text></view>

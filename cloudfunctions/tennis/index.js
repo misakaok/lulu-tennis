@@ -235,30 +235,40 @@ async function matchState({ matchId, detail }, uid, cache) {
   cache = cache || {};
   const { m, fin, ids, side } = await loadMatch(matchId, uid, cache);
   const base = { matchId, mySide: side, finished: !fin, reason: fin, drawId: (m && m.drawId) || '', drawKey: (m && m.drawKey) || '', outcome: (m && (m.outcome || (m.walkover ? 'walkover' : 'normal'))) || '' };
-  if (m && m.drawId) { const dr = await cget(cache, 'draws', m.drawId); base.isOwner = !!dr && dr._openid === uid; }
+  // 拿到比赛之后，互不依赖的只读查询一起发（2026-11-25 提速）：活动、记录状态和修改记录（detail）、
+  // 是否被新记录取代、确认情况、改分申请。只有确认后的 markVerified 会写，放在这些读完之后，顺序和原来一样。
+  // 原来在「已取代」时不查的确认情况 / 改分申请这里也一起查了，但出错只在真正用到时才抛（和原来一样）
+  const kept = (p) => p.then((v) => ({ v }), (e) => ({ e }));
+  const use = (r) => { if (r.e) throw r.e; return r.v; };
+  const [dr, status, changes, sup, stR, reqR] = await Promise.all([
+    m && m.drawId ? cget(cache, 'draws', m.drawId) : null,
+    detail === true && m ? statusOfMatch(m, cache) : '',
+    detail === true && m ? changeLog(m) : [],
+    fin ? null : supersededBy(m, cache),
+    fin ? null : kept(confirmState(m, ids, cache)),
+    fin ? null : kept(requestView(m, ids, uid, cache)),
+  ]);
+  if (m && m.drawId) base.isOwner = !!dr && dr._openid === uid;
   if (m && isAdmin(uid)) base.canAdminRevoke = true; // 管理员可以撤销任何一场（包括弃权 / 退赛的）
-  if (detail === true) Object.assign(base, { match: E.publicMatch(m) || null, status: m ? await statusOfMatch(m, cache) : '', changes: m ? await changeLog(m) : [] });
+  if (detail === true) Object.assign(base, { match: E.publicMatch(m) || null, status, changes });
   if (fin) return base;
-  const sup = await supersededBy(m, cache);
   if (sup) return Object.assign(base, { finished: false, reason: '这条比分已被新的记录取代', supersededBy: sup });
-  const st = await confirmState(m, ids, cache);
+  const st = use(stR);
   if (st.confirmed) {
     await markVerified(m, cache); // 日常比赛：双方确认后计入正式战绩
     if (detail === true && !m.drawId) base.status = 'official'; // 返回本次补齐快照后的状态
   }
   const names = cache.names = cache.names || {};
-  const sideText = {};
-  for (const k of ['a', 'b']) {
-    const s = st.sides[k];
-    sideText[k] = !s ? '' : s.by === 'recorder' ? '录入' : s.by === 'ruling' ? '发起人裁定' : s.by === 'admin' ? '管理员更正' : await nameOf(s.uid, '已确认', names);
-  }
+  const textOf = async (s) => (!s ? '' : s.by === 'recorder' ? '录入' : s.by === 'ruling' ? '发起人裁定' : s.by === 'admin' ? '管理员更正' : nameOf(s.uid, '已确认', names));
+  const [ta, tb] = await Promise.all([textOf(st.sides.a), textOf(st.sides.b)]); // 两方的名字一起查
+  const sideText = { a: ta, b: tb };
   const out = Object.assign(base, {
     confirmed: st.confirmed, sides: sideText, daily: !m.drawId,
     canConfirm: !!m.drawId && !!side && !st.sides[side], // 日常比赛录入后直接生效，不需要确认
     unbound: ids.a.concat(ids.b).some((x) => !x),
   });
   // 改分：没确认时录入人可以直接改（日常比赛）；已确认后参赛者只能提交申请；有待处理申请时显示出来
-  out.request = await requestView(m, ids, uid, cache);
+  out.request = use(reqR);
   out.canEdit = !st.confirmed && !m.drawId && (recorderOf(m) === uid || !!side); // 日常比赛：录入人和参赛者都可以直接改
   out.canRequestChange = st.confirmed && !!side && !out.request;
   out.canAdminFix = isAdmin(uid); // 管理员可以直接更正任何一场的正常比分（日常比赛、活动比赛）
@@ -1912,10 +1922,14 @@ async function revokeInvite({ code }) {
 
 // 管理员看：待审核、正式成员、未通过 / 已移除，以及「历史球友」（升级前设置过资料、还没有成员记录的账号，供管理员手动确认导入）
 async function listMembers() {
-  const all = (await db.collection('members').limit(1000).get()).data;
+  // 成员、本人资料、有效邀请三次查询一起发（2026-11-25 提速）；都用 allDocs，满 1000 条自动翻页、不截断。
+  // 有效邀请在数据库里先筛（和 acceptInvite 同一条件），再分页读全：不能先无条件取 200 条再筛，发满 200 条邀请后新邀请会看不到
+  const [all, profiles, inviteRows] = await Promise.all([
+    allDocs('members'), allDocs('players', { self: true }),
+    allDocs('invites', { usedBy: '', revoked: false, expiresAt: _.gt(Date.now()) }),
+  ]);
   const by = {};
   all.forEach((m) => { by[m._id] = m; });
-  const profiles = (await db.collection('players').where({ self: true }).limit(1000).get()).data;
   const nameOf = {}, genderOf = {}, photoOf = {};
   // 和 profileOf 一样取每个账号最早的那条本人资料（有重复资料时，各页面显示的昵称才一致）
   profiles.sort((a, b) => tsOf(a) - tsOf(b)).forEach((p) => { if (p._openid && !nameOf[p._openid]) { nameOf[p._openid] = p.name; genderOf[p._openid] = p.gender === 'm' || p.gender === 'f' ? p.gender : ''; photoOf[p._openid] = !!p.photo; } });
@@ -1923,8 +1937,7 @@ async function listMembers() {
   const row = (m) => ({ uid: m._id, uidTail: String(m._id).slice(-6), name: m.name || '', nickname: nameOf[m._id] || '', gender: genderOf[m._id] || '', hasPhoto: !!photoOf[m._id], note: '', status: m.status, reason: E.reasonOf(m.reason), source: m.source || '', admin: isAdmin(m._id), at: tsOf({ createdAt: m.decidedAt || m.appliedAt }) });
   const candidates = Object.keys(nameOf).filter((u) => !by[u] && !isAdmin(u)).map((u) => ({ uid: u, nickname: nameOf[u] }));
   // 管理员一律算正式成员（和 memberOf 一致）：即使以前申请过、被拒绝或移除过，也显示在「成员」里，不出现在待审核 / 已移除中
-  // 有效邀请在数据库里先筛（和 acceptInvite 同一条件），再分页读全：不能先无条件取 200 条再筛，发满 200 条邀请后新邀请会看不到
-  const invites = (await allDocs('invites', { usedBy: '', revoked: false, expiresAt: _.gt(Date.now()) }))
+  const invites = inviteRows
     .sort((a, b) => b.expiresAt - a.expiresAt).map((x) => ({ code: x._id, note: x.note, expiresAt: x.expiresAt }));
   return {
     pending: all.filter((m) => m.status === 'pending' && !isAdmin(m._id)).map(row),

@@ -73,7 +73,11 @@ Component({
       wx.navigateTo({ url: '/pages/profile/profile' });
     },
     openPlayer(e) { const u = e.currentTarget.dataset.uid; if (u) wx.navigateTo({ url: '/pages/player/player?uid=' + encodeURIComponent(u) }); },
-    openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
+    openMatch(e) { // 先发出比赛状态请求（比赛详情第一次读取接过去）
+      const id = e.currentTarget.dataset.id;
+      db.prefetchMatchState(id);
+      wx.navigateTo({ url: '/pages/match/match?id=' + id });
+    },
     allHistory() { wx.navigateTo({ url: '/pages/history/history?uid=' + encodeURIComponent(this.data.uid) }); },
   },
 });

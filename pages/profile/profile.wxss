@@ -42,6 +42,9 @@
 .cs-row { display: flex; align-items: center; padding: 8rpx 0 14rpx; border-radius: 12rpx; }
 .cbox { width: 38rpx; height: 38rpx; border-radius: 10rpx; border: 3rpx solid #c5c5da; margin-right: 18rpx; display: flex; align-items: center; justify-content: center; flex: none; }
 .cbox.on { background: #8484B6; border-color: #8484B6; }
+/* 未勾选时卡片和勾选框加一圈淡紫描边（2026-11-25 用户要求，新球友填资料时别直接划过去）；仍然不默认勾选 */
+.consent.cs-off { border: 2rpx solid rgba(163, 163, 203, 0.55); box-shadow: 0 4rpx 12rpx rgba(84, 84, 146, 0.06), 0 16rpx 36rpx rgba(84, 84, 146, 0.09); }
+.cs-off .cbox { border-color: #A3A3CB; background: #F6F6FC; }
 .ck { color: #fff; font-size: 24rpx; font-weight: 800; line-height: 1; }
 .cs-t { font-size: 28rpx; font-weight: 600; color: #3a3a52; }
 .cs-d { font-size: 22rpx; color: #70708C; line-height: 1.6; margin-top: 6rpx; }

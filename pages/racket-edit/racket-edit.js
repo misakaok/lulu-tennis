@@ -25,12 +25,16 @@ Page({
     this.setData({ id, today: today() });
     if (!id) { this.fill({ brand: '', model: '', bought: '', status: 'active', tags: [], remind: { string: 90, overgrip: 21 }, hours: 0 }); return; } // 按打球时长换线默认关闭
     wx.setNavigationBarTitle({ title: '编辑球拍' });
-    API.load().then(({ rackets }) => {
+    const open = ({ rackets }) => {
       const r = rackets.find((x) => x.id === id);
       if (!r) { this.setData({ error: '球拍不存在，可能已被删除' }); return; }
       this.setData({ title: K.racketTitle(r) });
       this.fill(r);
-    }).catch((e) => this.setData({ error: e.message || '读取失败' }));
+    };
+    // 从球拍详情点进来：60 秒内存里刚读过的（API.peekList，不读本机存的旧结果）有这支拍就直接填好，不等云端
+    const pre = API.peekList ? API.peekList() : null;
+    if (pre && pre.rackets.some((x) => x.id === id)) { open(pre); return; }
+    API.load().then(open).catch((e) => this.setData({ error: e.message || '读取失败' }));
   },
 
   fill(r) {

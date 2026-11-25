@@ -160,13 +160,16 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
   assert.ok(/100% \{ opacity: 0;/.test(css.match(/@keyframes ani-sheen [^\n]*/)[0]), '最后停在看不见');
   assert.ok(/\.ani-in \{ animation: ani-in [^;]*cubic-bezier\(0\.22, 1, 0\.36, 1\)/.test(css));
   assert.match(css, /\.num \{ font-family: "DIN Alternate", "Avenir Next Condensed", "Roboto Condensed", -apple-system, Roboto, sans-serif;/);
-  // 毛玻璃块：半透明底不低于 0.16（不支持模糊的老机型照样看得清），入场 / 按压都不缩放
+  // 毛玻璃块：半透明底不低于 0.16（不支持模糊的老机型照样看得清），入场 / 按压都不缩放。
+  // 底色是半透白（.hero-tag）或烟熏冷紫 rgba(56, 54, 108, …)（球员卡数据条、战绩页 .ms、比赛详情 .hset，2026-11-25 统一）
   [['pages/match/match.wxss', ['hset', 'hero-tag']], ['pages/index/index.wxss', ['ms']], ['components/player-home/player-home.wxss', ['pc-stats']]].forEach(([f, ks]) => {
     const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
     ks.forEach((k) => {
       const rule = x.match(new RegExp('\\n\\.' + k + ' \\{([^}]*)\\}'))[1];
+      if (k !== 'hero-tag') assert.ok(/background: rgba\(56, 54, 108, 0\.22\)/.test(rule), k + ' 是烟熏冷紫底（三张紫色头卡的数据块统一）');
       assert.ok(/backdrop-filter: blur/.test(rule), k);
-      assert.ok(Number(rule.match(/background: rgba\(255, ?255, ?255, ?([\d.]+)\)/)[1]) >= 0.16, k);
+      const bg = rule.match(/background: rgba\((?:255, ?255, ?255|56, ?54, ?108), ?([\d.]+)\)/);
+      assert.ok(bg && Number(bg[1]) >= 0.16, k);
     });
   });
   assert.ok(!/scale/.test(fs.readFileSync(path.join(__dirname, '..', 'pages/match/match.wxss'), 'utf8').match(/@keyframes hset-in [^\n]*/)[0]));

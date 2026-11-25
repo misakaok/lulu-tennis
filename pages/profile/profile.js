@@ -145,7 +145,7 @@ Page({
       this.photo = { url: '', pendingUrl: '', state: '' };
       P.setMine(null);
       this.setData({ photoShow: '', photoBase: '', photoNew: false, hasPhoto: false, stateText: '', photoState: '' });
-      db.fetchPlayersFull().catch(() => {}); // 刷新照片名单（写操作已作废缓存）
+      (db.playersShared || db.fetchPlayersFull)().catch(() => {}); // 刷新照片名单（写操作已作废缓存；只为预热，不用复制）
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
     } catch (e) {
@@ -188,7 +188,7 @@ Page({
     wx.showLoading({ title: '保存中', mask: true });
     try {
       await db.setShown(on);
-      db.fetchPlayersFull().catch(() => {}); // 刷新照片名单和排行
+      (db.playersShared || db.fetchPlayersFull)().catch(() => {}); // 刷新照片名单和排行（只为预热，不用复制）
       wx.hideLoading();
       return true;
     } catch (e) {
@@ -226,10 +226,17 @@ Page({
     if (name.length > 10) { wx.showToast({ title: '昵称最多 10 个字', icon: 'none' }); return; }
     if (this.data.gender !== 'm' && this.data.gender !== 'f') { wx.showToast({ title: '请选择性别', icon: 'none' }); return; }
     if (this.data.saving) return;
-    this.setData({ saving: true });
-    wx.showLoading({ title: '保存中', mask: true });
+    this.setData({ saving: true }); // 先上锁：连点「完成」不会弹两个询问框
     let step = '资料';
     try {
+      // 第一次建资料、完全没碰过公开展示勾选项：温和问一次（2026-11-25 用户要求，免得漏勾后在排行榜、LULU 积分里看不到自己）。
+      // 仍然不默认勾选、不强制：选「暂不开启」或关掉弹窗照常保存（shown: false）；自己点过勾选（哪怕又取消）、老成员改资料都不问
+      if (this.data.isNew && !this.data.shown && !(this.edited && this.edited.shown)) {
+        const yes = await new Promise((done) => wx.showModal({ title: '是否开启公开展示？', content: C.TEXT, confirmText: '开启展示', cancelText: '暂不开启', success: (x) => done(!!(x && x.confirm)), fail: () => done(false) }));
+        this.touch('shown');
+        if (yes) { this.shownPending = true; this.setData({ shown: true }); } // 即使弹窗期间云端资料晚到把 isNew 改成 false，点保存仍要带上这次开启
+      }
+      wx.showLoading({ title: '保存中', mask: true });
       // 先保存资料（第一次设置时要先有资料才能传照片），再上传照片提交检测
       const sendShown = this.data.isNew || !!this.shownPending;
       await db.saveMyProfile({ name, avatar: this.avatar, level: this.data.level, gender: this.data.gender, shown: sendShown ? !!this.data.shown : undefined }); // 第一次设置资料（或进页还没读完时就点了勾选）：带上勾选结果（不勾就是不同意，不强制）；已有资料的授权在勾选时已经单独保存，这里不带，免得旧缓存覆盖

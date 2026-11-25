@@ -34,20 +34,27 @@ Page({
     }
     wx.setNavigationBarTitle({ title: '编辑记录' });
     this.setData({ id, today: t });
+    // 从成长档案点进来：60 秒内存里刚读过的列表（A.peek，不读本机存储）里有这条就直接填好，不等云端
+    const pre = A.peek ? A.peek() : null;
+    const hit = pre && pre.find((x) => x.id === id);
+    if (hit) { this.fill(hit); return; }
     A.list().then((list) => {
       const r = list.find((x) => x.id === id);
       if (!r) { this.setData({ error: '记录不存在，可能已被删除' }); return; }
-      const points11 = r.points11 === true;
-      const score = points11 && r.sets && r.sets[0];
-      this.setData({
-        date: r.date, type: r.type, kind: r.kind, tags: r.tags || [],
-        rule: { setGames: r.setGames === 6 ? 6 : 4, noAd: r.noAd !== false, bestOf: r.bestOf === 3 ? 3 : 1 },
-        points11, points: score ? { a: String(score.a), b: String(score.b) } : { a: '', b: '' },
-        init: points11 ? [] : r.sets || [], ready: true,
-      });
-      this.refreshTags();
-      this.refreshCheck();
+      this.fill(r);
     }).catch((e) => this.setData({ error: e.message || '读取失败' }));
+  },
+  fill(r) {
+    const points11 = r.points11 === true;
+    const score = points11 && r.sets && r.sets[0];
+    this.setData({
+      date: r.date, type: r.type, kind: r.kind, tags: r.tags || [],
+      rule: { setGames: r.setGames === 6 ? 6 : 4, noAd: r.noAd !== false, bestOf: r.bestOf === 3 ? 3 : 1 },
+      points11, points: score ? { a: String(score.a), b: String(score.b) } : { a: '', b: '' },
+      init: points11 ? [] : r.sets || [], ready: true,
+    });
+    this.refreshTags();
+    this.refreshCheck();
   },
 
   refreshTags() {

@@ -6,7 +6,8 @@ const ID = require('../../utils/ident');
 const S = require('../../utils/stats');
 const SC = require('../../utils/scorer');
 const haptic = require('../../utils/haptic');
-const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = require('../../utils/db');
+const DB = require('../../utils/db');
+const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = DB;
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -28,13 +29,23 @@ Page({
     let last = {};
     try { last = wx.getStorageSync(CFG_KEY) || {}; } catch (e) {}
     const cfg = R.normCfg(last);
-    this.setPlayers(cachedPlayersFull());
     this.slots = { a: ['', ''], b: ['', ''] };
     this.active = 'a0';
+    // 自己先按本机记的资料填进 A 方、光标落到对手（2026-11-25 用户嫌打开后自己的名字晚半拍才出来）；云端读完 loadPlayers 再更正
+    const full0 = cachedPlayersFull() || [];
+    this.myId = (DB.cachedOpenid && DB.cachedOpenid()) || '';
+    this.setPlayers(full0);
+    const me0 = cachedProfile && cachedProfile();
+    const myName0 = this.myId && me0 && me0.name && ID.uidByName(full0)[me0.name] === this.myId ? me0.name : '';
     this.res = { ok: false, msg: '请至少填写一盘' };
     const init = { date: t, dayText: dayOf(t), today: t, setGames: cfg.setGames, noAd: cfg.noAd, bestOf: last.bestOf === 1 ? 1 : 3 };
     const sc = this.scorerPrefill(options || {});
     if (sc) Object.assign(init, { setGames: sc.setGames, noAd: sc.noAd, bestOf: sc.bestOf, initSets: sc.sets, fromScorer: true }); // 不改「上次用的规则」
+    if (myName0) {
+      this.slots.a[0] = myName0;
+      this.active = this.order(init.type).find((k) => !this.slots[k[0]][+k[1]]) || null;
+      Object.assign(init, { me: myName0, noProfile: false });
+    }
     this.setData(init);
     this.refresh();
   },
@@ -92,7 +103,8 @@ Page({
 
   async loadPlayers() {
     try {
-      const [full, me, myId] = await Promise.all([fetchPlayersFull(), getMyProfile().catch(() => cachedProfile()), myOpenid().catch(() => '')]);
+      // 球员用共享版（和战绩页同一个数组，不复制；setPlayers 只读）；已经选好的搭档、对手不动
+      const [full, me, myId] = await Promise.all([(DB.playersShared || fetchPlayersFull)(), getMyProfile().catch(() => cachedProfile()), myOpenid().catch(() => '')]);
       this.myId = myId;
       this.setPlayers(full);
       const myName = me && ID.uidByName(full)[me.name] === myId ? me.name : '';
@@ -109,7 +121,7 @@ Page({
   onSets(e) { this.res = e.detail; this.refresh(); },
 
   cfg() { return { setGames: this.data.setGames, noAd: this.data.noAd }; },
-  order() { return this.data.type === 'double' ? ['a0', 'a1', 'b0', 'b1'] : ['a0', 'b0']; },
+  order(type) { return (type || this.data.type) === 'double' ? ['a0', 'a1', 'b0', 'b1'] : ['a0', 'b0']; },
 
   /* ---------- 计算界面数据 ---------- */
   refresh() {

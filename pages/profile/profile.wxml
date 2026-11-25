@@ -42,7 +42,7 @@
   </view>
 
   <!-- 公开展示授权（审核要求：展示昵称和照片前本人知情并同意）：不强制，不同意也能保存资料；之后随时可以开关 -->
-  <view class="card consent">
+  <view class="card consent {{shown ? '' : 'cs-off'}}">
     <view class="cs-row" hover-class="tap-row-on" bindtap="toggleShown">
       <view class="cbox {{shown ? 'on' : ''}}"><text wx:if="{{shown}}" class="ck">✓</text></view>
       <text class="cs-t">同意向其他成员公开展示我的昵称和照片</text>

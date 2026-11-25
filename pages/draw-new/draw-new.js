@@ -123,75 +123,107 @@ Page({
     return db.drawsShared().then((list) => { this.setData({ recentPlaces: PL.recentPlaces(list) }); }).catch(() => {});
   },
 
+  // 球员和比赛用共享版（和排行榜、活动详情同一个数组，不复制）；水平分用 R.ratingsOf 按数组引用只算一次。这一页只读它们
+  sharedPlayers() { return (db.playersShared || db.fetchPlayersFull)(); },
+  sharedMatches() { return (db.matchesShared || db.fetchMatches)(); },
+  ratingsFor(matches, full) { return R.ratingsOf ? R.ratingsOf(matches, full) : R.computeRatings(matches, R.startLevelsFrom(full)); },
   async loadPlayers() {
     try {
-      const [full, matches] = await Promise.all([db.fetchPlayersFull(), db.fetchMatches()]);
+      const [full, matches] = await Promise.all([this.sharedPlayers(), this.sharedMatches()]);
       this.setPlayers(full);
-      this.ratings = R.computeRatings(matches, R.startLevelsFrom(full));
+      this.ratings = this.ratingsFor(matches, full);
       this.refresh();
     } catch (e) { console.error(e); }
   },
 
-  // 报名模式：读取活动设置和报名名单，默认全部参赛，按水平推荐种子
+  // 报名模式：读取活动设置和报名名单，默认全部参赛，按水平推荐种子。
+  // 从活动详情点「截止报名，生成对阵」/「手动调整对阵」进来：先用活动详情刚读到的活动和报名（内存 60 秒，db.peekDrawDetail）
+  // + 本机球员、战绩画出来（2026-11-25 用户嫌先闪一下上次的默认规则和空名单）；云端读完版本和名单都没变就不重画
+  // （不冲掉已经调整的勾选、种子），变了才按最新的重画。生成时云端照样核对版本
   async loadSignups() {
+    const pre = db.peekDrawDetail ? db.peekDrawDetail(this.drawId) : null;
+    if (pre && pre.draw && pre.signups) {
+      try {
+        const m0 = (db.cachedMatches && db.cachedMatches()) || [];
+        if (!this.blocked(pre.draw, m0)) { this.applySignups(pre.draw, pre.signups, (db.cachedPlayersFull && db.cachedPlayersFull()) || [], m0); this.signSig = this.sigOfSignups(pre.draw, pre.signups); }
+      } catch (e) { this.signSig = ''; }
+    }
     try {
       const [draw, signups, full, matches] = await Promise.all([
-        db.getDraw(this.drawId), db.fetchSignups(this.drawId), db.fetchPlayersFull(), db.fetchMatches(),
+        db.getDraw(this.drawId), db.fetchSignups(this.drawId), this.sharedPlayers(), this.sharedMatches(),
       ]);
-      this.setPlayers(full);
-      this.ratings = R.computeRatings(matches, R.startLevelsFrom(full));
-      const editingMatchups = draw.status !== 'signup';
-      if (editingMatchups && (!this.data.manualOnly || E.isRotation(draw) || Object.keys(draw.results || {}).length ||
-          (draw.withdrawals || []).length || matches.some((m) => m.drawId === this.drawId))) throw new Error('当前活动不能调整对阵');
-      this.originalMatchups = editingMatchups ? draw : null;
-      this.signUid = ID.drawUids(draw, signups);
-      const cfg = E.cfgOf(draw), st = E.stageRules(draw);
-      this.settingsVersion = draw.settingsVersion || 0;
-      this.rosterVersion = draw.rosterVersion || 0;
-      this.drawVersion = draw.drawVersion || 0;
-      // 双打：已经带搭档的先排，单人报名的排在后面按顺序两两配对
-      const names = [];
-      const push = (n) => { if (n && names.indexOf(n) < 0) names.push(n); };
-      // 候补的不默认参赛：留在可选名单里，发起人想让谁上可以自己点
-      const wait = E.waitingOf(signups, E.capacityOf(draw));
-      const inList = signups.filter((s) => !wait[s._id]), waiting = signups.filter((s) => wait[s._id]);
-      if (editingMatchups) {
-        (draw.entrants || []).forEach((ent) => E.membersOf(draw, ent).forEach(push));
-      } else if (cfg.type === 'double') {
-        inList.filter((s) => s.partner).forEach((s) => { push(s.name); push(s.partner); });
-        let solos = inList.filter((s) => !s.partner).map((s) => s.name);
-        // 混双：没搭档的按「一男一女」交替排，按顺序两两配对时尽量凑成混双（性别读个人资料）
-        if (E.categoryOf(draw) === 'mixed') {
-          const gOf = require('../../utils/stats').genderFinder(full);
-          const men = solos.filter((n) => gOf(n, this.signUid[n]) === '男'), women = solos.filter((n) => gOf(n, this.signUid[n]) === '女');
-          const rest = solos.filter((n) => men.indexOf(n) < 0 && women.indexOf(n) < 0);
-          const mixed = [];
-          while (men.length && women.length) { mixed.push(men.shift()); mixed.push(women.shift()); }
-          solos = mixed.concat(men, women, rest);
-        }
-        solos.forEach(push);
-      } else inList.forEach((s) => push(s.name));
-      names.forEach((n) => { if (this.players.indexOf(n) < 0) this.players.push(n); });
-      waiting.forEach((s) => [s.name, s.partner].forEach((n) => { if (n && this.players.indexOf(n) < 0) this.players.push(n); }));
-      this.selected = names.slice();
-      this.setData({
-        category: E.categoryOf(draw), limit: draw.limit || 0, cupText: C.drawCupText(draw),
-        waitInfo: !editingMatchups && waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
-        editingMatchups,
-        title: draw.title, mode: draw.mode, size: draw.size || 8, groupCount: draw.groupCount || 4, advance: draw.advance === 1 ? 1 : 2,
-        type: cfg.type, limits: LIMITS[cfg.type === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0,
-      });
-      if (editingMatchups) {
-        this.seeds = (draw.seeds || []).slice();
-        wx.setNavigationBarTitle({ title: '手动调整对阵' });
-        this.refresh();
-        if (this.data.canDraw) this.doDraw();
-      } else {
-        this.recommendSeeds(true);
+      if (this.blocked(draw, matches)) throw new Error('当前活动不能调整对阵');
+      if (this.signSig && this.sigOfSignups(draw, signups) === this.signSig) {
+        // 和先画的一样：只换上最新的球员和水平分（之后排种子用），不动名单、勾选和种子
+        this.setPlayers(full);
+        this.ratings = this.ratingsFor(matches, full);
+        return;
       }
+      this.applySignups(draw, signups, full, matches);
+      this.signSig = this.sigOfSignups(draw, signups);
     } catch (e) {
       console.error(e);
       this.setData({ canPublish: false, authError: e.message || '读取报名名单失败' });
+    }
+  },
+  // 已生成对阵的活动只有在没录分、没退赛时才能手动调整
+  blocked(draw, matches) {
+    return draw.status !== 'signup' && (!this.data.manualOnly || E.isRotation(draw) || Object.keys(draw.results || {}).length ||
+      (draw.withdrawals || []).length || (matches || []).some((m) => m.drawId === this.drawId));
+  },
+  // 名单签名：各版本号、状态 + 每条报名（谁、和谁、先后）
+  sigOfSignups(draw, signups) {
+    return JSON.stringify([draw.status, draw.settingsVersion || 0, draw.rosterVersion || 0, draw.drawVersion || 0, (signups || []).map((s) => [s._id, s.name, s.partner || ''])]);
+  },
+  applySignups(draw, signups, full, matches) {
+    this.setPlayers(full);
+    this.ratings = this.ratingsFor(matches, full);
+    const editingMatchups = draw.status !== 'signup';
+    this.originalMatchups = editingMatchups ? draw : null;
+    this.signUid = ID.drawUids(draw, signups);
+    const cfg = E.cfgOf(draw), st = E.stageRules(draw);
+    this.settingsVersion = draw.settingsVersion || 0;
+    this.rosterVersion = draw.rosterVersion || 0;
+    this.drawVersion = draw.drawVersion || 0;
+    // 双打：已经带搭档的先排，单人报名的排在后面按顺序两两配对
+    const names = [];
+    const push = (n) => { if (n && names.indexOf(n) < 0) names.push(n); };
+    // 候补的不默认参赛：留在可选名单里，发起人想让谁上可以自己点
+    const wait = E.waitingOf(signups, E.capacityOf(draw));
+    const inList = signups.filter((s) => !wait[s._id]), waiting = signups.filter((s) => wait[s._id]);
+    if (editingMatchups) {
+      (draw.entrants || []).forEach((ent) => E.membersOf(draw, ent).forEach(push));
+    } else if (cfg.type === 'double') {
+      inList.filter((s) => s.partner).forEach((s) => { push(s.name); push(s.partner); });
+      let solos = inList.filter((s) => !s.partner).map((s) => s.name);
+      // 混双：没搭档的按「一男一女」交替排，按顺序两两配对时尽量凑成混双（性别读个人资料）
+      if (E.categoryOf(draw) === 'mixed') {
+        const gOf = require('../../utils/stats').genderFinder(full);
+        const men = solos.filter((n) => gOf(n, this.signUid[n]) === '男'), women = solos.filter((n) => gOf(n, this.signUid[n]) === '女');
+        const rest = solos.filter((n) => men.indexOf(n) < 0 && women.indexOf(n) < 0);
+        const mixed = [];
+        while (men.length && women.length) { mixed.push(men.shift()); mixed.push(women.shift()); }
+        solos = mixed.concat(men, women, rest);
+      }
+      solos.forEach(push);
+    } else inList.forEach((s) => push(s.name));
+    names.forEach((n) => { if (this.players.indexOf(n) < 0) this.players.push(n); });
+    waiting.forEach((s) => [s.name, s.partner].forEach((n) => { if (n && this.players.indexOf(n) < 0) this.players.push(n); }));
+    this.selected = names.slice();
+    this.setData({
+      category: E.categoryOf(draw), limit: draw.limit || 0, cupText: C.drawCupText(draw),
+      waitInfo: !editingMatchups && waiting.length ? `有 ${waiting.length} 条报名在候补，没有默认选上；需要的话可以在下面的名单里点选` : '',
+      editingMatchups,
+      title: draw.title, mode: draw.mode, size: draw.size || 8, groupCount: draw.groupCount || 4, advance: draw.advance === 1 ? 1 : 2,
+      type: cfg.type, limits: LIMITS[cfg.type === 'double' ? 'double' : 'single'], rules: st, byRound: Object.keys(st.rounds).length > 0,
+    });
+    if (editingMatchups) {
+      this.seeds = (draw.seeds || []).slice();
+      wx.setNavigationBarTitle({ title: '手动调整对阵' });
+      this.refresh();
+      if (this.data.canDraw) this.doDraw();
+    } else {
+      this.recommendSeeds(true);
     }
   },
 

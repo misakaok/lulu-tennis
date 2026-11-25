@@ -23,7 +23,7 @@ Page({
     wx.hideShareMenu(); // 私人数据不能分享
     // 先显示：本机存的上次结果（或 60 秒内刚读过的）直接画出来，不再先闪「正在读取…」；onShow 里照常读云端再更正
     const c = API.cachedList();
-    if (c) { this.fromCache = true; this.show(c); }
+    if (c) this.show(c);
   },
   onShow() {
     this.load();
@@ -34,14 +34,16 @@ Page({
   },
 
   async load() {
+    const seq = this.loadSeq = (this.loadSeq || 0) + 1; // onShow 和下拉刷新同时读：只认最后一次
     try {
       const { rackets, logs } = await API.load();
-      this.fromCache = false;
+      if (seq !== this.loadSeq) return;
       this.show({ rackets, logs });
       API.applyBadge(rackets, logs);
     } catch (e) {
-      // 已经画了上次的记录：保留着，只轻提示；没有可显示的才整页显示读取失败
-      if (this.fromCache) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
+      if (seq !== this.loadSeq) return;
+      // 已经画过（本机上次的记录或之前读到的）：保留着，只轻提示；从来没画出来过才整页显示读取失败
+      if (this.drawn) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
       else this.setData({ loading: false, error: e.message || '读取失败' });
     }
   },
@@ -49,6 +51,7 @@ Page({
     const t = today();
     // 在用的排前面，已退役的放最后
     const list = rackets.slice().sort((a, b) => (a.status === 'retired') - (b.status === 'retired') || a.no - b.no);
+    this.drawn = true;
     // 顶部卡片不做动画（2026-11-25 用户觉得动画太多）：数字直接显示，不滚
     this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
   },
@@ -64,7 +67,7 @@ Page({
       success: (r) => {
         if (!r.confirm) return;
         this.setData({ clearing: true });
-        API.clear().then(() => { wx.showToast({ title: '已清除', icon: 'none' }); this.fromCache = false; return this.load(); })
+        API.clear().then(() => { wx.showToast({ title: '已清除', icon: 'none' }); this.drawn = false; return this.load(); }) // 清除后读不到：不留着已清除的球拍
           .catch((e) => wx.showToast({ title: e.message || '清除失败', icon: 'none' }))
           .then(() => this.setData({ clearing: false }));
       },

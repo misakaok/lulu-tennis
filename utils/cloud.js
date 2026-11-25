@@ -60,7 +60,27 @@ function peek(action, data) {
   return v === undefined ? undefined : memo.clone(v);
 }
 // 实时读一次（不用缓存），结果留给 cached / peek：别的页面 60 秒内直接用
-async function fresh(action, data) {
+// 点入口时先发出 fresh（利用页面切换动画的时间）：紧接着页面里的 fresh 接过这个请求，不再另发。
+// 只接一次；期间有写操作 / 清除缓存（epoch 变了）或超过 PREFETCH_MS 没被接走的不用（和 db.prefetchDrawDetail 同一套）
+const PREFETCH_MS = 10 * 1000;
+let prefetched = {};
+function prefetch(action, data) {
+  if (!READ_ONLY[action]) throw new Error('只有只读操作可以预读：' + action);
+  const memo = require('./memo');
+  const k = keyOf(action, data), cur = prefetched[k];
+  if (cur && cur.epoch === memo.epoch() && Date.now() - cur.at < PREFETCH_MS) return; // 连点两次：已经在读
+  const task = freshNow(action, data);
+  task.catch(() => {}); // 失败不提示：页面接过来时自己处理
+  prefetched[k] = { epoch: memo.epoch(), at: Date.now(), task };
+}
+function fresh(action, data) {
+  const memo = require('./memo');
+  const k = keyOf(action, data), p = prefetched[k];
+  delete prefetched[k];
+  if (p && p.epoch === memo.epoch() && Date.now() - p.at < PREFETCH_MS) return p.task;
+  return freshNow(action, data);
+}
+async function freshNow(action, data) {
   if (!READ_ONLY[action]) throw new Error('只有只读操作可以缓存：' + action);
   const memo = require('./memo');
   const since = memo.epoch(); // 读的过程中有写操作 / 清除缓存：这份结果可能是旧的，不留给别的页面
@@ -69,4 +89,4 @@ async function fresh(action, data) {
   return memo.clone(r);
 }
 
-module.exports = { call, cached, peek, fresh };
+module.exports = { call, cached, peek, fresh, prefetch };

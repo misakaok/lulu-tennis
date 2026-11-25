@@ -106,9 +106,11 @@ Page({
       .then((v) => { if (v !== this.data.canRecordDaily) this.setData({ canRecordDaily: v }); });
     try {
       // 共享数据（不复制，只读）：数据没变时是同一个数组，比较引用就知道要不要重算
-      const [m, p, myId] = await Promise.all([db.matchesAllShared(), db.playersShared(), db.myOpenid().catch(() => this.myId || '')]);
+      // 正式战绩也拿共享版（和 matchesAllShared 同一次整理的结果，不多读）：排行榜、球员主页、比赛详情传的是同一个数组，
+      // 水平分（R.ratingsOf）、球员统计（S.playerStats）、亮点标签（H.tagsOf）全站只算一次
+      const [m, p, myId, official] = await Promise.all([db.matchesAllShared(), db.playersShared(), db.myOpenid().catch(() => this.myId || ''), db.matchesShared ? db.matchesShared() : null]);
       // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
-      if (this.setSource(m, p, myId)) this.render();
+      if (this.setSource(m, p, myId, official)) this.render();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
@@ -119,12 +121,13 @@ Page({
 
   // 换数据源：水平分涨跌、顶部统计只在数据变化时算一次（搜索、筛选、翻页都不重算）
   // 比较的是数组引用（db.*Shared 数据没变时返回同一个数组），不把全部数据序列化一遍。返回是否有变化
-  setSource(matches, players, myId) {
+  // official：共享的正式战绩（db.matchesShared，和 matches 里去掉待确认的一样、同样按日期从新到旧）；没有（本机缓存先画）就自己筛
+  setSource(matches, players, myId, official) {
     const src = this.srcRef;
-    if (src && src.m === matches && src.p === players && src.id === (myId || '')) return false;
-    this.srcRef = { m: matches, p: players, id: myId || '' };
+    if (src && src.m === matches && src.p === players && src.id === (myId || '') && src.o === (official || null)) return false;
+    this.srcRef = { m: matches, p: players, id: myId || '', o: official || null };
     const shown = matches || [];
-    const all = shown.filter((m) => m.status !== 'pending'); // 统计和水平分涨跌只算正式战绩
+    const all = official || shown.filter((m) => m.status !== 'pending'); // 统计和水平分涨跌只算正式战绩
     const month = ymd(new Date()).slice(0, 7);
     const names = {};
     all.forEach((m) => (m.a || []).concat(m.b || []).forEach((n) => { names[n] = 1; }));
@@ -136,7 +139,7 @@ Page({
       shown,
       me: this.meCard(all, st, players || []),
       deltas: st.ratings.deltas,
-      tags: H.matchTags(all, st.ratings), // 亮点标签（爆冷、逆转…）：只在数据变化时算一次
+      tags: H.tagsOf(all, st.ratings), // 亮点标签（爆冷、逆转…）：只在数据变化时算一次，和比赛详情共用
       stat: { total: all.length, month: all.filter((m) => (m.date || '').indexOf(month) === 0).length, players: Object.keys(names).length },
     };
     return true;
@@ -190,7 +193,11 @@ Page({
   onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
   goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
-  openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
+  openMatch(e) { // 先发出比赛状态请求，利用页面切换动画的时间（比赛详情第一次读取接过去）
+    const id = e.currentTarget.dataset.id;
+    db.prefetchMatchState(id);
+    wx.navigateTo({ url: '/pages/match/match?id=' + id });
+  },
 
   onLong(e) {
     const id = e.currentTarget.dataset.id;

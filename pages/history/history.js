@@ -12,12 +12,14 @@ Page({
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
   async load() {
+    const seq = this.loadSeq = (this.loadSeq || 0) + 1; // 连着读两次（下拉刷新）：只认最后一次
     try {
       // 共享版（只读，不复制），资料跟着这次拿到的球员列表走：本机缓存是异步写的，这时同步读 cachedProfiles / cachedMatches 可能还是空的
       const [players, matches] = await Promise.all([db.playersShared(), db.matchesShared()]);
+      if (seq !== this.loadSeq) return;
       this.render(db.profilesOf(players), players, matches);
     } catch (e) { console.error(e); }
-    this.setData({ loading: false });
+    if (seq === this.loadSeq) this.setData({ loading: false });
   },
   render(profiles, players, matches) {
     const v = PV.playerView(profiles, players, matches, this.data.uid);
@@ -35,5 +37,9 @@ Page({
     const f = this.data.filter;
     this.setData({ shown: (this.rows || []).filter((r) => f === 'all' || (f === 'event' ? r.isEvent : !r.isEvent)) });
   },
-  openMatch(e) { wx.navigateTo({ url: '/pages/match/match?id=' + e.currentTarget.dataset.id }); },
+  openMatch(e) { // 先发出比赛状态请求（比赛详情第一次读取接过去）
+    const id = e.currentTarget.dataset.id;
+    db.prefetchMatchState(id);
+    wx.navigateTo({ url: '/pages/match/match?id=' + id });
+  },
 });

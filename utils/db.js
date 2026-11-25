@@ -137,7 +137,7 @@ function derived(name, load, compute, noCopy) {
 function forget() {
   require('./photo').clear(); generation++; kept = {}; drawsKept = null; lastDs = null;
   Object.keys(removedDraws).forEach((k) => delete removedDraws[k]); lastRemoved = null; // 刚删除的活动、「撤回」提示也是这个账号的
-  prefetched = {}; // 点卡片时预先发出的活动详情请求：换了账号不能再用
+  prefetched = {}; msPrefetched = {}; // 点卡片时预先发出的活动详情 / 比赛状态请求：换了账号不能再用
   memo.invalidate(DS_COLLS.concat('draws'));
 }
 
@@ -302,6 +302,24 @@ function fetchDrawDetail(id) {
   if (p && p.epoch === memo.epoch() && Date.now() - p.at < PREFETCH_MS) return p.task;
   return fetchDrawDetailNow(id);
 }
+// 比赛详情的 matchState（detail：比赛记录、状态、确认情况、修改记录）：和活动详情一样，点比赛卡片时先发出去，
+// 比赛详情 load 第一次读取接过来（只接一次；期间有写操作 / 清缓存或超过 PREFETCH_MS 的不用；连点两次只发一次）
+let msPrefetched = {};
+const matchStateNow = (id) => require('./cloud').call('matchState', { matchId: id, detail: true });
+function prefetchMatchState(id) {
+  if (!id) return;
+  const cur = msPrefetched[id];
+  if (cur && cur.epoch === memo.epoch() && Date.now() - cur.at < PREFETCH_MS) return;
+  const task = matchStateNow(id);
+  task.catch(() => {}); // 失败不提示：详情页接过来时自己处理
+  msPrefetched[id] = { epoch: memo.epoch(), at: Date.now(), task };
+}
+function fetchMatchState(id) {
+  const p = msPrefetched[id];
+  delete msPrefetched[id];
+  if (p && p.epoch === memo.epoch() && Date.now() - p.at < PREFETCH_MS) return p.task;
+  return matchStateNow(id);
+}
 async function fetchDrawDetailNow(id) {
   let r;
   const started = generation, since = memo.epoch();
@@ -424,6 +442,6 @@ module.exports = {
   fetchMatches, cachedMatches, cachedMatchesOrNull, fetchMatchesAll, cachedMatchesAll, matchesShared, matchesAllShared, playersShared, profilesOf, drawsShared, fetchVerified, getVerified, addMatch, removeMatch, getMatch,
   fetchPlayersFull, cachedPlayersFull, cachedProfiles,
   getMyProfile, cachedProfile, cachedOpenid, saveMyProfile, setShown,
-  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, prefetchDrawDetail, peekDrawDetail, cachedDrawSignups, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
+  fetchDraws, cachedDraws, getDraw, fetchDrawDetail, prefetchDrawDetail, peekDrawDetail, prefetchMatchState, fetchMatchState, cachedDrawSignups, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
   fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
 };

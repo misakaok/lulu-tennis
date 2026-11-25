@@ -39,7 +39,7 @@ Page({
     // 先显示：本机记着的球拍列表（或 60 秒内刚读过的）里有这支拍就直接画出来，不再先闪「正在读取…」；onShow 照常读云端再更正。
     // 只是显示，记录、修改、删除照旧由云端核对
     const c = API.cachedList();
-    if (c && c.rackets.some((x) => x.id === this.data.id)) { this.fromCache = true; this.show(c); }
+    if (c && c.rackets.some((x) => x.id === this.data.id)) this.show(c);
   },
   onShow() { this.load(); }, // 编辑、记录后回来刷新
   onPullDownRefresh() {
@@ -48,19 +48,22 @@ Page({
   },
 
   async load() {
+    const seq = this.loadSeq = (this.loadSeq || 0) + 1; // onShow 和下拉刷新同时读：只认最后一次，旧结果不盖新结果
     try {
       const d = await API.load();
-      this.fromCache = false;
+      if (seq !== this.loadSeq) return;
       this.show(d);
     } catch (e) {
-      // 已经画了上次的记录：保留着，只轻提示；没有可显示的才整页显示读取失败
-      if (this.fromCache) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
+      if (seq !== this.loadSeq) return;
+      // 已经画过（本机上次的记录或之前读到的）：保留着，只轻提示；从来没画出来过才整页显示读取失败
+      if (this.drawn) wx.showToast({ title: '网络异常，显示的是上次的记录', icon: 'none' });
       else this.setData({ loading: false, error: e.message || '读取失败' });
     }
   },
   show({ rackets, logs }) {
     const r = rackets.find((x) => x.id === this.data.id);
-    if (!r) { this.setData({ loading: false, error: '球拍不存在，可能已被删除' }); return; }
+    if (!r) { this.drawn = false; this.setData({ loading: false, error: '球拍不存在，可能已被删除' }); return; }
+    this.drawn = true; // 画过有效内容：之后刷新失败不冲成整页报错
     const s = K.summary(r, logs, today());
     wx.setNavigationBarTitle({ title: K.racketTitle(r) });
     this.rows = s.timeline.map(rowOf);

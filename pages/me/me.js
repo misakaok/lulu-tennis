@@ -81,7 +81,11 @@ Page({
       if (n !== this.data.pendingApply) this.setData({ pendingApply: n });
     } catch (e) { console.error(e); }
   },
-  openMembers() { wx.navigateTo({ url: '/pages/members/members' }); },
+  openMembers() { // 先发出成员列表的实时读取（成员管理页 cloud.fresh 接过去，不发两次），利用页面切换的时间
+    const cloud = require('../../utils/cloud');
+    if (cloud.prefetch) cloud.prefetch('listMembers');
+    wx.navigateTo({ url: '/pages/members/members' });
+  },
   openGrowth() { wx.navigateTo({ url: '/pages/growth/growth' }); },
   addGrowth() { wx.navigateTo({ url: '/pages/growth-edit/growth-edit' }); },
 });

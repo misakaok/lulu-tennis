@@ -33,6 +33,12 @@ function cachedList() {
   } catch (e) {}
   return null;
 }
+// 编辑页先填表单用（同步）：只认 60 秒内存里刚读过的（球拍详情刚读过，cloud.peek；任何写操作都会作废），
+// 不读本机存的上次结果（可能是旧的，不拿旧数据填表单）；没有返回 null，页面照旧等 load()
+function peekList() {
+  const v = cloud.peek ? cloud.peek('racketList') : undefined;
+  return v ? { rackets: v.rackets || [], logs: v.logs || [] } : null;
+}
 
 // 云函数还是旧版本（没有这些操作）时返回「未知操作」：换成用户看得懂的提示
 const friendly = (e) => { throw /未知操作/.test((e && e.message) || '') ? new Error('这个功能正在更新，请稍后再试') : e; };
@@ -66,4 +72,4 @@ function applyBadge(rackets, logs) {
 }
 const refreshBadge = () => load().then(({ rackets, logs }) => applyBadge(rackets, logs)).catch(() => 0);
 
-module.exports = { load, cachedList, KEY, saveRacket, removeRacket, saveLog, removeLog, clear, applyBadge, refreshBadge, RACKET_TAB };
+module.exports = { load, cachedList, peekList, KEY, saveRacket, removeRacket, saveLog, removeLog, clear, applyBadge, refreshBadge, RACKET_TAB };

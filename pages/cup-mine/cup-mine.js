@@ -20,7 +20,22 @@ Page({
     wx.hideShareMenu({ fail() {} }); // 个人积分只给自己看，不能分享
     const which = C.BOARDS.some((b) => b.value === o.which) ? o.which : 'single';
     this.setData({ which, whichText: WHICH_TEXT[which], year: Number(o.year) || C.thisYear() });
+    this.early();
     this.load();
+  },
+  // 第一帧就画（2026-11-25 用户嫌点进来先空白）：60 秒内读过的 cupList（「我的」页卡片刚读过）优先，
+  // 没有就用积分榜存在本机的上次结果（cache_cup_board，只认同一账号）；云端读完再静默更正
+  early() {
+    try {
+      const myId = (db.cachedOpenid && db.cachedOpenid()) || '';
+      if (!myId) return;
+      let r = cloud.peek ? cloud.peek('cupList') : undefined;
+      if (!r) { const c = wx.getStorageSync && wx.getStorageSync('cache_cup_board'); r = c && c.uid === myId && c.r && Array.isArray(c.r.list) ? c.r : null; }
+      if (!r) return;
+      this.apply(r, (db.cachedPlayersFull && db.cachedPlayersFull()) || [], myId);
+      this.drawn = true;
+      this.setData({ loading: false });
+    } catch (e) { console.warn('[我的积分] 本机结果画不出来，等云端', e); }
   },
   onPullDownRefresh() {
     memo.invalidate(); // 下拉刷新：不用内存缓存，管理员刚更正 / 撤下的马上看到
@@ -31,23 +46,29 @@ Page({
     try {
       const [r, players, myId] = await Promise.all([cloud.cached('cupList'), db.playersShared(), db.myOpenid()]);
       if (seq !== this.seq) return;
-      this.list = (r && r.list) || [];
-      this.prof = db.profilesOf(players || []);
-      this.myId = myId || '';
-      this.mineOf = {}; // 按年度缓存 C.mine 的结果：切换单打 / 双打、年度时不重算
-      // 年份：我拿过积分的年份 + 今年 + 当前选中的（从卡片带过来的），新的在前
-      const mine = C.myYears(this.list, this.myId);
-      const set = {};
-      mine.concat([C.thisYear(), this.data.year]).forEach((y) => { if (y) set[y] = 1; });
-      const years = Object.keys(set).map(Number).sort((a, b) => b - a);
-      const me = this.prof[this.myId];
-      this.render({ years, error: '', meHidden: !!me && me.shown !== true && mine.length > 0 });
+      this.apply(r, players, myId);
+      this.drawn = true;
     } catch (e) {
       if (seq !== this.seq) return;
       console.warn(e.message);
-      this.setData({ error: '积分没有读取成功，下拉刷新再试一次' });
+      // 已经画过（本机的上次结果）：保留画面，只轻提示
+      if (this.drawn) wx.showToast({ title: '积分没有更新，下拉刷新再试', icon: 'none' });
+      else this.setData({ error: '积分没有读取成功，下拉刷新再试一次' });
     }
     if (this.data.loading) this.setData({ loading: false });
+  },
+  apply(r, players, myId) {
+    this.list = (r && r.list) || [];
+    this.prof = db.profilesOf(players || []);
+    this.myId = myId || '';
+    this.mineOf = {}; // 按年度缓存 C.mine 的结果：切换单打 / 双打、年度时不重算
+    // 年份：我拿过积分的年份 + 今年 + 当前选中的（从卡片带过来的），新的在前
+    const mine = C.myYears(this.list, this.myId);
+    const set = {};
+    mine.concat([C.thisYear(), this.data.year]).forEach((y) => { if (y) set[y] = 1; });
+    const years = Object.keys(set).map(Number).sort((a, b) => b - a);
+    const me = this.prof[this.myId];
+    this.render({ years, error: '', meHidden: !!me && me.shown !== true && mine.length > 0 });
   },
   // 搭档：同意了公开展示（或者是自己）才显示名字，否则「球友」
   nameOf(id) {

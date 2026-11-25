@@ -14,8 +14,12 @@ Component({
   // 多字段监听器在同批属性更新后执行，不依赖 Promise 微任务的调度时机。
   observers: { 'matchId, preset'() { this.load(true); } },
   data: { st: null, loading: false, busy: false, err: '' },
-  pageLifetimes: { show() { if (this.loaded) this.load(); } }, // 从改分页回来刷新
+  // 从改分页 / 活动录分页回来刷新。比赛详情先画的预览（st.preview，普通日常比赛第一帧就挂上）不刷新：
+  // 那时页面自己正在读 matchState、读完传 preset 进来，紧接着的第一次 onShow 不能再发一次
+  pageLifetimes: { show() { if (this.loaded && !this.isPreview()) this.load(); } },
   methods: {
+    // 本机身份画的预览（还没拿到云端结果）：按钮照样显示（不闪），点了不动作，免得按过期的本机身份（如管理员已被撤销）操作
+    isPreview() { return !!(this.data.st && this.data.st.preview); },
     async load(usePreset) {
       const id = this.data.matchId;
       if (!id) return;
@@ -50,13 +54,14 @@ Component({
     },
     /* ---------- 比分纠错 ---------- */
     edit() {
+      if (this.isPreview()) return;
       const st = this.data.st;
       // 活动比赛在赛程里改（自动沿用本场规则）；日常比赛到修改页
       if (st.drawId) wx.navigateTo({ url: `/pages/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
       else wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=edit` });
     },
-    adminFix() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
-    requestChange() { wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
+    adminFix() { if (!this.isPreview()) wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },
+    requestChange() { if (!this.isPreview()) wx.navigateTo({ url: `/pages/correct/correct?matchId=${this.data.matchId}&mode=request` }); },
     async act(action, data, okText) {
       if (this.data.busy) return null; // 防重复点击（云函数里还有原子领取，重复处理只会生效一次）
       this.setData({ busy: true });
@@ -95,6 +100,7 @@ Component({
     },
 
     revoke() {
+      if (this.isPreview()) return;
       wx.showModal({
         title: '撤销这场比赛的赛果？',
         content: '比分会被删除，战绩、排名、水平分和后面的对阵随之更新，已有的确认不再生效。',

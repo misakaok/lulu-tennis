@@ -11,22 +11,59 @@ const ID = require('../../utils/ident');
 Page({
   data: { loading: true, error: '', mode: 'request', aLabel: '', bLabel: '', current: '', ruleText: '', setGames: 4, noAd: true, bestOf: 1, init: [], reason: '', reasons: E.REASONS.score, check: { ok: false, msg: '' }, submitting: false },
 
-  onLoad(o) { this.id = o.matchId; const mode = o.mode === 'edit' || o.mode === 'admin' ? o.mode : 'request'; this.setData({ mode }); wx.setNavigationBarTitle({ title: mode === 'edit' ? '修改比分' : mode === 'admin' ? '更正比分' : '申请修改比分' }); this.load(); },
+  onLoad(o) {
+    this.id = o.matchId;
+    const mode = o.mode === 'edit' || o.mode === 'admin' ? o.mode : 'request';
+    this.setData({ mode });
+    wx.setNavigationBarTitle({ title: mode === 'edit' ? '修改比分' : mode === 'admin' ? '更正比分' : '申请修改比分' });
+    this.preview();
+    this.load();
+  },
+
+  // 先用本机战绩里的这一场（+ 本机活动列表 / 活动详情刚读到的规则）画出表单（2026-11-25 用户嫌打开先空白），
+  // 云端读完内容一样就不重画（不冲掉正在改的局分），变了才按最新的重画；提交照样由云端核对
+  preview() {
+    try {
+      const m = ((db.cachedMatchesAll && db.cachedMatchesAll()) || []).find((x) => x && x._id === this.id);
+      if (!m) return;
+      const players = (db.cachedPlayersFull && db.cachedPlayersFull()) || [];
+      let draw = null;
+      if (m.drawId && m.drawKey) {
+        const pre = db.peekDrawDetail && db.peekDrawDetail(m.drawId);
+        draw = (pre && pre.draw) || ((db.cachedDraws && db.cachedDraws()) || []).find((d) => d && d._id === m.drawId) || null;
+      }
+      this.show(ID.normalizeMatches([m], players)[0], draw);
+    } catch (e) { console.warn('[改分] 本机缓存画不出来，等云端', e); }
+  },
 
   async load() {
     try {
-      const [raw, players] = await Promise.all([db.getMatch(this.id), db.fetchPlayersFull().catch(() => db.cachedPlayersFull())]);
+      const [raw, players] = await Promise.all([db.getMatch(this.id), (db.playersShared || db.fetchPlayersFull)().catch(() => db.cachedPlayersFull())]);
       if (!raw) throw new Error('比赛记录不存在');
-      const m = ID.normalizeMatches([raw], players)[0];
-      let rule = { setGames: m.setGames === 6 ? 6 : 4, noAd: m.noAd !== false, bestOf: m.bestOf === 3 ? 3 : 1 };
-      // 活动已删除（软删除，网关读不到）时沿用比赛记录自带的规则，和云端 ruleOfMatch 找不到活动时一样
-      if (m.drawId && m.drawKey) { const d = await db.getDraw(m.drawId).catch(() => null); if (d) { d._id = m.drawId; rule = E.ruleFor(d, m.drawKey); } }
-      this.m = m;
-      this.setData({
-        loading: false, aLabel: m.a.join(' / '), bLabel: m.b.join(' / '), current: E.scoreText(m.sets),
-        ruleText: E.ruleText(rule), setGames: rule.setGames, noAd: rule.noAd, bestOf: rule.bestOf, init: m.sets || [],
-      });
+      const m = ID.normalizeMatches([raw], players)[0]; // normalizeMatches 不改动传入的（共享）球员数组
+      // 活动已删除（软删除，网关读不到）时沿用比赛记录自带的规则，和云端 ruleOfMatch 找不到活动时一样；
+      // 60 秒内在活动详情读过这个活动就直接用（任何写操作都会作废那份结果）
+      let draw = null;
+      if (m.drawId && m.drawKey) {
+        const pre = db.peekDrawDetail && db.peekDrawDetail(m.drawId);
+        draw = pre && pre.draw ? pre.draw : await db.getDraw(m.drawId).catch(() => null);
+      }
+      this.show(m, draw);
     } catch (e) { this.setData({ loading: false, error: e.message }); }
+  },
+  // 画表单；内容签名（比分 + 规则 + 双方名字）和已经画出来的一样就不重画
+  show(m, draw) {
+    let rule = { setGames: m.setGames === 6 ? 6 : 4, noAd: m.noAd !== false, bestOf: m.bestOf === 3 ? 3 : 1 };
+    if (draw) { const d = Object.assign({}, draw, { _id: m.drawId }); rule = E.ruleFor(d, m.drawKey); }
+    this.m = m;
+    const view = { aLabel: m.a.join(' / '), bLabel: m.b.join(' / '), current: E.scoreText(m.sets), rule: [rule.setGames, rule.noAd, rule.bestOf], sets: m.sets || [] };
+    const sig = JSON.stringify(view);
+    if (sig === this.shownSig) { if (this.data.loading || this.data.error) this.setData({ loading: false, error: '' }); return; }
+    this.shownSig = sig;
+    this.setData({
+      loading: false, error: '', aLabel: view.aLabel, bLabel: view.bLabel, current: view.current,
+      ruleText: E.ruleText(rule), setGames: rule.setGames, noAd: rule.noAd, bestOf: rule.bestOf, init: m.sets || [],
+    });
   },
   onSets(e) {
     this.res = e.detail;

@@ -7,42 +7,58 @@
 .pcard.pcard-empty { padding-bottom: 36rpx; }
 /* 球员主页是推入页：等滑入动画（约 300ms）结束再扫高光 */
 .pcard.ani-sheen::after { animation-delay: 0.35s; }
-/* 顶部 1rpx 内高光（背景图盖住了卡片自己的 inset 阴影，所以用 ::before 画；::after 留给 .ani-sheen） */
-.pcard::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1rpx; background: rgba(255, 255, 255, 0.35); pointer-events: none; z-index: 1; }
+/* 整张卡的对角微光（左上亮、右下压一点冷紫）+ 圆角顶边 1rpx 内高光：背景图盖住了卡片自己的 inset 阴影，所以用 ::before 画；
+   ::after 留给 .ani-sheen。z-index 0 叠在 .bg-img（-1）上面、其余内容下面 */
+.pcard::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  border-radius: inherit; pointer-events: none; z-index: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 45%, rgba(56, 54, 108, 0.18) 100%);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.42);
+}
 
 /* 球场线 + 网球：运动感装饰 */
-.court { position: absolute; right: -120rpx; top: -40rpx; width: 460rpx; height: 560rpx; transform: rotate(-24deg); border: 3rpx solid rgba(255,255,255,0.16); border-radius: 8rpx; }
-.c-line { position: absolute; background: rgba(255,255,255,0.14); }
+/* 斜放的球场线只作底纹：往右下退一点、压淡，不抢文字 */
+.court { position: absolute; right: -140rpx; top: -10rpx; width: 460rpx; height: 560rpx; transform: rotate(-24deg); border: 3rpx solid rgba(255,255,255,0.10); border-radius: 8rpx; }
+.c-line { position: absolute; background: rgba(255,255,255,0.08); }
 .c-line.l1 { left: 0; right: 0; top: 50%; height: 3rpx; }
 .c-line.l2 { top: 0; bottom: 0; left: 50%; width: 3rpx; }
-.c-line.l3 { left: 14%; right: 14%; top: 22%; bottom: 22%; background: none; border: 3rpx solid rgba(255,255,255,0.12); }
-.pc-top { position: relative; display: flex; align-items: center; }
+.c-line.l3 { left: 14%; right: 14%; top: 22%; bottom: 22%; background: none; border: 3rpx solid rgba(255,255,255,0.08); }
+.pc-top { position: relative; display: flex; align-items: flex-start; }
 .pc-photo-wrap { flex: none; padding: 6rpx; border-radius: 34rpx; background: rgba(255,255,255,0.9); }
 .pc-photo { width: 168rpx; height: 168rpx; border-radius: 28rpx; display: block; background: #ECECF6; }
 .pc-photo.init { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 76rpx; font-weight: 800; }
 .pc-main { flex: 1; min-width: 0; margin-left: 26rpx; }
-.pc-name { font-size: 44rpx; font-weight: 900; letter-spacing: 1rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-head { display: flex; align-items: center; justify-content: space-between; }
+.pc-name { flex: 1; min-width: 0; margin-right: 16rpx; font-size: 44rpx; font-weight: 900; letter-spacing: 1rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-tags { margin-top: 12rpx; display: flex; flex-wrap: wrap; }
 .pc-tag { font-size: 21rpx; background: rgba(255,255,255,0.2); border-radius: 18rpx; padding: 4rpx 14rpx; margin: 0 10rpx 8rpx 0; }
 .pc-tag.hl { background: #fff; color: #6E6EA3; font-weight: 700; }
-.pc-edit { position: absolute; right: 0; top: -6rpx; font-size: 22rpx; border: 2rpx solid rgba(255,255,255,0.75); border-radius: 26rpx; padding: 6rpx 18rpx; background: rgba(255,255,255,0.08); }
+/* 轻透磨砂小胶囊；过渡写在元素本身上，松手也回弹 */
+.pc-edit {
+  flex: none; padding: 8rpx 22rpx; border-radius: 28rpx; font-size: 22rpx; font-weight: 600; color: #fff;
+  background: rgba(255, 255, 255, 0.18); border: 1rpx solid rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease;
+}
 .pc-level { position: relative; display: flex; align-items: flex-end; justify-content: space-between; margin-top: 26rpx; }
 .pc-lv-lbl { font-size: 22rpx; opacity: 0.9; letter-spacing: 2rpx; }
-.pc-lv { font-size: 104rpx; font-weight: 900; line-height: 1; font-style: italic; letter-spacing: -0.03em; text-shadow: 0 6rpx 16rpx rgba(60,60,110,0.25); }
+.pc-lv { font-size: 108rpx; font-weight: 900; line-height: 0.96; letter-spacing: -0.03em; text-shadow: 0 6rpx 18rpx rgba(54, 52, 104, 0.26); } /* 正体记分牌数字，和卡上其他数字一致 */
 .pc-lv-side { text-align: right; padding-bottom: 10rpx; }
 .pc-lv-note { font-size: 21rpx; opacity: 0.9; }
-.pc-last { font-size: 26rpx; font-weight: 800; }
-.pc-stats { position: relative; display: flex; margin-top: 24rpx; background: rgba(255, 255, 255, 0.18); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0)); border-radius: 22rpx; padding: 18rpx 0; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1rpx solid rgba(255, 255, 255, 0.36); box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.45), 0 6rpx 16rpx rgba(68, 68, 120, 0.12); } /* 毛玻璃：不支持的机型只剩半透明底 */
+/* 上一场涨 / 跌：小胶囊；涨分点亮网球黄绿，跌分柔和暖红 */
+.pc-last { display: inline-flex; align-items: center; margin-top: 8rpx; padding: 4rpx 18rpx; border-radius: 22rpx; font-size: 22rpx; font-weight: 800; background: rgba(56, 54, 108, 0.24); color: rgba(255, 255, 255, 0.92); }
+.pc-stats { position: relative; display: flex; margin-top: 24rpx; background: rgba(56, 54, 108, 0.22); background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)); border-radius: 22rpx; padding: 18rpx 0; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1rpx solid rgba(255, 255, 255, 0.24); box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.28), 0 8rpx 20rpx rgba(48, 46, 96, 0.16); } /* 烟熏冷紫毛玻璃：不支持模糊的机型只剩半透明冷紫底，白字照样清楚 */
 .pcs { flex: 1; display: flex; flex-direction: column; align-items: center; }
-.pcs + .pcs { border-left: 2rpx solid rgba(255,255,255,0.2); }
+.pcs + .pcs { border-left: 1rpx solid rgba(255, 255, 255, 0.16); }
 .pcs .n { height: 54rpx; line-height: 54rpx; font-size: 38rpx; font-weight: 900; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pcs .n.none { font-size: 26rpx; font-weight: 600; opacity: 0.8; }
 .pcs .l { font-size: 21rpx; opacity: 0.9; margin-top: 4rpx; }
 .pc-cta { position: relative; margin-top: 30rpx; height: 84rpx; line-height: 84rpx; text-align: center; border-radius: 42rpx; background: #fff; color: #6E6EA3; font-weight: 800; font-size: 30rpx; }
-.last.up, .pc-last.up { color: #E6FFD9; }
-.pc-last.down { color: #FFE1E1; }
+.last.up { color: #E6FFD9; }
+.pc-last.up { background: #C9E33A; color: #2E3600; box-shadow: 0 4rpx 14rpx rgba(201, 227, 58, 0.30); }
+.pc-last.down { background: rgba(255, 218, 218, 0.22); color: #FFE8E8; border: 1rpx solid rgba(255, 210, 210, 0.35); }
 
-.pc-lv.none { font-size: 56rpx; font-style: normal; opacity: 0.85; margin-top: 16rpx; line-height: 1.1; }
+.pc-lv.none { font-size: 56rpx; opacity: 0.85; margin-top: 16rpx; line-height: 1.1; }
 .pc-self { font-size: 22rpx; opacity: 0.95; margin-bottom: 6rpx; }
 .pc-self .b { font-size: 30rpx; font-weight: 900; margin-left: 6rpx; }
 .pc-self .b.none { font-size: 24rpx; font-weight: 600; opacity: 0.85; }

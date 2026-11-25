@@ -53,4 +53,16 @@ function matchTags(matches, ratings) {
   return out;
 }
 
-module.exports = { matchTags, tbWins, bagelBy, comebackBy, upsetBy, byTime, UPSET_GAP, STOP_MIN };
+// 同一份正式战绩 + 同一份水平分结果只算一次亮点标签（仿 R.ratingsOf）：战绩页、比赛详情传共享数组（db.matchesShared）时共用。
+// 按数组引用认（WeakMap），再核对水平分结果的引用和比赛条数；结果是共享的，调用方只能读、不能改
+const tagsMemo = new WeakMap();
+function tagsOf(matches, ratings) {
+  matches = matches || [];
+  const c = tagsMemo.get(matches);
+  if (c && c.r === ratings && c.n === matches.length) return c.tags;
+  const tags = matchTags(matches, ratings);
+  tagsMemo.set(matches, { r: ratings, n: matches.length, tags });
+  return tags;
+}
+
+module.exports = { matchTags, tagsOf, tbWins, bagelBy, comebackBy, upsetBy, byTime, UPSET_GAP, STOP_MIN };

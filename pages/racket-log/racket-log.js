@@ -33,7 +33,7 @@ Page({
     const q = o || {};
     const id = decodeURIComponent(q.id || ''), racketId = decodeURIComponent(q.racket || '');
     this.setData({ id, racketId, kind: q.kind === 'maint' ? 'maint' : 'string', today: today(), date: today() });
-    API.load().then(({ rackets, logs }) => {
+    const open = ({ rackets, logs }) => {
       let rid = racketId, log = null;
       if (id) {
         log = logs.find((l) => l.id === id);
@@ -59,7 +59,11 @@ Page({
       }
       this.setData({ ready: true });
       this.refreshTags();
-    }).catch((e) => this.setData({ error: e.message || '读取失败' }));
+    };
+    // 从球拍详情点进来：60 秒内存里刚读过的（API.peekList，不读本机存的旧结果）找得到这支拍 / 这条记录就直接填好，不等云端
+    const pre = API.peekList ? API.peekList() : null;
+    if (pre && (id ? pre.logs.some((l) => l.id === id) : pre.rackets.some((x) => x.id === racketId))) { open(pre); return; }
+    API.load().then(open).catch((e) => this.setData({ error: e.message || '读取失败' }));
   },
 
   refreshTags() {

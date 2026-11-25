@@ -2157,4 +2157,75 @@ test('中途退赛：抢七小分必须是两边都填的合法整数；没填�
   assert.ok(!('tbA' in Object.values(env.coll('matches'))[0].sets[0]), 'null 当作没填');
 });
 
+/* ---------- 2026-11-25 云函数提速（并行查库）：返回内容不变 ---------- */
+test('matchState 并行查库后返回不变：日常（参加者 / 旁人 / detail）、有待处理改分申请、活动（发起人 / 对方待确认）、被取代的旧记录不补快照', async () => {
+  const env = setup();
+  const id = ok(await daily(env, 'alice', 'bob'))._id;
+  const d0 = ok(await env.call('alice', 'matchState', { matchId: id, detail: true }));
+  assert.deepStrictEqual([d0.finished, d0.reason, d0.daily, d0.confirmed, d0.canEdit, d0.canConfirm, d0.status, d0.changes, d0.sides, d0.request],
+    [true, '', true, false, true, false, 'official', [], { a: '录入', b: '' }, null]);
+  assert.strictEqual(d0.match._id, id);
+  const e0 = ok(await env.call('eve', 'matchState', { matchId: id }));
+  assert.deepStrictEqual([e0.mySide, e0.canEdit, e0.reason, 'match' in e0, 'status' in e0], ['', false, '你不是这场比赛的参加者（按账号判断，不看昵称）', false, false]);
+  // 锁定 + 改分申请：参加者看得到原因，旁人看不到；改分申请的申请人名字、确认方名字都对
+  ok(await env.call('bob', 'confirmResult', { matchId: id }));
+  ok(await env.call('bob', 'requestScoreChange', { matchId: id, sets: [{ a: 4, b: 1 }], reason: '比分录反了' }));
+  const a1 = ok(await env.call('alice', 'matchState', { matchId: id, detail: true }));
+  assert.deepStrictEqual([a1.confirmed, a1.sides, a1.canEdit, a1.canRequestChange, a1.request.requester, a1.request.reason, a1.request.canRespond, a1.request.mine],
+    [true, { a: '录入', b: 'Bob' }, false, false, 'Bob', '比分录反了', true, false]);
+  const e1 = ok(await env.call('eve', 'matchState', { matchId: id }));
+  assert.deepStrictEqual([e1.request.reason, e1.request.canRespond, e1.request.requester], ['', false, 'Bob']);
+  // 活动比赛：发起人 isOwner，对方待确认
+  const ents = ['Alice', 'Bob', 'Carl', 'Eve'];
+  env.put('draws', { _id: 'd5', _openid: 'owner', title: '周末赛', status: 'drawn', type: 'single', mode: 'bracket', size: 4, entrants: ents, lines: D.makeBracket(ents, [], 4) });
+  ents.forEach((n) => env.put('signups', { _id: 's_' + n, _openid: n.toLowerCase(), drawId: 'd5', name: n }));
+  const E = require('../utils/event');
+  const semi = E.scheduleOf(Object.assign({}, env.coll('draws').d5), []).find((x) => x.ready && x.aMembers.concat(x.bMembers).indexOf('Alice') >= 0);
+  const aSide = semi.aMembers[0] === 'Alice';
+  const opp = (aSide ? semi.bMembers[0] : semi.aMembers[0]).toLowerCase();
+  const sid = ok(await env.call('alice', 'recordEventMatch', { drawId: 'd5', key: semi.key, sets: [aSide ? { a: 4, b: 1 } : { a: 1, b: 4 }] })).matchId;
+  const o = ok(await env.call('owner', 'matchState', { matchId: sid, detail: true }));
+  assert.deepStrictEqual([o.isOwner, o.daily, o.confirmed, o.status, o.drawId, o.drawKey], [true, false, false, 'official', 'd5', semi.key]);
+  const op = ok(await env.call(opp, 'matchState', { matchId: sid }));
+  assert.deepStrictEqual([op.isOwner, op.canConfirm, op.reason], [false, true, '请先确认比分']);
+  // 被取代：同一场两条云端写入的记录，旧的那条返回 supersededBy，不带确认情况，也不补 verified 快照
+  const base = { type: 'single', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], drawId: 'd5', drawKey: 'zz', winner: 'a', sets: [{ a: 4, b: 1 }], date: '2026-11-02', recordedBy: 'alice', rulingSig: '' };
+  env.put('matches', Object.assign({ _id: 'old1', createdAt: 1 }, base));
+  env.put('matches', Object.assign({ _id: 'new1', createdAt: 2 }, base, { sets: [{ a: 4, b: 2 }] }));
+  const sup = ok(await env.call('alice', 'matchState', { matchId: 'old1', detail: true }));
+  assert.deepStrictEqual([sup.finished, sup.reason, sup.supersededBy, 'confirmed' in sup, 'request' in sup, sup.match._id, sup.status], [false, '这条比分已被新的记录取代', 'new1', false, false, 'old1', 'official']);
+  assert.ok(!env.coll('verified').old1);
+  // 不存在的比赛：照旧按原来的提示拒绝
+  const gone = ok(await env.call('alice', 'matchState', { matchId: 'nope' }));
+  assert.deepStrictEqual([gone.finished, gone.reason, gone.drawId, gone.outcome], [false, '比赛记录不存在（可能已被撤销）', '', '']);
+  no(await env.call('alice', 'matchState', {}), /缺少比赛/);
+});
+
+test('listMembers 三个集合一起查后返回不变：待审核 / 成员 / 已拒绝（收起的不显示）/ 历史球友 / 有效邀请；取最早那条资料；超过 1000 条照样读全', async () => {
+  const env = setup();
+  const old = process.env.ADMIN_OPENIDS;
+  process.env.ADMIN_OPENIDS = 'boss';
+  try {
+    env.put('members', { _id: 'p1', status: 'pending', name: 'P1' });
+    env.put('members', { _id: 'r1', status: 'rejected', name: 'R1', reason: '不认识这位球友' });
+    env.put('members', { _id: 'r2', status: 'rejected', name: 'R2', reason: '自己写的原因' });
+    env.put('members', { _id: 'x1', status: 'removed', name: 'X1', archived: true });
+    env.put('players', { _id: 'ghost', _openid: 'ghost', self: true, name: 'Ghost', createdAt: 0 });
+    env.put('players', { _id: 'dup', _openid: 'alice', self: true, name: 'AliceNew', createdAt: 99, gender: 'f' });
+    env.put('invites', { _id: 'INV1', usedBy: '', revoked: false, expiresAt: Date.now() + 86400000, note: '' });
+    env.put('invites', { _id: 'INV0', usedBy: 'bob', revoked: false, expiresAt: Date.now() + 86400000 });
+    env.put('invites', { _id: 'INV2', usedBy: '', revoked: true, expiresAt: Date.now() + 86400000 });
+    for (let i = 0; i < 1005; i++) env.put('members', { _id: 'm' + i, status: 'active', name: 'M' + i });
+    const d = ok(await env.call('boss', 'listMembers'));
+    assert.deepStrictEqual(d.pending.map((x) => x.uid), ['p1']);
+    assert.deepStrictEqual(d.others.map((x) => [x.uid, x.reason]), [['r1', '不认识这位球友'], ['r2', '']], '手写的旧原因不下发');
+    assert.strictEqual(d.active.length, 5 + 1005 + 1, '超过 1000 位成员照样读全；不在成员表里的管理员也列出来');
+    assert.ok(d.active.some((x) => x.uid === 'boss' && x.admin));
+    assert.strictEqual(d.active.find((x) => x.uid === 'alice').nickname, 'Alice', '有重复资料时取最早那条');
+    assert.deepStrictEqual(d.candidates, [{ uid: 'ghost', nickname: 'Ghost' }]);
+    assert.deepStrictEqual(d.invites.map((x) => x.code), ['INV1']);
+    no(await env.call('alice', 'listMembers'), /管理员/);
+  } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }
+});
+
 module.exports = T;

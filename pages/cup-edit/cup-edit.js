@@ -30,56 +30,94 @@ Page({
     const t = todayStr();
     this.setData({ today: t, date: t });
     try {
-      // 身份校验和读数据同时发出（这些接口云端只给管理员，不是管理员会被拒绝），少等一轮云函数
+      // 身份校验和读数据同时发出（这些接口云端只给管理员，不是管理员会被拒绝），少等一轮云函数；
+      // 积分列表用 60 秒内存缓存（积分页刚读过；任何写操作都会作废）
       const drawId = options.drawId ? decodeURIComponent(options.drawId) : '';
-      const data = Promise.all([cloud.cached('listMembers'), options.id ? cloud.call('cupList') : null, drawId ? cloud.call('cupFromDraw', { drawId }) : null]);
+      const listOf = () => (cloud.cached ? cloud.cached('cupList') : cloud.call('cupList'));
+      const data = Promise.all([cloud.cached('listMembers'), options.id ? listOf() : null, drawId ? cloud.call('cupFromDraw', { drawId }) : null]);
       data.catch(() => {}); // 不是管理员时这里会失败，下面直接提示，不用再报一次
-      const ms = await require('../../utils/member').status();
-      if (ms.status !== 'active' || !ms.isAdmin) { this.setData({ loading: false, authError: '只有管理员可以补录积分' }); return; }
-      let [mem, list, fd] = await data;
-      // 正式成员名单：设置过资料（有昵称）的才能选
-      this.people = ((mem && mem.active) || []).filter((m) => m.uid && m.nickname)
-        .map((m) => ({ uid: m.uid, name: m.nickname, gender: m.gender || '' }))
-        .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
-      this.byUid = {};
-      this.people.forEach((p) => { this.byUid[p.uid] = p; });
-      let s = null;
-      if (options.id) {
-        s = ((list && list.list) || []).find((x) => x.id === options.id);
-        if (!s) { this.setData({ loading: false, authError: '没找到这一站，可能已经删除' }); return; }
-        // 从积分页打开的是活动结算的那一站：同样跟活动走（保存时带上活动，云端核对）
-        if (s.drawId) fd = await cloud.call('cupFromDraw', { drawId: s.drawId }).catch(() => null); // 活动删除了也要能撤下这一站
-      } else if (fd) {
-        if (fd.removed) { this.setData({ loading: false, authError: '这个活动的积分已经撤下，不能再结算；需要的话请在积分页补录一站' }); return; }
-        s = fd.stop; // 已经结算过：打开原来那一站
-        if (!s && !fd.fresh.done) { this.setData({ loading: false, authError: '这个活动还有场次没打完，全部结束后才能结算积分' }); return; }
-      }
-      this.drawId = (s && s.drawId) || drawId;
-      this.fresh = fd ? fd.fresh : null;
-      if (!fd && s && s.drawId) this.setData({ from: { title: '', notes: ['暂时读不到对应的活动（可能已删除），这一站只能撤下'], stale: false } });
-      if (fd) {
-        this.setData({ from: { title: fd.title, notes: fd.fresh.notes || [], stale: !!(s && fd.stale) } });
-        wx.setNavigationBarTitle({ title: s && s.status === 'published' ? '更正活动积分' : '结算 LULU 积分' });
-      }
-      if (s) {
-        this.key = s.id;
-        this.places = JSON.parse(JSON.stringify(s.places));
-        while (this.places.semis.length < C.MAX_SEMI) this.places.semis.push(blank(C.sizeOf(s.format)));
-        this.setData({ editing: true, published: s.status === 'published', fixes: s.fixes || 0, date: s.date, kind: s.kind, format: s.format, pointGroup: s.pointGroup || '', scoreVersion: s.scoreVersion || 0 });
-        if (!fd) wx.setNavigationBarTitle({ title: s.status === 'published' ? '更正积分' : '补录积分' });
-      } else if (fd) {
-        this.key = fd.key;
-        this.fill(fd.fresh);
-        this.setData({ date: fd.fresh.date && fd.fresh.date <= t ? fd.fresh.date : t, kind: fd.fresh.kind, format: fd.fresh.format, pointGroup: fd.fresh.pointGroup || '', scoreVersion: fd.fresh.scoreVersion || 0 });
-      } else {
-        this.key = newKey();
-        this.places = emptyPlaces(1);
-      }
-      this.setData({ ok: true, authError: '', loading: false });
-      this.render();
+      const M = require('../../utils/member');
+      // 先画后校验（2026-11-25 用户嫌打开慢）：本机 24 小时内确认过是管理员、60 秒内存里有成员名单（补录）/ 这一站（更正，不是活动结算的）
+      // 就先把表单画出来，云端校验在后台跑，不是管理员马上收起；从活动结算（要读 cupFromDraw）照旧等
+      const early = !drawId && M.knownActive && M.knownActive() && M.isAdminLocal && M.isAdminLocal() && this.earlyOpen(options, t);
+      const ms = await M.status();
+      if (ms.status !== 'active' || !ms.isAdmin) { this.setData({ ok: false, loading: false, authError: '只有管理员可以补录积分' }); return; }
+      const [mem, list, fd] = await data;
+      // 先画的和云端一样：不重画（不冲掉正在选的名次）；不一样才按最新的重画
+      if (early && this.sigOf(mem, list, options) === this.earlySig) return;
+      // 新补录只是成员名单有变化：换上最新名单，已经选好的名次保留（发布时云端照样核对是不是正式成员）
+      if (early && !options.id) { this.setPeople(mem); this.render(); return; }
+      await this.setup(options, mem, list, fd, t);
     } catch (e) {
-      this.setData({ loading: false, authError: e.message || '身份校验失败，请返回后重试' });
+      this.setData({ ok: false, loading: false, authError: e.message || '身份校验失败，请返回后重试' });
     }
+  },
+  // 先画：内存里有能用的就同步画出表单，返回是否画了
+  earlyOpen(options, t) {
+    if (!cloud.peek) return false;
+    const mem = cloud.peek('listMembers');
+    if (!mem) return false;
+    let list = null;
+    if (options.id) {
+      list = cloud.peek('cupList');
+      const s = list && (list.list || []).find((x) => x.id === options.id);
+      if (!s || s.drawId) return false; // 活动结算的站要读活动（cupFromDraw）：等云端
+    }
+    this.setup(options, mem, list, null, t); // 这条路径里没有 await，同步画完
+    this.earlySig = this.sigOf(mem, list, options);
+    return true;
+  },
+  // 内容签名：可选的成员（用户 ID、昵称、性别）+ 要更正的那一站
+  sigOf(mem, list, options) {
+    const people = ((mem && mem.active) || []).filter((m) => m.uid && m.nickname).map((m) => [m.uid, m.nickname, m.gender || '']);
+    const s = options.id ? ((list && list.list) || []).find((x) => x.id === options.id) || null : null;
+    return JSON.stringify([people, s]);
+  },
+  // 正式成员名单：设置过资料（有昵称）的才能选
+  setPeople(mem) {
+    this.people = ((mem && mem.active) || []).filter((m) => m.uid && m.nickname)
+      .map((m) => ({ uid: m.uid, name: m.nickname, gender: m.gender || '' }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    this.byUid = {};
+    this.people.forEach((p) => { this.byUid[p.uid] = p; });
+  },
+  async setup(options, mem, list, fd, t) {
+    const drawId = options.drawId ? decodeURIComponent(options.drawId) : '';
+    this.setPeople(mem);
+    let s = null;
+    if (options.id) {
+      s = ((list && list.list) || []).find((x) => x.id === options.id);
+      if (!s) { this.setData({ ok: false, loading: false, authError: '没找到这一站，可能已经删除' }); return; }
+      // 从积分页打开的是活动结算的那一站：同样跟活动走（保存时带上活动，云端核对）
+      if (s.drawId) fd = await cloud.call('cupFromDraw', { drawId: s.drawId }).catch(() => null); // 活动删除了也要能撤下这一站
+    } else if (fd) {
+      if (fd.removed) { this.setData({ loading: false, authError: '这个活动的积分已经撤下，不能再结算；需要的话请在积分页补录一站' }); return; }
+      s = fd.stop; // 已经结算过：打开原来那一站
+      if (!s && !fd.fresh.done) { this.setData({ loading: false, authError: '这个活动还有场次没打完，全部结束后才能结算积分' }); return; }
+    }
+    this.drawId = (s && s.drawId) || drawId;
+    this.fresh = fd ? fd.fresh : null;
+    if (!fd && s && s.drawId) this.setData({ from: { title: '', notes: ['暂时读不到对应的活动（可能已删除），这一站只能撤下'], stale: false } });
+    if (fd) {
+      this.setData({ from: { title: fd.title, notes: fd.fresh.notes || [], stale: !!(s && fd.stale) } });
+      wx.setNavigationBarTitle({ title: s && s.status === 'published' ? '更正活动积分' : '结算 LULU 积分' });
+    }
+    if (s) {
+      this.key = s.id;
+      this.places = JSON.parse(JSON.stringify(s.places));
+      while (this.places.semis.length < C.MAX_SEMI) this.places.semis.push(blank(C.sizeOf(s.format)));
+      this.setData({ editing: true, published: s.status === 'published', fixes: s.fixes || 0, date: s.date, kind: s.kind, format: s.format, pointGroup: s.pointGroup || '', scoreVersion: s.scoreVersion || 0 });
+      if (!fd) wx.setNavigationBarTitle({ title: s.status === 'published' ? '更正积分' : '补录积分' });
+    } else if (fd) {
+      this.key = fd.key;
+      this.fill(fd.fresh);
+      this.setData({ date: fd.fresh.date && fd.fresh.date <= t ? fd.fresh.date : t, kind: fd.fresh.kind, format: fd.fresh.format, pointGroup: fd.fresh.pointGroup || '', scoreVersion: fd.fresh.scoreVersion || 0 });
+    } else {
+      this.key = this.key || newKey(); // 先画时已经生成过：沿用（期间保存过草稿也还是同一站）
+      this.places = emptyPlaces(1);
+    }
+    this.setData({ ok: true, authError: '', loading: false });
+    this.render();
   },
 
   // 按对阵推出来的名次填进来（四强补足空位，方便手动补选）

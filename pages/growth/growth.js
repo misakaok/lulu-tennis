@@ -48,28 +48,52 @@ Page({
   data: { loading: true, error: '', has: false, s: null, groups: [], official: null, monthDiff: '', clearing: false },
 
   onLoad() { wx.hideShareMenu(); }, // 私人档案不能分享
-  onShow() { this.load(); },
+  // 先画后更正（2026-11-25 用户嫌从「我的」点进来先空白）：私人记录只用 60 秒内存里的（「我的」页刚读过，A.peek），
+  // 不写也不读本机存储；正式战绩摘要先用本机缓存算；之后照常读云端静默更正
+  early() {
+    const t = today();
+    const list = A.peek ? A.peek() : null;
+    if (list) this.show(list, t);
+    try {
+      const myId = (db.cachedOpenid && db.cachedOpenid()) || '';
+      if (myId && !this.data.official && db.cachedPlayersFull && db.cachedMatches) {
+        const official = officialOf(myId, t, db.cachedPlayersFull() || [], db.cachedMatches() || []);
+        if (official) this.setData({ official });
+      }
+    } catch (e) { console.warn('[成长档案] 本机战绩算不出摘要，等云端', e); }
+  },
+  onShow() { this.early(); this.load(); },
   onPullDownRefresh() {
     require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh());
   },
+  show(raw, t) {
+    const list = raw.filter((r) => G.validDate(r.date)).sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);
+    const s = G.summary(list, t);
+    this.drawn = true; // 画过有效内容：之后刷新失败不冲成整页报错
+    this.setData({
+      loading: false, error: '', has: list.length > 0, s,
+      monthDiff: diffText(s.thisMonth.played, s.lastMonth.played),
+      groups: groupByMonth(list),
+    });
+  },
 
   async load() {
     const t = today();
+    const seq = this.loadSeq = (this.loadSeq || 0) + 1; // onShow 和下拉刷新同时读：只认最后一次，旧结果不盖新结果
     // 正式战绩只是附带的摘要：失败不影响私人记录
     const official = Promise.all([db.myOpenid(), db.playersShared(), db.matchesShared()])
-      .then(([myId, players, matches]) => this.setData({ official: officialOf(myId, t, players, matches) }))
+      .then(([myId, players, matches]) => { if (seq === this.loadSeq) this.setData({ official: officialOf(myId, t, players, matches) }); })
       .catch((e) => console.warn('正式战绩读取失败', e.message));
     try {
-      const list = (await A.list()).filter((r) => G.validDate(r.date)).sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);
-      const s = G.summary(list, t);
-      this.setData({
-        loading: false, error: '', has: list.length > 0, s,
-        monthDiff: diffText(s.thisMonth.played, s.lastMonth.played),
-        groups: groupByMonth(list),
-      });
+      const list = await A.list();
+      if (seq !== this.loadSeq) return;
+      this.show(list, t);
     } catch (e) {
-      this.setData({ loading: false, error: e.message || '读取失败' });
+      if (seq !== this.loadSeq) return;
+      // 已经画过（内存里刚读过的或之前读到的）：保留着，只轻提示；从来没画出来过才整页显示读取失败
+      if (this.drawn) wx.showToast({ title: e.message || '网络异常，显示的是上次的记录', icon: 'none' });
+      else this.setData({ loading: false, error: e.message || '读取失败' });
     }
     await official;
   },
@@ -93,6 +117,7 @@ Page({
         this.setData({ clearing: true });
         A.clear().then((n) => {
           wx.showToast({ title: `已清除 ${n} 条`, icon: 'none' });
+          this.drawn = false; // 清除后读不到：不留着已清除的记录
           return this.load();
         }).catch((e) => wx.showToast({ title: e.message || '清除失败', icon: 'none' }))
           .then(() => this.setData({ clearing: false }));
