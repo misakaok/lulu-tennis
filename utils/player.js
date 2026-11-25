@@ -43,17 +43,32 @@ function matchRow(m, key, name, deltaOf, tagsOf) {
   };
 }
 
-// 等级走势：最近 TREND_MAX 场比赛打完后的比赛等级，画成一排柱子（高度按这段时间的最低～最高等级换算）
+// 等级走势：最近 TREND_MAX 场比赛打完后的比赛等级，画成一排柱子（2026-11-25 用户要求修）。
+//   刻度和柱子用同一把尺：纵轴按 0.5 一档取整（lo～hi），每档画一条淡线并标数字，柱子高度按真实等级落在这把尺上，
+//   柱顶到哪条线就是那个水平。最低的那场离底线至少留 0.1（正好在整档上就往下多留一档），免得柱子贴底看不见。
+//   档位太多（超过 2.0 的跨度）时每 1.0 标一条线。所有场次同一天时日期只写一次（sameDay）。
 const TREND_MAX = 30;
+const TREND_FEW = 8; // 场数不多于这个时柱子加宽
 function trendView(history) {
   const h = (history || []).slice(-TREND_MAX);
   if (h.length < 2) return null;
   const lv = h.map((x) => x.level);
-  const min = Math.min.apply(null, lv), max = Math.max.apply(null, lv), span = max - min;
+  const min = Math.min.apply(null, lv), max = Math.max.apply(null, lv);
+  const lo = Math.max(0.5, Math.floor((min - 0.1) * 2) / 2);
+  let hi = Math.ceil(max * 2) / 2;
+  if (hi - lo < 0.5) hi = lo + 0.5;
+  const step = hi - lo > 2 ? 1 : 0.5;
+  if (step === 1 && Math.round((hi - lo) * 2) % 2) hi += 0.5; // 跨度超过 2.0 按 1.0 一档时，顶线对齐整档（保证最上一条刻度正好在 100%）
+  const span = hi - lo;
+  const pos = (x) => Math.round(((x - lo) / span) * 1000) / 10; // 离底线的百分比（一位小数）
+  const ticks = [];
+  for (let t = lo; t <= hi + 1e-9; t += step) ticks.push({ v: R.fmt(t), pos: pos(t), base: t === lo });
+  const from = (h[0].date || '').slice(5), to = (h[h.length - 1].date || '').slice(5);
   return {
-    bars: h.map((x, i) => ({ i, h: span ? Math.round(18 + 82 * (x.level - min) / span) : 60, up: x.delta > 0, down: x.delta < 0 })),
-    n: h.length, min: R.fmt(min), max: R.fmt(max),
-    from: (h[0].date || '').slice(5), to: (h[h.length - 1].date || '').slice(5),
+    bars: h.map((x, i) => ({ i, h: pos(x.level), up: x.delta > 0, down: x.delta < 0, last: i === h.length - 1 })),
+    ticks: ticks.reverse(), // 从上往下
+    n: h.length, few: h.length <= TREND_FEW, min: R.fmt(min), max: R.fmt(max),
+    from, to, sameDay: from === to,
     first: R.fmt(lv[0]), last: R.fmt(lv[lv.length - 1]),
   };
 }

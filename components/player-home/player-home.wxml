@@ -78,16 +78,20 @@
     <view wx:if="{{h2h.total > h2h.rows.length}}" class="h2h-more">只显示最近 {{h2h.rows.length}} 场，共 {{h2h.total}} 场</view>
   </view>
 
-  <!-- 等级走势：最近若干场比赛后的比赛等级 -->
+  <!-- 等级走势：最近若干场比赛后的比赛等级。刻度线和柱子同一把尺（utils/player.js 的 trendView），最后一根顶上标当前等级 -->
   <view wx:if="{{view.trend}}" class="card">
     <view class="card-title row-t"><text>等级走势</text><text class="h2h-sum">最近 {{view.trend.n}} 场 · {{view.trend.first}} → {{view.trend.last}}</text></view>
-    <view class="tr-box">
-      <view class="tr-y"><text>{{view.trend.max}}</text><text>{{view.trend.min}}</text></view>
-      <view class="tr-bars">
-        <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col"><view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view></view>
+    <view class="tr-plot">
+      <view wx:for="{{view.trend.ticks}}" wx:key="v" class="tr-grid {{item.base ? 'base' : ''}}" style="bottom:{{item.pos}}%"><text class="tr-tick num">{{item.v}}</text></view>
+      <view class="tr-bars {{view.trend.few ? 'few' : ''}}">
+        <view wx:for="{{view.trend.bars}}" wx:key="i" class="tr-col">
+          <view class="tr-bar ani-grow-y {{item.up ? 'up' : ''}} {{item.down ? 'down' : ''}}" style="height:{{item.h}}%;animation-delay:{{index * 30}}ms"></view>
+          <view wx:if="{{item.last}}" class="tr-now" style="bottom:{{item.h}}%"><text class="tr-now-v num ani-pop" style="animation-delay:{{index * 30 + 450}}ms">{{view.trend.last}}</text></view>
+        </view>
       </view>
     </view>
-    <view class="tr-x"><text>{{view.trend.from}}</text><text>每根柱子是一场比赛后的等级，绿涨红跌</text><text>{{view.trend.to}}</text></view>
+    <view class="tr-x {{view.trend.sameDay ? 'one' : ''}}"><text>{{view.trend.from}}</text><text wx:if="{{!view.trend.sameDay}}">{{view.trend.to}}</text></view>
+    <view class="tr-legend"><view class="tr-dot up"></view>涨<view class="tr-dot down"></view>跌<text class="tr-sep">·</text>每根柱子是一场比赛后的等级</view>
   </view>
 
   <!-- 近期比赛（「我的」页不显示） -->

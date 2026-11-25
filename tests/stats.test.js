@@ -105,7 +105,7 @@ test('交手记录：按用户 ID、只算分在两边的比赛（搭档不算�
   assert.strictEqual(PV.h2hView(ms, '', '', 'bob', 'Bob'), null);
   assert.deepStrictEqual(PV.h2hView(ms, 'cat', 'Cat', 'dan', 'Dan').rows.map((x) => x.id), ['h4']); // h3 是搭档，只有 h4 是对手
 });
-test('等级走势：取最近 30 场，柱高在 18～100 之间，和等级历史一致；不足 2 场不显示', () => {
+test('等级走势：取最近 30 场，和等级历史一致；刻度和柱子同一把尺（0.5 一档）；不足 2 场不显示', () => {
   const players = [{ name: 'Ann', uid: 'ann', self: true, level: 3 }, { name: 'Bob', uid: 'bob', self: true, level: 3 }];
   const raw = [];
   for (let i = 0; i < 34; i++) raw.push(m('t' + String(i).padStart(2, '0'), ['Ann'], ['Bob'], ['ann'], ['bob'], i % 3 ? 'a' : 'b', i % 3 ? 4 : 1, i % 3 ? 1 : 4, '2026-09-' + String(1 + (i % 28)).padStart(2, '0')));
@@ -114,13 +114,43 @@ test('等级走势：取最近 30 场，柱高在 18～100 之间，和等级历
   const hist = R.computeRatings(ms, R.startLevelsFrom(players)).players.ann.history;
   assert.strictEqual(v.trend.n, 30);
   assert.strictEqual(v.trend.bars.length, 30);
-  assert.ok(v.trend.bars.every((b) => b.h >= 18 && b.h <= 100));
+  assert.ok(v.trend.bars.every((b) => b.h > 0 && b.h <= 100), '最低的那场也离底线有一截');
+  assert.ok(v.trend.bars[29].last && !v.trend.bars[28].last, '只有最后一根标当前等级');
+  assert.strictEqual(v.trend.few, false);
   assert.strictEqual(v.trend.last, R.fmt(hist[hist.length - 1].level));
   assert.strictEqual(v.trend.first, R.fmt(hist[hist.length - 30].level));
   const lv = hist.slice(-30).map((x) => x.level);
   assert.strictEqual(v.trend.max, R.fmt(Math.max.apply(null, lv)));
-  assert.strictEqual(v.trend.bars[lv.indexOf(Math.max.apply(null, lv))].h, 100);
+  // 刻度：从上往下、0.5 一档、最上一条 100%、最下一条是底线 0%；柱高按同一把尺换算
+  const t = v.trend.ticks;
+  assert.strictEqual(t[0].pos, 100);
+  assert.ok(t[t.length - 1].base && t[t.length - 1].pos === 0);
+  const lo = Number(t[t.length - 1].v), hi = Number(t[0].v);
+  assert.ok(lo <= Math.min.apply(null, lv) - 0.1 + 1e-9 && hi >= Math.max.apply(null, lv), '刻度把所有柱子框在里面');
+  lv.forEach((x, i) => assert.ok(Math.abs(v.trend.bars[i].h - ((x - lo) / (hi - lo)) * 100) <= 0.05, '柱高和刻度对得上'));
   assert.strictEqual(PV.trendView(hist.slice(0, 1)), null);
+  // 截图里的情况：同一天 3 场，1.5 → 1.7 → 2.0
+  const day = PV.trendView([{ level: 1.5, delta: 0, date: '2026-11-25' }, { level: 1.7, delta: 0.2, date: '2026-11-25' }, { level: 2.0, delta: 0.3, date: '2026-11-25' }]);
+  assert.deepStrictEqual(day.ticks.map((x) => [x.v, x.pos]), [['2.0', 100], ['1.5', 50], ['1.0', 0]], '1.5 正好在整档上：底线往下多留一档');
+  assert.deepStrictEqual(day.bars.map((b) => b.h), [50, 70, 100], '1.5 的柱顶正好落在 1.5 那条线上');
+  assert.deepStrictEqual([day.sameDay, day.from, day.few, day.last, day.bars[0].up, day.bars[2].up], [true, '11-25', true, '2.0', false, true]);
+  const span = PV.trendView([{ level: 1.0, delta: 0, date: '2026-01-02' }, { level: 4.2, delta: 1, date: '2026-03-04' }]);
+  assert.deepStrictEqual(span.ticks.map((x) => x.v), ['4.5', '3.5', '2.5', '1.5', '0.5'], '跨度大时每 1.0 一条线');
+  assert.deepStrictEqual([span.sameDay, span.from, span.to], [false, '01-02', '03-04']);
+  // 跨度为奇数个 0.5（如 1.2 → 3.5，lo=1.0、原始 hi=3.5、span=2.5）：步长 1.0 时顶线补齐到 4.0，保证最上一条刻度落在 100% 且柱子不超顶线
+  const oddSpan = PV.trendView([{ level: 1.2, delta: 0, date: '2026-01-02' }, { level: 3.5, delta: 0.5, date: '2026-03-04' }]);
+  assert.deepStrictEqual(oddSpan.ticks.map((x) => [x.v, x.pos]), [['4.0', 100], ['3.0', 66.7], ['2.0', 33.3], ['1.0', 0]]);
+  assert.ok(oddSpan.bars.every((b) => b.h > 0 && b.h <= 100));
+  // 界面：说明文字单独一行图例（不挤在日期那一行），同一天只写一次日期，配色是淡紫 / 淡砖红（不是红绿）
+  const fs = require('fs'), path = require('path');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'components/player-home/player-home.wxml'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'components/player-home/player-home.wxss'), 'utf8');
+  const card = xml.slice(xml.indexOf('等级走势'), xml.indexOf('近期比赛'));
+  assert.ok(!/绿涨红跌/.test(card));
+  assert.ok(/<view class="tr-x[^>]*>[^\n]*wx:if="\{\{!view\.trend\.sameDay\}\}">\{\{view\.trend\.to\}\}/.test(card), '同一天只写一次日期');
+  assert.ok(/class="tr-legend"/.test(card) && /class="tr-grid/.test(card) && /\{\{view\.trend\.last\}\}/.test(card));
+  assert.ok(/\.tr-bar\.up \{ background: #9A9AC6; \}/.test(css) && /\.tr-bar\.down \{ background: #DDA9A9; \}/.test(css));
+  assert.ok(!/\.tr-now[^{]*\{[^}]*translate/.test(css), '小标签不用 translateX（和 .ani-pop 的 transform 打架）');
   assert.strictEqual(PV.playerView({ zed: { name: 'Zed' } }, players, ms, 'zed').trend, null);
 });
 
