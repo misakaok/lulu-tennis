@@ -324,7 +324,7 @@ test('战绩页背景与记分牌（2026-11-25）：顶部淡紫柔幕、我的�
   assert.strictEqual((mcSvg.match(/<line /g) || []).length, 6, '上下单打边线 + 左右发球线 + 发球中线 + 竖向球网虚线');
   assert.ok(/stroke-dasharray="4 4"/.test(mcSvg), '正中是球网虚线');
   assert.ok(/pointer-events: none; z-index: 0;/.test(rule('.mc-court')) && /\n\.mc-body \.sd, \.mc-body \.sc \{ position: relative; z-index: 1; \}/.test(css));
-  assert.ok(!/\.mc\.win-[ab]::before/.test(css) && /\.mc\.win-a \.mc-body::before, \.mc\.win-b \.mc-body::before \{[^}]*#A9A9D2, #7D7DB3/.test(css) && /rgba\(132, 132, 182, 0\.11\)/.test(rule('.mc.win-a')), '胜方一侧用内缩淡紫圆头短竖条 + 冷雾紫微光，不放荧光黄绿通长竖条');
+  assert.ok(!/\.mc\.win-[ab]::before/.test(css) && /\.mc\.win-a \.mc-body::before, \.mc\.win-b \.mc-body::before \{[^}]*#C6C6E4, #9E9EC8/.test(css) && /rgba\(163, 163, 203, 0\.09\)/.test(rule('.mc.win-a')), '胜方一侧用内缩浅淡紫圆头短竖条 + 冷雾紫微光，不放荧光黄绿通长竖条');
   assert.ok(/class="mc win-\{\{item\.winner\}\}" hover-class="tap-on"/.test(xml) && !/class="mc [^"]*ani-/.test(xml));
   const cards = xml.slice(xml.indexOf('<view class="date">'));
   assert.ok(!/<image /.test(cards.slice(0, cards.indexOf('class="fabs"'))), '比赛卡里不放图片');

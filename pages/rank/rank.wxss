@@ -45,8 +45,8 @@
   color: #fff; background: linear-gradient(180deg, #B3B3D6, #8484B6);
   box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.45), 0 4rpx 12rpx rgba(110, 110, 163, 0.12); /* 顶面受光 + 轻侧影：底座长在舞台卡底边上，不用重投影 */
 }
-/* 冠军台：顶部一条黄绿光带、更有纵深的渐变；高光只给冠军台，压轴扫过 */
-.r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #B9B9DF, #7D7DB3); border-top: 5rpx solid #C9E33A; }
+/* 冠军台：更高、更有纵深的渐变 + 顶面亮一点的内高光；高光只给冠军台，压轴扫过 */
+.r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #B9B9DF, #7D7DB3); box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.58), 0 6rpx 16rpx rgba(110, 110, 163, 0.16); }
 .r1 .pod-base.ani-sheen::after { animation-delay: 1s; }
 /* 领奖台入场比全局慢约 45%（2026-11-25 用户要求，只这一块）：时长在这里覆盖，错开的延迟在 wxml 里 */
 .pod.ani-in { animation-duration: 0.9s; }
