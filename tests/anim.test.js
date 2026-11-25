@@ -275,6 +275,8 @@ test('活动首页卡片：进行中的活动有进度条（已完成场数 / �
   assert.deepStrictEqual([s.progressShort, s.st], ['', 'sign']);
   const xml = fs.readFileSync(path.join(__dirname, '..', 'pages/draw/draw.wxml'), 'utf8');
   assert.ok(/<view wx:elif="\{\{item\.progressShort\}\}" class="d-pb">[\s\S]*?style="width:\{\{item\.progressPct\}\}%"[\s\S]*?<text class="d-pb-t num">\{\{item\.progressShort\}\}<\/text>/.test(xml));
+  // 活动首页的活动卡片和「我的下一场」卡片点击直接进详情，不做按下缩放回弹（2026-11-25 用户觉得点进去前抖一下）
+  assert.ok(/class="card draw [^"]*"[^>]*bindtap="open"/.test(xml) && !/class="card (?:draw|nx)[^"]*"[^>]*hover-class="tap-on"/.test(xml), '活动卡片不要按下缩放反馈');
 });
 
 test('排行榜领奖台包在「舞台卡」里（2026-11-25）：透视网球场底纹、底座长在卡片底边；筛选三行左对齐', () => {

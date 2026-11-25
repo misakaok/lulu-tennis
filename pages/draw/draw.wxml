@@ -47,7 +47,7 @@
   <!-- 我的下一场：只有一场；时间、对手没确定的明确写「待定」；点进活动详情的「场次」并定位到这场 -->
   <block wx:if="{{tab === 'next'}}">
     <view wx:if="{{nextStale && next}}" class="nx-stale">网络异常，下面可能不是最新的安排，下拉刷新重试</view>
-    <view wx:if="{{next}}" class="card nx ani-in" hover-class="tap-on" bindtap="openNext">
+    <view wx:if="{{next}}" class="card nx ani-in" bindtap="openNext">
       <view class="nx-head">
         <text class="nx-title">{{next.title}}</text>
         <text class="nx-stage">{{next.stage}}</text>
@@ -84,7 +84,7 @@
     <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
   </view>
 
-  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 62 : 0}}ms" hover-class="tap-on" data-id="{{item._id}}" bindtap="open">
+  <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 62 : 0}}ms" data-id="{{item._id}}" bindtap="open">
     <!-- 左：日期块；右：名称 + 状态 / 形式一行 / 我的关系和进度 -->
     <view class="d-date {{item.st}} {{item.day.m ? '' : 'tbd'}}">
       <text class="d-band">{{item.day.m || '日期'}}</text>
