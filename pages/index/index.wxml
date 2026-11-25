@@ -55,6 +55,8 @@
         <text wx:if="{{item.pending}}" class="ui-tag warn mc-pend">待确认</text>
       </view>
       <view class="mc-body">
+        <!-- 俯视横向网球场底纹（竖向球网虚线 + 左右发球区 T 线，写在样式里的 SVG 矢量线），不放图片 -->
+        <view class="mc-court"></view>
         <view class="sd {{item.winner === 'a' ? 'w' : ''}}">
           <view class="sd-avs"><pl-av wx:for="{{item.a}}" wx:key="name" wx:for-item="p" class="sd-av" uid="{{p.uid}}" name="{{p.name}}" /></view>
           <view class="sd-ns {{item.a.length > 1 ? 'two' : ''}}">

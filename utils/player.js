@@ -190,7 +190,7 @@ function playerView(profiles, players, matches, uid) {
       last: last === null ? '' : R.fmtDelta(last), up: last > 0, down: last < 0,
     },
     stats: {
-      rank: !played ? NONE : st.boardRank ? '#' + st.boardRank : S.HIDDEN, // 和排行榜一致（S.playerStats 的 boardRank）
+      rank: !played ? NONE : S.rankText(st, (n) => '#' + n), // 和排行榜一致（S.playerStats 的 boardRank）
       matches: played ? String(played) : NONE,
       wl: played ? `${wins}胜 ${played - wins}负` : NONE,
       win: String(wins), lose: String(played - wins), // 全部比赛页的数字卡用（没比赛就是 0）

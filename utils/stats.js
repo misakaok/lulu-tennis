@@ -4,14 +4,15 @@ const R = require('./rating');
 const { computeRank } = require('./rules');
 const ID = require('./ident');
 
-// 排行榜的「按水平」排序：定级完成的在前，再按水平、胜场（排行页也用这个，保证名次一致）
+// 排行榜的「按水平」排序：只按水平高低，再按胜场（排行页也用这个，保证名次一致）。
+// 定级中（没打满 R.PROVISIONAL 场）的不排后面、照样有名次，只在界面上标「定级中」（2026-11-25 用户选的）
 function rankOrder(list) {
-  return list.slice().sort((x, y) => (x.provisional - y.provisional) || (y.level - x.level) || (y.win - x.win));
+  return list.slice().sort((x, y) => (y.level - x.level) || (y.win - x.win));
 }
 
 // map 按统计身份（用户 ID，或 'n:' + 名字，见 utils/ident.js）索引；只有名字时用 stats.keyOf(名字) 换算
 //   rank：全体统计身份里的名次（内部用）；boardRank：排行榜上的名次——和排行榜默认榜（生涯 · 全部 · 按水平）一致，
-//   只在同意公开展示的账号里排，没同意的 / 没有账号的旧名字是 0（界面显示「未公开」）。
+//   只在同意公开展示的账号里排（定级中的也排）；没同意的 / 没有账号的旧名字是 0（shown 为假，界面显示「未公开」）。
 //   界面上显示名次一律用 boardRank（球员卡、报名名单、战绩页我的卡片）。
 //   profiles（db.profilesOf(players)，按用户 ID）可选：不传时用 players 里的 uid / shown
 //   同一组（比赛、球员、资料）数组引用只算一次（见 R.ratingsOf），结果共享、只读
@@ -36,7 +37,8 @@ function computeStats(matches, players, profiles) {
   else (players || []).forEach((p) => { if (p && p.uid && p.shown === true) shownUid[p.uid] = 1; });
   let n = 0;
   rankOrder(rows).forEach((p, i) => {
-    map[p.key] = { played: p.played, win: p.win, rate: p.rate, rank: i + 1, boardRank: shownUid[p.key] ? ++n : 0, level: p.level, provisional: p.provisional };
+    const shown = !!shownUid[p.key];
+    map[p.key] = { played: p.played, win: p.win, rate: p.rate, rank: i + 1, boardRank: shown ? ++n : 0, shown, level: p.level, provisional: p.provisional };
   });
   return { map, ratings, total: rows.length, keyOf: ID.keyResolver(players || []) };
 }
@@ -53,7 +55,7 @@ function display(stats, name, profile, uid) {
     gender: (profile && GENDER[profile.gender]) || NONE,
     played: s && s.played ? `${s.played} 场` : NONE,
     rate: s && s.played ? `${s.rate}%` : NONE,
-    rank: s && s.played ? (s.boardRank ? `第 ${s.boardRank} 名` : HIDDEN) : NONE,
+    rank: rankText(s, (n) => `第 ${n} 名`),
     level: s && s.played ? R.fmt(s.level) + (s.provisional ? ' 定级中' : '') : self !== null ? `${R.fmt(self)} 自评` : NONE,
   };
 }
@@ -90,4 +92,11 @@ function genderFinder(players) {
   return (name, uid) => GENDER[uid ? byUid[uid] : byName[name]] || '';
 }
 
-module.exports = { rankOrder, playerStats, display, genderFinder, boards, GENDER, NONE, HIDDEN };
+// 名次显示（球员卡、报名名单共用）：没比赛「暂无」、没同意公开「未公开」、其余按 fmt 写名次（定级中的也有名次）
+function rankText(s, fmt) {
+  if (!s || !s.played) return NONE;
+  if (!s.boardRank) return HIDDEN;
+  return fmt(s.boardRank);
+}
+
+module.exports = { rankOrder, playerStats, display, rankText, genderFinder, boards, GENDER, NONE, HIDDEN };

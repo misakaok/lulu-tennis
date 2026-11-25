@@ -123,6 +123,8 @@ page {
 @keyframes ani-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes ani-pop { 0% { opacity: 0; transform: scale(0.55); } 60% { opacity: 1; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes ani-pulse { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(2.2); } }
+@keyframes ani-ring { 0% { opacity: 0; transform: scale(0.99); } 12% { opacity: 0.76; transform: scale(1.02); } 68% { opacity: 0; transform: scale(1.19); } 100% { opacity: 0; transform: scale(1.19); } }
+@keyframes ani-ring-sub { 0% { opacity: 0; transform: scale(0.99); } 14% { opacity: 0.42; transform: scale(1.02); } 68% { opacity: 0; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1.15); } }
 @keyframes ani-score { from { opacity: 0; transform: translateY(8rpx) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes ani-sheen { 0% { opacity: 0; transform: translateX(-100%); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(100%); } }
 .ani-in { animation: ani-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) backwards; }

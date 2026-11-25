@@ -189,6 +189,68 @@ T.push({ name: '排行榜前三：金银铜奖牌图标 images/medal-1/2/3.png�
   assert.ok(/<image class="medal-img[^"]*"[^>]* src="\/images\/medal-\{\{item\.rank\}\}\.png" mode="aspectFit" \/>/.test(xml));
 } });
 
+test('按水平只看水平高低（2026-11-25 用户选的）：定级中的也有名次、也上领奖台，只标「定级中」；球员卡 / 报名名单 / 战绩页卡片同一口径', () => {
+  // 截图里的情况：Ethan 打满 5 场（1 胜 4 负，水平 2.0 左右），花椰菜 1 场、大芋头 2 场都还在定级，水平更高
+  const ps = [
+    { name: 'Ethan', uid: 'eth', self: true, level: 2, gender: 'm', shown: true },
+    { name: '花椰菜', uid: 'hua', self: true, level: 3, gender: 'm', shown: true },
+    { name: '大芋头', uid: 'yu', self: true, level: 2.5, gender: 'f', shown: true },
+    { name: '路人', uid: 'lu', self: true, level: 2, gender: 'm', shown: true },
+  ];
+  const pf = {};
+  ps.forEach((p) => { pf[p.uid] = { uid: p.uid, name: p.name, gender: p.gender, level: p.level, shown: true }; });
+  const rw = [
+    m('x1', ['花椰菜'], ['Ethan'], ['hua'], ['eth'], 'a', '2026-11-20'),
+    m('x2', ['大芋头'], ['Ethan'], ['yu'], ['eth'], 'a', '2026-11-21'),
+    m('x3', ['大芋头'], ['Ethan'], ['yu'], ['eth'], 'a', '2026-11-22'),
+    m('x4', ['路人'], ['Ethan'], ['lu'], ['eth'], 'a', '2026-11-23'),
+    m('x5', ['Ethan'], ['路人'], ['eth'], ['lu'], 'a', '2026-11-24'),
+  ];
+  const mt = ID.normalizeMatches(rw, ps);
+  const store = {};
+  const load = () => {
+    const filename = path.resolve(__dirname, '../pages/rank/rank.js');
+    let def;
+    vm.runInNewContext(read('pages/rank/rank.js'), {
+      require: (id) => (id === '../../utils/db'
+        ? { cachedMatches: () => mt, cachedPlayersFull: () => ps, cachedProfile: () => ({ _openid: 'eth' }), profilesOf: () => pf }
+        : createRequire(filename)(id)),
+      wx: { getStorageSync: (k) => store[k], setStorageSync: (k, v) => { store[k] = v; }, hideShareMenu() {} }, Page: (d) => { def = d; }, console, Date,
+    });
+    return Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(p) { Object.assign(this.data, p); } });
+  };
+  const page = load();
+  page.onLoad();
+  assert.deepStrictEqual(page.list.map((p) => [p.name, p.rank, p.provisional]), [['花椰菜', 1, true], ['大芋头', 2, true], ['Ethan', 3, false], ['路人', 4, true]], '不管定级与否，水平高的在前');
+  assert.ok(page.list.every((p, i) => !i || page.list[i - 1].level >= p.level), '按水平从高到低');
+  assert.strictEqual(JSON.stringify(page.data.top.map((p) => [p.name, p.rank, p.mainLbl])), JSON.stringify([['大芋头', 2, '定级中'], ['花椰菜', 1, '定级中'], ['Ethan', 3, '水平']]), '领奖台按名次放，定级中的标「定级中」');
+  assert.ok(!('noRated' in page.data) && !/tr-sec|no-rated/.test(read('pages/rank/rank.wxml')), '不再分段');
+  page.data.sort = 'win'; page.render();
+  assert.ok(page.list.every((p, i) => p.rank === i + 1));
+  // 球员卡、报名名单、战绩页卡片：同一口径
+  const S = require('../utils/stats');
+  const st = S.playerStats(mt, ps, pf);
+  assert.strictEqual(PV.playerView(pf, ps, mt, 'eth').stats.rank, '#3');
+  assert.strictEqual(PV.playerView(pf, ps, mt, 'hua').stats.rank, '#1');
+  assert.strictEqual(S.display(st, 'Ethan', pf.eth, 'eth').rank, '第 3 名');
+  assert.strictEqual(S.display(st, '大芋头', pf.yu, 'yu').rank, '第 2 名');
+  // 战绩页「我的」卡片
+  const idx = (() => {
+    const filename = path.resolve(__dirname, '../pages/index/index.js');
+    let def;
+    vm.runInNewContext(read('pages/index/index.js'), { require: (id) => (id === '../../utils/db' ? { profilesOf: () => pf } : createRequire(filename)(id)), wx: {}, Page: (d) => { def = d; }, console, Date, setTimeout: () => 0, clearTimeout() {}, getCurrentPages: () => [] });
+    return Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(p) { Object.assign(this.data, p); } });
+  })();
+  idx.myId = 'hua'; assert.strictEqual(idx.meCard(mt, st, ps).rankText, '排名第 1 位 · 定级中');
+  idx.myId = 'eth'; assert.strictEqual(idx.meCard(mt, st, ps).rankText, '排名第 3 位');
+  // 没同意公开展示的照旧「未公开」，名次在剩下的人里重排
+  const pf2 = Object.assign({}, pf, { hua: Object.assign({}, pf.hua, { shown: false }) });
+  const st2 = S.playerStats(mt.slice(), ps, pf2);
+  assert.strictEqual(S.display(st2, '花椰菜', pf2.hua, 'hua').rank, '未公开');
+  idx.myId = 'hua'; assert.strictEqual(idx.meCard(mt, st2, ps).rankText, '未开启公开展示，不在排行榜里');
+  assert.strictEqual(S.display(st2, '大芋头', pf2.yu, 'yu').rank, '第 1 名');
+});
+
 module.exports = T;
 
 test('「我的」生涯成就空卡：本机有比赛缓存时马上显示（cached），不等云端；没有缓存（第一次打开）才等云端读完', async () => {

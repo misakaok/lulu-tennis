@@ -177,7 +177,7 @@ Page({
     return {
       name, uid, initial: initialOf(name), color: colorOf(name),
       level: R.fmt(s.level), levelLbl: s.provisional ? '定级中' : '水平分',
-      rankText: !s.boardRank ? '未开启公开展示，不在排行榜里' : s.provisional ? '打满几场后参与排名' : `排名第 ${s.boardRank} 位`,
+      rankText: !s.boardRank ? '未开启公开展示，不在排行榜里' : `排名第 ${s.boardRank} 位` + (s.provisional ? ' · 定级中' : ''),
       played: s.played, win: s.win, lose: s.played - s.win, rate: s.rate, recent,
     };
   },

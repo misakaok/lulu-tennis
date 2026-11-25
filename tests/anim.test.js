@@ -277,4 +277,57 @@ test('活动首页卡片：进行中的活动有进度条（已完成场数 / �
   assert.ok(/<view wx:elif="\{\{item\.progressShort\}\}" class="d-pb">[\s\S]*?style="width:\{\{item\.progressPct\}\}%"[\s\S]*?<text class="d-pb-t num">\{\{item\.progressShort\}\}<\/text>/.test(xml));
 });
 
+test('排行榜领奖台包在「舞台卡」里（2026-11-25）：透视网球场底纹、底座长在卡片底边；筛选三行左对齐', () => {
+  const fs = require('fs'), path = require('path');
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  const xml = read('pages/rank/rank.wxml'), css = read('pages/rank/rank.wxss');
+  const stage = xml.slice(xml.indexOf('<view wx:if="{{top.length}}" class="card stage">'), xml.indexOf('<!-- 完整榜单 -->'));
+  assert.ok(stage.length > 0 && /<view class="stage-court"><\/view>/.test(stage));
+  // 透视网球场（方向 B）：样式里的 base64 矢量线，只有线条（边线、底线、发球线、中线 + 球网虚线），没有图片 / 文字
+  const m = css.match(/\.stage-court \{[^}]*url\("data:image\/svg\+xml;base64,([A-Za-z0-9+\/=]+)"\)/);
+  assert.ok(m, '球场线写在样式里');
+  const svg = Buffer.from(m[1], 'base64').toString('utf8');
+  assert.ok(/^<svg /.test(svg) && !/<image|<text|href=/.test(svg), '只有矢量线条');
+  assert.strictEqual((svg.match(/<line /g) || []).length, 8, '4 条边线 + 远端底线 + 远端发球线 + 远半场中线 + 球网（省掉近端发球线，不穿名字）');
+  assert.ok(/stroke-dasharray="5 5"/.test(svg) && /id="n"/.test(svg) && /stop-opacity="0\.22"/.test(svg) && /stop-opacity="0\.02"/.test(svg), '球网是横向渐淡虚线，普通线四段渐隐');
+  assert.ok(!/sc-arc|sc-mid/.test(xml + css), 'Gemini 版的中圈 / 中线已去掉');
+  assert.ok(/<view class="podium \{\{top\.length >= 3 \? '' : 'few'\}\}">/.test(stage), '领奖台本身不再单独判断 top.length');
+  assert.strictEqual((stage.match(/<image /g) || []).length, 1, '舞台卡里只有奖牌图标，不加图片');
+  assert.ok(/\.stage \{[^}]*padding: 34rpx 20rpx 0;/.test(css) && /ellipse 46% 36% at 50% 29%/.test(css), '底部不留内边距，底座长在卡片底边；聚光对齐球网中点与第 1 名头像');
+  assert.ok(/\.stage-court \{[^}]*height: 520rpx; pointer-events: none; z-index: 0;/.test(css) && /\.podium \{ position: relative; z-index: 1;/.test(css));
+  // 第 1 名头像外双波水纹细环：外层 .pod-av 承载 ::before / ::after（头像本身不缩放），关键帧只在 app.wxss 动 transform / opacity
+  assert.ok(/<view class="pod-av"><pl-av class="avatar big"/.test(stage), '头像包在 .pod-av 里给光环留位置');
+  assert.ok(/\.r1 \.pod-av::before, \.r1 \.pod-av::after \{[^}]*z-index: -1;/.test(css) && /\.r1 \.pod-av::before \{[^}]*animation: ani-ring /.test(css) && /\.r1 \.pod-av::after \{[^}]*animation: ani-ring-sub /.test(css), '只给第 1 名加错峰双波细环');
+  assert.ok(/@keyframes ani-ring /.test(read('app.wxss')) && /@keyframes ani-ring-sub /.test(read('app.wxss')), '双波细环关键帧在 app.wxss 并接受只动 transform / opacity 检查');
+  assert.ok(/\.sort-row \{[^}]*justify-content: flex-start;/.test(css) && (css.match(/\.top-seg \{/g) || []).length === 1);
+});
+
+test('战绩页背景与记分牌（2026-11-25）：顶部淡紫柔幕、我的战绩卡对角柔光且内容盖在上面、比赛卡纯 CSS 球场暗纹；不加图片、不加入场动画', () => {
+  const fs = require('fs'), path = require('path');
+  const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+  const xml = read('pages/index/index.wxml'), css = read('pages/index/index.wxss');
+  const rule = (sel) => { const m = css.match(new RegExp('\\n' + sel.replace(/[.:()]/g, '\\$&') + ' \\{([^}]*)\\}')); return m ? m[1] : ''; };
+  // 柔幕：局部层叠，垫在页面内容下面
+  assert.ok(/position: relative; z-index: 0;/.test(rule('.page')));
+  assert.ok(/pointer-events: none; z-index: -1;/.test(rule('.page::before')) && /#A3A3CB 0%/.test(rule('.page::before')));
+  // 我的战绩卡：::before 铺满整卡（z 0），内容 z 1；背景图仍是第一个子元素；::after 留给高光
+  assert.ok(/<view wx:if="\{\{me\}\}" class="mine bg-host ani-sheen"[^>]*>\s*<image class="bg-img"/.test(xml));
+  assert.ok(/bottom: 0;[^}]*z-index: 0;/.test(rule('.mine::before')) && !/\.mine::after/.test(css));
+  assert.ok(/\n\.mine-h, \.mine-stats, \.mine-form \{ position: relative; z-index: 1; \}/.test(css));
+  // 比赛卡：俯视横向网球场底纹（SVG 矢量线，无圆圈、无图片），在最底层；双方和比分在上面；卡片不加入场动画
+  assert.ok(/<view class="mc-body">\s*(<!--[^>]*-->\s*)?<view class="mc-court"><\/view>/.test(xml));
+  assert.ok(!/mc-mid|mc-arc/.test(xml + css), '去掉旧的圆圈中线，改用俯视网球场线');
+  const mcM = css.match(/\.mc-court \{[^}]*url\("data:image\/svg\+xml;base64,([A-Za-z0-9+\/=]+)"\)/);
+  assert.ok(mcM, '比赛卡球场线写在样式里');
+  const mcSvg = Buffer.from(mcM[1], 'base64').toString('utf8');
+  assert.ok(/^<svg /.test(mcSvg) && !/<image|<text|<circle|href=/.test(mcSvg), '只有矢量线条、无圆圈和图片');
+  assert.strictEqual((mcSvg.match(/<line /g) || []).length, 6, '上下单打边线 + 左右发球线 + 发球中线 + 竖向球网虚线');
+  assert.ok(/stroke-dasharray="4 4"/.test(mcSvg), '正中是球网虚线');
+  assert.ok(/pointer-events: none; z-index: 0;/.test(rule('.mc-court')) && /\n\.mc-body \.sd, \.mc-body \.sc \{ position: relative; z-index: 1; \}/.test(css));
+  assert.ok(!/\.mc\.win-[ab]::before/.test(css) && /\.mc\.win-a \.mc-body::before, \.mc\.win-b \.mc-body::before \{[^}]*#A9A9D2, #7D7DB3/.test(css) && /rgba\(132, 132, 182, 0\.11\)/.test(rule('.mc.win-a')), '胜方一侧用内缩淡紫圆头短竖条 + 冷雾紫微光，不放荧光黄绿通长竖条');
+  assert.ok(/class="mc win-\{\{item\.winner\}\}" hover-class="tap-on"/.test(xml) && !/class="mc [^"]*ani-/.test(xml));
+  const cards = xml.slice(xml.indexOf('<view class="date">'));
+  assert.ok(!/<image /.test(cards.slice(0, cards.indexOf('class="fabs"'))), '比赛卡里不放图片');
+});
+
 module.exports = T;

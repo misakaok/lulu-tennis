@@ -1,10 +1,39 @@
-.top-seg { margin-bottom: 30rpx; }
+.top-seg { margin-bottom: 16rpx; }
 
-.podium { display: flex; align-items: flex-end; justify-content: center; margin-bottom: 30rpx; }
+/* 领奖台「舞台卡」（2026-11-25）：白 → 极淡雾紫渐变 + 第 1 名背后一团很淡的冷紫 / 黄绿聚光；底部不留内边距，
+   三个底座直接长在卡片底边上，不再飘在灰底上。纯 CSS，没有图片 */
+.stage {
+  position: relative; overflow: hidden; padding: 34rpx 20rpx 0; margin-bottom: 24rpx;
+  background:
+    radial-gradient(ellipse 46% 36% at 50% 29%, rgba(201, 227, 58, 0.15) 0%, rgba(163, 163, 203, 0.14) 44%, rgba(163, 163, 203, 0) 74%),
+    linear-gradient(180deg, #FFFFFF 0%, #F9F9FE 56%, #EFEFF9 100%);
+}
+/* 透视网球场（2026-11-25 精修）：站在近端底线后看过去的真实比例球场（10.97m × 23.77m），
+   双打 / 单打边线往下展开，远端底线 y=18、远端发球线 y=57.8、球网虚线 y=130（抬到第 2、3 名奖牌上方，横向渐变在中间避让第 1 名头像）；
+   省掉近端发球线、中线止于球网，避免横切名字与战绩。线条 1.6 宽、四段渐隐（0.14 → 0.22 → 0.07 → 0.02），
+   顶部固定 520rpx 锚定不随卡片高度拉伸变形。SVG base64 矢量线，无图片文件、无 <image> */
+.stage-court { position: absolute; left: 0; right: 0; top: 0; height: 520rpx; pointer-events: none; z-index: 0;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3MDIgNTIwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSI1MjAiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQTNBM0NCIiBzdG9wLW9wYWNpdHk9IjAuMTQiLz48c3RvcCBvZmZzZXQ9IjI4JSIgc3RvcC1jb2xvcj0iI0EzQTNDQiIgc3RvcC1vcGFjaXR5PSIwLjIyIi8+PHN0b3Agb2Zmc2V0PSI1NiUiIHN0b3AtY29sb3I9IiNBM0EzQ0IiIHN0b3Atb3BhY2l0eT0iMC4wNyIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0EzQTNDQiIgc3RvcC1vcGFjaXR5PSIwLjAyIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9Im4iIHgxPSI3OS4xIiB5MT0iMCIgeDI9IjYyMi45IiB5Mj0iMCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNBM0EzQ0IiIHN0b3Atb3BhY2l0eT0iMC4xNCIvPjxzdG9wIG9mZnNldD0iMjQlIiBzdG9wLWNvbG9yPSIjQTNBM0NCIiBzdG9wLW9wYWNpdHk9IjAuMjgiLz48c3RvcCBvZmZzZXQ9IjUwJSIgc3RvcC1jb2xvcj0iI0EzQTNDQiIgc3RvcC1vcGFjaXR5PSIwLjEwIi8+PHN0b3Agb2Zmc2V0PSI3NiUiIHN0b3AtY29sb3I9IiNBM0EzQ0IiIHN0b3Atb3BhY2l0eT0iMC4yOCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0EzQTNDQiIgc3RvcC1vcGFjaXR5PSIwLjE0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ1cmwoI2cpIiBzdHJva2Utd2lkdGg9IjEuNiI+PGxpbmUgeDE9IjIwMS4wIiB5MT0iMTguMCIgeDI9Ii0xNzEuMyIgeTI9IjUyMC4wIi8+PGxpbmUgeDE9IjUwMS4wIiB5MT0iMTguMCIgeDI9Ijg3My4zIiB5Mj0iNTIwLjAiLz48bGluZSB4MT0iMjM4LjUiIHkxPSIxOC4wIiB4Mj0iLTQwLjkiIHkyPSI1MjAuMCIvPjxsaW5lIHgxPSI0NjMuNSIgeTE9IjE4LjAiIHgyPSI3NDIuOSIgeTI9IjUyMC4wIi8+PGxpbmUgeDE9IjIwMS4wIiB5MT0iMTguMCIgeDI9IjUwMS4wIiB5Mj0iMTguMCIvPjxsaW5lIHgxPSIyMTYuMyIgeTE9IjU3LjgiIHgyPSI0ODUuNyIgeTI9IjU3LjgiLz48bGluZSB4MT0iMzUxLjAiIHkxPSI1Ny44IiB4Mj0iMzUxLjAiIHkyPSIxMzAuMCIvPjwvZz48bGluZSB4MT0iNzkuMSIgeTE9IjEzMC4wIiB4Mj0iNjIyLjkiIHkyPSIxMzAuMCIgc3Ryb2tlPSJ1cmwoI24pIiBzdHJva2Utd2lkdGg9IjIuMiIgc3Ryb2tlLWRhc2hhcnJheT0iNSA1Ii8+PC9zdmc+") no-repeat center top / 100% 520rpx; }
+.podium { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 0; }
 .pod { flex: 1; display: flex; flex-direction: column; align-items: center; max-width: 230rpx; transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.16s ease; } /* 按下缩小、松手回弹 */
 /* 名次奖牌：金银铜图标 images/medal-1/2/3.png（2026-11-24 用户要求，照 🥇🥈🥉 画成图片，不直接用 emoji 字符） */
 .medal-img { display: block; width: 64rpx; height: 64rpx; margin-bottom: 4rpx; }
-.r1 .medal-img { width: 76rpx; height: 76rpx; }
+.r1 .medal-img { position: relative; z-index: 1; width: 76rpx; height: 76rpx; }
+.pod-av { position: relative; z-index: 0; display: inline-flex; align-items: center; justify-content: center; }
+/* 第 1 名头像外双波水纹细环：主波（2.5rpx 带轻光泽）先从 #C9E33A 外环边缘滑出，滞后 0.48s 跟一圈更细更淡的次波（1.5rpx），
+   中间留约 0.9s 静默停顿（总周期 3.2s）；起笔柔入不突兀，只动 transform / opacity，头像本身不动 */
+.r1 .pod-av::before, .r1 .pod-av::after {
+  content: ''; position: absolute; left: -5rpx; right: -5rpx; top: -5rpx; bottom: -5rpx;
+  box-sizing: border-box; border-radius: 50%; pointer-events: none; z-index: -1;
+}
+.r1 .pod-av::before {
+  border: 2.5rpx solid #C9E33A; box-shadow: 0 0 10rpx rgba(201, 227, 58, 0.34);
+  animation: ani-ring 3.2s cubic-bezier(0.22, 1, 0.36, 1) 1.2s infinite both;
+}
+.r1 .pod-av::after {
+  border: 1.5rpx solid rgba(201, 227, 58, 0.85);
+  animation: ani-ring-sub 3.2s cubic-bezier(0.22, 1, 0.36, 1) 1.68s infinite both;
+}
 .avatar.big { width: 100rpx; height: 100rpx; font-size: 40rpx; border: 5rpx solid #fff; box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.1); }
 .r1 .avatar.big { width: 124rpx; height: 124rpx; font-size: 48rpx; box-shadow: 0 0 0 5rpx #C9E33A, 0 12rpx 28rpx rgba(110, 110, 163, 0.28); } /* 第 1 名：白内环（头像白边）+ 黄绿外环 */
 /* 名字长时换到第二行（最多两行，居中），不在第一行就截成省略号 */
@@ -14,7 +43,7 @@
   position: relative; overflow: hidden;
   width: 100%; border-radius: 20rpx 20rpx 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: #fff; background: linear-gradient(180deg, #B3B3D6, #8484B6);
-  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.45), 0 12rpx 26rpx rgba(110, 110, 163, 0.22); /* 顶面受光 + 投影：像立着的台子 */
+  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.45), 0 4rpx 12rpx rgba(110, 110, 163, 0.12); /* 顶面受光 + 轻侧影：底座长在舞台卡底边上，不用重投影 */
 }
 /* 冠军台：顶部一条黄绿光带、更有纵深的渐变；高光只给冠军台，压轴扫过 */
 .r1 .pod-base { height: 170rpx; background: linear-gradient(180deg, #B9B9DF, #7D7DB3); border-top: 5rpx solid #C9E33A; }
@@ -25,7 +54,7 @@
 .pod-base.ani-grow-y { animation-duration: 1.13s; }
 .r2 .pod-base::after, .r3 .pod-base::after { display: none; }
 /* 底座右下角的大号名次水印 */
-.pod-wm { position: absolute; right: 8rpx; bottom: -16rpx; font-size: 92rpx; font-weight: 900; color: rgba(255, 255, 255, 0.13); line-height: 1; pointer-events: none; z-index: 0; }
+.pod-wm { position: absolute; right: 6rpx; bottom: -10rpx; font-size: 74rpx; font-weight: 900; color: rgba(255, 255, 255, 0.10); line-height: 1; pointer-events: none; z-index: 0; }
 .pod-rate, .pod-lbl { position: relative; z-index: 1; }
 .r2 .pod-base { height: 130rpx; }
 .r3 .pod-base { height: 100rpx; }
@@ -54,9 +83,9 @@
 .down { color: #b34d4d; font-weight: 600; }
 .foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 20rpx; }
 
-.sort-row { display: flex; align-items: center; justify-content: flex-end; margin: -10rpx 4rpx 24rpx; font-size: 24rpx; }
+.sort-row { display: flex; align-items: center; justify-content: flex-start; margin: 0 4rpx 14rpx; font-size: 24rpx; } /* 生涯 / 赛季、排序、性别三行左对齐 */
 .sort-lbl { color: #84849E; margin-right: 12rpx; }
-.sort { padding: 6rpx 18rpx; border-radius: 20rpx; color: #6c6c86; margin-left: 8rpx; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.sort { padding: 6rpx 18rpx; border-radius: 20rpx; color: #6c6c86; margin-left: 0; margin-right: 8rpx; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .sort.on { background: #a3a3cb; color: #fff; font-weight: 600; }
 .lv { font-weight: 800; color: #4f4f7d; font-size: 28rpx; }
 .prov { font-size: 18rpx; color: #84849E; margin-top: 2rpx; }
@@ -66,7 +95,6 @@
 .me-tag { display: inline-block; vertical-align: middle; line-height: 1.5; font-weight: 400; font-size: 18rpx; background: #a3a3cb; color: #fff; border-radius: 8rpx; padding: 0 8rpx; }
 
 /* 赛季筛选 */
-.top-seg { margin-bottom: 18rpx; }
 .season-row { white-space: nowrap; margin-bottom: 14rpx; }
 .season { display: inline-block; font-size: 24rpx; color: #6C6C86; background: #E9E9F4; border-radius: 24rpx; padding: 8rpx 24rpx; margin-right: 14rpx; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .season.on { color: #fff; font-weight: 600; background: linear-gradient(90deg, #8484B6, #A3A3CB); }

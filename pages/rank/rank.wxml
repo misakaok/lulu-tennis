@@ -35,11 +35,14 @@
     <view>{{emptyText}}</view>
   </view>
 
-  <!-- 前三名领奖台 -->
-  <view wx:if="{{top.length}}" class="podium {{top.length >= 3 ? '' : 'few'}}">
+  <!-- 前三名领奖台：包在「舞台卡」里，三个底座长在卡片底边上；
+       stage-court 是透视网球场的淡线条（样式里的矢量线），只填空白处的氛围 -->
+  <view wx:if="{{top.length}}" class="card stage">
+  <view class="stage-court"></view>
+  <view class="podium {{top.length >= 3 ? '' : 'few'}}">
     <view wx:for="{{top}}" wx:key="key" class="pod r{{item.rank}} {{play ? 'ani-in' : 'ani-wait'}}" style="animation-delay:{{item.rank === 1 ? 600 : item.rank === 2 ? 360 : 140}}ms" hover-class="tap-on" data-key="{{item.key}}" bindtap="tapPlayer">
       <image class="medal-img {{play ? 'ani-pop' : 'ani-wait-pop'}}" style="animation-delay:{{item.rank === 1 ? 1040 : item.rank === 2 ? 800 : 580}}ms" src="/images/medal-{{item.rank}}.png" mode="aspectFit" />
-      <pl-av class="avatar big" uid="{{item.uid}}" name="{{item.name}}" />
+      <view class="pod-av"><pl-av class="avatar big" uid="{{item.uid}}" name="{{item.name}}" /></view>
       <view class="pod-name">{{item.name}}</view>
       <view wx:if="{{item.gender}}" class="pod-g">{{item.gender}}</view>
       <view class="pod-rec">{{item.win}}胜 {{item.lose}}负</view>
@@ -49,6 +52,7 @@
         <text class="pod-lbl">{{item.mainLbl}}</text>
       </view>
     </view>
+  </view>
   </view>
 
   <!-- 完整榜单 -->

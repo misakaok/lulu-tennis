@@ -97,7 +97,7 @@ Page({
       });
     });
     if (sort === 'level') {
-      // 定级完成的排前面，再按水平从高到低
+      // 按水平从高到低（定级中的也一样排，只标「定级中」）
       list.splice(0, list.length, ...S.rankOrder(list)); // 和报名列表里的「排名」用同一个排序
     }
     if (board) {
