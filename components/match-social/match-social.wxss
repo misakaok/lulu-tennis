@@ -1,12 +1,5 @@
 .ms-muted { font-size: 24rpx; color: #84849E; padding: 6rpx 0; }
 .ms-btn { margin-top: 20rpx; }
-.ms-t2 { margin-top: 30rpx; }
-.ms-t2 .sub { font-size: 22rpx; color: #70708C; font-weight: 400; margin-left: 12rpx; }
-.ms-opp { display: flex; align-items: center; height: 80rpx; border-top: 1rpx solid #F2F2F8; }
-.ms-name { flex: 1; font-size: 28rpx; font-weight: 600; }
-.ms-done { font-size: 24rpx; color: #6E6EA3; }
-.ms-go { font-size: 26rpx; color: #fff; background: #6E6EA3; border-radius: 28rpx; padding: 10rpx 26rpx; font-weight: 700; }
-.ms-wait { font-size: 22rpx; color: #B7B7CC; }
 .ms-req { margin-top: 24rpx; padding: 18rpx 20rpx; border-radius: 16rpx; background: #fff8e6; }
 .ms-req-t { font-size: 26rpx; font-weight: 800; color: #9a6a00; }
 .ms-req-s { margin-top: 8rpx; font-size: 26rpx; color: #4F4F7D; }

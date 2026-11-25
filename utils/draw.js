@@ -152,23 +152,4 @@ function bracketView(lines, results, lookup, prefix) {
   return { rounds, champion: champ };
 }
 
-// 改了某一场的结果后，它后面要用到这个结果的场次都要清掉
-function clearDownstream(results, r, i, totalRounds) {
-  const out = Object.assign({}, results);
-  let rr = r + 1, ii = Math.floor(i / 2);
-  while (rr < totalRounds) { delete out[`${rr}-${ii}`]; rr++; ii = Math.floor(ii / 2); }
-  return out;
-}
-
-// 小组内循环赛对阵
-function groupView(groups) {
-  return (groups || []).map((g) => {
-    const fixtures = [];
-    for (let i = 0; i < g.members.length; i++) {
-      for (let j = i + 1; j < g.members.length; j++) fixtures.push(`${g.members[i].name} vs ${g.members[j].name}`);
-    }
-    return { name: g.name, members: g.members, fixtures };
-  });
-}
-
-module.exports = { shuffle, nextPow2, bracketOrder, maxSeeds, makeBracket, makeGroups, bracketView, clearDownstream, groupView, roundName };
+module.exports = { shuffle, nextPow2, bracketOrder, maxSeeds, makeBracket, makeGroups, bracketView, roundName };

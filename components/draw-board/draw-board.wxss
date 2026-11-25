@@ -52,8 +52,6 @@
 .t-c.b { font-weight: 800; color: #4F4F7D; }
 .g-pname { font-size: 27rpx; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-seed { flex: none; font-size: 18rpx; color: #fff; background: #6E6EA3; border-radius: 8rpx; padding: 0 8rpx; margin-left: 8rpx; }
-.g-av { width: 40rpx; height: 40rpx; border-radius: 50%; margin-right: 8rpx; background: #f2f2f8; flex: none; }
-.g-av + .g-av { margin-left: -18rpx; border: 2rpx solid #fff; }
 .g-fix { margin-top: 14rpx; background: #F8F8FC; border-radius: 16rpx; padding: 14rpx 18rpx 6rpx; }
 .g-fix-title { font-size: 22rpx; color: #70708C; margin-bottom: 6rpx; }
 .g-fix-item { display: flex; align-items: center; height: 60rpx; font-size: 25rpx; color: #3A3A52; }
@@ -66,11 +64,6 @@
 .fx-s { flex: none; padding: 0 14rpx; font-size: 22rpx; color: #B7B7CC; }
 .fx-s.done { color: #6E6EA3; font-weight: 700; }
 
-.pav { width: 34rpx; height: 34rpx; border-radius: 50%; margin-right: 8rpx; flex: none; background: #f2f2f8; }
-.pav + .pav { margin-left: -16rpx; border: 2rpx solid #fff; }
-.champ-avs { display: flex; margin-right: 24rpx; }
-.champ-av { width: 96rpx; height: 96rpx; border-radius: 50%; border: 4rpx solid rgba(255,255,255,.85); }
-.champ-av + .champ-av { margin-left: -28rpx; }
 .gm { flex: none; margin-left: 8rpx; font-size: 24rpx; font-weight: 700; color: #84849E; letter-spacing: 4rpx; }
 .pl.win .gm { color: #4F4F7D; }
 .pl.mine .nm { color: #6E6EA3; }

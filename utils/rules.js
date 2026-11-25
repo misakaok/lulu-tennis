@@ -4,7 +4,6 @@
 //   noAd: true  → 金球制：抢七先到 7 分、净胜 1 分即赢（7:6 结束）
 //   noAd: false → 占先制：抢七先到 7 分且领先 2 分（可以 8:6、9:7…）
 const TB_TO = 7;
-const DEFAULT_CFG = { setGames: 4, noAd: true };
 
 const tbAt = (cfg) => (cfg.setGames === 4 ? 3 : cfg.setGames);
 const maxGames = (cfg) => (tbAt(cfg) === cfg.setGames ? cfg.setGames + 1 : cfg.setGames);
@@ -147,6 +146,6 @@ function initialOf(name) {
 }
 
 module.exports = {
-  outcomeOf, isNormal, DEFAULT_CFG, TB_TO, tbAt, maxGames, normCfg, rulesText,
+  outcomeOf, isNormal, TB_TO, tbAt, maxGames, normCfg, rulesText,
   needTiebreak, checkTb, checkSet, cleanSet, checkMatch, computeRank, colorOf, initialOf,
 };

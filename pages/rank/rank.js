@@ -1,7 +1,7 @@
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
 const S = require('../../utils/stats');
-const { computeRank, colorOf, initialOf } = require('../../utils/rules');
+const { computeRank } = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const SE = require('../../utils/season');
 const haptic = require('../../utils/haptic');
@@ -91,9 +91,8 @@ Page({
       const level = r ? r.level : R.DEFAULT_LEVEL;
       return Object.assign(p, {
         level, levelText: R.fmt(level), provisional: !r || r.provisional,
-        uid: String(p.key).indexOf('n:') === 0 ? '' : p.key, initial: initialOf(p.name), color: colorOf(p.name),
+        uid: String(p.key).indexOf('n:') === 0 ? '' : p.key,
         gender: S.GENDER[String(p.key).indexOf('n:') === 0 ? gName[p.name] : gUid[p.key]] || '',
-        diffText: (p.diff > 0 ? '+' : '') + p.diff,
       });
     });
     if (sort === 'level') {

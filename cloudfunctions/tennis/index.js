@@ -1856,7 +1856,7 @@ async function createMemberProfile(target, gender, uid) {
   return { ok: true, created: true };
 }
 
-const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, adminAddSignup: 1, updateDrawInfo: 1, updateDrawSettings: 1, resetScores: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, clearMemberHistory: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1, cupFromDraw: 1, updateDrawCupKind: 1, pinDraw: 1 };
+const ADMIN_ONLY = { createDraw: 1, generateDraw: 1, adminAddSignup: 1, updateDrawInfo: 1, updateDrawSettings: 1, setMemberGender: 1, adminClearPhoto: 1, adminFixScore: 1, auditSignups: 1, listMembers: 1, reviewMember: 1, removeMember: 1, clearMemberHistory: 1, importMembers: 1, createInvite: 1, revokeInvite: 1, cupSave: 1, cupRemove: 1, cupFromDraw: 1, updateDrawCupKind: 1, pinDraw: 1 };
 
 async function memberStatus(_d, uid) {
   const m = await memberOf(uid);
@@ -2022,28 +2022,6 @@ async function auditSignups() {
     if (owners.length > 1) owners.forEach((u) => add(byDraw[d][n][u], '同名', n, u, `同一活动里有 ${owners.length} 个账号用了「${n}」这个名字`));
   }));
   return { total: su.length, issues };
-}
-
-// 清空全部战绩（一次性的管理员操作，用来清掉测试数据）。两道保险：
-//   1. 云函数环境变量 ALLOW_RESET_SCORES=yes（平时不要设置，用完立即删掉）；2. 确认口令「清空全部战绩」。
-// 删除：比赛记录、确认、正式战绩快照（保留旧记录迁移标记）、和比分有关的处理记录；清空签表里的比分。
-// 保留：成员、球员资料、活动、报名、退赛申请和退赛登记。（旧的对手评价集合 reviews 2026-11-23 已整个删除）
-const RESET_PHRASE = '清空全部战绩';
-const SCORE_REQUEST_TYPES = ['score', 'impact', 'walkover', 'retired', 'revoke'];
-async function resetScores({ confirm }, uid) {
-  if (process.env.ALLOW_RESET_SCORES !== 'yes') deny('这个操作默认关闭：需要先在云函数环境变量里临时设置 ALLOW_RESET_SCORES=yes');
-  if (confirm !== RESET_PHRASE) deny(`确认口令不对：请传入「${RESET_PHRASE}」`);
-  const all = { _id: _.neq('') };
-  const removed = async (col, where) => ((await db.collection(col).where(where).remove()).stats || {}).removed || 0;
-  const out = {
-    matches: await removed('matches', all),
-    confirms: await removed('confirms', all),
-    verified: await removed('verified', { _id: _.neq(OF.META_ID) }),
-    requests: await removed('requests', { type: _.in(SCORE_REQUEST_TYPES) }),
-  };
-  out.drawsReset = ((await db.collection('draws').where(all).update({ data: { results: _.set({}) } })).stats || {}).updated || 0;
-  await logAction({ type: 'resetScores', by: uid, counts: out });
-  return { counts: out };
 }
 
 // 升级时初始化：管理员从「历史球友」里勾选确认，逐个导入为正式成员（不会自动把所有访问过的人设为成员）
@@ -2510,7 +2488,7 @@ async function cupList(_d, uid) {
   return { list: admin ? out : await cupMask(out, uid), admin };
 }
 
-const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, clearMemberHistory, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, adminAddSignup, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, resetScores, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
+const ACTIONS = { data: dataGateway, cupSave, cupRemove, cupList, cupFromDraw, updateDrawCupKind, memberStatus, applyMember, acceptInvite, createInvite, revokeInvite, listMembers, reviewMember, removeMember, clearMemberHistory, importMembers, setMemberGender, ping, resolveFixture, editMatchScore, adminFixScore, requestScoreChange, respondScoreChange, ruleScoreChange, cancelScoreChange, requestWithdraw, handleWithdraw, drawRequests, recordEventMatch, matchState, signUp, adminAddSignup, cancelSignup, saveProfile, setShown, createDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, auditSignups, dataset, drawDetail, mySignups, setFixtureSlot, confirmResult, revokeMatch, setPhoto, myPhoto, photoUrls, adminClearPhoto, growthList, growthSave, growthRemove, growthClear, racketList, racketSave, racketRemove, racketLogSave, racketLogRemove, racketClear };
 
 exports.main = async (event) => {
   // 微信消息推送（图片检测结果）：只认平台标记的来源 SOURCE = wx_callback（客户端改不了）；

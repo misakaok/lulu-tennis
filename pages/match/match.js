@@ -8,7 +8,7 @@ const R = require('../../utils/rating');
 const H = require('../../utils/highlight');
 const Anim = require('../../utils/anim');
 const member = require('../../utils/member');
-const { colorOf, initialOf, outcomeOf } = require('../../utils/rules');
+const { outcomeOf } = require('../../utils/rules');
 
 // 「这场为什么涨分 / 掉分」：只给本人看自己参加的正式比赛（按统计身份认人，不看昵称）。
 //   数据来自这一场实际参与计算的值（R.computeRatings 的 explain，和排行榜同一套正式战绩、同一个起始水平），不按今天的等级倒推。
@@ -31,7 +31,7 @@ function boardOf(m, players) {
   const side = (k) => (m[k] || []).map((n, i) => {
     const key = (m[k + 'Keys'] || [])[i] || '';
     const uid = (m[k + 'Ids'] || [])[i] || (key && key.indexOf(ID.NAME_KEY) !== 0 ? key : '');
-    return { name: n, uid, initial: initialOf(n), color: colorOf(n), gender: gOf(n, uid) };
+    return { name: n, uid, gender: gOf(n, uid) };
   });
   // 记分牌中间的大比分：多盘显示盘数，只打一盘显示局数；弃权没有比分
   const sets = (m.sets || []).map((s) => ({ a: s.a, b: s.b, aw: s.a > s.b, bw: s.b > s.a, tbA: s.tbA === undefined ? '' : s.tbA, tbB: s.tbB === undefined ? '' : s.tbB }));
@@ -43,7 +43,7 @@ function boardOf(m, players) {
     _id: m._id, date: m.date, winner: m.winner, drawId: m.drawId || '',
     event: m.drawTitle ? `${m.drawTitle}${m.stage ? ' · ' + m.stage : ''}` : '',
     format: E.formatText(E.cfgOf(m)),
-    a: side('a'), b: side('b'), aText: (m.a || []).join(' / '), bText: (m.b || []).join(' / '),
+    a: side('a'), b: side('b'),
     sets, typeText: m.type === 'double' ? '双打' : '单打',
     bigA: big[0], bigB: big[1], bigLbl, showSets: sets.length > 1 || hasTb,
     loseText: oc === 'walkover' ? '弃权' : oc === 'retired' ? '退赛' : '负',

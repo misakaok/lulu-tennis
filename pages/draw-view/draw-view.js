@@ -1,6 +1,5 @@
 // 活动详情：报名 → 签表 / 积分榜 → 赛程 → 点比赛录分
 const E = require('../../utils/event');
-const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const cloud = require('../../utils/cloud');
