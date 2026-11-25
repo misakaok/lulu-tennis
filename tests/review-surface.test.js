@@ -38,9 +38,9 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   // 球拍没有照片：不上传、不调用 racketPhoto，也没有拍照 / 相册 / 画布
   const rk = fs.readFileSync(path.join(root, 'utils/rackets.js'), 'utf8');
   assert.ok(!/racketPhoto|require\('\.\/photo'\)/.test(rk), '球拍不能上传照片');
-  // 例外只有包里的静态界面配图（/images/ 下的固定图片，不是用户上传的）：球拍页顶部的通用球拍图、空状态插画
+  // 例外只有包里的静态界面配图（/images/ 下的固定图片，不是用户上传的）：空状态插画
   const FIXED_ART = /<image class="[\w-]+" src="\/images\/[\w-]+\.(?:png|jpg)" mode="aspectFit" \/>/g;
-  assert.ok(/<image class="hero-art" src="\/images\/racket-hero\.png"/.test(fs.readFileSync(path.join(root, 'pages/racket/racket.wxml'), 'utf8')), '球拍页的固定配图');
+  assert.ok(!/racket-hero\.png/.test(fs.readFileSync(path.join(root, 'pages/racket/racket.wxml'), 'utf8')), '球拍页顶部卡片不再放重复的球拍插图');
   for (const p of ['pages/racket/racket', 'pages/racket-view/racket-view', 'pages/racket-edit/racket-edit', 'pages/racket-log/racket-log']) {
     const code = fs.readFileSync(path.join(root, p + '.js'), 'utf8') + fs.readFileSync(path.join(root, p + '.wxml'), 'utf8').replace(FIXED_ART, '');
     assert.ok(!/utils\/photo|chooseMedia|chooseImage|racketPhoto|setPhoto|<canvas\b|<image\b|rk-photo/.test(code), p + ' 不能有照片');
@@ -91,7 +91,7 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
     (xml.match(/<image\b[^>]*\bsrc="\/images\/[^"{]+"/g) || []).forEach((tag) => { used[tag.match(/src="([^"]+)"/)[1]] = 1; }); // 按编号取的（徽章）在 player-card 测试里逐个查
     assert.ok(!/empty-ball/.test(xml), page + ' 空状态用插画 .empty-art');
   });
-  Object.keys(used).concat(['/images/racket-hero.png']).forEach((src) => {
+  Object.keys(used).forEach((src) => {
     const f = path.join(root, src.slice(1));
     assert.ok(fs.existsSync(f), src + ' 不存在');
     assert.ok(fs.statSync(f).size < 80 * 1024, src + ' 太大');

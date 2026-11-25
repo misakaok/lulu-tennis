@@ -508,6 +508,36 @@ test('球拍页顶部卡片：一支球拍都没有时不显示底部那行（�
   assert.ok(/class="rk-n num"/.test(xml), '穿线和维护次数用记分牌窄体数字');
   assert.ok(!/class="card rk [^"]*"[^>]*hover-class="tap-on"/.test(xml), '球拍卡片点击直接进详情，不做缩放抖动');
   assert.ok(/\.page::before \{[^}]*#A3A3CB 0%/.test(css) && /rgba\(56, 54, 108, 0\.16\)/.test(css), '顶部柔紫幕与烟熏冷紫毛玻璃底条');
+  assert.ok(/\.ball-add\.bouncing \.ball-btn \{[^}]*ani-ball-jump/.test(css) && /\.ball-add\.bouncing \.ball-sh \{[^}]*ani-ball-shadow/.test(css) && /\.ball-add\.bouncing \.ball-rk \{[^}]*ani-rk-juggle/.test(css), '拍面颠球按钮原地弹跳且球影、球拍同步颠球');
+});
+
+test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；中途切走页面取消跳转', async () => {
+  const fs = require('fs'), path = require('path'), vm = require('vm');
+  const { createRequire } = require('module');
+  const clock = require('./fake-clock')();
+  await clock.run(async () => {
+    const nav = [];
+    const file = path.join(__dirname, '..', 'pages/racket/racket.js');
+    let def;
+    vm.runInNewContext(fs.readFileSync(file, 'utf8'), {
+      require: (id) => (id === '../../utils/rackets' ? { cachedList: () => null } : createRequire(file)(id)),
+      wx: { navigateTo: (o) => nav.push(o.url), hideShareMenu() {} },
+      Page: (d) => { def = d; }, setTimeout, clearTimeout, console,
+    });
+    const p = Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(o) { Object.assign(this.data, o); } });
+    p.add(); p.add(); // 连点只算一次
+    assert.strictEqual(p.data.bouncing, true);
+    assert.strictEqual(nav.length, 0, '弹跳期间还没跳页');
+    await clock.wait(330);
+    assert.strictEqual(p.data.bouncing, false);
+    assert.deepStrictEqual(nav, ['/pages/racket-edit/racket-edit']);
+    // 中途切走页面：取消定时器、不误跳页
+    p.add();
+    p.onHide();
+    assert.strictEqual(p.data.bouncing, false);
+    await clock.wait(360);
+    assert.strictEqual(nav.length, 1);
+  });
 });
 
 module.exports = T;

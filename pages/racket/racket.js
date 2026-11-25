@@ -18,7 +18,7 @@ function cardOf(r, logs, t) {
 }
 
 Page({
-  data: { loading: true, error: '', cards: [], o: null },
+  data: { loading: true, error: '', cards: [], o: null, bouncing: false },
 
   onLoad() {
     wx.hideShareMenu(); // 私人数据不能分享
@@ -28,6 +28,13 @@ Page({
   },
   onShow() {
     this.load();
+  },
+  onHide() { this.stopBounce(); },
+  onUnload() { this.stopBounce(); },
+  stopBounce() {
+    clearTimeout(this.addTimer); this.addTimer = null;
+    this.adding = false;
+    if (this.data.bouncing) this.setData({ bouncing: false });
   },
   onPullDownRefresh() {
     require('../../utils/memo').invalidate();
@@ -57,6 +64,17 @@ Page({
     this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t) });
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
-  add() { wx.navigateTo({ url: '/pages/racket-edit/racket-edit' }); },
+  // 点击先原地 Q 弹一下再进入添加球拍页；防连点、切走页面时取消未触发的跳转
+  add() {
+    if (this.adding) return;
+    this.adding = true;
+    this.setData({ bouncing: true });
+    this.addTimer = setTimeout(() => {
+      this.addTimer = null;
+      this.adding = false;
+      this.setData({ bouncing: false });
+      wx.navigateTo({ url: '/pages/racket-edit/racket-edit' });
+    }, 320);
+  },
   open(e) { wx.navigateTo({ url: '/pages/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
 });

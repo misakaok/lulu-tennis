@@ -13,10 +13,10 @@ page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 1
 .state-s { font-size: 24rpx; color: #70708C; margin: 12rpx 0 28rpx; }
 .retry { width: 240rpx; margin: 0 auto; }
 
-/* 顶部球拍概览紫卡：和球员卡 / 战绩顶卡同款对角柔光 + 顶边内高光；静止不动 */
+/* 顶部球拍概览紫卡：和球员卡 / 战绩顶卡同款对角柔光 + 顶边内高光 + 右上极淡斜向球线网纹（不再放重复的球拍插图）；静止不动 */
 .hero {
-  position: relative; overflow: hidden; display: flex; align-items: center;
-  border-radius: 36rpx; padding: 30rpx 0 26rpx 26rpx; margin-bottom: 28rpx; color: #fff;
+  position: relative; overflow: hidden;
+  border-radius: 36rpx; padding: 34rpx 28rpx 28rpx; margin-bottom: 28rpx; color: #fff;
   background: linear-gradient(148deg, #A6A6CE 0%, #8484B6 100%);
   box-shadow: 0 16rpx 36rpx rgba(110, 110, 163, 0.28);
 }
@@ -26,19 +26,20 @@ page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 1
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 46%, rgba(56, 54, 108, 0.16) 100%);
   box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.44), inset 0 0 0 1rpx rgba(255, 255, 255, 0.18);
 }
-.hero-main, .hero-art { position: relative; z-index: 1; }
-.hero-main { flex: 1; min-width: 0; }
-/* 固定配图：球拍略微伸出卡片右下角（卡片 overflow: hidden 裁掉），只是装饰 */
-.hero-art { flex: none; width: 224rpx; height: 230rpx; margin: -24rpx -24rpx -46rpx 4rpx; }
+.hero::after {
+  content: ''; position: absolute; right: 0; top: 0; width: 320rpx; height: 100%; pointer-events: none; z-index: 0;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNjAgMjIwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9Im0iIGN4PSIyMTUiIGN5PSI0MCIgcj0iMTkwIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRkZGRiIgc3RvcC1vcGFjaXR5PSIwLjE0Ii8+PHN0b3Agb2Zmc2V0PSI1NSUiIHN0b3AtY29sb3I9IiNGRkZGRkYiIHN0b3Atb3BhY2l0eT0iMC4wNiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI0ZGRkZGRiIgc3RvcC1vcGFjaXR5PSIwIi8+PC9yYWRpYWxHcmFkaWVudD48L2RlZnM+PGcgdHJhbnNmb3JtPSJyb3RhdGUoLTIyIDE0MCAxMDApIiBzdHJva2U9InVybCgjbSkiIHN0cm9rZS13aWR0aD0iMS4zIiBmaWxsPSJub25lIj48cGF0aCBkPSJNLTQwIC00MFYyNjBNLTQwIC00MEgzMDBNLTE2IC00MFYyNjBNLTQwIC0xNkgzMDBNOCAtNDBWMjYwTS00MCA4SDMwME0zMiAtNDBWMjYwTS00MCAzMkgzMDBNNTYgLTQwVjI2ME0tNDAgNTZIMzAwTTgwIC00MFYyNjBNLTQwIDgwSDMwME0xMDQgLTQwVjI2ME0tNDAgMTA0SDMwME0xMjggLTQwVjI2ME0tNDAgMTI4SDMwME0xNTIgLTQwVjI2ME0tNDAgMTUySDMwME0xNzYgLTQwVjI2ME0tNDAgMTc2SDMwME0yMDAgLTQwVjI2ME0tNDAgMjAwSDMwME0yMjQgLTQwVjI2ME0tNDAgMjI0SDMwME0yNDggLTQwVjI2ME0tNDAgMjQ4SDMwME0yNzIgLTQwVjI2ME0tNDAgMjcySDMwME0yOTYgLTQwVjI2ME0tNDAgMjk2SDMwMCIvPjwvZz48L3N2Zz4=") right top / 100% 100% no-repeat;
+}
+.hero-main { position: relative; z-index: 1; }
 .hero-row { display: flex; align-items: center; }
 .hc { flex: 1; text-align: center; }
 .hc + .hc { border-left: 1rpx solid rgba(255, 255, 255, 0.16); }
-.hc-n { font-size: 54rpx; font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; }
-.hc-l { font-size: 21rpx; color: rgba(255, 255, 255, 0.88); margin-top: 6rpx; }
-/* 底部状态条：烟熏冷紫毛玻璃小条，整齐收在左侧内容区里，不再拉一条横线撞到右边球拍图 */
+.hc-n { font-size: 58rpx; font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; }
+.hc-l { font-size: 22rpx; color: rgba(255, 255, 255, 0.88); margin-top: 6rpx; }
+/* 底部状态条：烟熏冷紫毛玻璃小条，和顶部三项居中对称 */
 .hero-foot {
-  margin-top: 22rpx; padding: 10rpx 18rpx; border-radius: 18rpx; text-align: center;
-  font-size: 22rpx; color: rgba(255, 255, 255, 0.92);
+  margin-top: 24rpx; padding: 12rpx 20rpx; border-radius: 20rpx; text-align: center;
+  font-size: 23rpx; color: rgba(255, 255, 255, 0.92);
   background: rgba(56, 54, 108, 0.16);
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -82,26 +83,31 @@ page { background: linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx, #F0F0F7 1
 .rk-a { margin: 0 10rpx 6rpx 0; font-size: 20rpx; padding: 2rpx 14rpx; }
 .rk-a.idle { color: #84849E; background: #F4F4FA; }
 
-/* Q 弹果冻网球胶囊按钮：居中胖胶囊 + 顶部柔光 + 底部轻立体厚度 + 左边圆滚滚小网球加号徽章（纯 CSS + SVG 弧线，无图片） */
-.add-btn {
-  width: 420rpx; height: 96rpx; line-height: normal; margin: 28rpx auto 0; padding: 0 36rpx 4rpx 28rpx;
-  box-sizing: border-box; border-radius: 48rpx;
-  display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(180deg, #B5B5DC 0%, #8E8EC0 100%);
-  box-shadow: inset 0 3rpx 0 rgba(255, 255, 255, 0.42), inset 0 -6rpx 0 rgba(88, 86, 146, 0.30), 0 14rpx 28rpx rgba(118, 118, 174, 0.32);
+/* 拍面颠球添加按钮：平放的 3D 淡紫球拍（淡紫拍框 + 白色网床 + 黄绿点缀 + 深灰手胶，SVG 矢量无图片文件）+ 球影 + 纯净 3D 网球；
+   点击拍头以手柄为轴先轻沉、再把小网球往上颠起 30rpx 落回甜区后进入添加球拍页 */
+.ball-add { position: relative; width: 280rpx; height: 192rpx; margin: 16rpx auto 8rpx; }
+.ball-add.sm { margin: 12rpx auto 0; transform: scale(0.88); transform-origin: center top; }
+.ball-rk {
+  position: absolute; left: 0; bottom: 0; width: 280rpx; height: 96rpx; z-index: 0; transform-origin: 88% 50%;
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyODAgOTYiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0icmYiIHgxPSIwIiB5MT0iMTgiIHgyPSIwIiB5Mj0iNzYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzhDOEU4Ii8+PHN0b3Agb2Zmc2V0PSI1MiUiIHN0b3AtY29sb3I9IiNBM0EzQ0IiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM4MzgzQjUiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZ3AiIHgxPSIwIiB5MT0iNDAiIHgyPSIwIiB5Mj0iNTQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNjA2MDdEIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjM0MzQzU2Ii8+PC9saW5lYXJHcmFkaWVudD48Y2xpcFBhdGggaWQ9InNiIj48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDYiIHJ4PSI3MyIgcnk9IjE5LjUiLz48L2NsaXBQYXRoPjwvZGVmcz48ZWxsaXBzZSBjeD0iMTI0IiBjeT0iNzQiIHJ4PSI4NiIgcnk9IjEyIiBmaWxsPSIjNzg3OEE4IiBmaWxsLW9wYWNpdHk9IjAuMTYiLz48ZWxsaXBzZSBjeD0iMjQyIiBjeT0iNjQiIHJ4PSIyOCIgcnk9IjQuNSIgZmlsbD0iIzc4NzhBOCIgZmlsbC1vcGFjaXR5PSIwLjEyIi8+PHBhdGggZD0iTTE5MiAzOEwyMzAgNDZMMTkyIDU5TDE5MiA1M0wyMTYgNDhMMTkyIDQzWiIgZmlsbD0iIzc1NzVBOCIvPjxwYXRoIGQ9Ik0xOTIgMzVMMjMwIDQ0TDE5MiA1NkwxOTIgNTBMMjE1IDQ1TDE5MiA0MFoiIGZpbGw9InVybCgjcmYpIi8+PHJlY3QgeD0iMjI4IiB5PSI0MiIgd2lkdGg9IjQ0IiBoZWlnaHQ9IjEyIiByeD0iNSIgZmlsbD0iIzMyMzI0QSIvPjxyZWN0IHg9IjIyOCIgeT0iNDAiIHdpZHRoPSI0NCIgaGVpZ2h0PSIxMSIgcng9IjUiIGZpbGw9InVybCgjZ3ApIi8+PHBhdGggZD0iTTIzNiA0MEwyNDEgNTFNMjQ0IDQwTDI0OSA1MU0yNTIgNDBMMjU3IDUxTTI2MCA0MEwyNjUgNTEiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLW9wYWNpdHk9IjAuMTgiIHN0cm9rZS13aWR0aD0iMS42Ii8+PHJlY3QgeD0iMjI2IiB5PSI0MCIgd2lkdGg9IjQuNSIgaGVpZ2h0PSIxMSIgcng9IjIiIGZpbGw9IiNDOUUzM0EiLz48cmVjdCB4PSIyNjgiIHk9IjM5IiB3aWR0aD0iNSIgaGVpZ2h0PSIxMyIgcng9IjIuNSIgZmlsbD0iIzdBN0FBOCIvPjxlbGxpcHNlIGN4PSIxMjIiIGN5PSI1MiIgcng9Ijg1IiByeT0iMjYiIGZpbGw9IiM3NTc1QTgiLz48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDYiIHJ4PSI3NCIgcnk9IjIwIiBmaWxsPSIjRjhGOEZEIi8+PGcgY2xpcC1wYXRoPSJ1cmwoI3NiKSIgc3Ryb2tlPSIjOUI5QkM0IiBzdHJva2Utb3BhY2l0eT0iMC40NiIgc3Ryb2tlLXdpZHRoPSIxLjM1Ij48cGF0aCBkPSJNNTggMjRWNjhNNzAgMjRWNjhNODIgMjRWNjhNOTQgMjRWNjhNMTA2IDI0VjY4TTExOCAyNFY2OE0xMzAgMjRWNjhNMTQyIDI0VjY4TTE1NCAyNFY2OE0xNjYgMjRWNjhNMTc4IDI0VjY4TTE5MCAyNFY2OCIvPjxwYXRoIGQ9Ik00NiAzM0gxOThNNDYgMzkuNUgxOThNNDYgNDZIMTk4TTQ2IDUyLjVIMTk4TTQ2IDU5SDE5OCIvPjwvZz48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDcuNSIgcng9IjczLjUiIHJ5PSIxOS41IiBmaWxsPSJub25lIiBzdHJva2U9IiM2RTZFQTMiIHN0cm9rZS1vcGFjaXR5PSIwLjE4IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxlbGxpcHNlIGN4PSIxMjIiIGN5PSI0NiIgcng9Ijc5LjUiIHJ5PSIyMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ1cmwoI3JmKSIgc3Ryb2tlLXdpZHRoPSIxMSIvPjxwYXRoIGQ9Ik00NCA0MkE3OS41IDIzIDAgMCAxIDIwMCA0MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utb3BhY2l0eT0iMC40OCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNTIgNTdBNzkuNSAyMyAwIDAgMCA4MiA2NSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQzlFMzNBIiBzdHJva2Utb3BhY2l0eT0iMC44OCIgc3Ryb2tlLXdpZHRoPSIzLjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==") center / 100% 100% no-repeat;
 }
-.add-btn.empty-add { width: 360rpx; height: 86rpx; border-radius: 43rpx; margin-top: 32rpx; }
-.add-btn.tap-on { transform: scale(0.96) translateY(3rpx); opacity: 0.94; }
-.add-ball {
-  position: relative; flex: none; width: 52rpx; height: 52rpx; margin-right: 16rpx; border-radius: 50%;
-  border: 3rpx solid rgba(255, 255, 255, 0.92); box-sizing: border-box;
+.ball-sh {
+  position: absolute; left: 122rpx; bottom: 42rpx; width: 72rpx; height: 16rpx; margin-left: -36rpx; z-index: 1; border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(78, 76, 134, 0.30) 0%, rgba(78, 76, 134, 0.11) 52%, rgba(78, 76, 134, 0) 78%);
+}
+.ball-btn {
+  position: absolute; left: 122rpx; bottom: 48rpx; width: 110rpx; height: 110rpx; margin-left: -55rpx; z-index: 2;
+  border-radius: 50%; box-sizing: border-box; border: 4rpx solid rgba(255, 255, 255, 0.94);
   background:
-    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZD0iTTEwIDRDMTggMTUgMTggMzMgMTAgNDRNMzggNEMzMCAxNSAzMCAzMyAzOCA0NCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLW9wYWNpdHk9IjAuNjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==") center / 100% 100% no-repeat,
-    radial-gradient(circle at 34% 28%, #E6F670 0%, #C9E33A 56%, #ADC922 100%);
-  box-shadow: 0 4rpx 10rpx rgba(66, 66, 120, 0.24);
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48ZyB0cmFuc2Zvcm09InJvdGF0ZSgtMTggNjAgNjApIiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxwYXRoIGQ9Ik0yMiA2QzQ0IDM2IDQ0IDg0IDIyIDExNE05OCA2Qzc2IDM2IDc2IDg0IDk4IDExNCIgc3Ryb2tlPSIjN0U5OTEyIiBzdHJva2Utb3BhY2l0eT0iMC4zNCIgc3Ryb2tlLXdpZHRoPSI4Ii8+PHBhdGggZD0iTTIyIDZDNDQgMzYgNDQgODQgMjIgMTE0TTk4IDZDNzYgMzYgNzYgODQgOTggMTE0IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS1vcGFjaXR5PSIwLjkiIHN0cm9rZS13aWR0aD0iNS4yIi8+PC9nPjwvc3ZnPg==") center / 100% 100% no-repeat,
+    radial-gradient(circle at 33% 26%, #F2FC85 0%, #CEE842 52%, #A5C11B 100%);
+  box-shadow: inset 0 6rpx 10rpx rgba(255, 255, 255, 0.5), inset 0 -10rpx 16rpx rgba(92, 114, 0, 0.28), 0 6rpx 14rpx rgba(78, 76, 134, 0.18);
 }
-.add-plus { position: absolute; left: 50%; top: 50%; width: 20rpx; height: 20rpx; margin: -10rpx 0 0 -10rpx; }
-.add-plus::before, .add-plus::after { content: ''; position: absolute; left: 50%; top: 50%; border-radius: 3rpx; background: #344000; }
-.add-plus::before { width: 20rpx; height: 4rpx; margin: -2rpx 0 0 -10rpx; }
-.add-plus::after { width: 4rpx; height: 20rpx; margin: -10rpx 0 0 -2rpx; }
-.add-t { font-size: 31rpx; font-weight: 800; letter-spacing: 2rpx; color: #fff; text-shadow: 0 2rpx 4rpx rgba(78, 76, 134, 0.28); }
+/* 球面左上角一颗柔润小高光点，让纯净网球更饱满 Q 弹 */
+.ball-btn::before {
+  content: ''; position: absolute; left: 22rpx; top: 15rpx; width: 26rpx; height: 14rpx;
+  border-radius: 50%; transform: rotate(-28deg); background: rgba(255, 255, 255, 0.46); pointer-events: none;
+}
+.ball-add.bouncing .ball-btn { animation: ani-ball-jump 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ball-add.bouncing .ball-sh { animation: ani-ball-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ball-add.bouncing .ball-rk { animation: ani-rk-juggle 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
