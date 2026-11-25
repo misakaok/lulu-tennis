@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 const { createRequire } = require('module');
 const createEnv = require('./mock-cloud');
-const PL = require('../utils/places');
+const PL = require('../pkg-manage/utils/places');
 const E = require('../utils/event');
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
@@ -69,7 +69,7 @@ test('最近使用的地点：按创建时间从新到旧，同一坐标只出�
 test('表单：点选历史地点直接填回 location 和 place，不打开地图、不带入场号；只存坐标的旧地点也能选；选完可以换地图位置或清除', () => {
   let opened = 0;
   const wx = { chooseLocation({ success }) { opened++; success({ latitude: 32, longitude: 122, name: '地图上新选的', address: '新地址' }); } };
-  const c = load('components/event-form/event-form.js', wx, 'Component');
+  const c = load('pkg-manage/components/event-form/event-form.js', wx, 'Component');
   let value;
   c.triggerEvent = (_, v) => { value = plain(v); };
   c.data.recent = PL.recentPlaces(draws());
@@ -95,7 +95,7 @@ test('表单：点选历史地点直接填回 location 和 place，不打开地�
   tap(9); // 不存在的一行：不变
   assert.strictEqual(value.location, null);
 
-  const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/components/event-form/event-form.wxml'), 'utf8');
   assert.ok(/最近使用的地点/.test(xml) && /bindtap="pickRecent"/.test(xml) && /bindtap="pickLocation"/.test(xml) && /bindtap="clearLocation"/.test(xml));
   assert.ok(/<event-form\b[^>]*\brecent="\{\{recentPlaces\}\}"[^>]*\bbind:change="onInfo"/.test(fs.readFileSync(path.join(__dirname, '../pkg-manage/draw-new/draw-new.wxml'), 'utf8')));
   // 编辑页不传历史地点：不显示这一块
@@ -121,7 +121,7 @@ test('选历史地点创建活动：走 createDraw 和地点文字检测，活�
   env.load();
   env.members([['owner', 'Owner'], ['alice', 'Alice']]);
   // 表单 → 新建活动页的提交字段
-  const c = load('components/event-form/event-form.js', {}, 'Component');
+  const c = load('pkg-manage/components/event-form/event-form.js', {}, 'Component');
   const page = load('pkg-manage/draw-new/draw-new.js', {}, 'Page', { '../../utils/db': {} });
   c.triggerEvent = (_, v) => page.onInfo({ detail: plain(v) });
   c.data.recent = PL.recentPlaces(draws());
@@ -194,7 +194,7 @@ test('最近使用的地点：100 米以内算同一个地点只出现一次（�
 test('只有坐标的历史位置：提示可以在地图上补名称；地图打开时停在这个位置，点选后名称就显示出来并随表单提交', () => {
   const calls = [];
   const wx = { chooseLocation(o) { calls.push({ latitude: o.latitude, longitude: o.longitude }); o.success({ latitude: 29.00002, longitude: 119.00001, name: '老地方网球场', address: '某区某路 9 号' }); } };
-  const c = load('components/event-form/event-form.js', wx, 'Component');
+  const c = load('pkg-manage/components/event-form/event-form.js', wx, 'Component');
   let value;
   c.triggerEvent = (_, v) => { value = plain(v); };
   c.data.recent = PL.recentPlaces(draws());
@@ -207,7 +207,7 @@ test('只有坐标的历史位置：提示可以在地图上补名称；地图�
   assert.deepStrictEqual(calls.pop(), { latitude: 29, longitude: 119 }, '地图停在已选的位置');
   assert.deepStrictEqual(value.place, { name: '老地方网球场', address: '某区某路 9 号' });
   assert.strictEqual(c.data.locText, '老地方网球场');
-  const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/components/event-form/event-form.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{v\.location && !v\.place\}\}"[^>]*>这个位置以前只存了坐标，没有名称/.test(xml));
 });
 

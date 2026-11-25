@@ -4,7 +4,7 @@ const E = require('../../utils/event');
 const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
-const PL = require('../../utils/places');
+const PL = require('../utils/places');
 const C = require('../../utils/cup');
 const cloud = require('../../utils/cloud');
 

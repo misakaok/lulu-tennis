@@ -4,7 +4,7 @@
 // 这里不写正式战绩，正式提交成功后录分页才清掉这份草稿。没有实时同步、分享或上传。
 // 活动场次：从活动录分页（pages/score）点「场边记分」进来（?go=1），规则是这一场的规则、不能改；完赛后「带入这一场录分」
 //   回到那一场的录分页预填局分，由本人核对后提交（录分页走原来的 recordEventMatch）。双方名字由录分页放在内存里（S.labelsOf）。
-const S = require('../../utils/scorer');
+const S = require('../utils/scorer');
 const haptic = require('../../utils/haptic');
 
 const SIDES = ['我在 A 方', '我在 B 方'];
@@ -337,8 +337,8 @@ Page({
         // 从「记一场」页进来的：退回去，由那一页 onShow 取走标记后预填（已经选好的球员照样保留）
         const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
         const prev = pages[pages.length - 2];
-        const open = () => wx.navigateTo({ url: `/pages/add/add?scorer=${id}&side=${side}` });
-        if (prev && prev.route === 'pages/add/add') {
+        const open = () => wx.navigateTo({ url: `/pkg-manage/add/add?scorer=${id}&side=${side}` });
+        if (prev && prev.route === 'pkg-manage/add/add') {
           S.setDailyPending(id, side);
           // 没退回去（连点、页面栈变了）就清掉标记、照旧打开新的录分页，免得以后打开「记一场」被旧草稿预填
           wx.navigateBack({ fail: () => { S.takeDailyPending(); open(); } });
@@ -353,11 +353,11 @@ Page({
     const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
     const prev = pages[pages.length - 2];
     // 从这一场的录分页进来的：退回去，由录分页 onShow 取走标记后预填（不叠一层新的录分页）
-    if (prev && prev.route === 'pages/score/score' && prev.drawId === drawId && prev.key === key) {
+    if (prev && prev.route === 'pkg-manage/score/score' && prev.drawId === drawId && prev.key === key) {
       S.setPending(this.state);
       wx.navigateBack();
       return;
     }
-    wx.redirectTo({ url: `/pages/score/score?drawId=${encodeURIComponent(drawId)}&key=${encodeURIComponent(key)}&scorer=${this.state.id}` });
+    wx.redirectTo({ url: `/pkg-manage/score/score?drawId=${encodeURIComponent(drawId)}&key=${encodeURIComponent(key)}&scorer=${this.state.id}` });
   },
 });

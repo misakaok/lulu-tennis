@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "录入比分",
-  "usingComponents": {
-    "score-sets": "/components/score-sets/score-sets",
-    "match-social": "/components/match-social/match-social"
-  }
-}

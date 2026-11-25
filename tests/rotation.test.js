@@ -220,14 +220,14 @@ test('活动详情：按轮次显示我这轮的搭档、对手和状态；还�
   const w = read('pages/draw-view/draw-view.wxml');
   assert.ok(/catchtap="openRotScorer"/.test(w) && /isRot \? '三轮对阵'/.test(w));
   assert.ok(/start=scorer/.test(read('pages/draw-view/draw-view.js')));
-  const sc = read('pages/score/score.js');
+  const sc = read('pkg-manage/score/score.js');
   assert.ok(/options\.start === 'scorer'/.test(sc) && /this\.data\.scorerOk && !this\.pendingScorer\) this\.openScorer\(\)/.test(sc), '只给能录这一轮的人自动打开');
   assert.ok(/!isRot && myName/.test(w), '四人轮换报名不选搭档');
 });
 
 test('创建页：选「四人轮换」后固定双打、开放报名，不显示签数 / 分组 / 报名上限 / LULU 积分；按报名名单正好 4 位才能排三轮', () => {
   let stored = null;
-  const def = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { setStorageSync: (k, v) => { stored = v; }, showToast() {}, vibrateShort() {}, pageScrollTo() {} });
+  const def = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../utils/places': {} }, { setStorageSync: (k, v) => { stored = v; }, showToast() {}, vibrateShort() {}, pageScrollTo() {} });
   const p = Object.assign({}, def, { data: plain(def.data), setData(o) { Object.assign(this.data, plain(o)); } });
   Object.assign(p, { players: ['Alice', 'Bob', 'Carl', 'Dora', 'Eve'], selected: [], seeds: [], info: {}, date: '2026-11-23' });
   p.setData({ cupOn: true, entry: 'pick', type: 'single' });

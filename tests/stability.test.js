@@ -273,7 +273,7 @@ test('活动详情防连点：报名在第一个 await 前上锁；取消报名�
 // 第一次建资料保存时的「是否开启公开展示？」按 consent 回答（默认「暂不开启」），其他弹窗一律点确定
 function profilePage(db, consent) {
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showModal: (o) => { if (o.complete) o.complete(); if (o.success) o.success({ confirm: o.title === '是否开启公开展示？' ? !!consent : true }); }, showLoading() {}, hideLoading() {}, navigateBack() {}, switchTab() {} };
-  const def = loadDef('pages/profile/profile.js', {
+  const def = loadDef('pkg-manage/profile/profile.js', {
     '../../utils/db': Object.assign({ cachedProfile: () => null, myOpenid: async () => 'me', setShown: async () => {}, fetchPlayersFull: async () => [] }, db),
     '../../utils/cloud': { call: async () => ({ url: '', state: '' }) },
     '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {}, setMine() {} },
@@ -346,7 +346,7 @@ test('资料页：无缓存打开已有资料时，云端返回前提前勾选�
   // prefill 晚到时不覆盖用户手动清空过的昵称
   const memStatus = deferred();
   const wx = { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showModal() {}, showLoading() {}, hideLoading() {} };
-  const def = loadDef('pages/profile/profile.js', {
+  const def = loadDef('pkg-manage/profile/profile.js', {
     '../../utils/db': { cachedProfile: () => null, getMyProfile: async () => null, myOpenid: async () => 'me' },
     '../../utils/cloud': { call: async () => ({ url: '', state: '' }) },
     '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {}, setMine() {} },
@@ -368,7 +368,7 @@ test('资料页：无缓存打开已有资料时，云端返回前提前勾选�
     hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showLoading() {}, hideLoading() {}, navigateBack() {}, switchTab() {},
     showModal(o) { if (o.title === '是否开启公开展示？') modalDone = (c) => o.success({ confirm: c }); else if (o.success) o.success({ confirm: true }); },
   };
-  const def2 = loadDef('pages/profile/profile.js', {
+  const def2 = loadDef('pkg-manage/profile/profile.js', {
     '../../utils/db': { cachedProfile: () => null, getMyProfile: () => late.p, myOpenid: async () => 'me', saveMyProfile: async (x) => { saved2.push(x); }, fetchPlayersFull: async () => [] },
     '../../utils/cloud': { call: async () => ({ url: '', state: '' }) },
     '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {}, setMine() {} },
@@ -435,7 +435,7 @@ test('球拍详情 / 成长档案：onShow 和下拉刷新同时读时只认最�
 });
 
 test('资料页：删照片、开关公开展示后的预热只读共享版球员（不复制全部球员）', () => {
-  const js = read('pages/profile/profile.js');
+  const js = read('pkg-manage/profile/profile.js');
   assert.strictEqual((js.match(/\(db\.playersShared \|\| db\.fetchPlayersFull\)\(\)\.catch\(\(\) => \{\}\)/g) || []).length, 2);
   assert.ok(!/db\.fetchPlayersFull\(\)\.catch\(\(\) => \{\}\)/.test(js));
 });

@@ -9,7 +9,7 @@
 // 本机草稿只有规则和得分顺序，不含球员姓名、用户 ID 等个人资料；退出成员身份时 utils/member.js 的 clearProtected 会清掉。
 // 活动场次（从 pages/score 打开）：草稿多带一个 ev = { drawId, key }（只是活动和场次的编号，不是个人资料），规则用这一场的规则，
 //   完赛后回到这一场的录分页预填局分，仍由本人核对后提交（recordEventMatch），这里不写正式战绩。
-const R = require('./rules');
+const R = require('../../utils/rules');
 
 const DRAFT_KEY = 'scorer_draft';
 const VERSION = 1;

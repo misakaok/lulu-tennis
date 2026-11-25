@@ -192,7 +192,7 @@ test('战绩页、比赛详情、排行榜共用同一次水平分和亮点计�
   // 比赛详情：同样的共享数组 → 同一次计算
   const id = Object.keys(tags)[0];
   const rec = matches.find((m) => m._id === id);
-  const md = loadDef('pages/match/match.js', {
+  const md = loadDef('pkg-manage/match/match.js', {
     '../../utils/db': {
       cachedMatchesAll: () => [], cachedPlayersFull: () => [], cachedOpenid: () => '',
       fetchMatchState: async () => ({ match: rec, status: 'official', matchId: id, changes: [] }),

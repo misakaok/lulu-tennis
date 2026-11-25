@@ -99,7 +99,7 @@ test('活动详情：已生成对阵的活动先用本机战绩画出场次；�
 test('比赛详情：先用本机战绩里的这一场画记分牌；确认 / 改分 / 撤销、修改记录等云端读完（不让组件自己再调一次 matchState）', async () => {
   const st = later();
   const rec = { _id: 'm1', date: '2026-11-20', a: ['我'], b: ['对手'], aIds: ['me'], bIds: ['op'], aKeys: ['me'], bKeys: ['op'], winner: 'a', sets: [{ a: 6, b: 3 }], type: 'single', status: 'official' };
-  const p = load('pages/match/match.js', { navigateTo() {} }, {
+  const p = load('pkg-manage/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: () => st.p },
     '../../utils/db': {
       cachedMatchesAll: () => [rec], cachedPlayersFull: () => [], fetchPlayersFull: async () => [], cachedMatches: () => [rec],
@@ -120,11 +120,11 @@ test('比赛详情：先用本机战绩里的这一场画记分牌；确认 / �
   assert.strictEqual(p.data.ready, true); assert.strictEqual(p.data.changes.length, 1);
   assert.strictEqual(JSON.stringify(p.data.why), why0, '云端读完水平分说明不变');
   assert.strictEqual(p.data.preset.matchId, 'm1');
-  const xml = read('pages/match/match.wxml');
+  const xml = read('pkg-manage/match/match.wxml');
   assert.ok(/<view wx:if="\{\{ready \|\| preset\}\}" class="\{\{previewSocial \? '' : 'late'\}\}"><match-social /.test(xml), "match-social：普通日常比赛先画预览、不淡入，其他等 ready 淡入");
   assert.ok(!/正在读取/.test(xml), '比赛详情读云端期间不放「正在读取」占位文字');
   // 本机没有这一场：照旧等云端（页面先空着）
-  const q = load('pages/match/match.js', { navigateTo() {} }, {
+  const q = load('pkg-manage/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: () => new Promise(() => {}) },
     '../../utils/db': { cachedMatchesAll: () => [], cachedPlayersFull: () => [], fetchPlayersFull: async () => [], myOpenid: async () => '', matchesShared: async () => [] },
     '../../utils/member': { knownActive: () => true, isAdminLocal: () => false },
@@ -141,9 +141,9 @@ function scorePage(peek, fresh) {
       fetchDrawDetail: () => fresh.p, matchesShared: async () => [], myOpenid: async () => 'me',
     },
     '../../utils/member': { isAdminLocal: () => false },
-    '../../utils/scorer': { loadDraft: () => null, sameEv: () => false, sameCfg: () => false, takePending: () => '' },
+    '../pkg-manage/utils/scorer': { loadDraft: () => null, sameEv: () => false, sameCfg: () => false, takePending: () => '' },
   };
-  return load('pages/score/score.js', { setNavigationBarTitle() {} }, deps);
+  return load('pkg-manage/score/score.js', { setNavigationBarTitle() {} }, deps);
 }
 
 test('活动录分页：从活动详情点进来先用刚读到的活动显示；云端结果一样就不重画（不冲掉正在填的局分），变了才按最新的重画', async () => {
@@ -456,7 +456,7 @@ function matchPage(rec, opts) {
   opts = opts || {};
   const calls = [], used = [];
   const st = later();
-  const p = load('pages/match/match.js', { navigateTo() {} }, {
+  const p = load('pkg-manage/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: (a, d) => { calls.push(a); return st.p; } },
     '../../utils/db': {
       cachedMatchesAll: () => [rec], cachedPlayersFull: () => [], cachedMatches: () => [rec], cachedOpenid: () => opts.me || 'me',
@@ -507,7 +507,7 @@ test('比赛详情：活动比赛、待确认、弃权 / 退赛、管理员更�
     assert.ok(a.p.data.m, '记分牌照样先画');
     assert.deepStrictEqual([a.p.data.preset, a.p.data.previewSocial], [null, false], JSON.stringify(x));
   });
-  const xml = read('pages/match/match.wxml');
+  const xml = read('pkg-manage/match/match.wxml');
   const expr = xml.match(/<view wx:if="\{\{([^"]+)\}\}" class="[^"]*"><match-social /)[1];
   const show = new Function('ready', 'preset', 'return !!(' + expr + ')');
   assert.deepStrictEqual([show(false, null), show(true, null), show(false, { preview: true })], [false, true, true]);
@@ -517,7 +517,7 @@ test('比赛详情：从改分页回来连读两次，先发的后回来不覆�
   const st1 = later(), st2 = later();
   const queue = [st1.p, st2.p];
   const rec = dailyRec();
-  const p = load('pages/match/match.js', { navigateTo() {} }, {
+  const p = load('pkg-manage/match/match.js', { navigateTo() {} }, {
     '../../utils/cloud': { call: () => new Promise(() => {}) },
     '../../utils/db': {
       cachedMatchesAll: () => [rec], cachedPlayersFull: () => [], cachedMatches: () => [rec], cachedOpenid: () => 'me',
@@ -537,7 +537,7 @@ test('比赛详情：从改分页回来连读两次，先发的后回来不覆�
 function socialComp(call) {
   let def;
   const nav = [], modal = [];
-  vm.runInNewContext(read('components/match-social/match-social.js'), {
+  vm.runInNewContext(read('pkg-manage/components/match-social/match-social.js'), {
     Component: (d) => { def = d; }, require: (id) => (/cloud$/.test(id) ? { call } : {}), console,
     wx: { navigateTo: (o) => nav.push(o.url), showModal: (o) => modal.push(o.title), showToast() {} },
   });
@@ -599,7 +599,7 @@ test('点比赛卡片预读 matchState：比赛详情第一次读取接过去（
   [['pages/index/index.js', '  openMatch(e)'], ['pkg-manage/history/history.js', '  openMatch(e)'], ['components/player-home/player-home.js', '    openMatch(e)']].forEach(([f, head]) => {
     const src = read(f);
     const body = src.slice(src.indexOf(head), src.indexOf('},', src.indexOf(head)));
-    assert.ok(/db\.prefetchMatchState\(id\);\s*wx\.navigateTo\(\{ url: '\/pages\/match\/match\?id=' \+ id \}\)/.test(body), f);
+    assert.ok(/db\.prefetchMatchState\(id\);\s*wx\.navigateTo\(\{ url: '\/pkg-manage\/match\/match\?id=' \+ id \}\)/.test(body), f);
   });
 });
 
@@ -631,9 +631,9 @@ function addPage(over) {
     playersShared: () => shared.p, fetchPlayersFull: async () => { throw new Error('应该用共享版'); },
     getMyProfile: async () => ({ name: '我' }), myOpenid: async () => 'me',
   }, over || {});
-  const p = load('pages/add/add.js', { getStorageSync: () => ({}) }, {
+  const p = load('pkg-manage/add/add.js', { getStorageSync: () => ({}) }, {
     '../../utils/db': db,
-    '../../utils/scorer': { takeDailyPending: () => null, loadDraft: () => null, resultOf: () => null },
+    '../pkg-manage/utils/scorer': { takeDailyPending: () => null, loadDraft: () => null, resultOf: () => null },
   });
   return { p, shared };
 }

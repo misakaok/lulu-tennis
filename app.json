@@ -2,14 +2,10 @@
   "pages": [
     "pages/draw/draw",
     "pages/index/index",
-    "pages/add/add",
     "pages/rank/rank",
     "pages/me/me",
     "pages/draw-view/draw-view",
-    "pages/profile/profile",
     "pages/challenge/challenge",
-    "pages/score/score",
-    "pages/match/match",
     "pages/player/player",
     "pages/gate/gate",
     "pages/racket/racket"
@@ -19,7 +15,6 @@
       "root": "pkg-tools",
       "name": "tools",
       "pages": [
-        "scorer/scorer",
         "report/report",
         "racket-view/racket-view",
         "racket-edit/racket-edit",
@@ -41,7 +36,12 @@
         "growth/growth",
         "growth-edit/growth-edit",
         "history/history",
-        "correct/correct"
+        "correct/correct",
+        "match/match",
+        "score/score",
+        "add/add",
+        "profile/profile",
+        "scorer/scorer"
       ]
     }
   ],
@@ -85,6 +85,12 @@
       "network": "all",
       "packages": [
         "pkg-tools",
+        "pkg-manage"
+      ]
+    },
+    "pages/gate/gate": {
+      "network": "all",
+      "packages": [
         "pkg-manage"
       ]
     }

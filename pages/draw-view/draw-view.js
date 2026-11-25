@@ -489,7 +489,7 @@ Page({
     if (!me) {
       wx.showModal({
         title: '先设置昵称', content: '报名名单里会显示你的昵称', confirmText: '去设置',
-        success: (r) => { if (r.confirm) wx.navigateTo({ url: '/pages/profile/profile?from=signup' }); },
+        success: (r) => { if (r.confirm) wx.navigateTo({ url: '/pkg-manage/profile/profile?from=signup' }); },
       });
       return;
     }
@@ -669,11 +669,11 @@ Page({
   // 点签表 / 积分榜 / 赛程里的某一场 → 录分页（已录的可以查看或修改）
   onOpen(e) { this.openMatch(e.detail.key, e.detail.ready); },
   // 四人轮换：从这一轮直接进场边记分（录分页加载完自动打开记分器，完赛后带回这一轮、核对后正式提交）
-  openRotScorer(e) { wx.navigateTo({ url: `/pages/score/score?drawId=${this.id}&key=${e.currentTarget.dataset.key}&start=scorer` }); },
+  openRotScorer(e) { wx.navigateTo({ url: `/pkg-manage/score/score?drawId=${this.id}&key=${e.currentTarget.dataset.key}&start=scorer` }); },
   tapItem(e) { const x = this.items.find((i) => i.key === e.currentTarget.dataset.key); if (x) this.openMatch(x.key, x.ready); },
   openMatch(key, ready) {
     if (!ready) { wx.showToast({ title: '对手还没确定，等上一轮打完', icon: 'none' }); return; }
-    wx.navigateTo({ url: `/pages/score/score?drawId=${this.id}&key=${key}` });
+    wx.navigateTo({ url: `/pkg-manage/score/score?drawId=${this.id}&key=${key}` });
   },
 
   // 提前结束活动（发起人或管理员）：下雨、时间到了或中途商议不打了，可直接结束；已录比分完整保留，可随时恢复

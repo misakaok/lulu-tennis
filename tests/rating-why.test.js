@@ -148,7 +148,7 @@ test('用的是这一场实际参与计算的数据：赛前水平是当时的�
 
 /* ---------- 比赛详情页 ---------- */
 function loadPage(deps) {
-  const filename = path.resolve(__dirname, '../pages/match/match.js');
+  const filename = path.resolve(__dirname, '../pkg-manage/match/match.js');
   let def;
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
     require: (id) => deps[id] || createRequire(filename)(id), wx: { navigateTo() {} }, Page: (d) => { def = d; }, console, setTimeout() {},
@@ -194,14 +194,14 @@ test('比赛详情页：只给本人看自己参加的正式比赛；弃权、�
   assert.strictEqual(wo.noneTitle, '本场未计入水平分'); assert.match(wo.none, /^弃权：.*不计入水平分/);
   assert.strictEqual(rt.noneTitle, '本场未计入水平分'); assert.match(rt.none, /^中途退赛：.*不计入水平分/);
   assert.strictEqual(em.noneTitle, '本场未计入水平分'); assert.match(em.none, /没有可用的局分记录/);
-  assert.ok(/why\.noneTitle/.test(fs.readFileSync(path.resolve(__dirname, '../pages/match/match.wxml'), 'utf8')), '页面显示「本场未计入水平分」标题');
+  assert.ok(/why\.noneTitle/.test(fs.readFileSync(path.resolve(__dirname, '../pkg-manage/match/match.wxml'), 'utf8')), '页面显示「本场未计入水平分」标题');
   assert.strictEqual((await open('pending', 'me')).data.why, null, '不在正式战绩里不显示');
   assert.strictEqual((await open('legacy', 'op')).data.why.dir !== undefined, true, '对方有账号照常显示');
   // 页面上等级只经 R.fmt，涨跌只有箭头；展开按钮用 .btn-line mini
-  const xml = fs.readFileSync(path.resolve(__dirname, '../pages/match/match.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.resolve(__dirname, '../pkg-manage/match/match.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{why\}\}"[\s\S]*只有你自己能看到/.test(xml));
   assert.ok(/class="btn-line mini"[^>]*bindtap="toggleWhy"/.test(xml));
-  const js = fs.readFileSync(path.resolve(__dirname, '../pages/match/match.js'), 'utf8') + fs.readFileSync(path.resolve(__dirname, '../utils/rating.js'), 'utf8');
+  const js = fs.readFileSync(path.resolve(__dirname, '../pkg-manage/match/match.js'), 'utf8') + fs.readFileSync(path.resolve(__dirname, '../utils/rating.js'), 'utf8');
   assert.ok(!/delta\.toFixed|level\.toFixed|after\.toFixed|before\.toFixed/.test(js));
 });
 
@@ -235,7 +235,7 @@ test('水平分模拟（simulateMatch）与赛前交手预览（matchupPreview�
   assert.strictEqual(pv.presets.length, 8);
   assert.strictEqual(pv.presets[0].label, '6:0');
   // 活动录分页未开打时有赛前预览与模拟文案
-  const sxml = fs.readFileSync(path.resolve(__dirname, '../pages/score/score.wxml'), 'utf8');
+  const sxml = fs.readFileSync(path.resolve(__dirname, '../pkg-manage/score/score.wxml'), 'utf8');
   assert.ok(/赛前交手预览/.test(sxml) && /bindtap="toggleSim"/.test(sxml));
 });
 

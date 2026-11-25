@@ -88,7 +88,7 @@ Page({
   },
   openGrowth() { wx.navigateTo({ url: '/pkg-manage/growth/growth' }); },
   addGrowth() { wx.navigateTo({ url: '/pkg-manage/growth-edit/growth-edit' }); },
-  openScorer() { wx.navigateTo({ url: '/pkg-tools/scorer/scorer' }); },
+  openScorer() { wx.navigateTo({ url: '/pkg-manage/scorer/scorer' }); },
   openAA() { wx.navigateTo({ url: '/pkg-tools/aa/aa' }); },
   openMixer() { wx.navigateTo({ url: '/pkg-tools/mixer/mixer' }); },
 });

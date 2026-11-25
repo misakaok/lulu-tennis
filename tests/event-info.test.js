@@ -192,7 +192,7 @@ test('战绩页：「记一场」用缓存版身份显示，和读数据同时�
 test('日常录分页：正式成员（不必是管理员）可以录；不是正式成员不能提交，每次打开实时校验', async () => {
   let status = 'pending', submitted = 0, loaded = 0;
   const deps = { '../../utils/member': { status: async () => ({ status, isAdmin: false }), knownActive: () => false }, '../../utils/db': { addMatch() { submitted++; } } };
-  const p = load('pages/add/add.js', {}, 'Page', deps);
+  const p = load('pkg-manage/add/add.js', {}, 'Page', deps);
   p.loadPlayers = async () => { loaded++; };
   await p.onShow(); await p.submit();
   assert.strictEqual(p.data.canRecordDaily, false); assert.match(p.data.authError, /正式成员/);
@@ -231,7 +231,7 @@ test('创建活动 / 记一场：本机记得身份就先显示、不等云端�
   assert.strictEqual(q.data.canPublish, true);
   // 记一场：先显示、同时读球员；校验不通过再收起
   let loaded = 0;
-  const a = load('pages/add/add.js', {}, 'Page', deps);
+  const a = load('pkg-manage/add/add.js', {}, 'Page', deps);
   a.loadPlayers = async () => { loaded++; };
   const shown = a.onShow();
   await Promise.resolve();
@@ -406,7 +406,7 @@ test('挑战书旧链接：不加载球员、不记录比分、不提供分享',
 
 test('场地表单：旧的场地文字和 location 里的旧地图文字不回填；新选的地点名称和地址随表单提交（云端检测后才保存）', () => {
   const wx = { chooseLocation({ success }) { success({ latitude: 32, longitude: 122, name: '用户编辑的地图名', address: '用户编辑的地图地址' }); } };
-  const c = load('components/event-form/event-form.js', wx, 'Component');
+  const c = load('pkg-manage/components/event-form/event-form.js', wx, 'Component');
   let value;
   c.triggerEvent = (_, v) => { value = plain(v); };
   c.init({ date: '2026-11-14', venue: '旧自定义球场', location: { latitude: 31, longitude: 121, name: '旧地图文字' } });
@@ -747,7 +747,7 @@ test('旧活动的种子名单：活动详情按「N 号种子」显示，单打
 /* ---------- 成员内约球：建议水平、剩余名额、四人双打 ---------- */
 test('建议水平表单：选项沿用自评等级；只选一头时另一头取同一档，始终最低 ≤ 最高；可以清除；旧活动按没设置', () => {
   const R = require('../utils/rating');
-  const c = load('components/event-form/event-form.js', {}, 'Component');
+  const c = load('pkg-manage/components/event-form/event-form.js', {}, 'Component');
   let value;
   c.triggerEvent = (_, v) => { value = plain(v); };
   assert.deepStrictEqual(plain(c.data.levelOpts), R.SELF_LEVELS.map((x) => x.t));
@@ -774,7 +774,7 @@ test('建议水平表单：选项沿用自评等级；只选一头时另一头�
   assert.strictEqual(value.level, null);
   c.init({ date: '2026-11-29' });
   assert.strictEqual(value.level, null);
-  const xml = fs.readFileSync(path.join(__dirname, '../components/event-form/event-form.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/components/event-form/event-form.wxml'), 'utf8');
   assert.ok(/建议水平/.test(xml) && /bindchange="onLevelMin"/.test(xml) && /bindchange="onLevelMax"/.test(xml) && /bindtap="clearLevel"/.test(xml));
 });
 

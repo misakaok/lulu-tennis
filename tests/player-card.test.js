@@ -54,11 +54,11 @@ test('球员卡：比赛等级和自评等级分开标注，没有比赛 / 没�
 test('不那么素：全部比赛顶部数字卡、录日常比赛顶部概要卡（日期、双方、规则）；这些页面不用 emoji', () => {
   const hist = read('pkg-manage/history/history.wxml');
   assert.ok(/class="hs"/.test(hist) && ['场数', '胜', '负', '胜率'].every((l) => hist.indexOf(`<text class="hs-l">${l}</text>`) >= 0));
-  const add = read('pages/add/add.wxml');
+  const add = read('pkg-manage/add/add.wxml');
   assert.ok(/<image class="hero-art" src="\/images\/art-ball\.png" mode="aspectFit" \/>/.test(add) && /待选对手/.test(add));
   // 界面上不用彩色 emoji（和 3D 配图风格不搭）：冠军用黄绿标签 / 奖杯插画，名次用金银铜奖牌图标（图片）；✓ ★ ✕ 这类单色符号可以
   const files = [];
-  for (const dir of ['pages', 'pkg-tools', 'pkg-manage', 'components']) {
+  for (const dir of ['pages', 'pkg-tools', 'pkg-manage', 'components', 'pkg-manage/components']) {
     for (const d of fs.readdirSync(path.join(__dirname, '..', dir))) {
       for (const ext of ['wxml', 'js']) { const f = `${dir}/${d}/${d}.${ext}`; if (fs.existsSync(path.join(__dirname, '..', f))) files.push(f); }
     }
@@ -275,14 +275,14 @@ test('「我的」生涯成就空卡：本机有比赛缓存时马上显示（ca
 });
 
 test('比赛详情页：点双方头像或名字进入球员主页（点自己跳「我的」，没绑定账号轻提示）', () => {
-  const xml = read('pages/match/match.wxml'), css = read('pages/match/match.wxss');
+  const xml = read('pkg-manage/match/match.wxml'), css = read('pkg-manage/match/match.wxss');
   assert.strictEqual((xml.match(/class="hs-av-w" data-uid="\{\{p\.uid\}\}" bindtap="openPlayer"/g) || []).length, 2, '双方头像外层都绑 openPlayer');
   assert.strictEqual((xml.match(/class="hs-n" data-uid="\{\{p\.uid\}\}" bindtap="openPlayer"/g) || []).length, 2, '双方名字也都绑 openPlayer');
   assert.ok(/\.hs-av-w \+ \.hs-av-w \{ margin-left: -28rpx; \}/.test(css), '双打两张头像重叠间距保持不变');
   const nav = [], tab = [], toast = [];
-  const file = path.resolve(__dirname, '../pages/match/match.js');
+  const file = path.resolve(__dirname, '../pkg-manage/match/match.js');
   let def;
-  vm.runInNewContext(read('pages/match/match.js'), {
+  vm.runInNewContext(read('pkg-manage/match/match.js'), {
     require: (id) => (id === '../../utils/db' ? { cachedOpenid: () => 'u1' } : id === '../../utils/cloud' || id === '../../utils/member' ? {} : createRequire(file)(id)),
     wx: { navigateTo: (o) => nav.push(o.url), switchTab: (o) => tab.push(o.url), showToast: (o) => toast.push(o.title) },
     Page: (d) => { def = d; }, console, setTimeout: () => 0,

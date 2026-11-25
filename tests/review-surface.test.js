@@ -11,8 +11,8 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   const pages = allPages(app);
   // 照片上传入口只有资料页（球员照片，经 utils/photo.js → 云函数 setPhoto 检测）；球拍用按配色画的示意图（组件 rk-art），没有照片
-  const UPLOAD = { 'pages/profile/profile': 1 };
-  const SHOW = { 'pages/profile/profile': 1, 'components/pl-av/pl-av': 1 }; // 动态图片只有资料页预览和头像组件
+  const UPLOAD = { 'pkg-manage/profile/profile': 1 };
+  const SHOW = { 'pkg-manage/profile/profile': 1, 'components/pl-av/pl-av': 1 }; // 动态图片只有资料页预览和头像组件
   const seen = new Set();
   const inspect = (base) => {
     if (seen.has(base)) return;
@@ -100,7 +100,7 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
     assert.ok(fs.existsSync(f), src + ' 不存在');
     assert.ok(fs.statSync(f).size < 80 * 1024, src + ' 太大');
   });
-  ['/images/hero-court.jpg', '/images/hero-2.jpg', '/images/hero-3.jpg', '/images/bg-score.jpg', '/images/bg-mine.jpg', '/images/bg-event.jpg', '/images/bg-card.jpg', '/images/bg-gate.jpg', '/pkg-manage/images/bg-growth.jpg', '/images/art-ball.png', '/images/art-net.png', '/images/art-basket.png', '/images/art-trophy.png', '/images/art-tools.png']
+  ['/images/hero-court.jpg', '/images/hero-2.jpg', '/images/hero-3.jpg', '/pkg-manage/images/bg-score.jpg', '/images/bg-mine.jpg', '/images/bg-event.jpg', '/images/bg-card.jpg', '/images/bg-gate.jpg', '/pkg-manage/images/bg-growth.jpg', '/images/art-ball.png', '/images/art-net.png', '/images/art-basket.png', '/images/art-trophy.png', '/images/art-tools.png']
     .forEach((f) => assert.ok(used[f], f + ' 没用上'));
   const draw = fs.readFileSync(path.join(root, 'pages/draw/draw.wxml'), 'utf8');
   assert.ok(/class="hero-title">活动</.test(draw) && /class="hero-btn"[^>]*bindtap="goNew"/.test(draw), '标题和按钮不放进图片里');
@@ -112,7 +112,7 @@ T.push({ name: '界面配图：背景图只用包里的静态图片（.bg-host �
 T.push({ name: '所有注册页面和组件：文字输入只有比赛名称、昵称、称呼和搜索；没有手写新球员，不调用新增球员', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   // 仍然允许文字输入的页面：比赛名称（创建 / 编辑活动，各 1 个）、昵称（资料页）、准入页、搜索球员（首页；选人弹层 member-sheet，只在本机筛选，不保存）
-  const allowed = { 'pages/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pkg-manage/draw-new/draw-new': 1, 'pkg-manage/event-edit/event-edit': 1, 'components/member-sheet/member-sheet': 1 };
+  const allowed = { 'pkg-manage/profile/profile': 9, 'pages/gate/gate': 9, 'pages/index/index': 9, 'pkg-manage/draw-new/draw-new': 1, 'pkg-manage/event-edit/event-edit': 1, 'components/member-sheet/member-sheet': 1 };
   const comps = fs.readdirSync(path.join(root, 'components')).map((c) => `components/${c}/${c}`).filter((c) => fs.existsSync(path.join(root, c + '.wxml')));
   allPages(app).concat(comps).forEach((page) => {
     const xml = fs.readFileSync(path.join(root, page + '.wxml'), 'utf8');

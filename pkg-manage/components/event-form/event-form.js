@@ -1,6 +1,6 @@
 // 活动信息表单（创建球友活动和编辑活动共用）：日期、开始时间、场地、地图定位、建议水平
-const E = require('../../utils/event');
-const R = require('../../utils/rating');
+const E = require('../../../utils/event');
+const R = require('../../../utils/rating');
 const PL = require('../../utils/places');
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -57,7 +57,7 @@ Component({
         },
         fail: (e) => {
           if (/cancel/.test(e.errMsg || '')) return;
-          const PV = require('../../utils/privacy');
+          const PV = require('../../../utils/privacy');
           if (PV.isDenied(e)) { PV.stopped(); return; } // 微信隐私保护指引没同意：停止这次选点
           if (PV.isUndeclared(e)) { wx.showModal({ title: '无法打开地图', content: '小程序还没有声明使用位置信息，请联系管理员在后台「用户隐私保护指引」里补上。', showCancel: false }); return; }
           wx.showModal({ title: '无法打开地图', content: '请在小程序设置里允许使用位置信息。', showCancel: false });

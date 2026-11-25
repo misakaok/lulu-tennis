@@ -73,7 +73,7 @@ Page({
   // 回到被拦下时的页面（带参数，见 utils/member.js 的 kickout）；没有就去活动 tab。打不开时也退回活动 tab
   // 用邀请码刚加入、还没设置资料：先去资料页设置昵称、性别和等级（可以「稍后再设置」），完成后资料页再回到原来要去的页面
   enter() {
-    if (this.joined && !this.hasProfile) { wx.reLaunch({ url: '/pages/profile/profile?from=gate', fail: () => this.goOn() }); return; }
+    if (this.joined && !this.hasProfile) { wx.reLaunch({ url: '/pkg-manage/profile/profile?from=gate', fail: () => this.goOn() }); return; }
     this.goOn();
   },
   goOn() {

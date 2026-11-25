@@ -1,4 +1,4 @@
 {
   "navigationBarTitleText": "修改比分",
-  "usingComponents": { "score-sets": "/components/score-sets/score-sets" }
+  "usingComponents": { "score-sets": "/pkg-manage/components/score-sets/score-sets" }
 }

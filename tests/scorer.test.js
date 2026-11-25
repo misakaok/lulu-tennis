@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 const { createRequire } = require('module');
 const R = require('../utils/rules');
-const S = require('../utils/scorer');
+const S = require('../pkg-manage/utils/scorer');
 
 const T = [];
 const test = (name, fn) => T.push({ name, fn });
@@ -236,7 +236,7 @@ test('记分页：选规则开始，逐分记分自动存本机；重开显示�
   });
   const deps = { '../../utils/member': { statusCached: async () => ({ status: 'active' }) } };
   await withWx(store, async () => {
-    const p = load('pkg-tools/scorer/scorer.js', wx, deps);
+    const p = load('pkg-manage/scorer/scorer.js', wx, deps);
     p.onLoad(); await p.onShow();
     assert.strictEqual(p.data.mode, 'setup');
     assert.deepStrictEqual(p.data.cfg, { setGames: 6, noAd: false, bestOf: 3 }); // 默认用上次的规则
@@ -252,7 +252,7 @@ test('记分页：选规则开始，逐分记分自动存本机；重开显示�
     assert.strictEqual(S.loadDraft().points, 'aaa');
     // 触觉反馈：普通一分轻震，拿下一局重一点，撤销轻震（4 局制、一盘：A 方连得 4 分拿下第一局）
     const buzz = [];
-    const h = load('pkg-tools/scorer/scorer.js', wx, Object.assign({ '../../utils/haptic': { light: () => buzz.push('l'), medium: () => buzz.push('m') } }, deps));
+    const h = load('pkg-manage/scorer/scorer.js', wx, Object.assign({ '../../utils/haptic': { light: () => buzz.push('l'), medium: () => buzz.push('m') } }, deps));
     h.onLoad(); await h.onShow(); h.resume();
     h.point(tap({ side: 'a' }));
     assert.deepStrictEqual(buzz, ['m'], '第 4 分拿下一局');
@@ -265,7 +265,7 @@ test('记分页：选规则开始，逐分记分自动存本机；重开显示�
     S.saveDraft(Object.assign({}, S.loadDraft(), { points: 'aaa' }));
 
     // 小程序重开：有草稿先问继续还是新一场
-    const q = load('pkg-tools/scorer/scorer.js', wx, deps);
+    const q = load('pkg-manage/scorer/scorer.js', wx, deps);
     q.onLoad(); await q.onShow();
     assert.strictEqual(q.data.mode, 'resume');
     q.resume();
@@ -301,7 +301,7 @@ test('记分页：不是正式成员不能开始；完赛后锁住，「带入�
     '../../utils/db': new Proxy({}, { get: () => () => { throw new Error('记分页不应读写云端'); } }),
   };
   await withWx(store, async () => {
-    const p = load('pkg-tools/scorer/scorer.js', wx, deps);
+    const p = load('pkg-manage/scorer/scorer.js', wx, deps);
     p.onLoad(); await p.onShow();
     assert.match(p.data.authError, /正式成员/);
     p.startNew();
@@ -316,7 +316,7 @@ test('记分页：不是正式成员不能开始；完赛后锁住，「带入�
     assert.strictEqual(S.loadDraft().points.length, 16);
     const id = S.loadDraft().id;
     p.handoff();
-    assert.deepStrictEqual(navs, [`/pages/add/add?scorer=${id}&side=b`]);
+    assert.deepStrictEqual(navs, [`/pkg-manage/add/add?scorer=${id}&side=b`]);
     assert.ok(S.loadDraft(), '带入时不清草稿');
     p.undo(); // 撤回最后一分可以继续
     assert.strictEqual(p.data.v.done, false);
@@ -343,7 +343,7 @@ test('带入日常录分：预填规则和盘分（自己在 B 方时对调）�
   };
   await withWx(store, async () => {
     S.saveDraft(done);
-    const p = load('pages/add/add.js', wx, deps, { setTimeout() {} });
+    const p = load('pkg-manage/add/add.js', wx, deps, { setTimeout() {} });
     p.selectComponent = () => null;
     p.onLoad({ scorer: done.id, side: 'b' });
     assert.strictEqual(added, 0, '打开录分页不提交');
@@ -353,7 +353,7 @@ test('带入日常录分：预填规则和盘分（自己在 B 方时对调）�
     assert.ok(R.checkMatch(p.data.initSets, 3, c).ok);
     assert.deepStrictEqual(store.last_rules, { setGames: 4, noAd: true, bestOf: 1 });
     // 录分页的比分组件用同样的规则校验带入的比分
-    const xml = fs.readFileSync(path.join(__dirname, '../pages/add/add.wxml'), 'utf8');
+    const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/add/add.wxml'), 'utf8');
     assert.ok(/<score-sets id="sets" init="\{\{initSets\}\}"/.test(xml));
     // 仍然走录分页原来的流程：没选对手不能保存
     p.data.canRecordDaily = true;
@@ -374,13 +374,13 @@ test('带入日常录分：预填规则和盘分（自己在 B 方时对调）�
 
     // 草稿对不上 / 没完赛：不预填，照常是普通录分
     S.saveDraft(st(c, pts));
-    const q = load('pages/add/add.js', wx, deps, { setTimeout() {} });
+    const q = load('pkg-manage/add/add.js', wx, deps, { setTimeout() {} });
     q.onLoad({ scorer: S.loadDraft().id });
     assert.strictEqual(q.data.fromScorer, false);
     assert.deepStrictEqual(q.data.initSets, []);
     assert.ok(toasts.some((t) => /没找到/.test(t)));
     // 普通「记一场」：不带参数，和原来一样，不碰草稿
-    const n = load('pages/add/add.js', wx, deps, { setTimeout() {} });
+    const n = load('pkg-manage/add/add.js', wx, deps, { setTimeout() {} });
     n.onLoad({});
     assert.deepStrictEqual([n.data.fromScorer, n.data.setGames, n.data.bestOf], [false, 4, 1]);
     assert.ok(S.loadDraft());
@@ -391,7 +391,7 @@ test('战绩页右下角只有「记一场」（只给正式成员），场边�
   const xml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8');
   assert.ok(/<view wx:if="\{\{canRecordDaily\}\}" class="fabs">[\s\S]*bindtap="goAdd"[\s\S]*记一场/.test(xml));
   assert.ok(!/场边记分<\/view>|goScorer|fab-alt/.test(xml), '右下角不再放场边记分');
-  const addXml = fs.readFileSync(path.join(__dirname, '../pages/add/add.wxml'), 'utf8');
+  const addXml = fs.readFileSync(path.join(__dirname, '../pkg-manage/add/add.wxml'), 'utf8');
   assert.ok(/<view wx:if="\{\{!fromScorer\}\}" class="sc-row">[\s\S]*bindtap="openScorer"/.test(addXml), '记一场页有场边记分入口（已经带入比分就不再显示）');
   const navs = [];
   const p = load('pages/index/index.js', { navigateTo: (o) => navs.push(o.url), getStorageSync: () => '' }, {
@@ -402,11 +402,11 @@ test('战绩页右下角只有「记一场」（只给正式成员），场边�
   assert.deepStrictEqual(navs, []);
   p.data.canRecordDaily = true;
   p.goAdd();
-  assert.deepStrictEqual(navs, ['/pages/add/add']);
-  const conf = JSON.parse(fs.readFileSync(path.join(__dirname, '../pkg-tools/scorer/scorer.json'), 'utf8'));
+  assert.deepStrictEqual(navs, ['/pkg-manage/add/add']);
+  const conf = JSON.parse(fs.readFileSync(path.join(__dirname, '../pkg-manage/scorer/scorer.json'), 'utf8'));
   assert.strictEqual(conf.enableShareAppMessage, false);
   assert.strictEqual(conf.enableShareTimeline, false);
-  const code = fs.readFileSync(path.join(__dirname, '../pkg-tools/scorer/scorer.js'), 'utf8') + fs.readFileSync(path.join(__dirname, '../utils/scorer.js'), 'utf8');
+  const code = fs.readFileSync(path.join(__dirname, '../pkg-manage/scorer/scorer.js'), 'utf8') + fs.readFileSync(path.join(__dirname, '../pkg-manage/utils/scorer.js'), 'utf8');
   assert.ok(!/onShareAppMessage|onShareTimeline|utils\/db|cloud|requestSubscribeMessage|uploadFile/.test(code.replace(/\/\/.*$/gm, '')), '只在本机，不上传、不同步、不分享');
 }));
 
@@ -446,7 +446,7 @@ function scorePage(store, over) {
     '../../utils/cloud': { call: async (action, data) => { calls.push({ action, data }); return { ok: true }; } },
     '../../utils/pick': { reason: async () => '' },
   };
-  const p = load('pages/score/score.js', wx, deps);
+  const p = load('pkg-manage/score/score.js', wx, deps);
   p.drawId = 'd1'; p.key = 'g0-1';
   p.cfg = { setGames: 4, noAd: true, bestOf: 1, stage: '分组循环' };
   p.f = { a: 'Alice', b: 'Bob', stage: '分组循环 · 第 1 轮', done: false, sets: [] };
@@ -462,7 +462,7 @@ test('活动录分页：还没录分时有「场边记分」，用这一场的�
     p.refreshScorer();
     assert.deepStrictEqual([p.data.scorerOk, p.data.scorerResume], [true, false]);
     p.openScorer();
-    assert.deepStrictEqual(navs, ['/pkg-tools/scorer/scorer?go=1']);
+    assert.deepStrictEqual(navs, ['/pkg-manage/scorer/scorer?go=1']);
     const d = S.loadDraft();
     assert.deepStrictEqual(plain([d.ev, d.cfg, d.points]), [{ drawId: 'd1', key: 'g0-1' }, { setGames: 4, noAd: true, bestOf: 1 }, '']);
     assert.deepStrictEqual(S.labelsOf(d.ev), { a: 'Alice', b: 'Bob', title: '分组循环 · 第 1 轮' });
@@ -553,7 +553,7 @@ test('记分页（活动场次）：直接进入记分、显示双方名字；�
     const s = S.start(cfg(4, false, 1), 1, { drawId: 'd1', key: 'g0-1' });
     S.saveDraft(s);
     S.setLabels(s.ev, { a: 'Alice', b: 'Bob', title: '分组循环' });
-    const p = load('pkg-tools/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/draw-view/draw-view' }, prev, {}].filter(Boolean) });
+    const p = load('pkg-manage/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/draw-view/draw-view' }, prev, {}].filter(Boolean) });
     p.onLoad({ go: '1' }); await p.onShow();
     assert.strictEqual(p.data.mode, 'live');
     assert.deepStrictEqual(plain([p.data.ev, p.data.names, p.data.evTitle]), [true, { a: 'Alice', b: 'Bob' }, '分组循环']);
@@ -565,17 +565,17 @@ test('记分页（活动场次）：直接进入记分、显示双方名字；�
     assert.strictEqual(p.data.v.done, true);
     assert.strictEqual(p.data.v.resultText, 'Alice 1:0 获胜');
     // 从这一场的录分页进来：退回去并留标记
-    prev = { route: 'pages/score/score', drawId: 'd1', key: 'g0-1' };
+    prev = { route: 'pkg-manage/score/score', drawId: 'd1', key: 'g0-1' };
     p.handoff();
     assert.deepStrictEqual(navs, ['back']);
     assert.strictEqual(S.takePending('d1', 'g0-1'), s.id);
     // 从战绩页的「场边记分」继续的：重新打开这一场的录分页
     prev = { route: 'pages/index/index' };
     p.handoff();
-    assert.strictEqual(navs[1], `redirect /pages/score/score?drawId=d1&key=g0-1&scorer=${s.id}`);
+    assert.strictEqual(navs[1], `redirect /pkg-manage/score/score?drawId=d1&key=g0-1&scorer=${s.id}`);
     assert.ok(S.loadDraft(), '带入时不清草稿');
     // 小程序重开后没有名字：显示 A 方 / B 方
-    const q = load('pkg-tools/scorer/scorer.js', wx, deps, { getCurrentPages: () => [] });
+    const q = load('pkg-manage/scorer/scorer.js', wx, deps, { getCurrentPages: () => [] });
     const saved = S.labelsOf;
     S.labelsOf = () => null;
     try { q.onLoad({}); await q.onShow(); } finally { S.labelsOf = saved; }
@@ -584,10 +584,10 @@ test('记分页（活动场次）：直接进入记分、显示双方名字；�
 });
 
 test('活动录分页：「场边记分」入口在录分卡片里，按钮用小号 .btn-line mini；带入后有提示', () => {
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/score/score.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/score/score.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{scorerOk\}\}"[\s\S]*class="btn-line mini"[^>]*bindtap="openScorer"/.test(xml));
   assert.ok(/wx:if="\{\{fromScorer\}\}"[^>]*>已带入场边记分的局分，核对后点「提交比分」才会保存/.test(xml));
-  const sxml = fs.readFileSync(path.join(__dirname, '../pkg-tools/scorer/scorer.wxml'), 'utf8');
+  const sxml = fs.readFileSync(path.join(__dirname, '../pkg-manage/scorer/scorer.wxml'), 'utf8');
   assert.ok(/带入这一场录分/.test(sxml));
 });
 
@@ -605,19 +605,19 @@ test('从「记一场」进场边记分：没打完显示「继续场边记分�
     '../../utils/db': { cachedPlayersFull: () => [], fetchPlayersFull: async () => [], cachedProfile: () => null, getMyProfile: async () => null, myOpenid: async () => 'me' },
   };
   await withWx(store, async () => {
-    const add = load('pages/add/add.js', wx, deps, { setTimeout() {} });
+    const add = load('pkg-manage/add/add.js', wx, deps, { setTimeout() {} });
     add.selectComponent = () => null;
     add.onLoad({});
     await add.onShow();
     assert.strictEqual(add.data.scorerResume, false);
     add.openScorer();
-    assert.deepStrictEqual(navs, ['/pkg-tools/scorer/scorer']);
+    assert.deepStrictEqual(navs, ['/pkg-manage/scorer/scorer']);
     add.slots.b[0] = '对手'; // 记分前已经选好的对手
     S.saveDraft(st(c, games('aa')));
     await add.onShow();
     assert.strictEqual(add.data.scorerResume, true, '没打完：继续场边记分');
     S.saveDraft(st(c, games('aaaa')));
-    const sc = load('pkg-tools/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/index/index' }, { route: 'pages/add/add' }, {}] });
+    const sc = load('pkg-manage/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pages/index/index' }, { route: 'pkg-manage/add/add' }, {}] });
     sc.onLoad(); await sc.onShow();
     sc.handoff();
     assert.deepStrictEqual([backs, navs.length], [1, 1], '退回记一场页，不再打开新的录分页');
@@ -628,10 +628,10 @@ test('从「记一场」进场边记分：没打完显示「继续场边记分�
     await add.onShow();
     assert.deepStrictEqual(add.data.initSets, [{ a: 4, b: 0 }], '标记只用一次');
     // 不是从记一场进来的（例如重开小程序后直接打开记分页）：照旧打开新的录分页
-    const sc2 = load('pkg-tools/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pkg-tools/scorer/scorer' }] });
+    const sc2 = load('pkg-manage/scorer/scorer.js', wx, deps, { getCurrentPages: () => [{ route: 'pkg-manage/scorer/scorer' }] });
     sc2.onLoad(); await sc2.onShow();
     sc2.handoff();
-    assert.match(navs[navs.length - 1], /^\/pages\/add\/add\?scorer=/);
+    assert.match(navs[navs.length - 1], /^\/pkg-manage\/add\/add\?scorer=/);
   });
 });
 
@@ -682,7 +682,7 @@ test('转球拍选发球 & 完赛顺手记入球拍打球时长', async () => {
       '../../utils/rackets': fakeRackets,
     };
     await withWx(store, async () => {
-      const p = load('pkg-tools/scorer/scorer.js', wx, deps, { setTimeout, clearTimeout });
+      const p = load('pkg-manage/scorer/scorer.js', wx, deps, { setTimeout, clearTimeout });
       p.onLoad(); await p.onShow();
       p.openToss(); p.spinCap();
       assert.strictEqual(p.data.tossSpin, true);
@@ -751,7 +751,7 @@ test('热身 / 换边倒计时（15 秒提醒 + 到点震动 + 暂停/关闭）�
       '../../utils/haptic': { light: () => buzz.push('l'), medium: () => buzz.push('m') },
     };
     await withWx(store, async () => {
-      const p = load('pkg-tools/scorer/scorer.js', wx, deps, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, Date: clock.Date });
+      const p = load('pkg-manage/scorer/scorer.js', wx, deps, { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, Date: clock.Date });
       p.onLoad(); await p.onShow();
       p.startNew();
       p.toggleStat(); assert.strictEqual(p.data.statOn, true);

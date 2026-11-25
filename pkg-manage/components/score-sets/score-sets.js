@@ -1,4 +1,4 @@
-const R = require('../../utils/rules');
+const R = require('../../../utils/rules');
 
 const emptySet = () => ({ a: 0, b: 0, tbA: '', tbB: '' });
 const fromRecord = (s) => ({

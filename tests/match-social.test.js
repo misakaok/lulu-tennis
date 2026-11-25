@@ -6,7 +6,7 @@ const T = [];
 const test = (name, fn) => T.push({ name, fn });
 function component(call) {
   let def;
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../components/match-social/match-social.js'), 'utf8'), {
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../pkg-manage/components/match-social/match-social.js'), 'utf8'), {
     Component: (d) => { def = d; }, require: () => ({ call }),
   });
   const c = Object.assign({ data: Object.assign({ matchId: '', preset: null }, def.data), setData(p) { Object.assign(this.data, p); } }, def.methods);
@@ -33,7 +33,7 @@ test('match-social：切换比赛后，不使用错配 preset，旧请求不能�
   assert.strictEqual(c.data.st.confirmed, true);
 });
 test('撤销按钮：发起人、录入人、其他人；确认前后和弃权退赛', () => {
-  const xml = fs.readFileSync(path.join(__dirname, '../components/match-social/match-social.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/components/match-social/match-social.wxml'), 'utf8');
   const expr = xml.match(/wx:if="{{([^"\n]+)}}" class="ms-revoke"/)[1];
   const show = new Function('st', 'revocable', 'return !!(' + expr + ')');
   assert.strictEqual(show(null, true), false, '状态未到位不提前显示');
@@ -47,7 +47,7 @@ test('撤销按钮：发起人、录入人、其他人；确认前后和弃权�
   }
 });
 test('旧云函数的改分原因：前端只给参赛者、申请人或发起人展示', () => {
-  const xml = fs.readFileSync(path.join(__dirname, '../components/match-social/match-social.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/components/match-social/match-social.wxml'), 'utf8');
   const expr = xml.match(/wx:if="{{([^"\n]+)}}" class="ms-req-r"/)[1];
   const show = new Function('st', 'return !!(' + expr + ')');
   assert.strictEqual(show({ request: { reason: '私密原因' } }), false);

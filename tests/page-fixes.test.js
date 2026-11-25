@@ -112,7 +112,7 @@ test('战绩页长按删除：云端要求确认影响（needConfirm）或填原
     p.onLong({ currentTarget: { dataset: { id: 'm1' } } });
     await flush();
     if (goDetail) {
-      assert.deepStrictEqual(navs, ['/pages/match/match?id=m1'], JSON.stringify(res));
+      assert.deepStrictEqual(navs, ['/pkg-manage/match/match?id=m1'], JSON.stringify(res));
       assert.ok(!toasts.includes('已删除'), '没删掉就不能提示已删除');
       assert.strictEqual(loads, 0);
     } else {
@@ -145,7 +145,7 @@ test('战绩页长按删除：非发起人管理员撤销会推翻后续场次�
     p.load = () => {};
     p.onLong({ currentTarget: { dataset: { id: ids[0] } } });
     await flush(60);
-    assert.deepStrictEqual(navs, ['/pages/match/match?id=' + ids[0]]);
+    assert.deepStrictEqual(navs, ['/pkg-manage/match/match?id=' + ids[0]]);
     assert.ok(!toasts.includes('已删除'));
     assert.ok(env.coll('matches')[ids[0]], '记录没有被删');
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }

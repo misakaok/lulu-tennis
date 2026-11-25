@@ -99,5 +99,5 @@ Page({
   },
   setWhich(e) { const which = e.currentTarget.dataset.v; this.render({ which, whichText: WHICH_TEXT[which] }); },
   setYear(e) { this.render({ year: Number(e.currentTarget.dataset.v) }); },
-  openShown() { wx.navigateTo({ url: '/pages/profile/profile' }); },
+  openShown() { wx.navigateTo({ url: '/pkg-manage/profile/profile' }); },
 });

@@ -162,7 +162,7 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
   assert.match(css, /\.num \{ font-family: "DIN Alternate", "Avenir Next Condensed", "Roboto Condensed", -apple-system, Roboto, sans-serif;/);
   // 毛玻璃块：半透明底不低于 0.16（不支持模糊的老机型照样看得清），入场 / 按压都不缩放。
   // 底色是半透白（.hero-tag）或烟熏冷紫 rgba(56, 54, 108, …)（球员卡数据条、战绩页 .ms、比赛详情 .hset，2026-11-25 统一）
-  [['pages/match/match.wxss', ['hset', 'hero-tag']], ['pages/index/index.wxss', ['ms']], ['components/player-home/player-home.wxss', ['pc-stats']]].forEach(([f, ks]) => {
+  [['pkg-manage/match/match.wxss', ['hset', 'hero-tag']], ['pages/index/index.wxss', ['ms']], ['components/player-home/player-home.wxss', ['pc-stats']]].forEach(([f, ks]) => {
     const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
     ks.forEach((k) => {
       const rule = x.match(new RegExp('\\n\\.' + k + ' \\{([^}]*)\\}'))[1];
@@ -172,7 +172,7 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
       assert.ok(bg && Number(bg[1]) >= 0.16, k);
     });
   });
-  assert.ok(!/scale/.test(fs.readFileSync(path.join(__dirname, '..', 'pages/match/match.wxss'), 'utf8').match(/@keyframes hset-in [^\n]*/)[0]));
+  assert.ok(!/scale/.test(fs.readFileSync(path.join(__dirname, '..', 'pkg-manage/match/match.wxss'), 'utf8').match(/@keyframes hset-in [^\n]*/)[0]));
   // 动画只动 transform / opacity
   (css.match(/@keyframes [^\n]*/g) || []).forEach((k) => {
     const props = (k.match(/[{;]\s*([a-z-]+):/g) || []).map((x) => x.replace(/[{;\s:]/g, ''));
@@ -193,7 +193,7 @@ test('全局动效类：高光用 ::after、只播一次停在看不见；排行
   assert.match(css, /@keyframes ani-pulse \{ 0% \{ opacity: 0\.7; transform: scale\(1\); \} 100% \{ opacity: 0; transform: scale\(2\.2\); \} \}/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'pages', 'draw', 'draw.wxml'), 'utf8'), /<view wx:if="\{\{item\.st === 'sign'\}\}" class="pulse"><\/view>\{\{item\.status\.text\}\}/);
   // .bg-host 卡片的第一个子元素仍是 .bg-img（高光不插子元素）
-  ['pages/index/index.wxml', 'pages/match/match.wxml', 'components/player-home/player-home.wxml'].forEach((f) => {
+  ['pages/index/index.wxml', 'pkg-manage/match/match.wxml', 'components/player-home/player-home.wxml'].forEach((f) => {
     const x = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
     const re = /<view [^>]*class="[^"]*\bbg-host\b[^"]*"[^>]*>\s*(<[^>]*>)/g;
     let m, n = 0;

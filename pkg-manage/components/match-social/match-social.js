@@ -1,8 +1,8 @@
 // 赛后：确认赛果、比分纠错，以及撤销赛果
 // 所有资格判断（是否参赛、是否结束、是否已确认）都由云函数完成，
 // 这里只按云函数返回的状态显示按钮，按钮被绕过也提交不成功。
-const cloud = require('../../utils/cloud');
-const pick = require('../../utils/pick');
+const cloud = require('../../../utils/cloud');
+const pick = require('../../../utils/pick');
 
 Component({
   options: { addGlobalClass: true },
@@ -57,7 +57,7 @@ Component({
       if (this.isPreview()) return;
       const st = this.data.st;
       // 活动比赛在赛程里改（自动沿用本场规则）；日常比赛到修改页
-      if (st.drawId) wx.navigateTo({ url: `/pages/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
+      if (st.drawId) wx.navigateTo({ url: `/pkg-manage/score/score?drawId=${st.drawId}&key=${st.drawKey}` });
       else wx.navigateTo({ url: `/pkg-manage/correct/correct?matchId=${this.data.matchId}&mode=edit` });
     },
     adminFix() { if (!this.isPreview()) wx.navigateTo({ url: `/pkg-manage/correct/correct?matchId=${this.data.matchId}&mode=admin` }); },

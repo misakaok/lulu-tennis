@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { createRequire } = require('module');
-const AA = require('../utils/aa');
-const MX = require('../utils/mixer');
+const AA = require('../pkg-tools/utils/aa');
+const MX = require('../pkg-tools/utils/mixer');
 const PV = require('../utils/player');
 const ID = require('../utils/ident');
 const K = require('../utils/racket');
@@ -281,9 +281,9 @@ test('录完比赛顺手记球拍时长（K.estimateMatchMins / K.liveRackets + 
     refreshBadge: () => Promise.resolve(0),
   };
   let addDef;
-  const addFile = path.join(root, 'pages/add/add.js');
+  const addFile = path.join(root, 'pkg-manage/add/add.js');
   const addReq = createRequire(addFile);
-  vm.runInNewContext(read('pages/add/add.js'), {
+  vm.runInNewContext(read('pkg-manage/add/add.js'), {
     require: (id) => {
       if (id === '../../utils/rackets') return rkMock;
       if (id === '../../utils/db') return {
@@ -311,14 +311,14 @@ test('录完比赛顺手记球拍时长（K.estimateMatchMins / K.liveRackets + 
   await ap.saveRkLog();
   assert.strictEqual(savedLogs.length, 1);
   assert.deepStrictEqual([savedLogs[0].rid, savedLogs[0].rec.kind, savedLogs[0].rec.minutes], ['r1', 'play', 60]);
-  assert.deepStrictEqual(redirects, ['/pages/match/match?id=m99']);
+  assert.deepStrictEqual(redirects, ['/pkg-manage/match/match?id=m99']);
 
   // pages/score：非本人参赛或修改已有比分不弹；本人首次录分且有在役球拍才弹
   let scDef;
-  const scFile = path.join(root, 'pages/score/score.js');
+  const scFile = path.join(root, 'pkg-manage/score/score.js');
   const scReq = createRequire(scFile);
   let backs = 0;
-  vm.runInNewContext(read('pages/score/score.js'), {
+  vm.runInNewContext(read('pkg-manage/score/score.js'), {
     require: (id) => {
       if (id === '../../utils/rackets') return rkMock;
       if (id === '../../utils/db') return {};
@@ -397,7 +397,7 @@ test('个人全部比赛页（pages/history）：活动/日常、单双打、胜
 });
 
 test('年度球场战报与纯本机海报绘制（PV.annualView + utils/poster.js）：客观汇总年度战绩与装备，Canvas 2D 零报错绘制', () => {
-  const Poster = require('../utils/poster');
+  const Poster = require('../pkg-tools/utils/poster');
   const players = [
     { _openid: 'u1', uid: 'u1', name: '小雨', level: 3.5, shown: true },
     { _openid: 'u2', uid: 'u2', name: '阿哲', level: 3.0, shown: true },

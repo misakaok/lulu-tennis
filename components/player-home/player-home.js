@@ -123,12 +123,12 @@ Component({
 
     edit() {
       if (!this.data.isSelf) return; // 只有本人能编辑
-      wx.navigateTo({ url: '/pages/profile/profile' });
+      wx.navigateTo({ url: '/pkg-manage/profile/profile' });
     },
     openMatch(e) { // 先发出比赛状态请求（比赛详情第一次读取接过去）
       const id = e.currentTarget.dataset.id;
       db.prefetchMatchState(id);
-      wx.navigateTo({ url: '/pages/match/match?id=' + id });
+      wx.navigateTo({ url: '/pkg-manage/match/match?id=' + id });
     },
     allHistory() { wx.navigateTo({ url: '/pkg-manage/history/history?uid=' + encodeURIComponent(this.data.uid) }); },
   },

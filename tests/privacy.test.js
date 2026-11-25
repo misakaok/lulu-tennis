@@ -170,7 +170,7 @@ test('拒绝后主动选照片、地图选点、复制：微信按原有流程�
   b.wx.chooseMedia = (x) => x.fail({ errMsg: 'chooseMedia:fail api scope is not declared in the privacy agreement', errno: 112 });
   await assert.rejects(P.pick('camera'), /隐私保护指引/);
   // 地图选点（components/event-form）
-  const src = fs.readFileSync(path.join(root, 'components/event-form/event-form.js'), 'utf8');
+  const src = fs.readFileSync(path.join(root, 'pkg-manage/components/event-form/event-form.js'), 'utf8');
   assert.ok(/PV\.isDenied\(e\)\) \{ PV\.stopped\(\); return; \}/.test(src), '地图选点没同意：停止，不弹「请允许位置信息」');
   // 复制（剪切板）
   const PV = b.privacy;

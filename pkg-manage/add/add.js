@@ -4,7 +4,7 @@
 const R = require('../../utils/rules');
 const ID = require('../../utils/ident');
 const S = require('../../utils/stats');
-const SC = require('../../utils/scorer');
+const SC = require('../utils/scorer');
 const haptic = require('../../utils/haptic');
 const DB = require('../../utils/db');
 const { fetchPlayersFull, cachedPlayersFull, addMatch, getMyProfile, cachedProfile, myOpenid } = DB;
@@ -93,7 +93,7 @@ Page({
     const resume = !!(d && !d.ev && d.points && !SC.resultOf(d));
     if (resume !== this.data.scorerResume) this.setData({ scorerResume: resume });
   },
-  openScorer() { wx.navigateTo({ url: '/pkg-tools/scorer/scorer' }); },
+  openScorer() { wx.navigateTo({ url: '/pkg-manage/scorer/scorer' }); },
 
   // 只有已注册（设置过资料、昵称唯一）的球员可选：战绩按账号累计
   setPlayers(full) {
@@ -116,7 +116,7 @@ Page({
       this.refresh();
     } catch (e) { console.error(e); }
   },
-  goProfile() { wx.navigateTo({ url: '/pages/profile/profile' }); },
+  goProfile() { wx.navigateTo({ url: '/pkg-manage/profile/profile' }); },
 
   resetSets() { const c = this.selectComponent('#sets'); if (c) c.reset(); },
   // 局分组件每次修改都会把校验结果传过来
@@ -239,7 +239,7 @@ Page({
       haptic.medium();
       const draftBefore = this.scorerId ? SC.loadDraft() : null;
       if (this.scorerId) { SC.clearDraft(this.scorerId); this.scorerId = ''; } // 正式提交成功才清掉对应的场边记分草稿
-      const nextUrl = '/pages/match/match?id=' + res._id;
+      const nextUrl = '/pkg-manage/match/match?id=' + res._id;
       const playDate = this.data.date || today();
       this.resetSets();
       if (this.openRkPrompt(r.sets, playDate, draftBefore, nextUrl)) return;

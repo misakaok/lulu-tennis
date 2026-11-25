@@ -2,8 +2,8 @@
   "navigationBarTitleText": "创建球友活动",
   "usingComponents": {
     "draw-board": "/components/draw-board/draw-board",
-    "event-form": "/components/event-form/event-form",
-    "rule-picker": "/components/rule-picker/rule-picker",
+    "event-form": "/pkg-manage/components/event-form/event-form",
+    "rule-picker": "/pkg-manage/components/rule-picker/rule-picker",
     "member-sheet": "/components/member-sheet/member-sheet"
   }
 }

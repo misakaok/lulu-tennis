@@ -300,12 +300,12 @@ Page({
     this.searchTimer = setTimeout(() => { this.page = 1; this.setData({ who: this.who }); this.render(); }, SEARCH_MS);
   },
   onUnload() { clearTimeout(this.searchTimer); Anim.stop(this); },
-  goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pages/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
+  goAdd() { if (!this.data.canRecordDaily) return; wx.navigateTo({ url: '/pkg-manage/add/add' }); }, // 记录日常比赛（次要入口；活动比赛在签表里录）
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { // 先发出比赛状态请求，利用页面切换动画的时间（比赛详情第一次读取接过去）
     const id = e.currentTarget.dataset.id;
     db.prefetchMatchState(id);
-    wx.navigateTo({ url: '/pages/match/match?id=' + id });
+    wx.navigateTo({ url: '/pkg-manage/match/match?id=' + id });
   },
 
   onLong(e) {
@@ -323,7 +323,7 @@ Page({
             try {
               const res = await db.removeMatch(id);
               // 需要填原因 / 确认对后续场次的影响：到比赛详情里撤销
-              if (res && (res.needReason || res.needConfirm)) { wx.navigateTo({ url: '/pages/match/match?id=' + id }); return; }
+              if (res && (res.needReason || res.needConfirm)) { wx.navigateTo({ url: '/pkg-manage/match/match?id=' + id }); return; }
               wx.showToast({ title: '已删除' });
               this.load(); // 删除会作废缓存（utils/cloud.js），这里拿到的是新数据
             } catch (err) {

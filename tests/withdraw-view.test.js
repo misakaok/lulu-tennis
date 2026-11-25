@@ -26,7 +26,7 @@ test('本场未计入水平分：弃权、中途退赛、成绩取消、轮空�
   assert.deepStrictEqual(Object.keys(r.explain), []);
   assert.ok(!r.players.p || r.players.p.rating === 3, '水平分不变');
   // 活动录分页（弃权 / 退赛场次）和对阵表的轮空提示用同一套说明
-  assert.ok(/RT\.unratedOf\(f\.outcome\)/.test(read('pages/score/score.js')) && /unrated\.title/.test(read('pages/score/score.wxml')));
+  assert.ok(/RT\.unratedOf\(f\.outcome\)/.test(read('pkg-manage/score/score.js')) && /unrated\.title/.test(read('pkg-manage/score/score.wxml')));
   assert.ok(/R\.unratedOf\('bye'\)/.test(read('components/draw-board/draw-board.js')));
 });
 

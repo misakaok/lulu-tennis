@@ -1,5 +1,5 @@
 // 4～8 人智能均衡双打排班器：选到场成员（或直接按编号 4/6/8 人），按当前水平自动排均衡组合与公平轮换，纯本地
-const MX = require('../../utils/mixer');
+const MX = require('../utils/mixer');
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
 const PV = require('../../utils/privacy');

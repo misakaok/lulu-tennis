@@ -11,8 +11,11 @@ function scripts() {
   const app = require(path.join(root, 'app.json'));
   const pages = (app.pages || []).concat((app.subpackages || []).flatMap((s) => (s.pages || []).map((p) => `${s.root}/${p}`)));
   const out = pages.map((p) => p + '.js');
-  const dir = path.join(root, 'components');
-  fs.readdirSync(dir).forEach((c) => { const f = `components/${c}/${c}.js`; if (fs.existsSync(path.join(root, f))) out.push(f); });
+  ['components', 'pkg-manage/components'].forEach((base) => {
+    const dir = path.join(root, base);
+    if (!fs.existsSync(dir)) return;
+    fs.readdirSync(dir).forEach((c) => { const f = `${base}/${c}/${c}.js`; if (fs.existsSync(path.join(root, f))) out.push(f); });
+  });
   return out;
 }
 

@@ -1226,7 +1226,7 @@ test('积分活动页面：创建页默认不计、开启 / 换类别不改已�
   assert.ok(/cupOn: false/.test(nj) && /计入 LULU 积分/.test(nw) && /不计入/.test(nw));
   assert.ok(!/CFG_KEY[^\n]*cup/.test(nj), '不记住上次的积分设置');
   let toast = '';
-  const dn = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../../utils/places': {} }, { showToast: (o) => { toast = o.title; } });
+  const dn = loadDef('pkg-manage/draw-new/draw-new.js', { '../../utils/db': {}, '../utils/places': {} }, { showToast: (o) => { toast = o.title; } });
   const pg = { data: { mode: 'groups', size: 16, cupOn: false, cupKind: 'weekly', fromSignup: false, cupErr: '', cupNote: '' }, setData(o) { Object.assign(this.data, o); }, changed(o) { Object.assign(this.data, o); this.checkCup(); }, refresh() { this.checkCup(); } };
   ['setCup', 'setCupKind', 'checkCup', 'cupOk'].forEach((k) => { pg[k] = dn[k]; });
   assert.ok(!('fitCup' in dn), '不再自动改活动形式');
@@ -1317,7 +1317,7 @@ test('授权说明：写明 LULU 积分榜和各站积分明细，没同意时�
   const text = require('../utils/consent').TEXT;
   assert.ok(/LULU 积分榜和各站积分明细/.test(text.split('\n')[0]), '同意的展示位置里有积分榜和各站明细');
   assert.ok(/LULU 积分榜和各站积分明细（含双打搭档）里你的名字显示为「球友」/.test(text));
-  const pf = read('pages/profile/profile.wxml');
+  const pf = read('pkg-manage/profile/profile.wxml');
   assert.ok(/展示在排行榜、LULU 积分、/.test(pf) && /LULU 积分里显示为「球友」/.test(pf) && /仍显示昵称/.test(pf), '资料页的勾选说明（精简成两行）同步');
 });
 

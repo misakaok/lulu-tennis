@@ -5,9 +5,9 @@
     <view wx:if="{{status === 'invalid'}}" class="st-tip bad">这条活动比分不是从活动对阵表录入的，不计入战绩</view>
 
     <!-- 记分牌 -->
-    <!-- 背景：俯拍球网竖在正中间，左右两个半场对应两方（images/bg-score.jpg） -->
+    <!-- 背景：俯拍球网竖在正中间，左右两个半场对应两方（pkg-manage/images/bg-score.jpg） -->
     <view class="hero bg-host {{sheen ? 'ani-sheen' : ''}}">
-      <image class="bg-img" src="/images/bg-score.jpg" mode="aspectFill" />
+      <image class="bg-img" src="/pkg-manage/images/bg-score.jpg" mode="aspectFill" />
       <view class="hero-top">
         <view class="hero-tag" bindtap="openEvent">{{m.event || '日常比赛'}}{{m.event ? ' ›' : ''}}</view>
         <view class="hero-meta">{{m.date}} · {{m.typeText}} · {{m.format}}</view>

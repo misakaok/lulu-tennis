@@ -3,7 +3,7 @@
 const db = require('../../utils/db');
 const PV = require('../../utils/player');
 const K = require('../../utils/racket');
-const Poster = require('../../utils/poster');
+const Poster = require('../utils/poster');
 const PRV = require('../../utils/privacy');
 const haptic = require('../../utils/haptic');
 

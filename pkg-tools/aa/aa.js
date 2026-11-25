@@ -1,5 +1,5 @@
 // AA 算账：纯本地费用均摊计算器（场地费 + 用球费 + 其他，支持全勤与半场 0.5 份），一键复制群账单；不接支付、不存云端
-const AA = require('../../utils/aa');
+const AA = require('../utils/aa');
 const PV = require('../../utils/privacy');
 const haptic = require('../../utils/haptic');
 

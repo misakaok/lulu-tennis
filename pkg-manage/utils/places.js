@@ -6,7 +6,7 @@
 //   · 已删除的活动、没有有效坐标的活动不算
 //   · 地点名称和地址只认云端检测过的 draws.place（publicDraw 已处理）
 //   · 不带场地编号：场号在表单里单独选
-const E = require('./event');
+const E = require('../../utils/event');
 
 const RECENT_MAX = 5;
 const MERGE_M = 100;

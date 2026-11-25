@@ -60,7 +60,7 @@ test('邀请码加入：还没设置资料 → 先去资料页；已有资料（
   await g.load();
   g.setData({ code: 'abc123', name: '小林' });
   await g.accept();
-  assert.deepStrictEqual(nav, ['/pages/profile/profile?from=gate']);
+  assert.deepStrictEqual(nav, ['/pkg-manage/profile/profile?from=gate']);
 
   const nav2 = [], store2 = { after_gate: '/pages/draw-view/draw-view?id=d1' };
   const g2 = gate({ status: 'none', hasProfile: true }, store2, nav2);
@@ -80,7 +80,7 @@ test('邀请码加入：还没设置资料 → 先去资料页；已有资料（
 });
 
 function profile(store, nav, saved, modal, existing) {
-  return load('pages/profile/profile.js', wxStub(store, nav, modal), {
+  return load('pkg-manage/profile/profile.js', wxStub(store, nav, modal), {
     '../../utils/db': {
       cachedProfile: () => null, getMyProfile: async () => existing || null, myOpenid: async () => 'lin', setShown: async () => {},
       saveMyProfile: async (p) => { saved.push(plain(p)); },
@@ -115,7 +115,7 @@ test('刚加入的资料页：昵称预填准入时的昵称、性别必选；�
   q.later();
   assert.deepStrictEqual(nav2, ['/pages/draw/draw']); assert.deepStrictEqual(saved2, []);
 
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/profile/profile.wxml'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/profile/profile.wxml'), 'utf8');
   assert.ok(/wx:if="\{\{fromGate\}\}"[^>]*bindtap="later">稍后再设置</.test(xml));
 
   // 平时从「我的」进来编辑：保存后照旧返回
@@ -150,7 +150,7 @@ test('资料页：第一次建资料没碰过公开展示勾选项，点「完�
   assert.deepStrictEqual([closed.saved.length, closed.saved[0].shown], [1, false], '弹窗没弹出来 / 关掉：照常保存');
   assert.strictEqual(no.p.edited.shown, true, '问过了：记为已选择');
   // 说明文字就是完整的知情说明
-  const src = fs.readFileSync(path.join(__dirname, '../pages/profile/profile.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '../pkg-manage/profile/profile.js'), 'utf8');
   assert.ok(/title: '是否开启公开展示？', content: C\.TEXT, confirmText: '开启展示', cancelText: '暂不开启'/.test(src));
   assert.ok(C.TEXT.length > 20);
 });
@@ -180,7 +180,7 @@ test('资料页：自己点勾过又取消、已有资料的老成员保存，�
   const saved3 = [], titles3 = [];
   const w = wxStub({}, [], { titles: titles3 });
   w.showModal = (o) => { titles3.push(o.title); if (o.title === '是否开启公开展示？') answer = () => o.success({ confirm: false }); else (o.complete || o.success || (() => {}))({ confirm: true }); };
-  const r = load('pages/profile/profile.js', w, {
+  const r = load('pkg-manage/profile/profile.js', w, {
     '../../utils/db': { cachedProfile: () => null, getMyProfile: async () => null, myOpenid: async () => 'lin', saveMyProfile: async (x) => { saved3.push(plain(x)); } },
     '../../utils/cloud': { call: async () => ({}) },
     '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {} },
@@ -196,8 +196,8 @@ test('资料页：自己点勾过又取消、已有资料的老成员保存，�
 });
 
 test('资料页：未勾选公开展示时卡片和勾选框有淡紫描边提示，勾上后去掉', () => {
-  const xml = fs.readFileSync(path.join(__dirname, '../pages/profile/profile.wxml'), 'utf8');
-  const css = fs.readFileSync(path.join(__dirname, '../pages/profile/profile.wxss'), 'utf8');
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/profile/profile.wxml'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../pkg-manage/profile/profile.wxss'), 'utf8');
   assert.ok(xml.indexOf(`<view class="card consent {{shown ? '' : 'cs-off'}}">`) >= 0);
   assert.ok(/\.consent\.cs-off \{[^}]*border/.test(css) && /\.cs-off \.cbox \{[^}]*border-color/.test(css));
 });

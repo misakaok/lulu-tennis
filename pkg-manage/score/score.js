@@ -2,7 +2,7 @@
 // 场边记分：还没录分的场次可以点「场边记分」逐分记（pages/scorer，只在本机、用这一场的规则），完赛后回到这里预填局分，
 //   仍由本人核对后点「提交比分」（recordEventMatch）；提交成功才清掉那份记分草稿
 const E = require('../../utils/event');
-const SC = require('../../utils/scorer');
+const SC = require('../utils/scorer');
 const RT = require('../../utils/rating');
 const R = require('../../utils/rules');
 const db = require('../../utils/db');
@@ -209,7 +209,7 @@ Page({
     const ev = { drawId: this.drawId, key: this.key };
     if (this.drawVersion) ev.drawVersion = this.drawVersion;
     SC.setLabels(ev, { a: f.a, b: f.b, title: f.stage });
-    const go = () => wx.navigateTo({ url: '/pkg-tools/scorer/scorer?go=1' });
+    const go = () => wx.navigateTo({ url: '/pkg-manage/scorer/scorer?go=1' });
     const d = SC.loadDraft();
     if (SC.sameEv(d, this.drawId, this.key, this.drawVersion || 0) && SC.sameCfg(d.cfg, this.cfg)) { go(); return; } // 这一场已经在记：接着记
     const fresh = () => { SC.saveDraft(SC.start(this.cfg, Date.now(), ev)); go(); };

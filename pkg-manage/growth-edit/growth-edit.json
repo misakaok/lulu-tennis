@@ -3,7 +3,7 @@
   "enableShareAppMessage": false,
   "enableShareTimeline": false,
   "usingComponents": {
-    "score-sets": "/components/score-sets/score-sets",
-    "rule-picker": "/components/rule-picker/rule-picker"
+    "score-sets": "/pkg-manage/components/score-sets/score-sets",
+    "rule-picker": "/pkg-manage/components/rule-picker/rule-picker"
   }
 }
