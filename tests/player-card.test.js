@@ -319,3 +319,31 @@ test('年度打球黄绿热力格（PV.heatmapView）：按当年每天场数着
   assert.ok(/球风与年度数据/.test(xml) && /bindtap="openReport"/.test(xml) && /如果和 TA 打一场/.test(xml));
   assert.ok(/打球热力图/.test(rpt) && /bindtap="hmTap"/.test(rpt) && /五维球风/.test(rpt));
 });
+
+test('排行页分页：默认显示前 10 人，上拉触底（onReachBottom）再加载其余人，切筛选重置回 10 人', () => {
+  const ps = [];
+  const pfs = {};
+  const raw = [];
+  for (let i = 1; i <= 15; i++) {
+    const uid = 'u' + i, name = '球员' + i;
+    ps.push({ name, uid, level: 2.5 + i * 0.05, shown: true });
+    pfs[uid] = { _openid: uid, name, level: 2.5 + i * 0.05, shown: true };
+    if (i > 1) raw.push(m('rm' + i, ['球员' + i], ['球员1'], [uid], ['u1'], 'a', '2026-11-20'));
+  }
+  const ms = ID.normalizeMatches(raw, ps);
+  const filename = path.resolve(__dirname, '../pages/rank/rank.js');
+  let def;
+  vm.runInNewContext(read('pages/rank/rank.js'), {
+    require: (id) => (id === '../../utils/db'
+      ? { cachedMatches: () => ms, cachedPlayersFull: () => ps, cachedProfile: () => null, profilesOf: () => pfs }
+      : createRequire(filename)(id)),
+    wx: { hideShareMenu() {}, vibrateShort() {} }, Page: (d) => { def = d; }, console, Date,
+  });
+  const page = Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(p) { Object.assign(this.data, p); } });
+  page.onLoad();
+  assert.deepStrictEqual([page.data.ranked.length, page.data.more, page.data.totalCount], [10, true, 15], '默认显示前 10 人');
+  page.onReachBottom();
+  assert.deepStrictEqual([page.data.ranked.length, page.data.more], [15, false], '上拉触底后加载其余 5 人');
+  page.setSort({ currentTarget: { dataset: { v: 'win' } } });
+  assert.deepStrictEqual([page.data.ranked.length, page.data.more], [10, true], '切换排序重置回前 10 人');
+});

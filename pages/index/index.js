@@ -251,7 +251,6 @@ Page({
       played: s.played, win: s.win, lose: s.played - s.win, rate: s.rate, recent,
     };
   },
-  goMe() { wx.switchTab({ url: '/pages/me/me' }); },
 
   setFilter(e) { if (e.currentTarget.dataset.v !== this.data.filter) haptic.light(); this.page = 1; this.setData({ filter: e.currentTarget.dataset.v }); this.render(); },
   onPickDate(e) {

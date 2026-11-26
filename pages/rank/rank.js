@@ -7,7 +7,7 @@ const SE = require('../../utils/season');
 const haptic = require('../../utils/haptic');
 const Anim = require('../../utils/anim');
 
-const PAGE = 50; // 榜单每次显示多少名，滑到底再加载
+const PAGE = 10; // 榜单默认显示 10 名，上拉触底每次再加载 10 名
 
 Page({
   data: {
@@ -15,7 +15,7 @@ Page({
     sorts: [{ label: '按水平', value: 'level' }, { label: '按胜场', value: 'win' }, { label: '本月活跃', value: 'active' }, { label: '连胜', value: 'streak' }, { label: '本月进步', value: 'gain' }],
     genders: [{ label: '不限', value: 'all' }, { label: '男', value: '男' }, { label: '女', value: '女' }],
     types: [{ label: '全部', value: 'all' }, { label: '单打', value: 'single' }, { label: '双打', value: 'double' }],
-    top: [], ranked: [], more: false, loading: true, myKey: '', play: true, // play：入场动画（切换 tab 回来时重播）
+    top: [], ranked: [], more: false, totalCount: 0, loading: true, myKey: '', play: true, // play：入场动画（切换 tab 回来时重播）
     season: SE.ALL, seasons: [{ label: '生涯', value: SE.ALL }],
     view: 'level', cupTick: 0, // 水平排行 / LULU 积分；cupTick 加一让积分组件重新读取
   },
@@ -35,12 +35,17 @@ Page({
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     // LULU 积分：只刷新积分，等积分组件读完（onCupLoaded）才停下拉
     if (this.data.view === 'cup') { this.cupPulling = true; this.setData({ cupTick: this.data.cupTick + 1 }); return; }
-    this.load().then(() => wx.stopPullDownRefresh()); },
+    this.limit = PAGE;
+    this.load().then(() => { if (this.list) this.setData({ ranked: this.list.slice(0, this.limit), more: this.list.length > this.limit }); wx.stopPullDownRefresh(); }); },
   onCupLoaded() { if (this.cupPulling) { this.cupPulling = false; wx.stopPullDownRefresh(); } },
   setView(e) { const v = e.currentTarget.dataset.v === 'cup' ? 'cup' : 'level'; if (v !== this.data.view) { haptic.light(); this.setData({ view: v }); } },
   onReachBottom() {
     if (this.data.view !== 'level' || !this.data.more) return;
-    this.limit += PAGE;
+    this.loadMore();
+  },
+  loadMore() {
+    if (!this.data.more || !this.list) return;
+    this.limit = (this.limit || PAGE) + PAGE;
     this.setData({ ranked: this.list.slice(0, this.limit), more: this.list.length > this.limit });
   },
 
@@ -129,7 +134,7 @@ Page({
     const limit = this.limit || PAGE;
     const emptyText = sort === 'active' ? '这个月还没有比赛' : sort === 'streak' ? '现在没有人在连胜' : sort === 'gain' ? '这个月还没有人涨分' : this.data.season === 'all' ? '还没有比赛数据' : '这个赛季还没有比赛';
     this.setData({
-      top, ranked: list.slice(0, limit), more: list.length > limit, myKey: this.myId || '', none: !list.length, board, meHidden,
+      top, ranked: list.slice(0, limit), more: list.length > limit, totalCount: list.length, myKey: this.myId || '', none: !list.length, board, meHidden,
       colLbl: sort === 'active' ? '本月' : sort === 'streak' ? '连胜' : sort === 'gain' ? '涨幅' : '水平',
       emptyText: this.data.gender !== 'all' && !list.length ? '没有符合条件的球员' : emptyText,
     });

@@ -80,6 +80,7 @@
 .rate-fill { height: 100%; background: #A3A3CB; border-radius: 4rpx; }
 .rate-t { font-size: 22rpx; color: #5C5C76; margin-top: 6rpx; }
 .foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 20rpx; }
+.more-bar { margin-top: 16rpx; padding: 20rpx 0; border-radius: 20rpx; background: #fff; border: 1rpx solid #E5E5F3; text-align: center; font-size: 24rpx; font-weight: 600; color: #6E6EA3; }
 
 .sort-row { display: flex; align-items: center; justify-content: flex-start; margin: 0 4rpx 14rpx; font-size: 24rpx; } /* 生涯 / 赛季、排序、性别三行左对齐 */
 .sort-lbl { color: #84849E; margin-right: 12rpx; }

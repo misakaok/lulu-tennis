@@ -4,6 +4,7 @@ const db = require('../../utils/db');
 const PV = require('../../utils/player');
 const K = require('../../utils/racket');
 const Poster = require('../utils/poster');
+const P = require('../../utils/photo');
 const PRV = require('../../utils/privacy');
 const haptic = require('../../utils/haptic');
 
@@ -129,12 +130,23 @@ Page({
   onUnload() { this.stopPosterTimer(); },
   stopPosterTimer() { if (this.posterTimer) { clearTimeout(this.posterTimer); this.posterTimer = null; } },
 
+  async resolvePosterAvatar() {
+    const name = (this.annual && this.annual.name) || '';
+    const own = P.ownSrc(this.uid, name);
+    if (own) return { src: own, fileID: '' };
+    const fileID = P.fileOf(this.uid, name);
+    if (!fileID) return null;
+    const src = P.peek(fileID) || await P.resolve(fileID).catch(() => '');
+    return { src, fileID };
+  },
+
   openPoster() {
     if (!this.annual) return;
     haptic.light();
     this.stopPosterTimer();
     this.posterPath = '';
     const seq = this.posterSeq = (this.posterSeq || 0) + 1;
+    const avatarP = this.resolvePosterAvatar().catch(() => null);
     const draw = (tries) => {
       if (seq !== this.posterSeq || !this.data.posterOpen) return;
       const q = wx.createSelectorQuery().in(this);
@@ -149,7 +161,9 @@ Page({
           return;
         }
         try {
-          const filePath = await Poster.render(node, this.annual, todayStr());
+          const avatar = await avatarP;
+          if (seq !== this.posterSeq || !this.data.posterOpen) return;
+          const filePath = await Poster.render(node, this.annual, todayStr(), avatar);
           if (seq !== this.posterSeq || !this.data.posterOpen) return;
           this.posterPath = filePath;
           this.setData({ posterBusy: false, posterReady: true });

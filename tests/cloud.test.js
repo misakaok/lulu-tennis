@@ -1378,11 +1378,21 @@ test('drawDetail：各部分和原来分开调用的结果一致；不再返回�
     assert.strictEqual(r.photoCount, undefined);
     assert.strictEqual(r.requests, null, '报名阶段没有退赛申请');
   }
-  // 签表生成后带上退赛申请（和 drawRequests 一致）
+  // 签表生成后带上退赛申请（和 drawRequests 一致）；积分活动仅管理员随 drawDetail 带上 cup 结算信息
   env.coll('draws').d1.status = 'drawn';
   const rq = ok(await env.call('alice', 'drawRequests', { drawId: 'd1' }));
   delete rq.ok;
   assert.deepStrictEqual(ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).requests, rq);
+  env.coll('draws').d1.cup = { kind: 'weekly', pointGroup: 'open', scoreVersion: 2 };
+  env.coll('draws').d1.mode = 'bracket';
+  env.coll('draws').d1.size = 4;
+  env.coll('draws').d1.entrants = ['Alice', 'Bob'];
+  env.coll('draws').d1.lines = D.makeBracket(['Alice', 'Bob'], [], 4);
+  assert.strictEqual(ok(await env.call('alice', 'drawDetail', { drawId: 'd1' })).cup, null, '普通成员 drawDetail 不带 cup');
+  assert.strictEqual(ok(await env.call('owner', 'drawDetail', { drawId: 'd1' })).cup, null, '非管理员发起人 drawDetail 不带 cup');
+  const cf = ok(await adminCall(env, 'owner', 'cupFromDraw', { drawId: 'd1' }));
+  delete cf.ok;
+  assert.deepStrictEqual(ok(await adminCall(env, 'owner', 'drawDetail', { drawId: 'd1' })).cup, cf, '管理员 drawDetail 一次带回积分结算状态且与 cupFromDraw 一致');
   // 非成员、已删除、不存在
   const out = await env.call('stranger', 'drawDetail', { drawId: 'd1' });
   assert.strictEqual(out.code, 'NOT_MEMBER');

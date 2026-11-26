@@ -3,7 +3,7 @@
   <!-- 我的战绩卡（每页唯一的渐变块）；没有账号或还没比赛时显示全部比赛的统计 -->
   <!-- 背景：俯拍球网横在卡片底边，网球停在网带上（images/bg-mine.jpg） -->
   <!-- 高光只在这张卡第一次出现时扫一次（和「我的」页一样），切 tab 回来不再扫（2026-11-25 用户嫌闪） -->
-  <view wx:if="{{me}}" class="mine bg-host ani-sheen" hover-class="tap-on" bindtap="goMe">
+  <view wx:if="{{me}}" class="mine bg-host ani-sheen">
     <image class="bg-img" src="/images/bg-mine.jpg" mode="aspectFill" />
     <view class="mine-h">
       <pl-av class="mine-av" uid="{{me.uid}}" name="{{me.name}}" />
@@ -123,8 +123,6 @@
     </picker>
     <view class="pg-btn {{page >= totalPages ? 'off' : ''}}" hover-class="{{page < totalPages ? 'tap-on' : ''}}" bindtap="nextPage">下一页 ›</view>
   </view>
-
-  <view wx:if="{{groups.length}}" class="foot">下拉刷新 · 点击查看详情、修改比分 · 长按可删除自己参加的日常比赛</view>
 </view>
 
 <!-- 记录日常比赛（活动比赛在签表里录）；场边记分在「记一场」页里面 -->

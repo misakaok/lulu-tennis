@@ -28,7 +28,7 @@
   </view>
 
   <view class="card">
-    <view class="card-title">提醒<text class="sub">只在小程序里提示</text></view>
+    <view class="card-title">提醒</view>
     <view wx:if="{{r.retired}}" class="none">已退役的球拍不提醒</view>
     <view wx:elif="{{!s.reminders.length}}" class="none">还没有设置提醒，可以在「编辑球拍」里按自己的习惯设置间隔</view>
     <view wx:for="{{s.reminders}}" wx:key="item" class="rm">
@@ -67,7 +67,7 @@
       <view class="seg-item {{filter === 'string' ? 'on' : ''}}" data-v="string" bindtap="setFilter">穿线</view>
       <view class="seg-item {{filter === 'maint' ? 'on' : ''}}" data-v="maint" bindtap="setFilter">维护</view>
     </view>
-    <view wx:if="{{!shown.length}}" class="none">{{filter === 'maint' ? '还没有维护记录' : filter === 'string' ? '还没有穿线记录' : '还没有记录，点上面的按钮记一次'}}</view>
+    <view wx:if="{{!shown.length && filter !== 'all'}}" class="none">{{filter === 'maint' ? '还没有维护记录' : '还没有穿线记录'}}</view>
     <view class="tl">
       <view wx:for="{{shown}}" wx:key="id" class="tl-i {{index < 10 ? 'ani-in' : ''}}" style="animation-delay:{{index < 10 ? index * 45 : 0}}ms" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openLog">
         <view class="tl-dot {{item.kind}}"></view>
@@ -98,7 +98,6 @@
     <view class="qk">
       <view wx:for="{{quick}}" wx:key="m" class="qk-i {{pe.minutes === item.m ? 'on' : ''}}" hover-class="tap-on" data-m="{{item.m}}" bindtap="playQuick">{{item.t}}</view>
     </view>
-    <view class="sheet-note">穿线当天记的时长算在新球线上；补录以前的日期，按日期归到当时的球线。</view>
     <view class="sheet-acts">
       <view wx:if="{{pe.id}}" class="btn-danger sheet-a" hover-class="tap-on" bindtap="playRemove">删除</view>
       <view class="btn-line sheet-a" hover-class="tap-on" bindtap="playCancel">取消</view>

@@ -30,7 +30,6 @@
     <view wx:if="{{!has}}" class="card empty-card">
       <image class="empty-art" src="/images/art-basket.png" mode="aspectFit" />
       <view class="ec-t">还没有私人记录</view>
-      <view class="ec-s">约球、练习赛、外面打的比赛都可以记在这里，统计只给自己看</view>
       <view class="btn-primary small" hover-class="tap-on" bindtap="add">＋ 记录一场</view>
     </view>
 

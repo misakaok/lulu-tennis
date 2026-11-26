@@ -58,7 +58,7 @@
 
   <!-- 球员 -->
   <view class="card">
-    <view class="card-title">选择对手<text class="sub">你固定在 A 方；点一个位置，再点下面的球员</text></view>
+    <view class="card-title">选择对手</view>
     <view class="vs-box">
       <view class="side">
         <view wx:for="{{slotsA}}" wx:key="key" class="slot a {{item.active ? 'active' : ''}} {{item.name ? 'filled' : ''}}"
@@ -83,7 +83,6 @@
       </view>
       <view wx:if="{{!chips.length}}" class="chips-empty">还没有其他已注册的球员。请球友先在「我的」里设置资料</view>
     </view>
-    <view class="chips-note">只能选设置过资料的球员：战绩按账号累计</view>
   </view>
 
   <!-- 比分 -->

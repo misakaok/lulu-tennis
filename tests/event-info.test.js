@@ -141,7 +141,7 @@ test('「我的」页：LULU 积分卡先显示本机记着的上一次结果（
   await g.loadGrowth();
   assert.deepStrictEqual(plain(g.data.gw), { played: 0 });
   const xml = fs.readFileSync(path.join(__dirname, '../pages/me/me.wxml'), 'utf8');
-  assert.ok(/wx:if="\{\{gw && gw\.played\}\}"/.test(xml) && /wx:elif="\{\{gw\}\}"/.test(xml));
+  assert.ok(/wx:if="\{\{gw && gw\.played\}\}"/.test(xml) && !/记录约球/.test(xml));
 });
 
 test('活动列表置顶：置顶的排最前（越晚置顶越靠前），带「置顶」标签；其余保持原顺序；「我的活动」同样', () => {

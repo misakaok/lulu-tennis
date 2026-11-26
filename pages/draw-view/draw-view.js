@@ -22,6 +22,22 @@ function modeText(d) {
   return `${E.MODES.bracket} · ${d.size} 签`;
 }
 
+function cupStateOf(d, items, r) {
+  const list = items || [];
+  const ended = !!(d && d.endedAt);
+  const wait = { note: ended ? '活动已提前结束（未打满全部场次）；如需记入积分，可先恢复活动补完或到排行页手动补录一站' : '全部场次结束后，可以在这里结算积分', btn: '' };
+  const done = (r && r.fresh && typeof r.fresh.done === 'boolean') ? r.fresh.done : (list.length > 0 && list.every((x) => x.done));
+  const s = r && r.stop;
+  if (r && !s && r.manual) return { cupBox: null, canEditCup: false };
+  if (r && r.removed) return { cupBox: { note: '这个活动的积分已经撤下', btn: '' }, canEditCup: false };
+  // 已经发布过、后来又有场次被撤销 / 重新打开：积分照旧有效，留着入口好更正
+  if (!done) return { cupBox: s && s.status === 'published' ? { note: '有场次撤销或重新打开了，已发布的积分照旧有效；需要时打开核对更正', warn: true, btn: '查看积分', primary: false } : wait, canEditCup: !s };
+  if (!s) return { cupBox: { note: '名次按对阵自动带入，核对后再发布', btn: '结算 LULU 积分', primary: true }, canEditCup: true };
+  if (r.stale) return { cupBox: { note: '赛果改过，名次和' + (s.status === 'published' ? '已发布的积分' : '草稿') + '对不上，请重新核对' + (s.status === 'published' ? '并发布更正' : ''), warn: true, btn: '重新核对积分', primary: true }, canEditCup: false };
+  if (s.status !== 'published') return { cupBox: { note: '已保存草稿，成员还看不到', btn: '继续结算', primary: true }, canEditCup: false };
+  return { cupBox: { note: '已发布' + (s.fixes ? ` · 更正过 ${s.fixes} 次` : ''), btn: '查看积分', primary: false }, canEditCup: false };
+}
+
 Page({
   data: {
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
@@ -55,10 +71,10 @@ Page({
   // 本机没有的（报名名单、退赛申请、积分结算）读完前不显示；报名 / 取消 / 生成对阵 / 删除这些按钮也等读完（ready）
   //   报名中的活动：内存里 60 秒内读过的详情（db.peekDrawDetail）或本机记着的上次名单（db.cachedDrawSignups）先画出人数和名单（只是显示）
   preview() {
-    let d = null, signups = null, me = null;
+    let d = null, signups = null, me = null, peekCup = null;
     try {
       const peek = db.peekDrawDetail(this.id);
-      if (peek && peek.draw) { d = peek.draw; signups = peek.signups || null; me = peek.profile || null; }
+      if (peek && peek.draw) { d = peek.draw; signups = peek.signups || null; me = peek.profile || null; peekCup = peek.cup || null; }
       if (!d) d = db.cachedDraws().find((x) => x && x._id === this.id) || null;
       if (d && !signups) signups = db.cachedDrawSignups(this.id);
     } catch (e) { d = null; }
@@ -68,6 +84,7 @@ Page({
       const all = db.cachedMatches();
       this.show(d, all, me, db.cachedOpenid() || (me && me._openid) || '', null);
       if (d.status === 'signup' && Array.isArray(signups)) this.loadSignups(d, all, signups, { players: db.cachedPlayersFull() });
+      else if (d.status !== 'signup' && peekCup && require('../../utils/member').isAdminLocal() && C.drawCupOf(d)) this.applyCup(peekCup);
     } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
   },
 
@@ -166,11 +183,14 @@ Page({
       this.shareCounts = { entrants: n, unit };
       this.makeCover();
       this.renderSchedule();
-      // 退赛申请随 drawDetail 一起回来，不靠战绩：每一遍都直接用（和 ready 同时出来）。
-      // 先用本机战绩画的那一遍（early）不查积分结算、不单独读申请（旧版云函数）：等最新战绩回来的那一遍再查，免得调两次云函数
+      // 退赛申请和积分结算随 drawDetail 一起回来，不靠战绩：拿到就直接画（和 ready 同时出来，不再等二次云函数）。
+      // 旧版云函数没带 cup / requests 时，等最新战绩回来的那一遍再兜底单独查，免得 early 阶段调两次
       if (fresh.bundle && fresh.bundle.requests) { this.reqSeq = (this.reqSeq || 0) + 1; this.applyRequests(fresh.bundle.requests); }
+      const hasCup = !!(fresh.bundle && fresh.bundle.cup);
+      if (hasCup && isAdmin && C.drawCupOf(d)) this.applyCup(fresh.bundle.cup);
+      else if (!isAdmin || !C.drawCupOf(d)) { this.cupSeq = (this.cupSeq || 0) + 1; if (this.data.cupBox !== null || this.data.canEditCup) this.setData({ cupBox: null, canEditCup: false }); }
       if (!fresh.early) {
-        this.loadCupBox(isAdmin);
+        if (!hasCup) this.loadCupBox(isAdmin);
         if (!fresh.bundle) this.loadRequests();
       }
     }
@@ -178,7 +198,14 @@ Page({
     if (!this.data.ready) this.setData({ ready: true });
   },
 
-  /* ---------- LULU 积分活动：管理员结算（全部场次结束后；云端 cupFromDraw / cupSave 再校验管理员和完赛） ---------- */
+  /* ---------- LULU 积分活动：管理员结算（全部场次结束后；云端 drawDetail / cupFromDraw / cupSave 再校验管理员和完赛） ---------- */
+  applyCup(r) {
+    this.cupSeq = (this.cupSeq || 0) + 1;
+    const { cupBox, canEditCup } = cupStateOf(this.d, this.items, r);
+    if (canEditCup !== !!this.data.canEditCup || JSON.stringify(cupBox) !== JSON.stringify(this.data.cupBox)) {
+      this.setData({ cupBox, canEditCup });
+    }
+  },
   async loadCupBox(isAdmin) {
     const seq = this.cupSeq = (this.cupSeq || 0) + 1;
     const set = (cupBox, canEditCup = false) => {
@@ -187,20 +214,10 @@ Page({
       }
     };
     if (!isAdmin || !C.drawCupOf(this.d)) { set(null); return; }
-    const items = this.items || [];
-    const ended = !!(this.d && this.d.endedAt);
-    const wait = { note: ended ? '活动已提前结束（未打满全部场次）；如需记入积分，可先恢复活动补完或到排行页手动补录一站' : '全部场次结束后，可以在这里结算积分', btn: '' };
-    const done = items.length > 0 && items.every((x) => x.done);
     try {
       const r = await cloud.call('cupFromDraw', { drawId: this.id });
-      const s = r.stop;
-      if (r.removed) set({ note: '这个活动的积分已经撤下', btn: '' });
-      // 已经发布过、后来又有场次被撤销 / 重新打开：积分照旧有效，留着入口好更正
-      else if (!done) set(s && s.status === 'published' ? { note: '有场次撤销或重新打开了，已发布的积分照旧有效；需要时打开核对更正', warn: true, btn: '查看积分', primary: false } : wait, !s);
-      else if (!s) set({ note: '名次按对阵自动带入，核对后再发布', btn: '结算 LULU 积分', primary: true }, true);
-      else if (r.stale) set({ note: '赛果改过，名次和' + (s.status === 'published' ? '已发布的积分' : '草稿') + '对不上，请重新核对' + (s.status === 'published' ? '并发布更正' : ''), warn: true, btn: '重新核对积分', primary: true });
-      else if (s.status !== 'published') set({ note: '已保存草稿，成员还看不到', btn: '继续结算', primary: true });
-      else set({ note: '已发布' + (s.fixes ? ` · 更正过 ${s.fixes} 次` : ''), btn: '查看积分', primary: false });
+      const { cupBox, canEditCup } = cupStateOf(this.d, this.items, r);
+      set(cupBox, canEditCup);
     } catch (e) {
       console.warn(e.message);
       set({ note: '暂时读不到积分结算情况，下拉刷新重试', btn: '' });

@@ -1779,15 +1779,17 @@ async function drawDetail({ drawId }, uid) {
     if (!(e instanceof Deny)) console.error(e);
     return { err: e instanceof Deny ? e.message : '服务器出错，请稍后再试' };
   });
-  const [signups, profs, requests] = await Promise.all([
+  const [signups, profs, requests, cup] = await Promise.all([
     allDocs('signups', { drawId }).then((rows) => rows.sort((a, b) => tsOf(a) - tsOf(b))),
     db.collection('players').where({ _openid: uid, self: true }).limit(100).get().then((r) => r.data),
     draw.status === 'signup' ? null : soft(drawRequests({ drawId }, uid)),
+    draw.status === 'signup' || !isAdmin(uid) || !CUP.drawCupOf(draw) ? null : soft(cupFromDraw({ drawId }, uid, draw)),
   ]);
   return {
     draw: E.publicDraw(draw), signups,
     profile: (profs.sort((a, b) => tsOf(a) - tsOf(b)).map(publicPlayer))[0] || null, // 和前端一样：取最早的那条本人资料
     requests: (requests && requests.v) || null,
+    cup: (cup && cup.v) || null,
   };
 }
 
@@ -2325,9 +2327,9 @@ async function updateDrawCupKind({ drawId, kind, fromKind }, uid) {
   return result;
 }
 // 积分活动：活动本身 + 从对阵推出来的名次（CUP.fromDraw）
-async function drawCupCtx(drawId) {
+async function drawCupCtx(drawId, prefetched) {
   if (typeof drawId !== 'string' || !drawId) deny('缺少活动');
-  const d = await getDoc('draws', drawId);
+  const d = prefetched || await getDoc('draws', drawId);
   if (!d || d.deleted) deny('活动不存在，可能已被删除');
   if (!CUP.drawCupOf(d)) deny('这个活动没有设置计入 LULU 积分');
   d._id = drawId;
@@ -2335,15 +2337,33 @@ async function drawCupCtx(drawId) {
   return { d, fresh: CUP.fromDraw(d, matches, map) };
 }
 // 结算 LULU 积分（管理员，只读）：返回固定编号、预填名次和提示；已经结算过就带回原来那一站，
-// 赛果改过、推出来的名次和已存的不一样时 stale = true（提示重新核对、发布更正，沿用原编号）
-async function cupFromDraw({ drawId }, uid) {
+// 赛果改过、推出来的名次和已存的不一样时 stale = true（提示重新核对、发布更正，沿用原编号）；
+// 如果管理员此前已在「LULU 积分」手动补录过同一场（同日同形式同组别，或同日同形式已发布且冠/亚军一致），返回 manual，活动详情不再提示结算。
+async function cupFromDraw({ drawId }, uid, prefetched) {
   if (!isAdmin(uid)) deny('只有管理员可以操作');
-  const { d, fresh } = await drawCupCtx(drawId);
   const key = cupKeyOfDraw(drawId);
-  const old = await readOptionalDoc(db.collection(CUP_STOPS).doc(key));
+  const [{ d, fresh }, old] = await Promise.all([
+    drawCupCtx(drawId, prefetched),
+    readOptionalDoc(db.collection(CUP_STOPS).doc(key)),
+  ]);
   const live = old && !old.deleted ? old : null;
+  let manual = null;
+  if (!old && fresh.date && fresh.format) {
+    const rows = (await db.collection(CUP_STOPS).where({ date: fresh.date, format: fresh.format }).get()).data || [];
+    const group = fresh.pointGroup || 'open';
+    const champ = fresh.done && fresh.places && fresh.places.champion && fresh.places.champion[0] ? CUP.teamKey(fresh.places.champion) : '';
+    const runner = fresh.done && fresh.places && fresh.places.runnerUp && fresh.places.runnerUp[0] ? CUP.teamKey(fresh.places.runnerUp) : '';
+    manual = rows.find((x) => {
+      if (!x || x.deleted || x._id === key || x.drawId) return false;
+      if (x.kind === fresh.kind && (x.pointGroup || 'open') === group) return true;
+      if (x.status !== 'published') return false;
+      const xc = x.places && x.places.champion && x.places.champion[0] ? CUP.teamKey(x.places.champion) : '';
+      const xr = x.places && x.places.runnerUp && x.places.runnerUp[0] ? CUP.teamKey(x.places.runnerUp) : '';
+      return (champ && xc === champ) || (runner && xr === runner);
+    }) || null;
+  }
   return {
-    key, title: E.titleOf(d), fresh, stop: live ? cupView(live) : null, removed: !!(old && old.deleted),
+    key, title: E.titleOf(d), fresh, stop: live ? cupView(live) : null, manual: manual ? cupView(manual) : null, removed: !!(old && old.deleted),
     stale: !!(live && fresh.done && CUP.placesDiffer(live.places, fresh.places)),
   };
 }

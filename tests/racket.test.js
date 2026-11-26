@@ -566,6 +566,29 @@ test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；�
     assert.strictEqual(p.data.bouncing, false);
     await clock.wait(360);
     assert.strictEqual(nav.length, 1);
+    // 悬浮颠球挂件：滑动时半隐贴边（只触发一次 setData），停滑 420ms 后滑回，无球拍时不触发
+    let scrollSets = 0;
+    const origSet = p.setData.bind(p);
+    p.setData = (o) => { if ('scrolling' in o) scrollSets++; origSet(o); };
+    p.onPageScroll();
+    assert.strictEqual(p.data.scrolling, false, '无球拍时不贴边');
+    p.data.cards = [{ id: 'r1' }];
+    p.onPageScroll(); p.onPageScroll(); p.onPageScroll();
+    assert.deepStrictEqual([p.data.scrolling, scrollSets], [true, 1], '连续滑动只切一次 scrolling');
+    await clock.wait(450);
+    assert.deepStrictEqual([p.data.scrolling, scrollSets], [false, 2], '停滑后平滑滑回');
+    // 点击悬浮 LULU 挂件：直接跳转，不触发 bouncing 抖动
+    p.onPageScroll();
+    p.addDock();
+    assert.deepStrictEqual([p.data.bouncing, p.data.scrolling, nav.length], [false, false, 2], '点击悬浮 LULU 直接进添加页，不抖动');
+    // 切走 Tab 暂停循环动画，切回恢复
+    p.onHide();
+    assert.strictEqual(p.data.paused, true, 'onHide 暂停后台无限循环动画');
+    p.load = () => {};
+    p.onShow();
+    assert.strictEqual(p.data.paused, false, 'onShow 恢复动画');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'pages/racket/racket.wxss'), 'utf8');
+    assert.ok(!/filter:\s*drop-shadow/.test(css) && /animation-play-state:\s*paused/.test(css), '无实时模糊投影滤镜且支持后台暂停');
   });
 });
 

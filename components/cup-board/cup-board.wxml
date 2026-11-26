@@ -24,7 +24,7 @@
 
   <!-- 年度榜：点一行展开来源场次 -->
   <view wx:if="{{rows.length}}" class="card cup-board">
-    <view class="card-title">{{year}} 年{{which === 'encounter' ? '遭遇赛积分' : which === 'double' ? '双打年终榜' : '单打年终榜'}}<text class="sub">{{which === 'encounter' ? '历史积分 · 单独统计' : '每人计入积分最高的组'}}</text></view>
+    <view class="card-title">{{year}} 年{{which === 'encounter' ? '遭遇赛积分' : which === 'double' ? '双打年终榜' : '单打年终榜'}}<text wx:if="{{which === 'encounter'}}" class="sub">历史积分 · 单独统计</text></view>
     <view wx:for="{{rows}}" wx:key="key" class="cup-r {{item.mine ? 'me' : ''}}">
       <view class="cup-main" hover-class="tap-row-on" data-key="{{item.key}}" bindtap="toggleRow">
         <text class="cup-rank num {{item.rank <= 3 ? 'top' : ''}}">{{item.rank}}</text>

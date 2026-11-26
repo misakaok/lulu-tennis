@@ -36,7 +36,7 @@
 
   <!-- 基础空拍参数 -->
   <view class="card">
-    <view class="card-title">基础球拍参数<text class="sub">空拍或穿线前实测</text></view>
+    <view class="card-title">基础球拍参数</view>
     <view class="ps-row">
       <view wx:for="{{presets}}" wx:key="id" class="ps {{presetId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickPreset">{{item.label}}</view>
     </view>
@@ -71,6 +71,4 @@
       </view>
     </view>
   </view>
-
-  <view class="foot-tip">按标准 27 英寸球拍（中点 342.9mm、10cm 挥重支点）估算，仅供参考</view>
 </view>

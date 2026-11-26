@@ -61,7 +61,6 @@
     </view>
   </view>
 
-  <view class="lock-note">比赛场数、胜率和排名由比赛记录自动计算，不能手动修改</view>
   <view class="btn-primary {{saving ? 'disabled' : ''}}" hover-class="tap-on" bindtap="save">{{isNew ? '完成' : '保存修改'}}</view>
   <view wx:if="{{fromGate}}" class="btn-line later" hover-class="tap-on" bindtap="later">稍后再设置</view>
 </view>

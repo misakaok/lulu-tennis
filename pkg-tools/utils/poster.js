@@ -112,7 +112,7 @@ function drawRadar(ctx, cx, cy, maxR, style) {
   ctx.textAlign = 'left';
 }
 
-function paint(ctx, annual, genDate) {
+function paint(ctx, annual, genDate, avatarImg) {
   const a = annual || {};
   const year = a.year || String(new Date().getFullYear());
 
@@ -161,19 +161,33 @@ function paint(ctx, annual, genDate) {
   ctx.font = `bold 24px ${FONT}`;
   ctx.fillText(`${year} 年度球场战报`, hx + hw - 32, hy + 49);
 
-  // 球员头像首字圆 + 昵称 + 等级大字
-  const avX = hx + 72, avY = hy + 144;
+  // 球员头像（有真实头像照片时居中裁圆绘制，否则画首字圆）+ 昵称 + 等级大字
+  const avX = hx + 72, avY = hy + 144, avR = 40;
   ctx.beginPath();
-  ctx.arc(avX, avY, 40, 0, Math.PI * 2);
+  ctx.arc(avX, avY, avR, 0, Math.PI * 2);
   ctx.fillStyle = a.color || '#C9C9E4';
   ctx.fill();
+  if (avatarImg && avatarImg.width && avatarImg.height && typeof ctx.drawImage === 'function') {
+    const iw = avatarImg.width, ih = avatarImg.height;
+    const side = Math.min(iw, ih);
+    const sx = (iw - side) / 2, sy = (ih - side) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avX, avY, avR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(avatarImg, sx, sy, side, side, avX - avR, avY - avR, avR * 2, avR * 2);
+    ctx.restore();
+  } else {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `bold 36px ${FONT}`;
+    ctx.fillText(a.initial || '球', avX, avY + 1);
+  }
+  ctx.beginPath();
+  ctx.arc(avX, avY, avR, 0, Math.PI * 2);
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
   ctx.lineWidth = 4;
   ctx.stroke();
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = `bold 36px ${FONT}`;
-  ctx.fillText(a.initial || '球', avX, avY + 1);
 
   ctx.textAlign = 'left';
   ctx.fillStyle = '#FFFFFF';
@@ -325,12 +339,63 @@ function paint(ctx, annual, genDate) {
   ctx.textAlign = 'left';
 }
 
-async function render(canvas, annual, genDate) {
+function loadImage(canvas, src) {
+  if (!src || !canvas || typeof canvas.createImage !== 'function') return Promise.resolve(null);
+  return new Promise((ok) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; clearTimeout(timer); ok(v); } };
+    const timer = setTimeout(() => finish(null), 3000);
+    try {
+      const img = canvas.createImage();
+      img.onload = () => finish(img);
+      img.onerror = () => finish(null);
+      img.src = src;
+    } catch (e) { finish(null); }
+  });
+}
+
+async function loadAvatar(canvas, opt) {
+  if (!opt || !canvas || typeof canvas.createImage !== 'function') return null;
+  const src = typeof opt === 'string' ? opt : (opt.src || '');
+  const fileID = typeof opt === 'object' ? (opt.fileID || '') : '';
+  if (src) {
+    const img = await loadImage(canvas, src);
+    if (img) return img;
+    // 部分旧基础库不支持直接用远程 https 链接画布渲染，尝试转本机临时文件
+    if (/^https?:\/\//i.test(src) && typeof wx !== 'undefined' && typeof wx.downloadFile === 'function') {
+      const tmp = await new Promise((ok) => {
+        wx.downloadFile({
+          url: src,
+          success: (r) => ok(r && r.statusCode === 200 ? r.tempFilePath : ''),
+          fail: () => ok(''),
+        });
+      });
+      if (tmp) {
+        const img2 = await loadImage(canvas, tmp);
+        if (img2) return img2;
+      }
+    }
+  }
+  if (fileID && /^cloud:\/\//i.test(fileID) && typeof wx !== 'undefined' && wx.cloud && typeof wx.cloud.downloadFile === 'function') {
+    const tmp = await new Promise((ok) => {
+      wx.cloud.downloadFile({
+        fileID,
+        success: (r) => ok((r && r.tempFilePath) || ''),
+        fail: () => ok(''),
+      });
+    });
+    if (tmp) return loadImage(canvas, tmp);
+  }
+  return null;
+}
+
+async function render(canvas, annual, genDate, avatarOpt) {
+  const avatarImg = await loadAvatar(canvas, avatarOpt);
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, W, H);
-  paint(ctx, annual, genDate);
+  paint(ctx, annual, genDate, avatarImg);
   const r = await new Promise((ok, bad) => wx.canvasToTempFilePath({
     canvas, x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H,
     fileType: 'jpg', quality: 0.92, success: ok, fail: bad,
@@ -338,4 +403,4 @@ async function render(canvas, annual, genDate) {
   return r.tempFilePath;
 }
 
-module.exports = { W, H, paint, render };
+module.exports = { W, H, paint, render, loadAvatar };

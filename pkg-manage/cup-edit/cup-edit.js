@@ -92,6 +92,7 @@ Page({
       if (s.drawId) fd = await cloud.call('cupFromDraw', { drawId: s.drawId }).catch(() => null); // 活动删除了也要能撤下这一站
     } else if (fd) {
       if (fd.removed) { this.setData({ loading: false, authError: '这个活动的积分已经撤下，不能再结算；需要的话请在积分页补录一站' }); return; }
+      if (!fd.stop && fd.manual) { this.setData({ loading: false, authError: '这一场的 LULU 积分已手动录入，请在排行页的「LULU 积分」里查看或更正' }); return; }
       s = fd.stop; // 已经结算过：打开原来那一站
       if (!s && !fd.fresh.done) { this.setData({ loading: false, authError: '这个活动还有场次没打完，全部结束后才能结算积分' }); return; }
     }

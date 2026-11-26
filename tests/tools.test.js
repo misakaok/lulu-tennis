@@ -424,8 +424,8 @@ test('年度球场战报与纯本机海报绘制（PV.annualView + utils/poster.
   assert.strictEqual(ann.mostOpp.name, '阿哲');
   assert.strictEqual(ann.racket.spendText, '¥120');
 
-  // 模拟 Canvas 2D context 走完整个海报绘制流程（含五维雷达与装备条）
-  const texts = [];
+  // 模拟 Canvas 2D context 走完整个海报绘制流程（含五维雷达、装备条、无头像回退首字圆 & 有真实头像居中裁圆）
+  const texts = [], draws = [];
   const noop = () => {};
   const ctx = {
     createLinearGradient: () => ({ addColorStop: noop }),
@@ -434,6 +434,7 @@ test('年度球场战报与纯本机海报绘制（PV.annualView + utils/poster.
     fill: noop, stroke: noop, save: noop, restore: noop, clip: noop, setLineDash: noop,
     measureText: (s) => ({ width: String(s || '').length * 16 }),
     fillText: (s) => texts.push(String(s || '')),
+    drawImage: (...args) => draws.push(args),
   };
   Poster.paint(ctx, ann, '2026-11-25');
   assert.ok(texts.some((t) => /LULU 网球/.test(t)));
@@ -441,6 +442,15 @@ test('年度球场战报与纯本机海报绘制（PV.annualView + utils/poster.
   assert.ok(texts.some((t) => /五维球风/.test(t)));
   assert.ok(texts.some((t) => /¥120/.test(t)));
   assert.ok(!texts.some((t) => /用户画像|赛事/.test(t)));
+  assert.strictEqual(draws.length, 0, '无真实头像时不调 drawImage，显示首字圆');
+  assert.ok(texts.includes('小'), '无真实头像时绘制首字圆');
+
+  texts.length = 0;
+  const fakeImg = { width: 400, height: 200 };
+  Poster.paint(ctx, ann, '2026-11-25', fakeImg);
+  assert.strictEqual(draws.length, 1, '有真实头像时调用 drawImage');
+  assert.deepStrictEqual(draws[0].slice(1, 5), [100, 0, 200, 200], '非正方形照片居中裁成正方形');
+  assert.ok(!texts.includes('小'), '有真实头像时不叠加首字');
   // 页面合规：pages/report 仍禁用分享，无动态 <image src="{{...}}">，使用 canvas id="poster-cv"
   const rptXml = read('pkg-tools/report/report.wxml');
   assert.ok(/id="poster-cv"/.test(rptXml) && /生成战报图/.test(rptXml) && !/<image\b/.test(rptXml));

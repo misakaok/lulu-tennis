@@ -906,4 +906,28 @@ test('成员管理：在「我的」点入口先发出成员列表的实时读�
   assert.ok(/cloud\.fresh\('listMembers'\)/.test(read('pkg-manage/members/members.js')), '成员管理页照旧 fresh（接过预读）');
 });
 
+test('活动详情积分结算卡片：drawDetail 已带 cup 时首帧即出、不再二次调 cupFromDraw；内存 peek 有 cup 时预览即出', async () => {
+  const cupDraw = () => ({ _id: 'dc1', title: '周赛积分', status: 'drawn', mode: 'bracket', size: 2, type: 'single', cup: { kind: 'weekly', pointGroup: 'open', scoreVersion: 2 }, entrants: ['小明', '阿杰'], lines: [[{ a: '小明', b: '阿杰', done: true }]] });
+  const cupData = { key: 'draw_dc1', fresh: { done: true }, stop: null, removed: false, stale: false };
+  const ms = later();
+  const v = viewPage({
+    cachedDraws: () => [cupDraw()], matchesShared: () => ms.p,
+    fetchDrawDetail: async () => ({ draw: cupDraw(), profile: { name: '小明' }, signups: [], requests: { list: [], owner: false, myEntrants: [], withdrawals: [] }, cup: cupData }),
+  }, { call: () => { throw new Error('drawDetail 已带 cup，不应再调 cupFromDraw'); } });
+  v.onLoad({ id: 'dc1' });
+  for (let i = 0; i < 4; i++) await tick();
+  assert.deepStrictEqual([v.data.ready, v.data.cupBox.btn, v.data.canEditCup], [true, '结算 LULU 积分', true], '战绩还在读时，积分结算卡片已随 drawDetail 一起出现');
+  ms.ok([]);
+  for (let i = 0; i < 4; i++) await tick();
+  assert.strictEqual(v.calls.filter((a) => a === 'cupFromDraw').length, 0);
+
+  // 内存 peek 里已有 cup（60 秒内刚看过或预取已落盘）：preview 第一帧直接画出来
+  const p = viewPage({
+    peekDrawDetail: () => ({ draw: cupDraw(), profile: { name: '小明' }, signups: [], cup: cupData }),
+    fetchDrawDetail: () => new Promise(() => {}),
+  });
+  p.onLoad({ id: 'dc1' });
+  assert.deepStrictEqual([p.data.cupBox.btn, p.data.canEditCup, p.data.ready], ['结算 LULU 积分', true, false], '有缓存 cup 时第一帧直接出现，不延迟跳出来');
+});
+
 module.exports = T;

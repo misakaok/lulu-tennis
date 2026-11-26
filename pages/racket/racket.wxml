@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page {{cards.length ? 'with-dock' : ''}}">
   <view wx:if="{{loading}}" class="state"></view>
 
   <view wx:elif="{{error}}" class="card state-card">
@@ -68,9 +68,15 @@
         <view wx:if="{{st.chips.length}}" class="eq-chips">
           <text wx:for="{{st.chips}}" wx:key="*this" class="eq-chip">{{item}}</text>
         </view>
-        <view wx:elif="{{!st.hasData}}" class="eq-hint">记录穿线费用、断线标签和打球时长后，这里会自动统计年度花费与换线周期</view>
       </view>
-      <view class="ball-add {{bouncing ? 'bouncing' : ''}}" bindtap="add"><view class="ball-rk"></view><view class="ball-sh"></view><view class="ball-btn"></view></view>
     </block>
   </block>
+</view>
+<!-- 右下角悬浮 LULU 颠球挂件：静止时在右下角持续轻轻颠球，上下滑动时自动半隐贴边，停滑后滑回；点击直接进入添加球拍页，不打断颠球循环 -->
+<view wx:if="{{!loading && !error && cards.length}}" class="ball-dock {{scrolling ? 'tuck' : ''}}" bindtap="addDock">
+  <view class="ball-add fab {{paused ? 'paused' : ''}}" hover-class="dock-tap">
+    <view class="ball-rk"><image class="lulu-img" src="/images/art-lulu.png" mode="aspectFit" /></view>
+    <view class="ball-sh"></view>
+    <view class="ball-btn"></view>
+  </view>
 </view>

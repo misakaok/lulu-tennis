@@ -75,6 +75,8 @@
     </view>
   </view>
 
-  <view wx:if="{{ranked.length}}" class="foot">{{board ? '榜单只算正常完赛的比赛，胜负和胜率是生涯数据 · ' : season === 'all' ? '' : '胜负和胜率只算这个赛季，水平分不分赛季 · '}}只显示同意公开展示的球员 · 点击球员查看比赛统计</view>
+  <view wx:if="{{more}}" class="more-bar" hover-class="tap-on" bindtap="loadMore">上拉加载更多（已显示 {{ranked.length}} / {{totalCount}} 人）</view>
+
+  <view wx:if="{{ranked.length && (board || season !== 'all')}}" class="foot">{{board ? '榜单只算正常完赛的比赛，胜负和胜率是生涯数据' : '胜负和胜率只算这个赛季，水平分不分赛季'}}</view>
   </block>
 </view>

@@ -8,7 +8,7 @@
       <view class="hd-m">
         <view class="hd-t">我的 LULU 积分<text class="me-yr">{{cup.year}} 年</text></view>
         <view wx:if="{{cup.any}}" class="hd-s">单打积分 {{cup.single}} · 双打积分 {{cup.double}}<text wx:if="{{cup.encounter}}"> · 遭遇赛 {{cup.encounter}}</text></view>
-        <view wx:else class="hd-s">今年暂无积分<text wx:if="{{cup.last}}"> · 最近一站 {{cup.last.date}} {{cup.last.tier}}</text></view>
+        <view wx:elif="{{cup.last}}" class="hd-s">最近一站 {{cup.last.date}} {{cup.last.tier}}</view>
       </view>
       <text class="me-go">›</text>
     </view>
@@ -21,7 +21,6 @@
       <view class="hd-m">
         <view class="hd-t">我的成长档案</view>
         <view wx:if="{{gw && gw.played}}" class="hd-s">已记 {{gw.played}} 场 · 胜率 {{gw.rate}}% · 本月 {{gw.month}} 场</view>
-        <view wx:elif="{{gw}}" class="hd-s">记录约球、练习赛，看自己的胜率与走势</view>
       </view>
       <text class="me-go">›</text>
     </view>
@@ -60,7 +59,7 @@
       <view class="hd-ic"><image class="hd-img full" src="/images/badges/social.png" mode="aspectFit" /></view>
       <view class="hd-m">
         <view class="hd-t">成员管理<text class="ui-tag adm-only">仅管理员</text></view>
-        <view class="hd-s {{pendingApply ? 'warn' : ''}}">{{pendingApply ? pendingApply + ' 个新申请等你审核' : '审核申请、邀请、移除成员'}}</view>
+        <view wx:if="{{pendingApply}}" class="hd-s warn">{{pendingApply}} 个新申请等你审核</view>
       </view>
       <text wx:if="{{pendingApply}}" class="adm-n">{{pendingApply}}</text>
       <text class="me-go">›</text>

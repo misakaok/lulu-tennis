@@ -609,7 +609,7 @@ test('补录页：手动补录保存草稿后不会凭空出现「来自活动�
   const i = wxml.indexOf('bindtap="addFloor"');
   const block = wxml.slice(wxml.lastIndexOf('<view wx:if="{{hasFloor}}"', i), wxml.indexOf('月赛没有参加保底分', i) + 40);
   const nodes = [...block.matchAll(/<view (wx:if|wx:elif|wx:else)(?:="\{\{([^}]*)\}\}")?[^>]*>/g)].map((m) => ({ kind: m[1], cond: m[2], idx: m.index }));
-  assert.strictEqual(nodes.length, 3, block);
+  assert.strictEqual(nodes.length, 2, block);
   const evalIn = (st, c) => Function('hasFloor', 'showPointGroup', 'return (' + c + ');')(st.hasFloor, st.showPointGroup);
   for (const hasFloor of [true, false]) {
     for (const showPointGroup of [true, false]) {
@@ -830,7 +830,7 @@ test('我的积分：没开公开展示也能看到自己的总分和明细；�
   me.openCup();
   assert.strictEqual(nav.pop(), '/pkg-manage/cup-mine/cup-mine?year=2025&which=single', '今年没有：打开最近一站那一年');
   const wxml = read('pages/me/me.wxml');
-  assert.ok(/今年暂无积分/.test(wxml) && /单打积分/.test(wxml) && /双打积分/.test(wxml));
+  assert.ok(!/今年暂无积分/.test(wxml) && /单打积分/.test(wxml) && /双打积分/.test(wxml));
 });
 
 test('我的积分：页面只读 cupList、不能分享、只在「我的」进入；没有自由文字', () => {
@@ -1319,6 +1319,41 @@ test('授权说明：写明 LULU 积分榜和各站积分明细，没同意时�
   assert.ok(/LULU 积分榜和各站积分明细（含双打搭档）里你的名字显示为「球友」/.test(text));
   const pf = read('pkg-manage/profile/profile.wxml');
   assert.ok(/展示在排行榜、LULU 积分、/.test(pf) && /LULU 积分里显示为「球友」/.test(pf) && /仍显示昵称/.test(pf), '资料页的勾选说明（精简成两行）同步');
+});
+
+test('已手动补录 LULU 积分的同日活动：cupFromDraw 识别 manual，活动详情不再提示结算，结算页拦截重复录入', async () => {
+  const env = setup();
+  cupDraw(env, 'dwm1');
+  await playAll(env, 'dwm1');
+  const viaCloud = viaCall({ call: async (a, d) => { const r = await asAdmin(env, a, d); if (!r.ok) throw new Error(r.error); return r; } });
+  const dv = loadDef('pages/draw-view/draw-view.js', { '../../utils/db': {}, '../../utils/cloud': viaCloud, '../../utils/pick': {}, '../../utils/share-card': {} }, {});
+  const view = { id: 'dwm1', d: env.coll('draws').dwm1, items: schOf(env, 'dwm1'), data: { cupBox: null }, setData(o) { Object.assign(this.data, plain(o)); }, loadCupBox: dv.loadCupBox };
+
+  // 未手动录入前：照常提示「结算 LULU 积分」
+  await view.loadCupBox(true);
+  assert.strictEqual(view.data.cupBox.btn, '结算 LULU 积分');
+
+  // 管理员手动补录同一天同形式（哪怕类别/组别不同，但已发布且冠亚军一致）
+  ok(await asAdmin(env, 'cupSave', {
+    key: 'manual1122s', publish: true,
+    stop: { date: YESTERDAY, kind: 'monthly', format: 'single', pointGroup: 'open', places: { champion: ['alice'], runnerUp: ['bob'], semis: [['carl'], ['dora']], floor: [] } },
+  }));
+  const fd = await fromDrawOf(env, 'dwm1');
+  assert.ok(fd.manual && fd.manual.id === 'manual1122s', '识别出已手动录入的同日站');
+  await view.loadCupBox(true);
+  assert.deepStrictEqual([view.data.cupBox, view.data.canEditCup], [null, false], '活动详情不再提示结算');
+
+  // 直接打开结算页也会拦截重复结算
+  const def = loadDef('pkg-manage/cup-edit/cup-edit.js', { '../../utils/member': { status: async () => ({ status: 'active', isAdmin: true }) }, '../../utils/cloud': viaCloud, '../../utils/pick': {} },
+    { hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, navigateBack() {} });
+  const ce = Object.assign({}, def, { data: plain(def.data), setData(o) { Object.assign(this.data, plain(o)); } });
+  await ce.onLoad({ drawId: 'dwm1' });
+  assert.match(ce.data.authError, /已手动录入/);
+
+  // 撤下手动录入的那一站后：恢复可结算提示
+  ok(await asAdmin(env, 'cupRemove', { id: 'manual1122s', reason: '录错了这一站' }));
+  await view.loadCupBox(true);
+  assert.strictEqual(view.data.cupBox.btn, '结算 LULU 积分');
 });
 
 module.exports = T;

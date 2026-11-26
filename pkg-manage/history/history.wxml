@@ -59,6 +59,4 @@
     </picker>
     <view class="pg-btn {{page >= totalPages ? 'off' : ''}}" hover-class="{{page < totalPages ? 'tap-on' : ''}}" bindtap="nextPage">下一页 ›</view>
   </view>
-
-  <view class="foot">只列正式战绩；待对手确认的日常比赛在「战绩」页</view>
 </view>

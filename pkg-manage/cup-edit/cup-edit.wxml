@@ -41,12 +41,11 @@
         <view wx:if="{{item.removable}}" class="btn-line mini ce-rm" hover-class="tap-on" data-i="{{item.i}}" bindtap="removeFloor">移除</view>
       </view>
       <view wx:if="{{hasFloor}}" class="ce-add"><view class="btn-line mini" hover-class="tap-on" bindtap="addFloor">{{size === 1 ? '＋ 选择参加保底（可多选）' : '＋ 添加参加保底'}}</view></view>
-      <view wx:if="{{showPointGroup}}" class="ce-note">参加保底只给实际打过球、未取得以上名次的球友。</view>
-      <view wx:elif="{{!hasFloor}}" class="ce-note">月赛没有参加保底分</view>
+      <view wx:if="{{!hasFloor}}" class="ce-note">月赛没有参加保底分</view>
     </view>
 
     <view class="card">
-      <view class="card-title">积分预览<text class="sub">发布时按球员资料重新核对</text></view>
+      <view class="card-title">积分预览</view>
       <view wx:if="{{preview.error}}" class="ce-err">{{preview.error}}</view>
       <block wx:else>
         <view class="ce-pv ce-pv-h"><text class="ce-pv-t">名次</text><text class="ce-pv-n">球员</text><text class="ce-pv-v">基础</text><text class="ce-pv-v">奖励</text><text class="ce-pv-v">合计</text></view>
