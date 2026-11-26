@@ -1318,7 +1318,8 @@ test('授权说明：写明 LULU 积分榜和各站积分明细，没同意时�
   assert.ok(/LULU 积分榜和各站积分明细/.test(text.split('\n')[0]), '同意的展示位置里有积分榜和各站明细');
   assert.ok(/LULU 积分榜和各站积分明细（含双打搭档）里你的名字显示为「球友」/.test(text));
   const pf = read('pkg-manage/profile/profile.wxml');
-  assert.ok(/展示在排行榜、LULU 积分、/.test(pf) && /LULU 积分里显示为「球友」/.test(pf) && /仍显示昵称/.test(pf), '资料页的勾选说明（精简成两行）同步');
+  assert.ok(/展示在排行榜、LULU 积分、/.test(pf) && /LULU 积分和保存出去的对阵图里显示为「球友」/.test(pf) && /仍显示昵称/.test(pf), '资料页的勾选说明（精简成两行）同步');
+  assert.ok(/成员保存的对阵图里也会有，可能被转发到小程序以外/.test(pf), '资料页写明会进保存的对阵图（2026-11-26 说明第 2 版）');
 });
 
 test('已手动补录 LULU 积分的同日活动：cupFromDraw 识别 manual，活动详情不再提示结算，结算页拦截重复录入', async () => {

@@ -37,6 +37,7 @@ function wxStub(store, nav, modal) {
         if (o.complete) o.complete({});
         return;
       }
+      if (modal.cancel && modal.cancel.includes(o.title)) { (o.complete || o.success || (() => {}))({ confirm: false, cancel: true }); return; }
       (o.complete || o.success || (() => {}))({ confirm: true });
     },
     showLoading() {}, hideLoading() {},
@@ -193,6 +194,59 @@ test('资料页：自己点勾过又取消、已有资料的老成员保存，�
   assert.deepStrictEqual(titles3, ['是否开启公开展示？'], '只弹一个框');
   answer(); await first;
   assert.strictEqual(saved3.length, 1);
+});
+
+test('资料页：只同意过旧版说明的老成员显示「说明已更新 · 查看并确认」，确认后记新版、这一行消失；已同意新版、新成员都看不到', async () => {
+  const mk = (existing, sets, opt) => {
+    const modal = Object.assign({ titles: [] }, opt && opt.modal);
+    const saved = (opt && opt.saved) || [];
+    const p = load('pkg-manage/profile/profile.js', wxStub({}, [], modal), {
+      '../../utils/db': {
+        cachedProfile: () => null, getMyProfile: async () => existing, myOpenid: async () => 'lin',
+        setShown: async (v) => { if (opt && opt.fail) throw new Error('网络异常'); sets.push(v); }, saveMyProfile: async (x) => { saved.push(plain(x)); }, fetchPlayersFull: async () => [],
+      },
+      '../../utils/cloud': { call: async () => ({}) },
+      '../../utils/photo': { ownSrc: () => '', peek: () => '', fileOf: () => '', applyMine() {} },
+      '../../utils/member': { statusCached: async () => ({ name: '小林' }) },
+    }, { getCurrentPages: () => [{}] });
+    return { p, modal };
+  };
+  const sets = [];
+  const { p, modal } = mk({ name: '小林', gender: 'm', shown: true }, sets);
+  p.onLoad({});
+  await tick();
+  assert.deepStrictEqual([p.data.shown, p.data.shownOld], [true, true]);
+  await p.confirmNew();
+  assert.deepStrictEqual(modal.titles, ['公开展示说明更新']);
+  assert.deepStrictEqual(sets, [true], '确认：按新版说明写入（db.setShown 带上版本）');
+  assert.deepStrictEqual([p.data.shown, p.data.shownOld], [true, false]);
+  for (const ex of [{ name: '小林', gender: 'm', shown: true, shownVer: 2 }, { name: '小林', gender: 'm', shown: false }, null]) {
+    const r = mk(ex, []);
+    r.p.onLoad({});
+    await tick();
+    assert.strictEqual(r.p.data.shownOld, false, JSON.stringify(ex));
+  }
+  // 点「取消」、网络失败：什么都不改，这一行还在（小程序里照常展示）
+  const v1 = { name: '小林', gender: 'm', shown: true };
+  for (const opt of [{ modal: { cancel: ['公开展示说明更新'] } }, { fail: true }]) {
+    const s2 = [];
+    const r = mk(v1, s2, opt);
+    r.p.onLoad({});
+    await tick();
+    assert.strictEqual(await r.p.confirmNew(), false);
+    assert.deepStrictEqual([s2, r.p.data.shown, r.p.data.shownOld], [[], true, true], JSON.stringify(opt));
+  }
+  // 老成员没点「查看并确认」、只改了昵称保存：不带授权（不会被悄悄记成新版）
+  const saved = [];
+  const e = mk(v1, [], { saved });
+  e.p.onLoad({});
+  await tick();
+  e.p.setData({ name: '小林2' });
+  await e.p.save();
+  assert.strictEqual(saved.length, 1);
+  assert.strictEqual(saved[0].shown, undefined);
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/profile/profile.wxml'), 'utf8');
+  assert.ok(/wx:if="\{\{shown && shownOld\}\}" class="cs-new"/.test(xml) && /bindtap="confirmNew">查看并确认</.test(xml));
 });
 
 test('资料页：未勾选公开展示时卡片和勾选框有淡紫描边提示，勾上后去掉', () => {

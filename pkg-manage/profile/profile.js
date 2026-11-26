@@ -21,6 +21,7 @@ Page({
     photoShow: '', photoNew: false,
     photoBase: '', photoReady: false, // 进页面先显示的本人头像（本机缩略图），原图（photoShow）加载完再淡入盖上，不闪 hasPhoto: false, stateText: '', initial: '', color: '#C9C9DE',
     shown: false, // 公开展示授权（utils/consent.js）：不默认勾选
+    shownOld: false, // 只同意过旧版说明（2026-11-26 更新）
     photoState: '', // 最近一次检测：checking / reject / error（状态小标签的颜色）
   },
 
@@ -61,7 +62,10 @@ Page({
     if (!ed.name) d.name = p.name || '';
     if (!ed.gender) d.gender = p.gender || '';
     if (!ed.level) d.level = typeof p.level === 'number' ? p.level : R.DEFAULT_LEVEL;
-    if (!ed.shown) d.shown = p.shown === true;
+    if (!ed.shown) {
+      d.shown = p.shown === true;
+      d.shownOld = d.shown && !C.latest(p); // 只同意过旧版说明：显示「说明已更新」那一行
+    }
     const name = d.name !== undefined ? d.name : this.data.name;
     Object.assign(d, { initial: name ? RU.initialOf(name) : '', color: name ? RU.colorOf(name) : '#C9C9DE' });
     this.setData(d);
@@ -181,8 +185,13 @@ Page({
     // 还没拿到云端资料（isNew 为真）时只在本地勾了、没发云端：如果随后 fill 把 isNew 改成了 false，点保存仍要带上这次勾选
     this.shownPending = this.data.isNew;
     this.touch('shown');
-    this.setData({ shown: true });
+    this.setData({ shown: true, shownOld: false });
     return true;
+  },
+  // 只同意过旧版说明的老成员：看新说明，点同意就记成新版（取消什么都不改，小程序里照常展示）
+  confirmNew() {
+    if (this.data.saving) return Promise.resolve(false);
+    return this.agree('公开展示说明更新');
   },
   async applyShown(on) {
     wx.showLoading({ title: '保存中', mask: true });
@@ -202,7 +211,7 @@ Page({
     if (!this.data.shown) { await this.agree(); return; }
     if (this.data.isNew) { this.shownPending = true; this.touch('shown'); this.setData({ shown: false }); return; }
     const off = await new Promise((done) => wx.showModal({ title: '关闭公开展示', content: '关闭后，其他成员看不到你的照片，排行榜里也不显示你；你的照片会保留，重新开启后恢复显示。', confirmText: '关闭', cancelText: '取消', success: (x) => done(x.confirm), fail: () => done(false) }));
-    if (off && (await this.applyShown(false))) { this.shownPending = false; this.touch('shown'); this.setData({ shown: false }); wx.showToast({ title: '已关闭', icon: 'success' }); }
+    if (off && (await this.applyShown(false))) { this.shownPending = false; this.touch('shown'); this.setData({ shown: false, shownOld: false }); wx.showToast({ title: '已关闭', icon: 'success' }); }
   },
 
   /* ---------- 文字 ---------- */

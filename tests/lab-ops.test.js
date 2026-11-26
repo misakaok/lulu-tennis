@@ -10,6 +10,7 @@ const C = require('../utils/cup');
 const ID = require('../utils/ident');
 const Lab = require('../pkg-tools/utils/racket-lab');
 const TR = require('../pkg-manage/utils/training');
+const GOAL_ANY = (k) => (k === 'matches' ? TR.GOAL_MATCH_OPTS : TR.GOAL_HOUR_OPTS).filter((x) => x > 0)[0];
 const TPL = require('../pkg-manage/utils/templates');
 const Ops = require('../pkg-manage/utils/ops');
 
@@ -98,6 +99,33 @@ test('装备实验室：双拍参数配重对比器 & 按气温/拍面穿线磅�
   assert.match(hotMulti.tempDeltaText, /\+2/);
 });
 
+test('成长档案「清除全部私人记录」：连同本机的训练打卡和赛季目标一起删，别的账号不动；只有训练打卡也显示清除按钮', () => {
+  withWxStorage(() => {
+    TR.addLog('u1', { date: '2026-11-10', drill: 'serve', minutes: 60, score: 4 }, '2026-11-26');
+    TR.saveGoals('u1', '2025', { matches: GOAL_ANY('matches'), hours: 0, level: 0 });
+    TR.saveGoals('u1', '2026', { matches: GOAL_ANY('matches'), hours: 0, level: 0 });
+    TR.addLog('u2', { date: '2026-11-11', drill: 'serve', minutes: 30, score: 3 }, '2026-11-26');
+    TR.saveGoals('u2', '2026', { matches: GOAL_ANY('matches'), hours: 0, level: 0 });
+    TR.saveGoals('u10', '2026', { matches: GOAL_ANY('matches'), hours: 0, level: 0 }); // 前缀相近的账号
+    assert.strictEqual(TR.hasAny('u1'), true);
+    TR.clearAll('u1');
+    assert.strictEqual(TR.loadLogs('u1').length, 0);
+    assert.strictEqual(TR.loadGoals('u1', '2025').matches, 0);
+    assert.strictEqual(TR.loadGoals('u1', '2026').matches, 0);
+    assert.strictEqual(TR.hasAny('u1'), false);
+    assert.strictEqual(TR.loadLogs('u2').length, 1, '别的账号的训练打卡不动');
+    assert.ok(TR.loadGoals('u2', '2026').matches > 0 && TR.loadGoals('u10', '2026').matches > 0, '别的账号的目标不动');
+    TR.clearAll(''); // 没有账号什么都不做
+    assert.strictEqual(TR.loadLogs('u2').length, 1);
+  });
+  const js = fs.readFileSync(path.join(__dirname, '../pkg-manage/growth/growth.js'), 'utf8');
+  const fn = js.slice(js.indexOf('  clearAll() {'));
+  assert.ok(/A\.clear\(\)\.then\(\(n\) => \{[\s\S]{0,200}TR\.clearAll\(/.test(fn), '云端删掉之后再删本机的');
+  assert.match(fn, /训练打卡和赛季目标/);
+  const xml = fs.readFileSync(path.join(__dirname, '../pkg-manage/growth/growth.wxml'), 'utf8');
+  assert.match(xml, /wx:if="\{\{has \|\| hasLocal\}\}" class="danger-zone"/);
+});
+
 test('成长档案 2.0：训练打卡、按月高频短板 Top3（合并比赛与训练标签）与个人赛季目标进度', () => {
   withWxStorage(() => {
     const r1 = TR.addLog('u1', { date: '2026-11-10', drill: 'serve', minutes: 60, score: 4, weakTags: ['一发掉速', '失误多'] }, '2026-11-26');
@@ -169,6 +197,18 @@ test('管理员提效：常用活动模板库（最多 5 套、同名覆盖、�
     // 删除后可继续保存
     const afterDel = TPL.removeTemplate(upd.rec.id);
     assert.strictEqual(afterDel.saved.length, 4);
+    // 编号不重复（同一毫秒连着存也不撞号，删一套不会连带删掉别的）
+    const ids = afterDel.saved.map((x) => x.id);
+    assert.strictEqual(new Set(ids).size, ids.length);
+    const realRandom = Math.random, realNow = Date.now;
+    try {
+      Math.random = () => 0.5; Date.now = () => 1; // 让两套的「毫秒 + 随机数」完全一样
+      const x1 = TPL.saveTemplate({ title: '撞号A', mode: 'bracket', size: 8, type: 'single' });
+      assert.strictEqual(x1.ok, true);
+      TPL.removeTemplate(ids[0]);
+      const x2 = TPL.saveTemplate({ title: '撞号B', mode: 'bracket', size: 8, type: 'single' });
+      assert.notStrictEqual(x2.rec.id, x1.rec.id);
+    } finally { Math.random = realRandom; Date.now = realNow; }
   });
 });
 

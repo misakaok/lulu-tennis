@@ -52,7 +52,7 @@ function officialOf(myId, t, players, matches) {
 
 Page({
   data: {
-    loading: true, error: '', has: false, s: null, groups: [], official: null, monthDiff: '', clearing: false,
+    loading: true, error: '', has: false, hasLocal: false, s: null, groups: [], official: null, monthDiff: '', clearing: false,
     // 成长档案 2.0：训练打卡 + 按月高频短板 Top3 + 个人赛季目标
     tr: null, weak: null, weakYm: '', goalView: null,
     drillOpts: TR.DRILLS, durOpts: TR.DURATIONS, rateOpts: TR.RATINGS, weakTagOpts: TR.WEAK_TAGS,
@@ -116,7 +116,7 @@ Page({
       yearTrainingMin: tr.yearMin,
       currentLevel: off ? off.curLevel : null,
     });
-    this.setData({ tr, weak, weakYm: weak.ym, goalView });
+    this.setData({ tr, weak, weakYm: weak.ym, goalView, hasLocal: TR.hasAny(uid) });
   },
 
   async load() {
@@ -234,13 +234,15 @@ Page({
     if (this.data.clearing) return;
     wx.showModal({
       title: '清除全部私人记录？',
-      content: '会永久删除你在成长档案里记录的全部比赛，无法恢复。正式战绩、排行和等级不受影响。',
+      content: '会永久删除你在成长档案里记录的全部比赛、训练打卡和赛季目标，无法恢复。正式战绩、排行和等级不受影响。',
       confirmText: '清除', confirmColor: '#b34d4d',
       success: (r) => {
         if (!r.confirm) return;
         this.setData({ clearing: true });
         A.clear().then((n) => {
-          wx.showToast({ title: `已清除 ${n} 条`, icon: 'none' });
+          // 云端的比赛记录删掉之后，再删本机的训练打卡和赛季目标（云端没删成就都不动）
+          TR.clearAll(this.myId || (db.cachedOpenid && db.cachedOpenid()) || '');
+          wx.showToast({ title: '已清除全部私人记录', icon: 'none' });
           this.drawn = false; // 清除后读不到：不留着已清除的记录
           return this.load();
         }).catch((e) => wx.showToast({ title: e.message || '清除失败', icon: 'none' }))

@@ -539,8 +539,18 @@ const isOtherUser = (uid) => (p) => !!p._openid && p._openid !== uid;
 //   没同意：照片不下发给任何人（dataset / 网关 / photoUrls 都去掉）、不能上传照片，排行榜里不显示（小程序端过滤）。
 //   只能由本人经 saveProfile / setShown 写入，shownAt 记最近一次改动的时间。不强制：不同意也能设置资料、报名、录分，之后可以随时开关。
 const isShown = (p) => !!p && p.shown === true;
+// 公开展示说明的版本（players.shownVer）：2 = 2026-11-26 加了「成员保存的对阵图、复制的排班文字里也会有你的昵称和照片，可能被转发到小程序以外」。
+//   只有同意了第 2 版的人，名字和照片才进可以存相册的图 / 复制出去的文字（小程序端 pkg-tools/utils/mask.js 判断）；小程序里的展示照旧只看 shown。
+//   前端带上「给用户看的是第几版说明」，云端只认 2，其他（旧版小程序不带）一律记 1；同意过新版的不会被旧版小程序降回 1。不同意记 0。
+const SHOWN_VER = 2;
+const shownVerOf = (v) => (v === SHOWN_VER ? SHOWN_VER : 1);
+const shownPatch = (mine, on, ver) => {
+  if (on === false) return !mine || mine.shown !== false ? { shown: false, shownVer: 0, shownAt: db.serverDate() } : null;
+  const want = Math.max(shownVerOf(ver), mine && mine.shown === true ? (mine.shownVer || 1) : 0);
+  return !mine || mine.shown !== true || (mine.shownVer || 1) < want ? { shown: true, shownVer: want, shownAt: db.serverDate() } : null;
+};
 
-async function saveProfile({ name, avatar, level, gender, shown }, uid) {
+async function saveProfile({ name, avatar, level, gender, shown, shownVer }, uid) {
   const nm = typeof name === 'string' ? name.trim() : '';
   if (!nm) deny('请填写昵称');
   if (nm.length > NAME_MAX) deny(`昵称最多 ${NAME_MAX} 个字`);
@@ -562,7 +572,7 @@ async function saveProfile({ name, avatar, level, gender, shown }, uid) {
   if (typeof avatar === 'string' && avatar && avatar !== av) deny('请升级小程序后在资料页上传照片'); // 照片改走 setPhoto（要过图片检测）
   const lv = typeof level === 'number' && level >= 1 && level <= 7 && Math.round(level * 2) === level * 2 ? level : null;
   const data = { name: nm, avatar: av, level: lv, gender, updatedAt: db.serverDate() };
-  if (typeof shown === 'boolean' && (!mine || mine.shown !== shown)) Object.assign(data, { shown, shownAt: db.serverDate() });
+  if (typeof shown === 'boolean') Object.assign(data, shownPatch(mine, shown, shownVer) || {});
   if (mine) {
     // 改名：旧昵称记进 formerNames，留给本人（历史记录按用户 ID 跟着走，昵称只是展示）
     if (mine.name && mine.name !== nm) {
@@ -581,12 +591,13 @@ async function saveProfile({ name, avatar, level, gender, shown }, uid) {
 }
 
 // 公开展示授权：开启 / 关闭（启动时的授权弹窗、资料页的勾选）。关闭后照片保留但不再下发，重新开启后恢复显示
-async function setShown({ on }, uid) {
+async function setShown({ on, ver }, uid) {
   if (typeof on !== 'boolean') deny('参数不对');
   const me = await profileOf(uid);
   if (!me) deny('请先设置昵称和性别');
-  if (me.shown !== on) await db.collection('players').doc(me._id).update({ data: { shown: on, shownAt: db.serverDate(), updatedAt: db.serverDate() } });
-  return { shown: on };
+  const patch = shownPatch(me, on, ver);
+  if (patch) await db.collection('players').doc(me._id).update({ data: Object.assign(patch, { updatedAt: db.serverDate() }) });
+  return { shown: on, shownVer: patch ? patch.shownVer : (on ? (me.shownVer || 1) : 0) };
 }
 
 /* ---------- 球员照片 ---------- */
@@ -1810,7 +1821,7 @@ const ping = async () => ({}); // 现在的小程序不再调用；保留给旧�
 // 球员资料只返回前端要用的字段（utils/db.js 的 buildPlayers）；比赛记录原样返回（很多页面直接用）。
 // 返回内容的指纹 hash：前端带上次的指纹（have），内容没变就只回 same，不再下发整份数据。
 const DATASET_MAX_BYTES = 900 * 1024;
-const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'photo', 'gender', 'level', 'formerNames', 'self', 'createdAt', 'shown'];
+const DATASET_PLAYER_FIELDS = ['_id', '_openid', 'name', 'photo', 'gender', 'level', 'formerNames', 'self', 'createdAt', 'shown', 'shownVer'];
 async function dataset({ have }) {
   const [matches, players, verified] = await Promise.all([allDocs('matches'), allDocs('players'), allDocs('verified').catch(() => null)]);
   const vmap = {};
@@ -1901,6 +1912,7 @@ async function memberStatus(_d, uid) {
     const me = await profileOf(uid);
     out.hasProfile = !!me;
     out.shown = me && typeof me.shown === 'boolean' ? me.shown : null;
+    out.shownVer = me && me.shown === true ? (me.shownVer || 1) : 0; // 同意的是第几版说明（旧的没有记 1）
   }
   // 管理员：顺带返回待审核的申请数，小程序里用来提示（「我的」红点 + 成员管理入口）。不发微信消息
   if (out.isAdmin) {

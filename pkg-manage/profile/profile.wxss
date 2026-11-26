@@ -48,4 +48,6 @@
 .ck { color: #fff; font-size: 24rpx; font-weight: 800; line-height: 1; }
 .cs-t { font-size: 28rpx; font-weight: 600; color: #3a3a52; }
 .cs-d { font-size: 22rpx; color: #70708C; line-height: 1.6; margin-top: 6rpx; }
+.cs-new { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid #EDEDF5; }
+.cs-nt { font-size: 23rpx; color: #6E6EA3; flex: 1; min-width: 0; margin-right: 16rpx; }
 .later { margin-top: 20rpx; } /* 刚加入时的「稍后再设置」 */

@@ -20,11 +20,11 @@ const later = clock.wait;
  * o.status：memberStatus 的返回；o.noApi：旧版微信；o.settingFail：查询失败；o.scene：启动场景；o.pageAt：首个页面多久后出现
  */
 function boot(o) {
-  o = Object.assign({ need: true, answer: 'agree', status: { status: 'active', uid: 'me', hasProfile: true, shown: true }, scene: 1001, pageAt: 50, consent: true }, o);
+  o = Object.assign({ need: true, answer: 'agree', status: { status: 'active', uid: 'me', hasProfile: true, shown: true, shownVer: 2 }, scene: 1001, pageAt: 50, consent: true }, o);
   const log = [];
   const pages = [];
   setTimeout(() => pages.push({ route: 'pages/draw/draw', options: {} }), o.pageAt);
-  const store = {};
+  const store = o.store || {};
   const wx = {
     cloud: { init() {} },
     getLaunchOptionsSync: () => ({ scene: o.scene }),
@@ -135,6 +135,43 @@ test('两个弹窗都要出现：先处理微信隐私指引（同意或拒绝�
   await settle();
   assert.ok(!one.log.some((x) => /^modal:/.test(x)));
   assert.deepStrictEqual(one.setShown, []);
+});
+
+test('公开展示说明更新（第 2 版）：同意过旧版的老成员问一次「同意 / 暂不」；暂不什么都不改、之后不再自动问；同意写新版；已同意新版、不同意的都不问', async () => {
+  const old = { status: 'active', uid: 'me', hasProfile: true, shown: true }; // 旧版没有 shownVer
+  // 暂不：不改云端，记下来，下次冷启动不再问
+  const store = {};
+  const a = boot({ consent: false, status: old, store });
+  a.app.onShow();
+  await settle();
+  assert.deepStrictEqual(a.log.filter((x) => /^modal:/.test(x)), ['modal:公开展示说明更新']);
+  assert.deepStrictEqual(a.setShown, [], '暂不：小程序里照常展示，不改授权');
+  const a2 = boot({ consent: false, status: old, store });
+  a2.app.onShow();
+  await settle();
+  assert.ok(!a2.log.some((x) => /^modal:/.test(x)), '点过暂不：不再自动问');
+  // 同意：写新版
+  const b = boot({ consent: true, status: Object.assign({}, old, { shownVer: 1 }) });
+  b.app.onShow();
+  await settle();
+  assert.deepStrictEqual(b.log.filter((x) => /^modal:/.test(x)), ['modal:公开展示说明更新']);
+  assert.deepStrictEqual(b.setShown, [true]);
+  // 已同意新版 / 不同意：不问
+  for (const st of [Object.assign({}, old, { shownVer: 2 }), { status: 'active', uid: 'me', hasProfile: true, shown: false, shownVer: 0 }]) {
+    const c = boot({ status: st });
+    c.app.onShow();
+    await settle();
+    assert.ok(!c.log.some((x) => /^modal:/.test(x)), JSON.stringify(st));
+  }
+  // 说明里写明会进保存的对阵图、可能转发到小程序以外；同意时带上版本
+  const C = require('../utils/consent');
+  assert.match(C.TEXT, /保存到相册的活动对阵图/);
+  assert.match(C.TEXT, /小程序以外/);
+  assert.strictEqual(C.VER, 2);
+  assert.ok(C.latest({ shown: true, shownVer: 2 }) && !C.latest({ shown: true }) && !C.latest({ shown: false, shownVer: 2 }));
+  const dbSrc = fs.readFileSync(path.join(root, 'utils/db.js'), 'utf8');
+  assert.match(dbSrc, /call\('setShown', \{ on: !!on, ver: require\('\.\/consent'\)\.VER \}\)/);
+  assert.match(dbSrc, /shownVer: shown === true \? require\('\.\/consent'\)\.VER : undefined/);
 });
 
 test('旧版微信没有接口、查询失败：跳过隐私指引，启动流程和公开展示授权照常', async () => {

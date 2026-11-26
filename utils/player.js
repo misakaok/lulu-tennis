@@ -470,7 +470,7 @@ function annualView(view, matches, key, name, yearStr, racketStats) {
     oppNames.forEach((on, i) => {
       const ok = oppKeys[i] || on;
       if (!on || ok === key) return;
-      const cur = oppMap[ok] || { name: on, count: 0, win: 0, lose: 0 };
+      const cur = oppMap[ok] || { key: ok, name: on, count: 0, win: 0, lose: 0 };
       cur.name = on; cur.count++; if (w) cur.win++; else cur.lose++;
       oppMap[ok] = cur;
     });
@@ -505,7 +505,7 @@ function annualView(view, matches, key, name, yearStr, racketStats) {
     bestStreak,
     bestMonth: bestMo ? `${bestMo}月 · ${bestMoCnt} 场` : '',
     mostOpp: mostOpp && mostOpp.count >= 2 ? mostOpp : null,
-    bestMate: bestMate ? { name: bestMate.name, rate: bestMate.rate, played: bestMate.played } : null,
+    bestMate: bestMate ? { key: bestMate.key, name: bestMate.name, rate: bestMate.rate, played: bestMate.played } : null,
     tbRate: tb ? tb.rate : '',
     tbSub: tb ? `${tb.win}胜${tb.lose}负` : '',
     style,

@@ -875,6 +875,42 @@ test('公开展示授权不强制：不同意也能设置资料、报名；旧�
   assert.strictEqual(ok(await env.call('n2', 'memberStatus')).shown, null, '还没选：启动时弹窗问');
 });
 
+test('公开展示说明版本（shownVer，2026-11-26）：同意时带第 2 版才记 2，旧版小程序记 1、不会把 2 降回 1；不同意记 0；memberStatus / dataset 带出；只改本人的', async () => {
+  const env = setup();
+  // 老成员（fixture 里的 alice 同意过、没有版本）：memberStatus 记 1
+  assert.strictEqual(ok(await env.call('alice', 'memberStatus')).shownVer, 1);
+  // 旧版小程序（不带版本）再点同意：仍是 1；新版带 ver: 2：升到 2
+  assert.strictEqual(ok(await env.call('alice', 'setShown', { on: true })).shownVer, 1);
+  assert.strictEqual(env.coll('players').p_alice.shownVer, undefined, '没变化不写');
+  assert.strictEqual(ok(await env.call('alice', 'setShown', { on: true, ver: 3 })).shownVer, 1, '只认 2，乱传的版本按旧版');
+  assert.strictEqual(ok(await env.call('alice', 'setShown', { on: true, ver: 2 })).shownVer, 2);
+  assert.strictEqual(env.coll('players').p_alice.shownVer, 2);
+  assert.strictEqual(ok(await env.call('alice', 'memberStatus')).shownVer, 2);
+  // 同意过新版后，旧版小程序再点同意 / 保存资料：不降回 1
+  ok(await env.call('alice', 'setShown', { on: true }));
+  ok(await env.call('alice', 'saveProfile', { name: env.coll('players').p_alice.name, gender: 'f', shown: true }));
+  assert.strictEqual(env.coll('players').p_alice.shownVer, 2);
+  // dataset 带出（别人看得到版本，用来决定存出去的图里露不露名字）
+  const ds = ok(await env.call('bob', 'dataset', {}));
+  assert.strictEqual(ds.players.find((x) => x._openid === 'alice').shownVer, 2);
+  // 不同意：记 0；之后再同意按带的版本
+  assert.strictEqual(ok(await env.call('alice', 'setShown', { on: false, ver: 2 })).shownVer, 0);
+  assert.deepStrictEqual([env.coll('players').p_alice.shown, env.coll('players').p_alice.shownVer], [false, 0]);
+  assert.strictEqual(ok(await env.call('alice', 'memberStatus')).shownVer, 0);
+  // 第一次设置资料：带第 2 版同意记 2；旧版小程序同意记 1
+  env.put('members', { _id: 'nv', status: 'active' });
+  env.put('members', { _id: 'ov', status: 'active' });
+  ok(await env.call('nv', 'saveProfile', { gender: 'm', name: 'NewVer', shown: true, shownVer: 2 }));
+  ok(await env.call('ov', 'saveProfile', { gender: 'm', name: 'OldVer', shown: true }));
+  const pl = Object.values(env.coll('players'));
+  assert.deepStrictEqual([pl.find((x) => x._openid === 'nv').shownVer, pl.find((x) => x._openid === 'ov').shownVer], [2, 1]);
+  // 只能改本人的：bob 调 setShown 只动 bob 自己
+  const before = env.coll('players').p_alice.shownVer;
+  ok(await env.call('bob', 'setShown', { on: true, ver: 2, uid: 'alice' }));
+  assert.strictEqual(env.coll('players').p_alice.shownVer, before);
+  assert.strictEqual(env.coll('players').p_bob.shownVer, 2);
+});
+
 test('公开展示授权：没同意的不能传照片、照片不下发；可以随时开关；只能改本人的', async () => {
   const env = setup();
   // 已经通过检测的照片，之后关闭了公开展示

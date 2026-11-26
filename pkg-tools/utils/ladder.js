@@ -438,21 +438,25 @@ function standings(session) {
   return rows.map((r, i) => Object.assign({}, r, { rank: i + 1 }));
 }
 
-function formatCurrentRound(session) {
+// nameOf（可选）：id → 外传名字（pkg-tools/utils/mask.js，没同意公开展示的写「球友」）；不传照常用名字
+const sideText = (ids, text, nameOf) => (!nameOf ? text : Array.isArray(ids) ? ids.map(nameOf).join(' / ') : '球友');
+
+function formatCurrentRound(session, nameOf) {
   if (!session || !session.current) return '';
   const cur = session.current;
   const modeLbl = session.mode === 'king' ? '冲 1 号场升降级' : '按分动态配对';
   const lines = [`【${modeLbl} · 第 ${cur.round} 轮对阵】`];
   cur.matches.forEach((m) => {
     const tag = m.court === 1 && session.courts > 1 ? '（主擂台）' : '';
-    lines.push(`${m.court} 号场${tag}：${m.aText}  vs  ${m.bText}`);
+    lines.push(`${m.court} 号场${tag}：${sideText(m.a, m.aText, nameOf)}  vs  ${sideText(m.b, m.bText, nameOf)}`);
   });
-  if (cur.restText) lines.push(`本轮轮休：${cur.restText}`);
+  const restText = !nameOf ? cur.restText : Array.isArray(cur.restIds) ? cur.restIds.map(nameOf).join('、') : (cur.restText ? '球友' : '');
+  if (restText) lines.push(`本轮轮休：${restText}`);
   lines.push('（由 LULU 网球实时生成）');
   return lines.join('\n');
 }
 
-function formatFinalReport(session) {
+function formatFinalReport(session, nameOf) {
   if (!session) return '';
   const rows = standings(session);
   const doneRounds = (session.history || []).length;
@@ -465,14 +469,14 @@ function formatFinalReport(session) {
   ];
   rows.forEach((r) => {
     const topStr = session.mode === 'king' && r.topWin > 0 ? ` · 1号场${r.topWin}胜` : '';
-    lines.push(`${r.rank}. ${r.name} — ${r.recordText} · 净胜 ${r.diffText}（得分 ${r.pf}）${topStr}`);
+    lines.push(`${r.rank}. ${nameOf ? nameOf(r.id) : r.name} — ${r.recordText} · 净胜 ${r.diffText}（得分 ${r.pf}）${topStr}`);
   });
   if (doneRounds) {
     lines.push('', '各轮比分：');
     session.history.forEach((rd) => {
       const segs = rd.matches.map((m) => {
         const tb = m.byTieBreak ? '(金球)' : '';
-        return `${m.court}场 ${m.aText} ${m.scoreA}:${m.scoreB}${tb} ${m.bText}`;
+        return `${m.court}场 ${sideText(m.a, m.aText, nameOf)} ${m.scoreA}:${m.scoreB}${tb} ${sideText(m.b, m.bText, nameOf)}`;
       });
       lines.push(`第 ${rd.round} 轮：${segs.join(' ｜ ')}`);
     });

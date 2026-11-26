@@ -16,7 +16,7 @@
             <view class="h-n">{{view.profile.name}}</view>
             <view class="h-s"><block wx:if="{{view.level.match !== '待定级'}}"><text>比赛等级</text><text class="h-sn h-lv num">{{view.level.match}}</text></block><text wx:else>待定级</text><text class="h-dot">·</text><block wx:if="{{view.stats.wl !== '暂无'}}"><text class="h-sn num">{{view.stats.win}}</text><text class="h-su">胜</text><text class="h-sn num">{{view.stats.lose}}</text><text class="h-su last">负</text></block><text wx:else>暂无完赛记录</text></view>
           </view>
-          <view wx:if="{{annual}}" class="h-poster" hover-class="tap-on" bindtap="openPoster">生成战报图</view>
+          <view wx:if="{{annual && isSelf}}" class="h-poster" hover-class="tap-on" bindtap="openPoster">生成战报图</view>
         </view>
 
         <!-- 五维球风雷达（满 5 场正式比赛解锁） -->

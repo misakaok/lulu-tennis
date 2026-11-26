@@ -48,8 +48,13 @@
       <text class="cs-t">同意向其他成员公开展示我的昵称和照片</text>
     </view>
     <!-- 说明保持两行（2026-11-23 用户要求精简）；完整说明在授权弹窗里（utils/consent.js）。「仍显示昵称」不能删：审核要求事先知情 -->
-    <view class="cs-d">展示在排行榜、LULU 积分、战绩、报名名单和球员主页，仅本小程序成员可见。</view>
-    <view class="cs-d">不同意也照常报名、录分：照片只有你自己能看到，排行榜不显示你，LULU 积分里显示为「球友」；报名名单、对阵表和比赛记录里仍显示昵称。</view>
+    <view class="cs-d">展示在排行榜、LULU 积分、战绩、报名名单和球员主页；成员保存的对阵图里也会有，可能被转发到小程序以外。</view>
+    <view class="cs-d">不同意也照常报名、录分：照片只有你自己能看到，排行榜不显示你，LULU 积分和保存出去的对阵图里显示为「球友」；小程序里的报名名单、对阵表和比赛记录仍显示昵称。</view>
+    <!-- 只同意过旧版说明的老成员（2026-11-26 说明更新）：点开看新说明再确认；确认后这一行消失，新成员看不到 -->
+    <view wx:if="{{shown && shownOld}}" class="cs-new">
+      <text class="cs-nt">说明已更新：保存的对阵图里也会展示你</text>
+      <view class="btn-line mini" hover-class="tap-on" bindtap="confirmNew">查看并确认</view>
+    </view>
   </view>
 
   <!-- 网球等级 -->

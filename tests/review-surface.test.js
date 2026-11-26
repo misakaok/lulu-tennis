@@ -228,6 +228,43 @@ T.push({ name: '读取期间不放「正在读取 / 读取中 / 加载中」之�
   });
 } });
 
+T.push({ name: '存进相册只有两处：活动对阵 / 战果长图、本人的年度战报图；图上的名字经 pkg-tools/utils/mask.js 按公开展示授权换成「球友」', fn() {
+  const ALLOW = ['pkg-tools/draw-poster/draw-poster.js', 'pkg-tools/report/report.js'];
+  const found = [];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (/\.js$/.test(e.name) && /saveImageToPhotosAlbum|showShareImageMenu/.test(fs.readFileSync(f, 'utf8'))) found.push(path.relative(root, f));
+  });
+  PAGE_ROOTS.concat(['components', 'utils']).forEach((d) => walk(path.join(root, d)));
+  assert.deepStrictEqual(found.sort(), ALLOW.slice().sort(), '新增存图 / 分享图片入口要先确认外传名字的处理');
+  const dp = fs.readFileSync(path.join(root, 'pkg-tools/draw-poster/draw-poster.js'), 'utf8');
+  assert.ok(/nameOf: this\.nameOfFor\(this\.drawDoc\)/.test(dp) && /Mask\.masker\(/.test(dp), '对阵长图的名字按授权换');
+  const rp = fs.readFileSync(path.join(root, 'pkg-tools/report/report.js'), 'utf8');
+  assert.ok(/Mask\.masker\(/.test(rp) && /this\.posterAnnual\(\)/.test(rp), '年度战报图的拍档、对手按授权换');
+} });
+
+T.push({ name: '复制到剪贴板的入口都登记过：带球友名字的（双打排班、升降级冲场）经 mask.js 按授权换名', fn() {
+  // 新增复制入口时先确认会不会把球友名字带出小程序（见 CLAUDE.md「存图和复制文字」）
+  const ALLOW = {
+    'pages/gate/gate.js': '本人的用户 ID',
+    'pkg-tools/aa/aa.js': 'AA 账单（活动名、日期、金额，没有名字）',
+    'pkg-tools/mixer/mixer.js': '排班表、冲场对阵和战报（经 outNameOf 换名）',
+    'pkg-manage/members/members.js': '管理员：运营统计导出（真名，2026-11-26 用户说先不动）、用户 ID、邀请码',
+  };
+  const found = [];
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const f = path.join(dir, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (/\.js$/.test(e.name) && /setClipboardData/.test(fs.readFileSync(f, 'utf8'))) found.push(path.relative(root, f));
+  });
+  PAGE_ROOTS.concat(['components', 'utils']).forEach((d) => walk(path.join(root, d)));
+  assert.deepStrictEqual(found.sort(), Object.keys(ALLOW).sort(), '新增复制入口要先确认外传名字的处理');
+  const mixer = fs.readFileSync(path.join(root, 'pkg-tools/mixer/mixer.js'), 'utf8');
+  assert.strictEqual((mixer.match(/setClipboardData/g) || []).length, 3);
+  assert.strictEqual((mixer.match(/this\.outNameOf\(/g) || []).length, 3, '三处复制都换名字');
+} });
+
 module.exports = T;
 
 T.push({ name: '所有页面和组件的 WXML 标签成对闭合（模板写错时开发者工具会直接报错）', fn() {

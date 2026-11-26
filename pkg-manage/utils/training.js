@@ -137,6 +137,25 @@ function saveGoals(uid, year, input) {
   return rec;
 }
 
+// 本人在本机有没有训练打卡或赛季目标（决定「清除全部私人记录」要不要显示）
+function hasAny(uid) {
+  if (!uid) return false;
+  const logs = readBox(LOGS_KEY)[uid];
+  if (Array.isArray(logs) && logs.length) return true;
+  const goals = readBox(GOALS_KEY);
+  return Object.keys(goals).some((k) => k.indexOf(uid + ':') === 0);
+}
+
+// 「清除全部私人记录」时一起删：本人的全部训练打卡和各年的赛季目标（2026-11-26 用户要求），别的账号的不动
+function clearAll(uid) {
+  if (!uid) return;
+  const logs = readBox(LOGS_KEY);
+  if (uid in logs) { delete logs[uid]; writeBox(LOGS_KEY, logs); }
+  const goals = readBox(GOALS_KEY);
+  const mine = Object.keys(goals).filter((k) => k.indexOf(uid + ':') === 0);
+  if (mine.length) { mine.forEach((k) => delete goals[k]); writeBox(GOALS_KEY, goals); }
+}
+
 /* ---------- 汇总统计：训练打卡摘要 + 按月高频短板 Top3 + 个人赛季目标进度 ---------- */
 function trainingSummary(logs, todayStr) {
   const list = (logs || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.createdAt || 0) - (a.createdAt || 0));
@@ -285,6 +304,8 @@ module.exports = {
   removeLog,
   loadGoals,
   saveGoals,
+  hasAny,
+  clearAll,
   trainingSummary,
   weaknessTop3,
   goalsProgress,

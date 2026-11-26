@@ -120,6 +120,8 @@ function schedule(rawRoster, opts) {
         court: ci + 1,
         a: `${a1.name} / ${a2.name}`,
         b: `${b1.name} / ${b2.name}`,
+        aIds: [a1.id, a2.id],
+        bIds: [b1.id, b2.id],
         aLv: R.fmt(ra), bLv: R.fmt(rb),
         shareA, shareB: 100 - shareA,
         tag: tag.text, tagCls: tag.cls,
@@ -130,6 +132,7 @@ function schedule(rawRoster, opts) {
       round: r + 1,
       matches,
       rest: rest.map((p) => p.name),
+      restIds: rest.map((p) => p.id),
       restText: rest.map((p) => p.name).join('、'),
     });
   }
@@ -139,19 +142,22 @@ function schedule(rawRoster, opts) {
 }
 
 /** 生成可复制到微信群的双打排班纯文本 */
-function formatSchedule(res) {
+// nameOf（可选）：id → 外传名字（pkg-tools/utils/mask.js，没同意公开展示的写「球友」）；不传照常用名字
+function formatSchedule(res, nameOf) {
   if (!res || !res.rounds || !res.rounds.length) return '';
+  const side = (ids, text) => (!nameOf ? text : Array.isArray(ids) ? ids.map(nameOf).join(' / ') : '球友');
   const lines = [`【双打均衡排班】${res.count} 人 · ${res.roundCount} 轮（${res.courts} 块场）`];
   res.rounds.forEach((r) => {
     if (r.matches.length === 1) {
       const m = r.matches[0];
-      lines.push(`第 ${r.round} 轮：${m.a}  vs  ${m.b}${r.restText ? `（轮休：${r.restText}）` : ''}`);
+      const restText = !nameOf ? r.restText : Array.isArray(r.restIds) ? r.restIds.map(nameOf).join('、') : (r.restText ? '球友' : '');
+      lines.push(`第 ${r.round} 轮：${side(m.aIds, m.a)}  vs  ${side(m.bIds, m.b)}${restText ? `（轮休：${restText}）` : ''}`);
     } else {
       lines.push(`第 ${r.round} 轮：`);
-      r.matches.forEach((m) => lines.push(`  ${m.court} 号场：${m.a}  vs  ${m.b}`));
+      r.matches.forEach((m) => lines.push(`  ${m.court} 号场：${side(m.aIds, m.a)}  vs  ${side(m.bIds, m.b)}`));
     }
   });
-  lines.push('上场统计：' + res.summary.map((s) => `${s.name} ${s.played}轮`).join('、'));
+  lines.push('上场统计：' + res.summary.map((s) => `${nameOf ? nameOf(s.id) : s.name} ${s.played}轮`).join('、'));
   lines.push('（由 LULU 网球按当前水平自动排班）');
   return lines.join('\n');
 }

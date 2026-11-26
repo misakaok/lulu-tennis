@@ -61,6 +61,10 @@ function buildModel(draw, matches, opts) {
   const ms = matches || [];
   const o = opts || {};
   const compact = !!o.compact;
+  // 外传名字（pkg-tools/utils/mask.js）：没同意公开展示的人写「球友」。nameOf 按个人换，双打队名按成员逐个换再拼起来
+  const who = typeof o.nameOf === 'function' ? o.nameOf : null;
+  const mem = (ent) => (who ? E.membersOf(d, ent).map(who) : E.membersOf(d, ent));
+  const ent = (e) => (who && e ? E.teamLabel(mem(e)) : e);
   const cfg = E.cfgOf(d);
   const isDouble = cfg.type === 'double';
   const isRot = E.isRotation(d);
@@ -104,10 +108,10 @@ function buildModel(draw, matches, opts) {
     rotRounds = E.rotationFor(d, ms).map((f) => ({
       label: `第 ${f.round} 轮`,
       slot: slotsMap[f.key] || '',
-      aName: f.a,
-      bName: f.b,
-      aMembers: E.membersOf(d, f.a),
-      bMembers: E.membersOf(d, f.b),
+      aName: ent(f.a),
+      bName: ent(f.b),
+      aMembers: mem(f.a),
+      bMembers: mem(f.b),
       winner: f.winner || '',
       done: !!f.done,
       setsA: setColsOf(f.sets, 'a'),
@@ -126,8 +130,8 @@ function buildModel(draw, matches, opts) {
         advance: adv,
         table: g.table.map((r) => ({
           rank: r.rank,
-          name: r.name,
-          members: E.membersOf(d, r.name),
+          name: ent(r.name),
+          members: mem(r.name),
           win: r.win,
           lose: r.lose,
           diffText: r.gameDiff > 0 ? `+${r.gameDiff}` : `${r.gameDiff}`,
@@ -137,10 +141,10 @@ function buildModel(draw, matches, opts) {
         fixtures: compact ? [] : g.fixtures.map((f) => ({
           label: `R${f.round || 1}`,
           slot: slotsMap[f.key] || '',
-          aName: f.a,
-          bName: f.b,
-          aMembers: E.membersOf(d, f.a),
-          bMembers: E.membersOf(d, f.b),
+          aName: ent(f.a),
+          bName: ent(f.b),
+          aMembers: mem(f.a),
+          bMembers: mem(f.b),
           winner: f.winner || '',
           done: !!f.done,
           setsA: setColsOf(f.sets, 'a'),
@@ -157,8 +161,8 @@ function buildModel(draw, matches, opts) {
       const v = d.mode === 'groups_ko' ? E.knockoutFor(d, ms, rawGroups) : E.bracketFor(d, ms);
       rounds = (v.rounds || []).map((rd) => {
         const items = (rd.matches || []).map((m, mi) => {
-          const aName = m.a.bye ? '轮空' : (m.a.name || m.a.label || '待定');
-          const bName = m.b.bye ? '轮空' : (m.b.name || m.b.label || '待定');
+          const aName = m.a.bye ? '轮空' : (m.a.name ? ent(m.a.name) : (m.a.label || '待定'));
+          const bName = m.b.bye ? '轮空' : (m.b.name ? ent(m.b.name) : (m.b.label || '待定'));
           const tagOf = (x) => {
             if (m.auto && x.win) return '轮空';
             if (m.outcome === 'walkover') return x.win ? '弃权胜' : x.lose ? '弃权' : '';
@@ -170,8 +174,8 @@ function buildModel(draw, matches, opts) {
             slot: m.key ? (slotsMap[m.key] || '') : '',
             aName,
             bName,
-            aMembers: !m.a.bye && !m.a.tbd && m.a.name ? E.membersOf(d, m.a.name) : [],
-            bMembers: !m.b.bye && !m.b.tbd && m.b.name ? E.membersOf(d, m.b.name) : [],
+            aMembers: !m.a.bye && !m.a.tbd && m.a.name ? mem(m.a.name) : [],
+            bMembers: !m.b.bye && !m.b.tbd && m.b.name ? mem(m.b.name) : [],
             aMuted: !!(m.a.bye || m.a.tbd || !m.a.name),
             bMuted: !!(m.b.bye || m.b.tbd || !m.b.name),
             winner: m.a.win ? 'a' : m.b.win ? 'b' : '',
@@ -204,10 +208,10 @@ function buildModel(draw, matches, opts) {
     isDouble,
     isRot,
     hasGroups: groups.length > 0,
-    champion: progress.champion || '',
-    championMembers: progress.champion ? E.membersOf(d, progress.champion) : [],
+    champion: progress.champion ? ent(progress.champion) : '',
+    championMembers: progress.champion ? mem(progress.champion) : [],
     runnerUp,
-    entrants: d.entrants || [],
+    entrants: (d.entrants || []).map(ent),
     groups,
     rounds,
     rotRounds,
@@ -267,12 +271,44 @@ function avatarFill(ctx, name, cx, cy, r) {
   return (hexes && hexes[0]) || '#C9C9E4';
 }
 
+// 这一次 paint 能用的球友照片：显示名 → 已加载的图片（render 里按 opts.photos 加载，只有同意了最新版说明的人和本人才有）
+let IMGS = {};
+
+// 照片按正方形居中裁成圆形画上；画不了（旧基础库没有 drawImage / clip）返回 false，退回首字圆
+function drawPhoto(ctx, img, x, cy, r) {
+  if (!img || !img.width || !img.height) return false;
+  if (['drawImage', 'clip', 'save', 'restore'].some((k) => typeof ctx[k] !== 'function')) return false;
+  const side = Math.min(img.width, img.height);
+  ctx.save();
+  try {
+    ctx.beginPath();
+    ctx.arc(x, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, x - r, cy - r, r * 2, r * 2);
+    return true;
+  } catch (e) {
+    return false; // 个别图片画不了：退回首字圆，不让整张图失败
+  } finally {
+    ctx.restore();
+  }
+}
+
 function drawAvatars(ctx, members, cx, cy, r) {
   const list = (members || []).slice(0, 2);
   if (!list.length) return 0;
   const step = r * 1.45;
   list.forEach((name, idx) => {
     const x = cx + idx * step;
+    if (drawPhoto(ctx, IMGS[name], x, cy, r)) {
+      if (idx > 0) {
+        ctx.beginPath();
+        ctx.arc(x, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+      return;
+    }
     ctx.beginPath();
     ctx.arc(x, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = avatarFill(ctx, name, x, cy, r);
@@ -407,7 +443,12 @@ function drawMatchCard(ctx, m, x, y, w, h, spotlight) {
   drawSide(y + 80, m.bName, m.bMembers, m.setsB, m.tagB, m.winner === 'b', m.done && m.winner !== 'b', !!m.bMuted);
 }
 
-function paint(ctx, model, genDate) {
+function paint(ctx, model, genDate, imgs) {
+  IMGS = imgs || {};
+  try { return paintBody(ctx, model, genDate); } finally { IMGS = {}; }
+}
+
+function paintBody(ctx, model, genDate) {
   const m = model || {};
   const H = measureHeight(m);
 
@@ -727,6 +768,9 @@ function paint(ctx, model, genDate) {
 async function render(canvas, draw, matches, opts) {
   const o = opts || {};
   const model = o.model || buildModel(draw, matches, o);
+  // 先把照片加载好，再动画布：加载期间画布保持上一版（不白屏）；期间又开始了新的一轮（stale）就不碰画布
+  const imgs = await loadPhotos(canvas, o.photos);
+  if (typeof o.stale === 'function' && o.stale()) return null;
   const H = measureHeight(model);
   // 兼顾清晰度与 iOS/Android 画布物理高度上限（<= 3840px，避免超长 16 人循环图导出空白）
   const dpr = Math.min(1.5, 3840 / Math.max(H, 1));
@@ -738,7 +782,7 @@ async function render(canvas, draw, matches, opts) {
   if (typeof ctx.setTransform === 'function') ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   else if (typeof ctx.scale === 'function') ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
-  paint(ctx, model, o.genDate || '');
+  paint(ctx, model, o.genDate || '', imgs);
   const r = await new Promise((ok, bad) => wx.canvasToTempFilePath({
     canvas, destWidth: cw, destHeight: ch,
     fileType: 'jpg', quality: 0.92, success: ok, fail: bad,
@@ -746,8 +790,31 @@ async function render(canvas, draw, matches, opts) {
   return { filePath: r.tempFilePath, width: W, height: H, model };
 }
 
+// 等照片最多这么久（换链接、加载图片各算一次）：到点没好的画首字圆，不让页面一直不能保存
+const PHOTO_WAIT_MS = 3000;
+// 等 p 最多 ms 毫秒（到点就不等了，p 照常在后台结束）；p 出错也算结束
+function within(p, ms) {
+  let timer = null;
+  return Promise.race([
+    Promise.resolve(p).catch(() => null),
+    new Promise((ok) => { timer = setTimeout(ok, ms); }),
+  ]).then(() => { clearTimeout(timer); });
+}
+
+// photos：{ 显示名: 图片地址 }（页面只放同意了最新版说明的人和本人）；整批最多等 PHOTO_WAIT_MS，加载不出来的画首字圆
+async function loadPhotos(canvas, photos) {
+  const names = Object.keys(photos || {}).filter((n) => photos[n]);
+  if (!names.length) return {};
+  const { loadAvatar } = require('./poster');
+  const got = {};
+  await within(Promise.all(names.map((n) => loadAvatar(canvas, photos[n]).then((img) => { if (img) got[n] = img; }).catch(() => {}))), PHOTO_WAIT_MS);
+  return Object.assign({}, got); // 到点后晚到的图不进这一版
+}
+
 module.exports = {
   W,
+  PHOTO_WAIT_MS,
+  within,
   buildModel,
   measureHeight,
   paint,

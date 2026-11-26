@@ -771,4 +771,335 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
   }
 });
 
+test('外传名字（pkg-tools/utils/mask.js）：存相册的图、复制的文字里没同意公开展示的写「球友」，本人照常、认不出账号的也写「球友」、几位时编号', () => {
+  const Mask = require('../pkg-tools/utils/mask');
+  const DP = require('../pkg-tools/utils/draw-poster');
+  const profiles = { u1: { shown: true, shownVer: 2 }, u2: { shown: false }, u3: {}, me: { shown: false } };
+  // 1. 基本规则：同意的露名字；没同意 / 没选 / 没账号的写球友；本人没开也照常；只有一位时不编号
+  const one = Mask.masker([{ id: 'a', uid: 'u1', name: '小雨' }, { id: 'b', uid: 'u2', name: '阿哲' }, { id: 'c', uid: 'me', name: '我自己' }], profiles, 'me');
+  assert.deepStrictEqual([one('a'), one('b'), one('c'), one('不在名单')], ['小雨', '球友', '我自己', '球友']);
+  const many = Mask.masker([{ id: 'b', uid: 'u2', name: '阿哲' }, { id: 'x', uid: '', name: '老名字' }, { id: 'd', uid: 'u3', name: '林晨' }, { id: 'b', uid: 'u2', name: '阿哲' }], profiles, 'me');
+  assert.deepStrictEqual([many('b'), many('x'), many('d')], ['球友1', '球友2', '球友3'], '同一人只编一次号，按出现顺序');
+  assert.strictEqual(Mask.masker([{ id: 'a', uid: 'u1', name: '小雨' }], null, '')('a'), '球友', '资料没读到：按没同意处理');
+  // 只同意过旧版说明（没有 shownVer 或 1）：小程序里照常展示，但存出去的图、复制的文字里写「球友」
+  const v1 = Mask.masker([{ id: 'a', uid: 'u1', name: '小雨' }, { id: 'b', uid: 'u2', name: '阿哲' }], { u1: { shown: true }, u2: { shown: true, shownVer: 1 } }, 'me');
+  assert.deepStrictEqual([v1('a'), v1('b')], ['球友1', '球友2']);
+  // 露名字的人真名恰好叫「球友」「球友1」：编号避开，不会出现两个一样的
+  const clash = Mask.masker([{ id: 'a', uid: 'u1', name: '球友1' }, { id: 'b', uid: 'u2', name: 'x' }, { id: 'c', uid: 'u3', name: 'y' }], { u1: { shown: true, shownVer: 2 } }, 'me');
+  assert.deepStrictEqual([clash('a'), clash('b'), clash('c')], ['球友1', '球友2', '球友3']);
+  const lone = Mask.masker([{ id: 'a', uid: 'u1', name: '球友' }, { id: 'b', uid: 'u2', name: 'x' }], { u1: { shown: true, shownVer: 2 } }, 'me');
+  assert.deepStrictEqual([lone('a'), lone('b')], ['球友', '球友1']);
+
+  // 2. 对阵 / 战果长图：冠军、亚军、名单、单淘汰各场都换掉，本人照常
+  const dKo = {
+    _id: 'd-mk', title: '周六单淘汰', mode: 'bracket', size: 4, type: 'single', date: '2026-11-28',
+    entrants: ['小雨', '阿哲', '林晨', '我自己'],
+    lines: [{ name: '小雨' }, { name: '阿哲' }, { name: '林晨' }, { name: '我自己' }],
+    uidOf: { 小雨: 'u1', 阿哲: 'u2', 林晨: 'u3', 我自己: 'me' },
+  };
+  const mKo = [
+    { _id: 'm1', drawId: 'd-mk', drawKey: '0-0', ea: '小雨', eb: '阿哲', winner: 'b', sets: [{ a: 1, b: 4 }] },
+    { _id: 'm2', drawId: 'd-mk', drawKey: '0-1', ea: '林晨', eb: '我自己', winner: 'b', sets: [{ a: 2, b: 4 }] },
+    { _id: 'm3', drawId: 'd-mk', drawKey: '1-0', ea: '阿哲', eb: '我自己', winner: 'a', sets: [{ a: 4, b: 2 }] },
+  ];
+  const uidOf = ID.drawUids(dKo, []);
+  const nameOf = Mask.masker(dKo.entrants.map((n) => ({ id: n, uid: uidOf[n] || '', name: n })), profiles, 'me');
+  const plain = DP.buildModel(dKo, mKo);
+  assert.deepStrictEqual([plain.champion, plain.runnerUp], ['阿哲', '我自己'], '不传 nameOf 时和原来一样');
+  const mk = DP.buildModel(dKo, mKo, { nameOf });
+  assert.deepStrictEqual([mk.champion, mk.championMembers, mk.runnerUp], ['球友1', ['球友1'], '我自己']);
+  assert.deepStrictEqual(mk.entrants, ['小雨', '球友1', '球友2', '我自己']);
+  const allNames = JSON.stringify(mk);
+  assert.ok(!/阿哲|林晨/.test(allNames), '没同意的人名字不出现在长图的任何位置');
+  const texts = [];
+  const noop = () => {};
+  DP.paint({
+    fillStyle: '', createLinearGradient: () => ({ addColorStop: noop }), fillRect: noop, strokeRect: noop, clearRect: noop,
+    beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop, fill: noop, stroke: noop,
+    save: noop, restore: noop, clip: noop, setTransform: noop, scale: noop,
+    measureText: (x) => ({ width: String(x || '').length * 14 }), fillText: (x) => texts.push(String(x || '')),
+  }, mk, '2026-11-28');
+  assert.ok(!texts.some((x) => /阿哲|林晨/.test(x)) && texts.some((x) => /球友1/.test(x)), '画到画布上的字也换掉了');
+
+  // 3. 双打队名按成员逐个换；分组积分榜、四人轮换同样换
+  const dRot = {
+    _id: 'd-rot2', title: '四人轮换', mode: 'rotation', type: 'double', date: '2026-11-29',
+    entrants: ['小雨', '阿哲', '林晨', '我自己'], uidOf: dKo.uidOf,
+    teams: { '小雨 / 阿哲': ['小雨', '阿哲'], '林晨 / 我自己': ['林晨', '我自己'], '小雨 / 林晨': ['小雨', '林晨'], '阿哲 / 我自己': ['阿哲', '我自己'], '小雨 / 我自己': ['小雨', '我自己'], '阿哲 / 林晨': ['阿哲', '林晨'] },
+  };
+  const rot = DP.buildModel(dRot, [], { nameOf });
+  assert.deepStrictEqual([rot.rotRounds[0].aName, rot.rotRounds[0].aMembers], ['小雨 / 球友1', ['小雨', '球友1']]);
+  assert.ok(!/阿哲|林晨/.test(JSON.stringify(rot)));
+  const dGk = {
+    _id: 'd-gk2', title: '循环', mode: 'groups_ko', groupCount: 1, advance: 2, type: 'single', date: '2026-11-29',
+    entrants: ['小雨', '阿哲', '林晨', '我自己'], uidOf: dKo.uidOf,
+    groups: [{ name: 'A 组', members: [{ name: '小雨' }, { name: '阿哲' }, { name: '林晨' }, { name: '我自己' }] }],
+  };
+  assert.ok(!/阿哲|林晨/.test(JSON.stringify(DP.buildModel(dGk, [], { nameOf }))), '分组积分榜和组内对阵也换掉');
+
+  // 4. 双打排班、升降级冲场复制出去的文字
+  const picked = [
+    { id: 'u1', uid: 'u1', name: '小雨', level: 3.0 }, { id: 'u2', uid: 'u2', name: '阿哲', level: 3.0 },
+    { id: 'u3', uid: 'u3', name: '林晨', level: 3.0 }, { id: 'me', uid: 'me', name: '我自己', level: 3.0 },
+    { id: 'u5', uid: 'u5', name: '大维', level: 3.0 },
+  ];
+  const outOf = (list) => Mask.masker(list.map((p) => ({ id: p.id, uid: p.uid, name: p.name })), profiles, 'me');
+  const res = MX.schedule(picked, { rounds: 3, courts: 1, seed: 0 });
+  const plainTxt = MX.formatSchedule(res);
+  const txt = MX.formatSchedule(res, outOf(picked));
+  assert.ok(/阿哲/.test(plainTxt) && !/阿哲|林晨|大维/.test(txt), '排班文字里没同意的写球友（大维没资料也算）');
+  assert.ok(/小雨/.test(txt) && /我自己/.test(txt) && /球友1/.test(txt) && /球友3/.test(txt));
+  const s = LD.startSession(picked.concat([{ id: 'u6', uid: 'u6', name: '甲' }, { id: 'u7', uid: 'u7', name: '乙' }, { id: 'u8', uid: 'u8', name: '丙' }]), { preset: 'g4' });
+  const ldOut = outOf(s.roster);
+  const rTxt = LD.formatCurrentRound(s, ldOut), fTxt = LD.formatFinalReport(s, ldOut);
+  assert.ok(!/阿哲|林晨|大维|甲|乙|丙/.test(rTxt + fTxt) && /球友/.test(rTxt) && /小雨/.test(fTxt));
+  assert.ok(/阿哲/.test(LD.formatFinalReport(s)), '不传 nameOf 时和原来一样');
+  const mixerJs = read('pkg-tools/mixer/mixer.js');
+  assert.ok(/formatSchedule\(this\.data\.res, this\.outNameOf\(/.test(mixerJs) && (mixerJs.match(/this\.outNameOf\(s && s\.roster\)/g) || []).length === 2, '三处复制都换名字');
+
+  // 5. 年度战报图只给本人生成；图里的拍档、对手按授权换
+  const repXml = read('pkg-tools/report/report.wxml');
+  assert.ok(/wx:if="\{\{annual && isSelf\}\}"[^>]*bindtap="openPoster"/.test(repXml), '看别人的页面不显示「生成战报图」');
+  const repJs = read('pkg-tools/report/report.js');
+  assert.ok(/if \(!this\.myId \|\| this\.myId !== this\.uid\) return; \/\/ 只有本人能生成/.test(repJs));
+  assert.ok(/const annual = this\.posterAnnual\(\);[\s\S]{0,120}Poster\.render\(node, annual,/.test(repJs), '生成用换过名字的年度摘要');
+  const repReq = createRequire(path.join(root, 'pkg-tools/report/report.js'));
+  let page = null;
+  vm.runInNewContext(repJs, {
+    require: (id) => (id === '../../utils/db' ? {} : id === '../../utils/photo' || id === '../../utils/privacy' || id === '../../utils/haptic' ? {} : repReq(id)),
+    Page: (o) => { page = o; }, console, wx: {},
+  });
+  const ctxp = Object.assign(Object.create(page), {
+    myId: 'me', uid: 'me', freshProfiles: profiles,
+    annual: { name: '我自己', bestMate: { key: 'u2', name: '阿哲', rate: 60, played: 5 }, mostOpp: { key: 'n:老名字', name: '老名字', count: 3, win: 1, lose: 2 } },
+  });
+  const pa = ctxp.posterAnnual();
+  assert.deepStrictEqual([pa.name, pa.bestMate.name, pa.mostOpp.name, pa.bestMate.rate], ['我自己', '球友1', '球友2', 60]);
+  assert.strictEqual(ctxp.annual.bestMate.name, '阿哲', '不改页面上显示用的原数据');
+  ctxp.freshProfiles = { u2: { shown: true, shownVer: 2 } };
+  assert.strictEqual(ctxp.posterAnnual().bestMate.name, '阿哲', '同意了就照常显示');
+  ctxp.freshProfiles = null;
+  assert.strictEqual(ctxp.posterAnnual().bestMate.name, '球友1', '还没拿到这次云端的最新资料：不信本机记着的授权');
+  assert.ok(!/posterAnnual[\s\S]{0,600}this\.profiles\b/.test(repJs), '战报图换名不用本机缓存的资料');
+
+  // 6. 对阵长图：拿到这次云端的最新授权之前不让存、不让全屏预览（全屏预览能长按保存）；读不到按谁都没同意
+  const dpJs = read('pkg-tools/draw-poster/draw-poster.js');
+  assert.ok(/previewPoster\(\) \{\n    if \(!this\.posterPath \|\| this\.notChecked\(\)\) return;/.test(dpJs));
+  assert.ok(/if \(this\.notChecked\(\)\) return;/.test(dpJs.slice(dpJs.indexOf('savePoster()'))));
+  assert.ok(/this\.profiles = players && db\.profilesOf \? \(db\.profilesOf\(players\) \|\| \{\}\) : \{\};/.test(dpJs), '读不到最新资料时不沿用旧授权');
+  // 排班复制：同样只认这次云端的资料
+  assert.ok(/this\.profilesFresh \? \(this\.profiles \|\| \{\}\) : \{\}/.test(mixerJs));
+  // 常打对手（至少交手 2 场）、最佳拍档（至少搭档 3 场）都带统计身份
+  const g = (id, a, b, ak, bk, w) => ({ _id: id, date: '2026-03-0' + id.slice(1), type: a.length > 1 ? 'double' : 'single', a, b, aKeys: ak, bKeys: bk, winner: w, sets: [{ a: w === 'a' ? 6 : 2, b: w === 'a' ? 2 : 6 }] });
+  const ms = [
+    g('x1', ['我自己'], ['阿哲'], ['me'], ['u2'], 'a'), g('x2', ['我自己'], ['阿哲'], ['me'], ['u2'], 'b'),
+    g('x3', ['我自己', '林晨'], ['小雨', '大维'], ['me', 'u3'], ['u1', 'u5'], 'a'),
+    g('x4', ['我自己', '林晨'], ['甲', '乙'], ['me', 'u3'], ['u6', 'u7'], 'a'),
+    g('x5', ['我自己', '林晨'], ['丙', '丁'], ['me', 'u3'], ['u8', 'u9'], 'b'),
+  ];
+  const mine = PV.annualView({ partners: PV.partnersView(ms, 'me', '我自己') }, ms, 'me', '我自己', '2026', null);
+  assert.deepStrictEqual([mine.mostOpp && mine.mostOpp.key, mine.bestMate && mine.bestMate.key], ['u2', 'u3']);
+  // 更早的记录没有统计身份（key 就是名字）：拍档、对手是同一位旧名字时只算一个人
+  ctxp.annual = { name: '我自己', bestMate: { key: '老王', name: '老王', rate: 60, played: 3 }, mostOpp: { key: 'n:老王', name: '老王', count: 3, win: 1, lose: 2 } };
+  ctxp.freshProfiles = profiles;
+  const old = ctxp.posterAnnual();
+  assert.deepStrictEqual([old.bestMate.name, old.mostOpp.name], ['球友', '球友']);
+  ctxp.annual = null;
+  assert.strictEqual(ctxp.posterAnnual(), null, '年度摘要没了不报错');
+});
+
+test('外传名字（续）：没同意的人拿亚军、冲场打完几轮带轮休、两块场排班、编号速排照常；页面只认这次云端的授权', async () => {
+  const Mask = require('../pkg-tools/utils/mask');
+  const DP = require('../pkg-tools/utils/draw-poster');
+  const profiles = { u1: { shown: true, shownVer: 2 }, u2: { shown: false }, me: { shown: false } };
+  // 1. 没同意的人拿亚军
+  const d = {
+    _id: 'd-ru', title: '周日', mode: 'bracket', size: 4, type: 'single', date: '2026-11-29',
+    entrants: ['小雨', '阿哲', '林晨', '我自己'], lines: [{ name: '小雨' }, { name: '阿哲' }, { name: '林晨' }, { name: '我自己' }],
+    uidOf: { 小雨: 'u1', 阿哲: 'u2', 林晨: 'u3', 我自己: 'me' },
+  };
+  const ms = [
+    { _id: 'r1', drawId: 'd-ru', drawKey: '0-0', ea: '小雨', eb: '阿哲', winner: 'b', sets: [{ a: 1, b: 4 }] },
+    { _id: 'r2', drawId: 'd-ru', drawKey: '0-1', ea: '林晨', eb: '我自己', winner: 'b', sets: [{ a: 2, b: 4 }] },
+    { _id: 'r3', drawId: 'd-ru', drawKey: '1-0', ea: '阿哲', eb: '我自己', winner: 'b', sets: [{ a: 2, b: 4 }] },
+  ];
+  const nameOf = Mask.masker(d.entrants.map((n) => ({ id: n, uid: d.uidOf[n], name: n })), profiles, 'me');
+  const m = DP.buildModel(d, ms, { nameOf });
+  assert.deepStrictEqual([m.champion, m.runnerUp], ['我自己', '球友1']);
+  assert.ok(!/阿哲|林晨/.test(JSON.stringify(m)));
+
+  // 2. 冲场：5 人 1 片场（每轮 1 人轮休），打完一轮后的对阵和战报（含各轮比分）
+  const roster = [['u1', '小雨'], ['u2', '阿哲'], ['u3', '林晨'], ['me', '我自己'], ['u5', '大维']].map(([id, name], i) => ({ id, uid: id, name, level: 3.5 - i * 0.1 }));
+  let s = LD.startSession(roster, { preset: 'g4' });
+  assert.strictEqual(s.current.restIds.length, 1);
+  s = LD.setScore(s, 1, 'a', '4'); s = LD.setScore(s, 1, 'b', '2');
+  s = LD.advanceRound(s).session;
+  const out = Mask.masker(roster.map((p) => ({ id: p.id, uid: p.uid, name: p.name })), profiles, 'me');
+  const rTxt = LD.formatCurrentRound(s, out), fTxt = LD.formatFinalReport(s, out);
+  assert.match(rTxt, /本轮轮休：/);
+  assert.match(fTxt, /各轮比分：/);
+  assert.ok(!/阿哲|林晨|大维/.test(rTxt + fTxt), '轮休、排行、各轮比分都换掉');
+  // 缺 ID 数组的旧结构：传了 nameOf 也不退回原文
+  const broken = { mode: 'points', courts: 1, roster: [], history: [], current: { round: 1, matches: [{ court: 1, aText: '阿哲 / 林晨', bText: '小雨 / 大维' }], restText: '老王' } };
+  const bTxt = LD.formatCurrentRound(broken, out);
+  assert.ok(!/阿哲|林晨|老王/.test(bTxt) && /球友/.test(bTxt));
+
+  // 3. 两块场排班
+  const eight = roster.concat([['u6', '甲'], ['u7', '乙'], ['u8', '丙']].map(([id, name]) => ({ id, uid: id, name, level: 3.0 })));
+  const res = MX.schedule(eight, { rounds: 2, courts: 2, seed: 0 });
+  const out8 = Mask.masker(eight.map((p) => ({ id: p.id, uid: p.uid, name: p.name })), profiles, 'me');
+  const t8 = MX.formatSchedule(res, out8);
+  assert.match(t8, /2 号场/);
+  assert.ok(!/阿哲|林晨|大维|甲|乙|丙/.test(t8) && /小雨/.test(t8) && /我自己/.test(t8));
+
+  // 4. 排班页 outNameOf 实际跑：编号速排照常；没拿到云端最新资料时连同意过的也写球友；没有用户 ID 的真人也换
+  const mixerFile = path.join(root, 'pkg-tools/mixer/mixer.js');
+  const mixerReq = createRequire(mixerFile);
+  let mDef;
+  vm.runInNewContext(read('pkg-tools/mixer/mixer.js'), {
+    require: (id) => (id === '../../utils/db' ? {} : mixerReq(id)), wx: {}, Page: (x) => { mDef = x; }, console, Date,
+  });
+  const mp = Object.assign(Object.create(mDef), { profiles, myId: 'me', profilesFresh: false });
+  const f1 = mp.outNameOf([{ id: 'q1', name: '1 号球友' }, { id: 'u1', uid: 'u1', name: '小雨' }, { id: 'oldx', name: '老王' }, { id: 'me', uid: 'me', name: '我自己' }]);
+  assert.deepStrictEqual([f1('q1'), f1('u1'), f1('oldx'), f1('me')], ['1 号球友', '球友1', '球友2', '我自己']);
+  mp.profilesFresh = true;
+  const f2 = mp.outNameOf([{ id: 'u1', uid: 'u1', name: '小雨' }, { id: 'u2', uid: 'u2', name: '阿哲' }]);
+  assert.deepStrictEqual([f2('u1'), f2('u2')], ['小雨', '球友']);
+
+  // 5. 对阵长图页实际跑：本机记着阿哲同意过（旧授权）→ 第一帧露名字但不能存；云端资料读失败 → 按谁都没同意重画，之后才能存
+  const texts = [];
+  const noop = () => {};
+  const ctx = {
+    fillStyle: '', createLinearGradient: () => ({ addColorStop: noop }), fillRect: noop, strokeRect: noop, clearRect: noop,
+    beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop, fill: noop, stroke: noop,
+    save: noop, restore: noop, clip: noop, setTransform: noop, scale: noop,
+    measureText: (x) => ({ width: String(x || '').length * 14 }), fillText: (x) => texts.push(String(x || '')),
+  };
+  const toasts = [], saved = [];
+  const mockWx = {
+    hideShareMenu() {}, setNavigationBarTitle() {}, showModal() {}, showToast: (o) => toasts.push(o.title),
+    nextTick: (fn) => fn(),
+    createSelectorQuery: () => ({ in() { return this; }, select() { return this; }, fields() { return this; }, exec(cb) { cb([{ node: { width: 0, height: 0, getContext: () => ctx } }]); } }),
+    canvasToTempFilePath: (o) => o.success({ tempFilePath: '/tmp/p.jpg' }),
+    saveImageToPhotosAlbum: (o) => { saved.push(o.filePath); o.success(); },
+    previewImage: () => saved.push('preview'),
+  };
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const prevWx = global.wx;
+  global.wx = mockWx;
+  try {
+    const dpFile = path.join(root, 'pkg-tools/draw-poster/draw-poster.js');
+    const dpReq = createRequire(dpFile);
+    let dpDef;
+    vm.runInNewContext(read('pkg-tools/draw-poster/draw-poster.js'), {
+      require: (id) => (id === '../../utils/db' ? {
+        cachedDraws: () => [d], cachedMatches: () => ms, cachedOpenid: () => 'me',
+        cachedProfiles: () => ({ u2: { shown: true, shownVer: 2 } }),
+        fetchDrawDetail: async () => null, getDraw: async () => null,
+        matchesShared: async () => ms,
+        playersShared: async () => { await gate; throw new Error('网络异常'); },
+      } : dpReq(id)),
+      wx: mockWx, Page: (x) => { dpDef = x; }, console, Date, setTimeout: (fn) => fn(), clearTimeout() {},
+    });
+    const dp = Object.assign({}, dpDef, { data: JSON.parse(JSON.stringify(dpDef.data)), setData(o, cb) { Object.assign(this.data, o); if (cb) cb(); } });
+    dp.onLoad({ id: 'd-ru' });
+    await new Promise((r) => setImmediate(r));
+    assert.ok(texts.some((x) => /阿哲/.test(x)), '第一帧按本机旧授权画（只是预览）');
+    dp.savePoster(); dp.previewPoster();
+    assert.deepStrictEqual(saved, [], '核对完之前不能存、不能全屏预览');
+    assert.ok(toasts.some((x) => /核对/.test(x)));
+    texts.length = 0;
+    release();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    assert.ok(texts.length && !texts.some((x) => /阿哲|林晨/.test(x)), '云端资料读失败：按谁都没同意重画');
+    dp.savePoster();
+    assert.deepStrictEqual(saved, ['/tmp/p.jpg']);
+  } finally {
+    if (prevWx === undefined) delete global.wx; else global.wx = prevWx;
+  }
+});
+
+test('对阵图画球友照片：只画同意了最新版说明的人和本人；旧版同意、没同意、没照片、加载失败都画首字圆；拿到最新授权前不画', async () => {
+  const DP = require('../pkg-tools/utils/draw-poster');
+  const d = {
+    _id: 'd-ph', title: '周日', mode: 'bracket', size: 4, type: 'single', date: '2026-11-29',
+    entrants: ['小雨', '阿哲', '林晨', '我自己'], lines: [{ name: '小雨' }, { name: '阿哲' }, { name: '林晨' }, { name: '我自己' }],
+    uidOf: { 小雨: 'u1', 阿哲: 'u2', 林晨: 'u3', 我自己: 'me' },
+  };
+  // 照片只认这次云端资料里的 photo（通过检测、正在公开的）；本人检测中的新照片（ownSrc）不画
+  const profiles = { u1: { shown: true, shownVer: 2, photo: 'cloud://x/u1.jpg' }, u2: { shown: true, photo: 'cloud://x/u2.jpg' }, u3: { shown: true, shownVer: 2 }, me: { shown: false, photo: 'cloud://x/me.jpg' } };
+  // 1. 页面挑出要画照片的人
+  const file = path.join(root, 'pkg-tools/draw-poster/draw-poster.js');
+  const req = createRequire(file);
+  let def;
+  vm.runInNewContext(read('pkg-tools/draw-poster/draw-poster.js'), {
+    require: (id) => (id === '../../utils/db' ? {} : id === '../../utils/photo' ? {
+      ownSrc: (uid) => (uid === 'me' ? '/local/pending-me.jpg' : ''),
+      fileOf: () => 'cloud://x/stale-cache.jpg',
+      peek: () => '', resolve: async (f) => (/hang/.test(f) ? new Promise(() => {}) : 'https://tmp/' + f.slice(-6)),
+    } : req(id)),
+    wx: {}, Page: (x) => { def = x; }, console, Date, setTimeout, clearTimeout,
+  });
+  const pg = Object.assign(Object.create(def), { profiles, myId: 'me', signups: [], profilesFresh: false });
+  assert.strictEqual(JSON.stringify(await pg.photoSrcs(d)), '{}', '拿到这次云端的最新授权之前不画照片');
+  pg.profilesFresh = true;
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(await pg.photoSrcs(d))), { 小雨: 'https://tmp/u1.jpg', 林晨: '', 我自己: 'https://tmp/me.jpg' }, '阿哲只同意过旧版：不画；林晨没照片：空；本人画通过检测的那张，不画检测中的');
+  // 这次云端没读到（profiles 为空）：谁的照片都不画，也不拿本机旧缓存里的
+  pg.profiles = {};
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(await pg.photoSrcs(d))), { 我自己: '' });
+  // 换链接卡住：最多等 DP.PHOTO_WAIT_MS，没拿到的空着（画首字圆），不让页面一直不能保存
+  pg.profiles = { u1: { shown: true, shownVer: 2, photo: 'cloud://x/hang.jpg' }, u3: { shown: true, shownVer: 2, photo: 'cloud://x/u3.jpg' } };
+  const clk = require('./fake-clock')(); // 虚拟时间：不真的等 3 秒
+  const slow = await clk.run(async () => {
+    const t0 = clk.now();
+    const r = JSON.parse(JSON.stringify(await pg.photoSrcs(d)));
+    assert.ok(clk.now() - t0 <= DP.PHOTO_WAIT_MS, '最多等 PHOTO_WAIT_MS，没有一直等');
+    return r;
+  });
+  assert.deepStrictEqual(slow, { 小雨: '', 林晨: 'https://tmp/u3.jpg', 我自己: '' });
+
+  // 2. 画布：有图的画照片（drawImage + clip），其余照旧首字圆
+  const drawn = [], texts = [];
+  const noop = () => {};
+  const ctx = {
+    fillStyle: '', createLinearGradient: () => ({ addColorStop: noop }), fillRect: noop, strokeRect: noop, clearRect: noop,
+    beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop, fill: noop, stroke: noop,
+    save: noop, restore: noop, clip: noop, setTransform: noop, scale: noop,
+    drawImage: (img) => drawn.push(img.tag),
+    measureText: (x) => ({ width: String(x || '').length * 14 }), fillText: (x) => texts.push(String(x || '')),
+  };
+  const model = DP.buildModel(d, []);
+  DP.paint(ctx, model, '2026-11-29', { 小雨: { width: 320, height: 320, tag: 'yu' } });
+  assert.ok(drawn.length >= 1 && drawn.every((x) => x === 'yu'), '只画了有照片的人');
+  assert.ok(texts.includes('阿') && texts.includes('林'), '其他人照旧首字圆');
+  drawn.length = 0;
+  DP.paint(ctx, model, '2026-11-29');
+  assert.deepStrictEqual(drawn, [], '不传照片：和原来一样');
+  DP.paint(ctx, model, '2026-11-29', { 小雨: { width: 0, height: 0, tag: 'bad' } });
+  assert.deepStrictEqual(drawn, [], '坏图（宽高为 0）退回首字圆');
+
+  // 3. render 按地址加载：加载失败的退回首字圆，成功的画上
+  const canvas = {
+    width: 0, height: 0, getContext: () => ctx,
+    createImage: () => { const img = { width: 320, height: 320 }; Object.defineProperty(img, 'src', { set(v) { img.tag = v; setImmediate(() => (/fail/.test(v) ? img.onerror() : img.onload())); } }); return img; },
+  };
+  const prevWx = global.wx;
+  global.wx = { canvasToTempFilePath: (o) => o.success({ tempFilePath: '/tmp/x.jpg' }) };
+  try {
+    drawn.length = 0;
+    await DP.render(canvas, d, [], { model, genDate: '2026-11-29', photos: { 小雨: 'https://ok/yu.jpg', 我自己: 'https://fail/me.jpg' } });
+    assert.ok(drawn.includes('https://ok/yu.jpg') && !drawn.includes('https://fail/me.jpg'));
+    // 加载照片期间又开始了新的一轮：这一轮不改画布大小、不画、不出图
+    drawn.length = 0;
+    canvas.width = 11;
+    const gone = await DP.render(canvas, d, [], { model, genDate: '2026-11-29', photos: { 小雨: 'https://ok/yu.jpg' }, stale: () => true });
+    assert.strictEqual(gone, null);
+    assert.deepStrictEqual([canvas.width, drawn.length], [11, 0]);
+  } finally {
+    if (prevWx === undefined) delete global.wx; else global.wx = prevWx;
+  }
+});
+
 module.exports = T;

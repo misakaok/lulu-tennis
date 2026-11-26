@@ -206,7 +206,7 @@ function buildPlayers(list) {
   const byUid = {};
   list.forEach((p) => {
     if (!p.self || !p._openid || !p.name || byUid[p._openid]) return;
-    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [], shown: p.shown === true };
+    byUid[p._openid] = { uid: p._openid, name: p.name, gender: p.gender || '', photo: p.photo || '', level: typeof p.level === 'number' ? p.level : null, formerNames: p.formerNames || [], shown: p.shown === true, shownVer: p.shown === true ? (p.shownVer || 1) : 0 };
   });
   cacheSetLater('cache_profiles', byUid);
   const map = {}, order = [];
@@ -249,14 +249,15 @@ const cachedProfile = () => cacheGet('my_profile', null) || null;
 // 照片另走 utils/photo.js → 云函数 setPhoto（要过图片检测）；以前传过的旧照片 avatar（没经过检测、不再显示）原样带回去，不清掉数据库里的旧值
 // shown：公开展示授权（第一次设置资料必须为 true；不传就不改）
 async function saveMyProfile({ name, avatar, level, gender, shown }) {
-  await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender, shown });
+  // shownVer：同意时用户看到的是第几版授权说明（资料页、弹窗用的都是 utils/consent.js 的最新说明）
+  await require('./cloud').call('saveProfile', { name, avatar: /^cloud:\/\//.test(avatar || '') ? avatar : '', level, gender, shown, shownVer: shown === true ? require('./consent').VER : undefined });
   return getMyProfile();
 }
 // 公开展示授权：开启 / 关闭（启动时的授权弹窗、资料页上传照片前）
 async function setShown(on) {
-  const r = await require('./cloud').call('setShown', { on: !!on });
+  const r = await require('./cloud').call('setShown', { on: !!on, ver: require('./consent').VER });
   const p = cachedProfile();
-  if (p) cacheSet('my_profile', Object.assign({}, p, { shown: r.shown }));
+  if (p) cacheSet('my_profile', Object.assign({}, p, { shown: r.shown, shownVer: r.shownVer !== undefined ? r.shownVer : (r.shown ? (p.shownVer || 1) : 0) }));
   return r.shown;
 }
 

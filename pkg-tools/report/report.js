@@ -4,6 +4,7 @@ const db = require('../../utils/db');
 const PV = require('../../utils/player');
 const K = require('../../utils/racket');
 const Poster = require('../utils/poster');
+const Mask = require('../utils/mask');
 const P = require('../../utils/photo');
 const PRV = require('../../utils/privacy');
 const haptic = require('../../utils/haptic');
@@ -16,6 +17,7 @@ Page({
     loading: true, view: null, annual: null, hmPick: '',
     topAxisIdx: -1, hasClutchMetrics: false,
     posterOpen: false, posterBusy: false, posterReady: false,
+    isSelf: false, // 战报图只给本人生成（2026-11-26 用户确认）：看别人的页面不显示「生成战报图」
   },
 
   onLoad(options) {
@@ -46,6 +48,7 @@ Page({
         db.playersShared(), db.matchesShared(), db.myOpenid ? db.myOpenid().catch(() => this.myId || '') : Promise.resolve(this.myId || ''),
       ]);
       this.myId = myId || this.myId || '';
+      this.freshProfiles = db.profilesOf(players) || {}; // 这次云端的最新资料（战报图的拍档、对手只认它）
       if (this.myId && this.myId === this.uid) {
         try {
           const API = require('../../utils/rackets');
@@ -102,6 +105,7 @@ Page({
     this.renderedSig = sig;
     this.setData({
       loading: false,
+      isSelf,
       annual: annualShown,
       topAxisIdx,
       hasClutchMetrics,
@@ -129,18 +133,34 @@ Page({
   onUnload() { this.stopPosterTimer(); },
   stopPosterTimer() { if (this.posterTimer) { clearTimeout(this.posterTimer); this.posterTimer = null; } },
 
+  // 战报图会存进相册、转发出去：只画通过检测、正在公开的照片，检测中的新照片（P.ownSrc）不画
   async resolvePosterAvatar() {
     const name = (this.annual && this.annual.name) || '';
-    const own = P.ownSrc(this.uid, name);
-    if (own) return { src: own, fileID: '' };
     const fileID = P.fileOf(this.uid, name);
     if (!fileID) return null;
     const src = P.peek(fileID) || await P.resolve(fileID).catch(() => '');
     return { src, fileID };
   },
 
+  // 战报图里的「最佳拍档」「常打对手」：没同意公开展示的写「球友」（本人照常，pkg-tools/utils/mask.js）
+  posterAnnual() {
+    const a = this.annual;
+    if (!a) return null;
+    // 统计身份：有账号是用户 ID，旧名字是「n:名字」；更早的记录没有统计身份时 key 就是名字本身，也按旧名字算
+    const idOf = (x) => (!x.key || x.key === x.name ? 'n:' + x.name : x.key);
+    const people = [a.bestMate, a.mostOpp].filter(Boolean).map((x) => {
+      const id = idOf(x);
+      return { id, uid: id.indexOf('n:') === 0 ? '' : id, name: x.name };
+    });
+    // 本机记着的授权可能是旧的：没拿到这次云端的最新资料时，拍档、对手一律写「球友」
+    const nameOf = Mask.masker(people, this.freshProfiles || {}, this.myId || '');
+    const swap = (x) => (x ? Object.assign({}, x, { name: nameOf(idOf(x)) }) : x);
+    return Object.assign({}, a, { bestMate: swap(a.bestMate), mostOpp: swap(a.mostOpp) });
+  },
+
   openPoster() {
     if (!this.annual) return;
+    if (!this.myId || this.myId !== this.uid) return; // 只有本人能生成
     haptic.light();
     this.stopPosterTimer();
     this.posterPath = '';
@@ -162,7 +182,9 @@ Page({
         try {
           const avatar = await avatarP;
           if (seq !== this.posterSeq || !this.data.posterOpen) return;
-          const filePath = await Poster.render(node, this.annual, todayStr(), avatar);
+          const annual = this.posterAnnual();
+          if (!annual) { this.setData({ posterBusy: false }); return; }
+          const filePath = await Poster.render(node, annual, todayStr(), avatar);
           if (seq !== this.posterSeq || !this.data.posterOpen) return;
           this.posterPath = filePath;
           this.setData({ posterBusy: false, posterReady: true });

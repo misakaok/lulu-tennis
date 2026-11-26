@@ -146,7 +146,7 @@
       <view class="btn-line off-go" hover-class="tap-on" bindtap="goHistory">查看全部正式战绩</view>
     </view>
 
-    <view wx:if="{{has}}" class="danger-zone">
+    <view wx:if="{{has || hasLocal}}" class="danger-zone">
       <view class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部私人记录'}}</view>
     </view>
   </block>

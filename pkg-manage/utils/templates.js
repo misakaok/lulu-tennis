@@ -127,6 +127,8 @@ function saveTemplate(input) {
     if (cur.length >= MAX_TEMPLATES) {
       return { ok: false, msg: `最多保存 ${MAX_TEMPLATES} 套模板，请先删掉不常用的` };
     }
+    // 编号是「毫秒 + 随机数」：同一毫秒连存几套可能撞号（删一套会连带删掉另一套），撞了就换一个
+    while (cur.some((x) => x.id === rec.id)) rec.id = `tpl_${Date.now()}_${Math.floor(Math.random() * 1e9)}`;
     next = [rec].concat(cur);
   }
   writeAll(next);

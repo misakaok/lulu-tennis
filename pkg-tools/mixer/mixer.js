@@ -3,6 +3,7 @@
 //   2. 升降级冲场（4～16 人，1～4 片场）：打完一轮录比分，实时「冲 1 号场」升降级或「按分动态配对」，每轮强制拆搭档并自动统计个人排行。
 const MX = require('../utils/mixer');
 const LD = require('../utils/ladder');
+const Mask = require('../utils/mask');
 const db = require('../../utils/db');
 const R = require('../../utils/rating');
 const PV = require('../../utils/privacy');
@@ -69,17 +70,36 @@ Page({
     } else if (options && options.tab === 'ladder') {
       this.setData({ modeTab: 'ladder', modeTabIdx: 1 });
     }
+    // 复制出去的文字：没同意公开展示的写「球友」，要资料（看授权）和本人 ID，先用本机的
+    this.profiles = db.cachedProfiles ? db.cachedProfiles() : {};
+    this.myId = db.cachedOpenid ? db.cachedOpenid() : '';
     this.buildList(db.cachedPlayersFull ? db.cachedPlayersFull() : [], db.cachedMatches ? db.cachedMatches() : []);
     this.loadFresh();
+  },
+
+  // people：[{ id, uid, name }]（按名单顺序）。只有「按编号速排」的「N 号球友」（id 是 q1、q2…、没有用户 ID）照常写，
+  // 其他的（包括万一没有用户 ID 的）一律按授权换
+  outNameOf(people) {
+    const real = [], demo = Object.create(null);
+    (people || []).forEach((p) => {
+      if (!p) return;
+      if (!p.uid && /^q\d+$/.test(String(p.id || ''))) demo[p.id] = p.name;
+      else real.push({ id: p.id, uid: p.uid || '', name: p.name });
+    });
+    // 本机记着的授权可能是旧的：没拿到这次云端的最新资料时，真人一律写「球友」（本人照常）
+    const mask = Mask.masker(real, this.profilesFresh ? (this.profiles || {}) : {}, this.myId || '');
+    return (id) => (id in demo ? demo[id] : mask(id));
   },
 
   async loadFresh() {
     try {
       const [players, matches] = await Promise.all([
-        db.playersShared ? db.playersShared() : Promise.resolve([]),
+        db.playersShared ? db.playersShared() : Promise.resolve(null),
         db.matchesShared ? db.matchesShared() : Promise.resolve([]),
       ]);
-      this.buildList(players, matches);
+      if (players && db.profilesOf) { this.profiles = db.profilesOf(players) || {}; this.profilesFresh = true; }
+      if (db.myOpenid) this.myId = (await db.myOpenid().catch(() => '')) || this.myId;
+      this.buildList(players || [], matches);
     } catch (e) {}
   },
 
@@ -191,7 +211,7 @@ Page({
   },
 
   copyPlan() {
-    const text = MX.formatSchedule(this.data.res);
+    const text = MX.formatSchedule(this.data.res, this.outNameOf(this.data.picked));
     if (!text) return;
     wx.setClipboardData({
       data: text,
@@ -370,7 +390,8 @@ Page({
   },
 
   copyLdRound() {
-    const text = LD.formatCurrentRound(this.ldSession || this.data.ldSession);
+    const s = this.ldSession || this.data.ldSession;
+    const text = LD.formatCurrentRound(s, this.outNameOf(s && s.roster));
     if (!text) return;
     wx.setClipboardData({
       data: text,
@@ -380,7 +401,8 @@ Page({
   },
 
   copyLdReport() {
-    const text = LD.formatFinalReport(this.ldSession || this.data.ldSession);
+    const s = this.ldSession || this.data.ldSession;
+    const text = LD.formatFinalReport(s, this.outNameOf(s && s.roster));
     if (!text) return;
     wx.setClipboardData({
       data: text,
