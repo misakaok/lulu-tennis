@@ -163,8 +163,6 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .pg-caret { margin-left: 6rpx; font-size: 19rpx; color: #8484B6; }
 .pg-tot { margin-top: 2rpx; font-size: 20rpx; color: #84849E; }
 
-.foot { text-align: center; color: #84849E; font-size: 22rpx; margin-top: 24rpx; }
-
 /* 场边记分 + 记一场：浮在右下角 */
 .fabs { position: fixed; right: 32rpx; bottom: 40rpx; z-index: 10; display: flex; align-items: center; }
 .fab { height: 100rpx; padding: 0 40rpx; border-radius: 50rpx; display: flex; align-items: center; color: #fff; font-size: 30rpx; font-weight: 700; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 14rpx 32rpx rgba(133, 133, 184, 0.4); }

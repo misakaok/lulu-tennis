@@ -82,7 +82,6 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .rk-last.hint { color: #84849E; }
 .rk-alerts { display: flex; flex-wrap: wrap; margin-top: 18rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(132, 132, 182, 0.11); }
 .rk-a { margin: 0 10rpx 6rpx 0; font-size: 20rpx; padding: 2rpx 14rpx; }
-.rk-a.idle { color: #84849E; background: #F4F4FA; }
 
 /* 装备年度花费与换线周期统计卡 */
 .eq-card { padding: 26rpx 28rpx; }
@@ -99,7 +98,6 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .eq-l { margin-top: 6rpx; font-size: 21rpx; color: #70708C; }
 .eq-chips { display: flex; flex-wrap: wrap; margin: 16rpx -6rpx -6rpx; }
 .eq-chip { margin: 0 6rpx 6rpx; padding: 6rpx 16rpx; border-radius: 14rpx; font-size: 21rpx; color: #5C5C76; background: #F4F4FA; }
-.eq-hint { margin-top: 16rpx; font-size: 22rpx; line-height: 1.5; color: #84849E; }
 
 /* 右下角悬浮 LULU 颠球挂件（类似瑞幸悬浮挂件）：LULU 持淡紫球拍持续颠起独立小网球，上下滑动半隐贴右边，停滑平滑滑回 */
 .ball-dock {
@@ -112,37 +110,28 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
   background: radial-gradient(ellipse, rgba(78, 76, 134, 0.16) 0%, rgba(78, 76, 134, 0.05) 56%, rgba(78, 76, 134, 0) 80%);
 }
 .ball-dock.tuck { transform: translateX(112rpx); opacity: 0.56; }
-.ball-add { position: relative; width: 280rpx; height: 192rpx; margin: 16rpx auto 8rpx; }
-.ball-add.sm { margin: 12rpx auto 0; transform: scale(0.88); transform-origin: center top; }
-.ball-add.fab { position: relative; width: 196rpx; height: 186rpx; margin: 0; transition: transform 0.14s ease; }
-.ball-add.fab.dock-tap { transform: scale(0.95); }
-.ball-rk {
-  position: absolute; left: 0; bottom: 0; width: 280rpx; height: 96rpx; z-index: 0; transform-origin: 88% 50%;
-  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyODAgOTYiPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0icmYiIHgxPSIwIiB5MT0iMTgiIHgyPSIwIiB5Mj0iNzYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzhDOEU4Ii8+PHN0b3Agb2Zmc2V0PSI1MiUiIHN0b3AtY29sb3I9IiNBM0EzQ0IiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM4MzgzQjUiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iZ3AiIHgxPSIwIiB5MT0iNDAiIHgyPSIwIiB5Mj0iNTQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNjA2MDdEIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjM0MzQzU2Ii8+PC9saW5lYXJHcmFkaWVudD48Y2xpcFBhdGggaWQ9InNiIj48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDYiIHJ4PSI3MyIgcnk9IjE5LjUiLz48L2NsaXBQYXRoPjwvZGVmcz48ZWxsaXBzZSBjeD0iMTI0IiBjeT0iNzQiIHJ4PSI4NiIgcnk9IjEyIiBmaWxsPSIjNzg3OEE4IiBmaWxsLW9wYWNpdHk9IjAuMTYiLz48ZWxsaXBzZSBjeD0iMjQyIiBjeT0iNjQiIHJ4PSIyOCIgcnk9IjQuNSIgZmlsbD0iIzc4NzhBOCIgZmlsbC1vcGFjaXR5PSIwLjEyIi8+PHBhdGggZD0iTTE5MiAzOEwyMzAgNDZMMTkyIDU5TDE5MiA1M0wyMTYgNDhMMTkyIDQzWiIgZmlsbD0iIzc1NzVBOCIvPjxwYXRoIGQ9Ik0xOTIgMzVMMjMwIDQ0TDE5MiA1NkwxOTIgNTBMMjE1IDQ1TDE5MiA0MFoiIGZpbGw9InVybCgjcmYpIi8+PHJlY3QgeD0iMjI4IiB5PSI0MiIgd2lkdGg9IjQ0IiBoZWlnaHQ9IjEyIiByeD0iNSIgZmlsbD0iIzMyMzI0QSIvPjxyZWN0IHg9IjIyOCIgeT0iNDAiIHdpZHRoPSI0NCIgaGVpZ2h0PSIxMSIgcng9IjUiIGZpbGw9InVybCgjZ3ApIi8+PHBhdGggZD0iTTIzNiA0MEwyNDEgNTFNMjQ0IDQwTDI0OSA1MU0yNTIgNDBMMjU3IDUxTTI2MCA0MEwyNjUgNTEiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLW9wYWNpdHk9IjAuMTgiIHN0cm9rZS13aWR0aD0iMS42Ii8+PHJlY3QgeD0iMjI2IiB5PSI0MCIgd2lkdGg9IjQuNSIgaGVpZ2h0PSIxMSIgcng9IjIiIGZpbGw9IiNDOUUzM0EiLz48cmVjdCB4PSIyNjgiIHk9IjM5IiB3aWR0aD0iNSIgaGVpZ2h0PSIxMyIgcng9IjIuNSIgZmlsbD0iIzdBN0FBOCIvPjxlbGxpcHNlIGN4PSIxMjIiIGN5PSI1MiIgcng9Ijg1IiByeT0iMjYiIGZpbGw9IiM3NTc1QTgiLz48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDYiIHJ4PSI3NCIgcnk9IjIwIiBmaWxsPSIjRjhGOEZEIi8+PGcgY2xpcC1wYXRoPSJ1cmwoI3NiKSIgc3Ryb2tlPSIjOUI5QkM0IiBzdHJva2Utb3BhY2l0eT0iMC40NiIgc3Ryb2tlLXdpZHRoPSIxLjM1Ij48cGF0aCBkPSJNNTggMjRWNjhNNzAgMjRWNjhNODIgMjRWNjhNOTQgMjRWNjhNMTA2IDI0VjY4TTExOCAyNFY2OE0xMzAgMjRWNjhNMTQyIDI0VjY4TTE1NCAyNFY2OE0xNjYgMjRWNjhNMTc4IDI0VjY4TTE5MCAyNFY2OCIvPjxwYXRoIGQ9Ik00NiAzM0gxOThNNDYgMzkuNUgxOThNNDYgNDZIMTk4TTQ2IDUyLjVIMTk4TTQ2IDU5SDE5OCIvPjwvZz48ZWxsaXBzZSBjeD0iMTIyIiBjeT0iNDcuNSIgcng9IjczLjUiIHJ5PSIxOS41IiBmaWxsPSJub25lIiBzdHJva2U9IiM2RTZFQTMiIHN0cm9rZS1vcGFjaXR5PSIwLjE4IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxlbGxpcHNlIGN4PSIxMjIiIGN5PSI0NiIgcng9Ijc5LjUiIHJ5PSIyMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ1cmwoI3JmKSIgc3Ryb2tlLXdpZHRoPSIxMSIvPjxwYXRoIGQ9Ik00NCA0MkE3OS41IDIzIDAgMCAxIDIwMCA0MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utb3BhY2l0eT0iMC40OCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNTIgNTdBNzkuNSAyMyAwIDAgMCA4MiA2NSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQzlFMzNBIiBzdHJva2Utb3BhY2l0eT0iMC44OCIgc3Ryb2tlLXdpZHRoPSIzLjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==") center / 100% 100% no-repeat;
-}
-.ball-add.fab .ball-rk { width: 196rpx; height: 186rpx; background: none; transform-origin: 65% 88%; }
+.ball-add { position: relative; width: 196rpx; height: 186rpx; transition: transform 0.14s ease; }
+.ball-add.dock-tap { transform: scale(0.95); }
+.ball-rk { position: absolute; left: 0; bottom: 0; width: 196rpx; height: 186rpx; z-index: 0; transform-origin: 65% 88%; }
 .lulu-img { display: block; width: 100%; height: 100%; }
 .ball-sh {
-  position: absolute; left: 122rpx; bottom: 42rpx; width: 72rpx; height: 16rpx; margin-left: -36rpx; z-index: 1; border-radius: 50%;
+  position: absolute; left: 44rpx; bottom: 35rpx; width: 34rpx; height: 9rpx; margin-left: -17rpx; z-index: 1; border-radius: 50%;
   background: radial-gradient(ellipse, rgba(78, 76, 134, 0.30) 0%, rgba(78, 76, 134, 0.11) 52%, rgba(78, 76, 134, 0) 78%);
 }
-.ball-add.fab .ball-sh { left: 44rpx; bottom: 35rpx; width: 34rpx; height: 9rpx; margin-left: -17rpx; }
 .ball-btn {
-  position: absolute; left: 122rpx; bottom: 48rpx; width: 110rpx; height: 110rpx; margin-left: -55rpx; z-index: 2;
-  border-radius: 50%; box-sizing: border-box; border: 4rpx solid rgba(255, 255, 255, 0.94);
+  position: absolute; left: 44rpx; bottom: 40rpx; width: 44rpx; height: 44rpx; margin-left: -22rpx; z-index: 2;
+  border-radius: 50%; box-sizing: border-box; border: 2.5rpx solid rgba(255, 255, 255, 0.94);
   background:
     url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48ZyB0cmFuc2Zvcm09InJvdGF0ZSgtMTggNjAgNjApIiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxwYXRoIGQ9Ik0yMiA2QzQ0IDM2IDQ0IDg0IDIyIDExNE05OCA2Qzc2IDM2IDc2IDg0IDk4IDExNCIgc3Ryb2tlPSIjN0U5OTEyIiBzdHJva2Utb3BhY2l0eT0iMC4zNCIgc3Ryb2tlLXdpZHRoPSI4Ii8+PHBhdGggZD0iTTIyIDZDNDQgMzYgNDQgODQgMjIgMTE0TTk4IDZDNzYgMzYgNzYgODQgOTggMTE0IiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS1vcGFjaXR5PSIwLjkiIHN0cm9rZS13aWR0aD0iNS4yIi8+PC9nPjwvc3ZnPg==") center / 100% 100% no-repeat,
     radial-gradient(circle at 33% 26%, #F2FC85 0%, #CEE842 52%, #A5C11B 100%);
-  box-shadow: inset 0 6rpx 10rpx rgba(255, 255, 255, 0.5), inset 0 -10rpx 16rpx rgba(92, 114, 0, 0.28), 0 6rpx 14rpx rgba(78, 76, 134, 0.18);
+  box-shadow: inset 0 3rpx 5rpx rgba(255, 255, 255, 0.52), inset 0 -5rpx 8rpx rgba(92, 114, 0, 0.28), 0 4rpx 10rpx rgba(78, 76, 134, 0.2);
 }
-.ball-add.fab .ball-btn { left: 44rpx; bottom: 40rpx; width: 44rpx; height: 44rpx; margin-left: -22rpx; border-width: 2.5rpx; box-shadow: inset 0 3rpx 5rpx rgba(255, 255, 255, 0.52), inset 0 -5rpx 8rpx rgba(92, 114, 0, 0.28), 0 4rpx 10rpx rgba(78, 76, 134, 0.2); }
 /* 球面左上角一颗柔润小高光点，让纯净网球更饱满 Q 弹 */
 .ball-btn::before {
-  content: ''; position: absolute; left: 22rpx; top: 15rpx; width: 26rpx; height: 14rpx;
+  content: ''; position: absolute; left: 8rpx; top: 5rpx; width: 11rpx; height: 6rpx;
   border-radius: 50%; transform: rotate(-28deg); background: rgba(255, 255, 255, 0.46); pointer-events: none;
 }
-.ball-add.fab .ball-btn::before { left: 8rpx; top: 5rpx; width: 11rpx; height: 6rpx; }
-/* 持续轻快颠球循环（悬浮态：小球在 LULU 淡紫拍面甜区上方弹跳，LULU 同步轻晃配合颠球） */
+/* 持续轻快颠球循环（小球在 LULU 淡紫拍面甜区上方弹跳，LULU 同步轻晃配合颠球） */
 @keyframes rk-idle-ball {
   0%, 100% { transform: translateY(0) scale(1.05, 0.94) rotate(-4deg); }
   15% { transform: translateY(4rpx) scale(1.12, 0.87) rotate(-7deg); }
@@ -161,11 +150,8 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
   54% { transform: translateY(-2rpx) rotate(2deg); }
   88% { transform: translateY(1rpx) rotate(-0.5deg); }
 }
-.ball-add.fab .ball-btn { animation: rk-idle-ball 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
-.ball-add.fab .ball-sh { animation: rk-idle-sh 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
-.ball-add.fab .ball-rk { animation: rk-idle-rk 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.ball-add .ball-btn { animation: rk-idle-ball 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.ball-add .ball-sh { animation: rk-idle-sh 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.ball-add .ball-rk { animation: rk-idle-rk 1.35s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
 /* 切到其他 Tab 页时暂停无限循环动画，后台零 GPU / 电量占用 */
-.ball-add.fab.paused .ball-btn, .ball-add.fab.paused .ball-sh, .ball-add.fab.paused .ball-rk { animation-play-state: paused; }
-.ball-add.bouncing .ball-btn { animation: ani-ball-jump 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.ball-add.bouncing .ball-sh { animation: ani-ball-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.ball-add.bouncing .ball-rk { animation: ani-rk-juggle 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ball-add.paused .ball-btn, .ball-add.paused .ball-sh, .ball-add.paused .ball-rk { animation-play-state: paused; }

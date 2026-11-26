@@ -508,7 +508,7 @@ test('球拍页顶部卡片：一支球拍都没有时不显示底部那行（�
   assert.ok(/class="rk-n num"/.test(xml), '穿线和维护次数用记分牌窄体数字');
   assert.ok(!/class="card rk [^"]*"[^>]*hover-class="tap-on"/.test(xml), '球拍卡片点击直接进详情，不做缩放抖动');
   assert.ok(/\.page::before \{[^}]*#A3A3CB 0%/.test(css) && /rgba\(56, 54, 108, 0\.16\)/.test(css), '顶部柔紫幕与烟熏冷紫毛玻璃底条');
-  assert.ok(/\.ball-add\.bouncing \.ball-btn \{[^}]*ani-ball-jump/.test(css) && /\.ball-add\.bouncing \.ball-sh \{[^}]*ani-ball-shadow/.test(css) && /\.ball-add\.bouncing \.ball-rk \{[^}]*ani-rk-juggle/.test(css), '拍面颠球按钮原地弹跳且球影、球拍同步颠球');
+  assert.ok(/\.ball-add \.ball-btn \{[^}]*rk-idle-ball/.test(css) && /\.ball-add \.ball-sh \{[^}]*rk-idle-sh/.test(css) && /\.ball-add \.ball-rk \{[^}]*rk-idle-rk/.test(css), '右下角 LULU 挂件持续颠球且球影、LULU 同步微动');
   assert.ok(/class="card eq-card"/.test(xml) && /装备统计/.test(xml), '球拍列表页展示装备年度花费与换线统计卡');
 });
 
@@ -540,7 +540,7 @@ test('装备年度花费与换线 / 断线周期统计（K.yearlyStats）：拆�
   assert.deepStrictEqual([empty.yearCost, empty.avgDays, empty.avgHours, empty.topString, empty.hasData], [0, null, '', null, false]);
 });
 
-test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；中途切走页面取消跳转', async () => {
+test('球拍页 LULU 悬浮颠球挂件：滑动时半隐贴边、停滑滑回，点击直接跳页不抖动，切走 Tab 暂停动画', async () => {
   const fs = require('fs'), path = require('path'), vm = require('vm');
   const { createRequire } = require('module');
   const clock = require('./fake-clock')();
@@ -554,18 +554,6 @@ test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；�
       Page: (d) => { def = d; }, setTimeout, clearTimeout, console,
     });
     const p = Object.assign({}, def, { data: JSON.parse(JSON.stringify(def.data)), setData(o) { Object.assign(this.data, o); } });
-    p.add(); p.add(); // 连点只算一次
-    assert.strictEqual(p.data.bouncing, true);
-    assert.strictEqual(nav.length, 0, '弹跳期间还没跳页');
-    await clock.wait(330);
-    assert.strictEqual(p.data.bouncing, false);
-    assert.deepStrictEqual(nav, ['/pkg-tools/racket-edit/racket-edit']);
-    // 中途切走页面：取消定时器、不误跳页
-    p.add();
-    p.onHide();
-    assert.strictEqual(p.data.bouncing, false);
-    await clock.wait(360);
-    assert.strictEqual(nav.length, 1);
     // 悬浮颠球挂件：滑动时半隐贴边（只触发一次 setData），停滑 420ms 后滑回，无球拍时不触发
     let scrollSets = 0;
     const origSet = p.setData.bind(p);
@@ -577,10 +565,10 @@ test('添加球拍网球按钮：点击先弹跳 320ms 再跳页，防连点；�
     assert.deepStrictEqual([p.data.scrolling, scrollSets], [true, 1], '连续滑动只切一次 scrolling');
     await clock.wait(450);
     assert.deepStrictEqual([p.data.scrolling, scrollSets], [false, 2], '停滑后平滑滑回');
-    // 点击悬浮 LULU 挂件：直接跳转，不触发 bouncing 抖动
+    // 点击直接进添加球拍页，且如果贴边会立刻复位
     p.onPageScroll();
-    p.addDock();
-    assert.deepStrictEqual([p.data.bouncing, p.data.scrolling, nav.length], [false, false, 2], '点击悬浮 LULU 直接进添加页，不抖动');
+    p.add();
+    assert.deepStrictEqual([p.data.scrolling, nav], [false, ['/pkg-tools/racket-edit/racket-edit']], '点击直接进添加页，不抖动');
     // 切走 Tab 暂停循环动画，切回恢复
     p.onHide();
     assert.strictEqual(p.data.paused, true, 'onHide 暂停后台无限循环动画');

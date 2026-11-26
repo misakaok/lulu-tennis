@@ -41,7 +41,7 @@ function statsView(rackets, logs, t) {
 }
 
 Page({
-  data: { loading: true, error: '', cards: [], o: null, st: null, bouncing: false, scrolling: false, paused: false },
+  data: { loading: true, error: '', cards: [], o: null, st: null, scrolling: false, paused: false },
 
   onLoad() {
     wx.hideShareMenu(); // 私人数据不能分享
@@ -53,21 +53,18 @@ Page({
     if (this.data.paused) this.setData({ paused: false });
     this.load();
   },
-  onHide() { this.stopBounce(true); },
-  onUnload() { this.stopBounce(true); },
-  stopBounce(pause) {
-    clearTimeout(this.addTimer); this.addTimer = null;
+  onHide() { this.stopDock(true); },
+  onUnload() { this.stopDock(true); },
+  stopDock(pause) {
     clearTimeout(this.scrollTimer); this.scrollTimer = null;
-    this.adding = false;
     const patch = {};
-    if (this.data.bouncing) patch.bouncing = false;
     if (this.data.scrolling) patch.scrolling = false;
     if (pause && !this.data.paused) patch.paused = true;
     if (Object.keys(patch).length) this.setData(patch);
   },
   // 上下滑动时半隐贴右边（只切一次状态，不逐帧 setData）；停滑 420ms 后滑回右下角
   onPageScroll() {
-    if (!this.data.cards.length || this.adding) return;
+    if (!this.data.cards.length) return;
     if (!this.data.scrolling) this.setData({ scrolling: true });
     clearTimeout(this.scrollTimer);
     this.scrollTimer = setTimeout(() => {
@@ -103,23 +100,11 @@ Page({
     this.setData({ loading: false, error: '', cards: list.map((r) => cardOf(r, logs, t)), o: K.overview(rackets, logs, t), st: statsView(rackets, logs, t) });
   },
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
-  // 悬浮 LULU 挂件点击：直接进入添加球拍页，不切回弹跳动画免得和持续颠球循环冲突抖动
-  addDock() {
+  // 点击添加球拍（空态按钮与右下角悬浮 LULU 挂件共用）：直接跳转，不打断颠球循环
+  add() {
     clearTimeout(this.scrollTimer); this.scrollTimer = null;
     if (this.data.scrolling) this.setData({ scrolling: false });
     wx.navigateTo({ url: '/pkg-tools/racket-edit/racket-edit' });
-  },
-  // 空状态静态按钮点击：先原地 Q 弹一下再进入添加球拍页；防连点、切走页面时取消未触发的跳转
-  add() {
-    if (this.adding) return;
-    this.adding = true;
-    this.setData({ bouncing: true });
-    this.addTimer = setTimeout(() => {
-      this.addTimer = null;
-      this.adding = false;
-      this.setData({ bouncing: false });
-      wx.navigateTo({ url: '/pkg-tools/racket-edit/racket-edit' });
-    }, 320);
   },
   open(e) { wx.navigateTo({ url: '/pkg-tools/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
   openTune() { wx.navigateTo({ url: '/pkg-tools/racket-tune/racket-tune' }); },

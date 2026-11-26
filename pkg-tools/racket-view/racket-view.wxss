@@ -75,7 +75,6 @@
 .sheet-s { margin: 6rpx 0 16rpx; font-size: 24rpx; color: #70708C; }
 .sheet-row { display: flex; align-items: center; justify-content: space-between; height: 92rpx; border-top: 1rpx solid #F2F2F8; }
 .sheet-pick { font-size: 28rpx; color: #2E2E4A; }
-.sheet-note { margin-top: 12rpx; font-size: 22rpx; color: #84849E; line-height: 1.5; }
 .sheet-acts { display: flex; margin: 24rpx -8rpx 0; }
 .sheet-a { flex: 1; margin: 0 8rpx; height: 84rpx; border-radius: 42rpx; font-size: 28rpx; }
 .pl-in-r { display: flex; align-items: center; }

@@ -48,5 +48,4 @@
 .ck { color: #fff; font-size: 24rpx; font-weight: 800; line-height: 1; }
 .cs-t { font-size: 28rpx; font-weight: 600; color: #3a3a52; }
 .cs-d { font-size: 22rpx; color: #70708C; line-height: 1.6; margin-top: 6rpx; }
-.lock-note { text-align: center; font-size: 22rpx; color: #84849E; margin: 10rpx 0 20rpx; }
 .later { margin-top: 20rpx; } /* 刚加入时的「稍后再设置」 */

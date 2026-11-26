@@ -43,7 +43,6 @@
 .hero-art { flex: none; width: 150rpx; height: 150rpx; margin: -12rpx 18rpx -12rpx 12rpx; }
 .card.np { color: #6E6EA3; font-weight: 700; font-size: 27rpx; text-align: center; }
 .chip { display: flex; align-items: center; }
-.chips-note { font-size: 21rpx; color: #84849E; margin-top: 12rpx; }
 
 .chip-g { margin-left: 12rpx; font-size: 20rpx; opacity: 0.65; }
 .scorer-tip { margin-bottom: 20rpx; padding: 18rpx 24rpx; border-radius: 18rpx; background: #fff; border: 2rpx solid #D9D9EC; color: #4F4F7D; font-size: 24rpx; line-height: 1.6; }

@@ -42,7 +42,6 @@
 .pg-cur { display: inline-flex; align-items: center; font-size: 26rpx; font-weight: 800; color: #2E2E4A; }
 .pg-caret { margin-left: 6rpx; font-size: 19rpx; color: #8484B6; }
 .pg-tot { margin-top: 2rpx; font-size: 20rpx; color: #84849E; }
-.foot { text-align: center; font-size: 21rpx; color: #84849E; margin-top: 16rpx; }
 /* 每行三层：日期 + 名称 → 对手（左）和胜负、比分（右）同一行居中对齐 → 亮点标签 */
 .mr { padding: 20rpx 0; }
 .mr + .mr { border-top: 1rpx solid #F2F2F8; } /* 分隔线只画在两行之间，第一行上面不画（见 tests/review-surface.test.js） */

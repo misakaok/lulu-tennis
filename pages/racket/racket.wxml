@@ -28,7 +28,7 @@
       <image class="empty-art" src="/images/art-ball.png" mode="aspectFit" />
       <view class="ec-t">还没有球拍</view>
       <view class="ec-s">添加球拍后可以记录每次穿线、换手胶，设置提醒间隔，到期时这里会提示</view>
-      <view class="ball-add sm {{bouncing ? 'bouncing' : ''}}" bindtap="add"><view class="ball-rk"></view><view class="ball-sh"></view><view class="ball-btn"></view></view>
+      <view class="btn-primary small" hover-class="tap-on" bindtap="add">＋ 添加第一支球拍</view>
     </view>
 
     <block wx:else>
@@ -73,8 +73,8 @@
   </block>
 </view>
 <!-- 右下角悬浮 LULU 颠球挂件：静止时在右下角持续轻轻颠球，上下滑动时自动半隐贴边，停滑后滑回；点击直接进入添加球拍页，不打断颠球循环 -->
-<view wx:if="{{!loading && !error && cards.length}}" class="ball-dock {{scrolling ? 'tuck' : ''}}" bindtap="addDock">
-  <view class="ball-add fab {{paused ? 'paused' : ''}}" hover-class="dock-tap">
+<view wx:if="{{!loading && !error && cards.length}}" class="ball-dock {{scrolling ? 'tuck' : ''}}" bindtap="add">
+  <view class="ball-add {{paused ? 'paused' : ''}}" hover-class="dock-tap">
     <view class="ball-rk"><image class="lulu-img" src="/images/art-lulu.png" mode="aspectFit" /></view>
     <view class="ball-sh"></view>
     <view class="ball-btn"></view>

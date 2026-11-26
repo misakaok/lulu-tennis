@@ -26,7 +26,6 @@
 
 .empty-card { text-align: center; padding: 50rpx 30rpx; }
 .ec-t { font-size: 30rpx; font-weight: 800; color: #4F4F7D; }
-.ec-s { font-size: 24rpx; color: #70708C; margin-top: 10rpx; line-height: 1.6; }
 .add { margin-bottom: 24rpx; }
 
 /* 柱状图 */

@@ -14,7 +14,6 @@ picker { display: block; }
 .tag { font-size: 25rpx; color: #5C5C76; background: #F4F4F9; border: 2rpx solid transparent; border-radius: 30rpx; padding: 10rpx 24rpx; margin: 0 14rpx 14rpx 0; }
 .tag.on { color: #6E6EA3; background: #EFEFF6; border-color: #A3A3CB; font-weight: 700; }
 .del { margin-top: 24rpx; }
-.rm-note { font-size: 22rpx; color: #84849E; line-height: 1.6; margin-top: 14rpx; }
 /* 顶部示意图卡：和球拍列表、详情页顶部一样是淡紫渐变（整页唯一的重点色块），下面的表单卡保持白底 */
 .card.ph-card { display: flex; align-items: center; color: #fff; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
 /* 示意图用 .pic，不要叫 .ph：.ph 是选项「未选」的修饰类（.picker.ph），同名会把「请选择」撑成方块 */
