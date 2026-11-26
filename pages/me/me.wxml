@@ -47,8 +47,8 @@
       </view>
       <view class="me-tl-it" hover-class="tap-on" bindtap="openMixer">
         <view class="me-tl-ic me-tl-ic3"></view>
-        <view class="me-tl-n">双打排班</view>
-        <view class="me-tl-d">4~8 人均衡轮换</view>
+        <view class="me-tl-n">排班与冲场</view>
+        <view class="me-tl-d">均衡轮换 · 升降级</view>
       </view>
     </view>
   </view>

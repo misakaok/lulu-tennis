@@ -1,0 +1,29 @@
+.dp-page { padding: 24rpx 32rpx 64rpx; }
+
+.dp-err { text-align: center; padding: 64rpx 36rpx; }
+.dp-err-t { font-size: 27rpx; color: #5C5C76; line-height: 1.5; }
+
+.dp-seg { margin-bottom: 18rpx; }
+
+.dp-bar { display: flex; margin-bottom: 18rpx; }
+.dp-btn { flex: 1; height: 80rpx; line-height: 80rpx; font-size: 28rpx; }
+.btn-line.dp-btn { line-height: 74rpx; margin-right: 18rpx; }
+
+.dp-hint { display: flex; align-items: baseline; justify-content: space-between; margin: 0 4rpx 14rpx; }
+.dp-h-t { flex: 1; min-width: 0; font-size: 24rpx; font-weight: 700; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 12rpx; }
+.dp-h-s { flex: none; font-size: 20rpx; color: #84849E; }
+
+.dp-stage {
+  position: relative; width: 686rpx; border-radius: 28rpx; overflow: hidden;
+  background: #ECECF6;
+  box-shadow: 0 8rpx 22rpx rgba(84, 84, 146, 0.12), 0 22rpx 46rpx rgba(84, 84, 146, 0.14);
+}
+.dp-cv { width: 686rpx; display: block; }
+.dp-busy {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.84);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 25rpx; font-weight: 700; color: #6E6EA3;
+}
+
+.dp-foot-btn { margin-top: 26rpx; }

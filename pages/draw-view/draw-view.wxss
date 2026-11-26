@@ -24,6 +24,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 
 .row { display: flex; justify-content: space-between; align-items: center; }
 .in-acts { display: flex; align-items: center; }
+.in-gap { margin-right: 10rpx; }
 .in-edit { margin-left: 10rpx; }
 .count { font-size: 26rpx; color: #6E6EA3; font-weight: 700; }
 .su-card .count { padding-right: 32rpx; } /* = 名单行右边「›」的宽度 + 间距，人数和等级一列右对齐 */
@@ -67,15 +68,24 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .sch-st { color: #84849E; }
 .sch.ready.mine .sch-st { color: #6E6EA3; font-weight: 700; } /* 我的待录分：不是危险操作，不用红 */
 .sch.done .sch-st { color: #6E6EA3; }
-.sch-row { display: flex; align-items: center; height: 60rpx; font-size: 28rpx; color: #5C5C76; }
+.sch-row { position: relative; display: flex; align-items: center; height: 64rpx; padding-left: 12rpx; font-size: 28rpx; color: #5C5C76; }
 .sch-row.w { color: #2E2E4A; font-weight: 700; }
+.sch-row.w::before { content: ''; position: absolute; left: 0; top: 12rpx; bottom: 12rpx; width: 5rpx; border-radius: 3rpx; background: #8484B6; }
+.sch-row.l { color: #9A9AB4; }
 .sch-avs { display: flex; width: 76rpx; flex: none; }
 .sch-av { width: 44rpx; height: 44rpx; border-radius: 50%; background: #f2f2f8; flex: none; font-size: 20rpx; }
 .sch-av + .sch-av { margin-left: -14rpx; border: 2rpx solid #fff; }
 .sch-av.init { display: flex; align-items: center; justify-content: center; font-weight: 800; color: #2E2E4A; }
 .sch-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sch-win { font-size: 20rpx; color: #fff; background: #6E6EA3; border-radius: 8rpx; padding: 2rpx 10rpx; }
-.sch-score { margin-top: 6rpx; font-size: 26rpx; font-weight: 700; color: #4F4F7D; background: #F6F6FB; border-radius: 12rpx; padding: 8rpx 16rpx; }
+.sch-gms { flex: none; display: flex; align-items: center; margin-left: 12rpx; }
+.sch-gm { min-width: 46rpx; height: 44rpx; line-height: 44rpx; text-align: center; border-radius: 10rpx; font-size: 28rpx; font-weight: 600; color: #A4A4BC; background: #F5F5FA; padding: 0 6rpx; box-sizing: border-box; }
+.sch-gm + .sch-gm { margin-left: 8rpx; }
+.sch-gm.w { color: #2E2E4A; font-weight: 900; background: #EAEAF7; }
+.sch-tb { font-size: 16rpx; font-weight: 700; vertical-align: super; margin-left: 1rpx; color: inherit; opacity: 0.85; }
+.sch-win { flex: none; margin-left: 10rpx; font-size: 20rpx; color: #2E3600; background: #C9E33A; border-radius: 10rpx; padding: 2rpx 12rpx; font-weight: 800; }
+.sch-win.dot-only { width: 12rpx; height: 12rpx; padding: 0; border-radius: 50%; }
+.sch-win.dot-only.off { background: transparent; }
+.sch-score { margin-top: 8rpx; font-size: 23rpx; font-weight: 700; color: #6E6EA3; background: #F6F6FB; border-radius: 12rpx; padding: 8rpx 16rpx; }
 
 /* 时间地点 */
 .in-row { display: flex; padding: 12rpx 0; font-size: 27rpx; line-height: 1.5; }

@@ -22,7 +22,8 @@
         "racket-tune/racket-tune",
         "racket-lab/racket-lab",
         "aa/aa",
-        "mixer/mixer"
+        "mixer/mixer",
+        "draw-poster/draw-poster"
       ]
     },
     {

@@ -48,6 +48,7 @@
       <view class="card-title row">
         <text>时间地点</text>
         <view class="in-acts">
+          <view wx:if="{{!signing}}" class="btn-line mini in-gap" hover-class="tap-on" bindtap="openPoster">{{posterBtnText === '生成战果图' ? '战果图' : '对阵图'}}</view>
           <view class="btn-line mini" hover-class="tap-on" bindtap="openAA">AA 算账</view>
           <view wx:if="{{canEdit}}" class="btn-line mini in-edit" hover-class="tap-on" bindtap="goEdit">编辑</view>
         </view>
@@ -178,7 +179,7 @@
             <text class="sch-stage">{{item.stage}}</text>
             <text class="sch-st">{{item.status === 'done' ? '已完赛' : ended ? '未进行' : item.status === 'ready' ? (item.mine ? '待录分 ›' : '待赛') : '待定'}}</text>
           </view>
-          <view class="sch-row {{item.winner === 'a' ? 'w' : ''}}">
+          <view class="sch-row {{item.winner === 'a' ? 'w' : item.done ? 'l' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p">
                 <pl-av class="sch-av init" uid="{{p.uid}}" name="{{p.name}}" />
@@ -186,9 +187,13 @@
             </view>
             <text wx:if="{{item.aG}}" class="sch-name"><block wx:for="{{item.aP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
             <text wx:else class="sch-name">{{item.aText}}</text>
-            <text wx:if="{{item.winner === 'a'}}" class="sch-win">胜</text>
+            <view wx:if="{{item.hasSets}}" class="sch-gms">
+              <view wx:for="{{item.aSets}}" wx:key="index" wx:for-item="sc" class="sch-gm num {{sc.w ? 'w' : ''}}"><text>{{sc.v}}</text><text wx:if="{{sc.tb}}" class="sch-tb">{{sc.tb}}</text></view>
+            </view>
+            <text wx:if="{{item.winner === 'a'}}" class="sch-win {{item.hasSets ? 'dot-only' : ''}}">{{item.hasSets ? '' : '胜'}}</text>
+            <text wx:elif="{{item.hasSets && item.done}}" class="sch-win dot-only off"></text>
           </view>
-          <view class="sch-row {{item.winner === 'b' ? 'w' : ''}}">
+          <view class="sch-row {{item.winner === 'b' ? 'w' : item.done ? 'l' : ''}}">
             <view class="sch-avs">
               <block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p">
                 <pl-av class="sch-av init" uid="{{p.uid}}" name="{{p.name}}" />
@@ -196,9 +201,13 @@
             </view>
             <text wx:if="{{item.bG}}" class="sch-name"><block wx:for="{{item.bP}}" wx:key="name" wx:for-item="p" wx:for-index="pi">{{pi ? ' / ' : ''}}{{p.name}}<text wx:if="{{p.gender}}" class="gd"> {{p.gender}}</text></block></text>
             <text wx:else class="sch-name">{{item.bText}}</text>
-            <text wx:if="{{item.winner === 'b'}}" class="sch-win">胜</text>
+            <view wx:if="{{item.hasSets}}" class="sch-gms">
+              <view wx:for="{{item.bSets}}" wx:key="index" wx:for-item="sc" class="sch-gm num {{sc.w ? 'w' : ''}}"><text>{{sc.v}}</text><text wx:if="{{sc.tb}}" class="sch-tb">{{sc.tb}}</text></view>
+            </view>
+            <text wx:if="{{item.winner === 'b'}}" class="sch-win {{item.hasSets ? 'dot-only' : ''}}">{{item.hasSets ? '' : '胜'}}</text>
+            <text wx:elif="{{item.hasSets && item.done}}" class="sch-win dot-only off"></text>
           </view>
-          <view wx:if="{{item.score}}" class="sch-score">{{item.score}}</view>
+          <view wx:if="{{item.scoreNote}}" class="sch-score">{{item.scoreNote}}</view>
           <view wx:if="{{item.slotText && !item.done}}" class="sch-slot">{{item.slotText}}</view>
           <view class="sch-foot">
             <text class="sch-rule {{item.ruleCustom ? 'hl' : ''}}">{{item.ruleCustom ? '★ ' : ''}}{{item.ruleText}}</text>
@@ -266,6 +275,7 @@
         </picker>
         <view wx:else class="act-cell"><view class="btn-primary act-btn {{busy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="join">{{full ? '排队候补' : '我要报名'}}</view></view>
       </block></block>
+      <view wx:if="{{!signing}}" class="act-cell"><view class="btn-primary act-btn" hover-class="tap-on" bindtap="openPoster">{{posterBtnText}}</view></view>
       <view class="act-cell"><button class="share act-btn" open-type="share">{{signing && !ended ? '发给球友报名' : '发给球友'}}</button></view>
     </view>
     <view wx:if="{{ready && canManage}}" class="act-row">

@@ -42,7 +42,7 @@ Page({
   data: {
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     cupTag: '', cupBox: null, canEditCup: false, cupKindBusy: false, isRot: false, rotRounds: [],
-    ready: false, signing: false, ended: false, endReason: '', canClose: false, canReopen: false, closeBusy: false,
+    ready: false, signing: false, ended: false, endReason: '', canClose: false, canReopen: false, closeBusy: false, posterBtnText: '生成对阵图',
     isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null, adminSheet: null, adminBusy: false, // adminSheet：管理员代报名的选人弹层（components/member-sheet）
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
@@ -161,10 +161,11 @@ Page({
     // 积分标签能不能点（管理员更正类别）：报名中一定还没结算，第一帧就定下来；已生成对阵的由 loadCupBox 按云端结果更正，
     // 这里不先清成 false（否则每次回到这页标签都会先变样再变回来）。顶部所有内容一次 setData，不分几帧蹦出来
     const cupOn = isAdmin && !!C.drawCupOf(d);
+    const posterBtnText = naturallyDone ? '生成战果图' : '生成对阵图';
     const top = {
       draw: d, meta, levelText: E.levelRangeText(d), cupTag: C.drawCupText(d), seedLabel, seedRows, error: '', signing, ended, endReason, myName: (me && me.name) || '', myId,
       formatText: cfg.type === 'double' ? '双打' : '单打', rulesSum: E.rulesSummary(d), isDouble: cfg.type === 'double', isRot: E.isRotation(d), matches,
-      isOwner, canManage, canClose, canReopen, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups, info: this.infoOf(d),
+      isOwner, canManage, canClose, canReopen, canEdit: isAdmin, canPublish: isOwner && isAdmin, canEditMatchups, posterBtnText, info: this.infoOf(d),
     };
     if (signing) { top.canEditCup = cupOn; top.cupBox = null; this.cupSeq = (this.cupSeq || 0) + 1; } // 报名中：取消还在路上的结算查询
     else if (!cupOn) top.canEditCup = false;
@@ -372,6 +373,11 @@ Page({
     const q = `title=${encodeURIComponent(d.title || '')}&date=${encodeURIComponent(d.date || '')}&n=${n || 4}`;
     wx.navigateTo({ url: '/pkg-tools/aa/aa?' + q });
   },
+  openPoster() {
+    if (!this.d || this.d.status === 'signup') return;
+    haptic.light();
+    wx.navigateTo({ url: '/pkg-tools/draw-poster/draw-poster?id=' + encodeURIComponent(this.id) });
+  },
   openPlayer(e) {
     const uid = e.currentTarget.dataset.uid;
     if (!uid) { wx.showToast({ title: '这位球员没有绑定账号', icon: 'none' }); return; }
@@ -573,13 +579,25 @@ Page({
     const gOf = S.genderFinder(db.cachedPlayersFull());
     const uidOf = this.uidOf || {};
     const side = (members) => members.map((n) => ({ name: n, uid: uidOf[n] || '', initial: initialOf(n), color: colorOf(n), gender: gOf(n, uidOf[n]) }));
-    const items = list.map((x) => Object.assign({}, x, {
-      aP: side(x.aMembers), bP: side(x.bMembers),
-      aG: !x.tbdA && x.aMembers.join(' / ') === x.a, bG: !x.tbdB && x.bMembers.join(' / ') === x.b,
-      aText: x.tbdA ? x.labelA || '待定' : x.a, bText: x.tbdB ? x.labelB || '待定' : x.b,
-      mine: !!this.data.myId && ID.idsFor(x.aMembers.concat(x.bMembers), this.uidOf).indexOf(this.data.myId) >= 0,
-      status: x.done ? 'done' : x.ready ? 'ready' : 'tbd',
-    }));
+    const setCols = (sets, s) => {
+      const opp = s === 'a' ? 'b' : 'a', tbk = s === 'a' ? 'tbA' : 'tbB';
+      return (sets || []).map((x) => {
+        const v = Number(x[s]), o = Number(x[opp]), tb = x[tbk];
+        return { v: Number.isFinite(v) ? String(v) : '', w: Number.isFinite(v) && Number.isFinite(o) && v > o, tb: tb !== undefined && tb !== null && tb !== '' ? String(tb) : '' };
+      });
+    };
+    const items = list.map((x) => {
+      const hasSets = !!(x.sets && x.sets.length);
+      const scoreNote = x.done ? (x.outcome && x.outcome !== 'normal' ? (x.outcomeText || x.score || '') : (hasSets ? '' : (x.score || ''))) : '';
+      return Object.assign({}, x, {
+        aP: side(x.aMembers), bP: side(x.bMembers),
+        aG: !x.tbdA && x.aMembers.join(' / ') === x.a, bG: !x.tbdB && x.bMembers.join(' / ') === x.b,
+        aText: x.tbdA ? x.labelA || '待定' : x.a, bText: x.tbdB ? x.labelB || '待定' : x.b,
+        aSets: setCols(x.sets, 'a'), bSets: setCols(x.sets, 'b'), hasSets, scoreNote,
+        mine: !!this.data.myId && ID.idsFor(x.aMembers.concat(x.bMembers), this.uidOf).indexOf(this.data.myId) >= 0,
+        status: x.done ? 'done' : x.ready ? 'ready' : 'tbd',
+      });
+    });
     const done = items.filter((x) => x.done).length;
     const p = E.progressOf(d, this.data.matches);
     this.items = items;

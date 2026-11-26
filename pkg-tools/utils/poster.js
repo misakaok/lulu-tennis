@@ -161,11 +161,20 @@ function paint(ctx, annual, genDate, avatarImg) {
   ctx.font = `bold 24px ${FONT}`;
   ctx.fillText(`${year} 年度球场战报`, hx + hw - 32, hy + 49);
 
-  // 球员头像（有真实头像照片时居中裁圆绘制，否则画首字圆）+ 昵称 + 等级大字
+  // 球员头像（有真实头像照片时居中裁圆绘制，否则画首字圆；解析 CSS 渐变色为 Canvas 2D 渐变，避免 fillStyle 无效变黑）
   const avX = hx + 72, avY = hy + 144, avR = 40;
   ctx.beginPath();
   ctx.arc(avX, avY, avR, 0, Math.PI * 2);
-  ctx.fillStyle = a.color || '#C9C9E4';
+  const rawCol = String(a.color || '');
+  const hexes = rawCol.match(/#[0-9a-fA-F]{3,8}/g);
+  if (hexes && hexes.length >= 2 && typeof ctx.createLinearGradient === 'function') {
+    const ag = ctx.createLinearGradient(avX - avR, avY - avR, avX + avR, avY + avR);
+    ag.addColorStop(0, hexes[0]);
+    ag.addColorStop(1, hexes[1]);
+    ctx.fillStyle = ag;
+  } else {
+    ctx.fillStyle = (hexes && hexes[0]) || '#C9C9E4';
+  }
   ctx.fill();
   if (avatarImg && avatarImg.width && avatarImg.height && typeof ctx.drawImage === 'function') {
     const iw = avatarImg.width, ih = avatarImg.height;

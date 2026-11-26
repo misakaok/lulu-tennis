@@ -6,6 +6,7 @@ const vm = require('vm');
 const { createRequire } = require('module');
 const AA = require('../pkg-tools/utils/aa');
 const MX = require('../pkg-tools/utils/mixer');
+const LD = require('../pkg-tools/utils/ladder');
 const PV = require('../utils/player');
 const ID = require('../utils/ident');
 const K = require('../utils/racket');
@@ -64,6 +65,181 @@ test('双打均衡排班（utils/mixer.js）：4 人按水平最均衡配对；6
   assert.match(txt, /1 号场/);
   assert.match(txt, /2 号场/);
   assert.strictEqual(MX.schedule(p4.slice(0, 3)), null, '不足 4 人返回 null');
+});
+
+test('升降级冲场（utils/ladder.js + pkg-tools/mixer）：12 人 3 场冲 1 号场强制拆搭档、平局金球定胜负、10 人公平轮休、按分动态配对与本地恢复', () => {
+  const pairSet = (rd) => {
+    const s = new Set();
+    rd.matches.forEach((m) => {
+      const k = (x, y) => (x < y ? `${x}|${y}` : `${y}|${x}`);
+      s.add(k(m.a[0], m.a[1]));
+      s.add(k(m.b[0], m.b[1]));
+    });
+    return s;
+  };
+
+  // 1. 12 人 3 片场「冲 1 号场」：同水平按原编号顺序分场（1~4 号先上 1 号场），胜升负降、1 号场守擂、末场留场、强制拆开上轮搭档
+  const eq12 = Array.from({ length: 12 }, (_, i) => ({ id: 'q' + (i + 1), name: `${i + 1} 号球友`, level: 2.5 }));
+  const seq12 = LD.startSession(eq12, { mode: 'king', preset: 'g4' });
+  assert.deepStrictEqual(seq12.current.matches[0].a.concat(seq12.current.matches[0].b).sort(), ['q1', 'q2', 'q3', 'q4'], '同水平编号球友 1~4 号先上 1 号场，不被字典序打乱');
+  const p12 = Array.from({ length: 12 }, (_, i) => ({ id: 'u' + (i + 1), uid: 'u' + (i + 1), name: '球友' + (i + 1), level: 4.0 - i * 0.1 }));
+  let s = LD.startSession(p12, { mode: 'king', preset: 'g4' });
+  assert.deepStrictEqual([s.mode, s.courts, s.current.round, s.current.matches.length, s.current.restIds.length], ['king', 3, 1, 3, 0]);
+  assert.strictEqual(LD.canAdvance(s), false);
+  const r1Pairs = pairSet(s.current);
+  const r1m1 = s.current.matches[0], r1m2 = s.current.matches[1], r1m3 = s.current.matches[2];
+  // 第 1 场 A 胜（4:2），第 2 场 B 胜（2:4），第 3 场 A 胜（4:1）
+  s = LD.setScore(s, 1, 'a', '4'); s = LD.setScore(s, 1, 'b', '2');
+  s = LD.setScore(s, 2, 'a', '2'); s = LD.setScore(s, 2, 'b', '4');
+  s = LD.setScore(s, 3, 'a', '4'); s = LD.setScore(s, 3, 'b', '1');
+  assert.strictEqual(LD.canAdvance(s), true);
+  let adv = LD.advanceRound(s);
+  assert.strictEqual(adv.ok, true);
+  s = adv.session;
+  assert.strictEqual(s.current.round, 2);
+  // 校验各场 4 人归属：1 号场 = 1场胜方 + 2场胜方；2 号场 = 1场负方 + 3场胜方；3 号场 = 2场负方 + 3场负方
+  const idsOf = (m) => m.a.concat(m.b).sort();
+  assert.deepStrictEqual(idsOf(s.current.matches[0]), r1m1.a.concat(r1m2.b).sort());
+  assert.deepStrictEqual(idsOf(s.current.matches[1]), r1m1.b.concat(r1m3.a).sort());
+  assert.deepStrictEqual(idsOf(s.current.matches[2]), r1m2.a.concat(r1m3.b).sort());
+  // 强制拆伙：第 2 轮所有搭档组合不得与第 1 轮重复
+  const r2Pairs = pairSet(s.current);
+  r2Pairs.forEach((pk) => assert.ok(!r1Pairs.has(pk), '第 2 轮必须拆开上一轮搭档：' + pk));
+  // 校验标签：1 号场有守擂和 ↑ 升场
+  const c1Badges = s.current.matches[0].aPlayers.concat(s.current.matches[0].bPlayers).map((p) => p.badge).sort();
+  assert.deepStrictEqual(c1Badges, ['↑ 升场', '↑ 升场', '守擂', '守擂']);
+
+  // 2. 冲 1 号场平局金球定胜负与撤回恢复
+  s = LD.setScore(s, 1, 'a', '3'); s = LD.setScore(s, 1, 'b', '3');
+  s = LD.setScore(s, 2, 'a', '4'); s = LD.setScore(s, 2, 'b', '2');
+  s = LD.setScore(s, 3, 'a', '4'); s = LD.setScore(s, 3, 'b', '1');
+  assert.strictEqual(s.current.matches[0].needTieBreak, true);
+  assert.strictEqual(LD.canAdvance(s), false);
+  assert.strictEqual(LD.advanceRound(s).ok, false);
+  s = LD.setTieBreak(s, 1, 'b');
+  assert.strictEqual(LD.canAdvance(s), true);
+  adv = LD.advanceRound(s);
+  assert.strictEqual(adv.ok, true);
+  s = adv.session;
+  assert.strictEqual(s.history[1].matches[0].byTieBreak, true);
+  assert.strictEqual(s.history[1].matches[0].winner, 'b');
+  assert.ok(s.current.matches.every((m) => m.a.length === 2 && m.b.length === 2), '金球结算后每片场仍恒为 4 人');
+  // 撤回第 2 轮结算，应完整恢复比分和金球选择
+  const undone = LD.undoRound(s);
+  assert.strictEqual(undone.current.round, 2);
+  assert.strictEqual(undone.history.length, 1);
+  assert.deepStrictEqual([undone.current.matches[0].scoreA, undone.current.matches[0].scoreB, undone.current.matches[0].needTieBreak, undone.current.matches[0].tieBreak], ['3', '3', true, 'b']);
+
+  // 3. 10 人 2 片场（每轮 2 人轮休）：轮休者下轮优先上场，多轮后全员出场次数极差 ≤ 1
+  const p10 = p12.slice(0, 10);
+  let s10 = LD.startSession(p10, { mode: 'king', preset: 'g4' });
+  assert.strictEqual(s10.current.restIds.length, 2);
+  const firstRest = s10.current.restIds.slice();
+  for (let rd = 0; rd < 4; rd++) {
+    s10 = LD.setScore(s10, 1, 'a', '4'); s10 = LD.setScore(s10, 1, 'b', '2');
+    s10 = LD.setScore(s10, 2, 'a', '4'); s10 = LD.setScore(s10, 2, 'b', '1');
+    s10 = LD.advanceRound(s10).session;
+    if (rd === 0) {
+      const c2Ids = s10.current.matches[1].a.concat(s10.current.matches[1].b);
+      firstRest.forEach((id) => assert.ok(c2Ids.includes(id), '上轮轮休球友下轮必须优先补进末号场'));
+    }
+    assert.strictEqual(s10.current.restIds.length, 2);
+    const seen = new Set(s10.current.restIds);
+    s10.current.matches.forEach((m) => m.a.concat(m.b).forEach((id) => seen.add(id)));
+    assert.strictEqual(seen.size, 10, '每轮 10 人无遗漏无重复');
+  }
+  const st10 = LD.standings(s10);
+  const plays10 = st10.map((r) => r.played);
+  assert.ok(Math.max(...plays10) - Math.min(...plays10) <= 1, '10 人 4 轮出场次数均衡');
+
+  // 4. 按分动态配对（8 人 2 片场）：允许平局直接结算，高分聚 1 号场
+  const p8 = p12.slice(0, 8);
+  let sp = LD.startSession(p8, { mode: 'points', preset: 'free' });
+  sp = LD.setScore(sp, 1, 'a', '3'); sp = LD.setScore(sp, 1, 'b', '3');
+  sp = LD.setScore(sp, 2, 'a', '6'); sp = LD.setScore(sp, 2, 'b', '1');
+  assert.strictEqual(LD.canAdvance(sp), true, '按分动态配对允许平局');
+  const p2Winners = sp.current.matches[1].a.slice();
+  sp = LD.advanceRound(sp).session;
+  const topIds = sp.current.matches[0].a.concat(sp.current.matches[0].b);
+  p2Winners.forEach((id) => assert.ok(topIds.includes(id), '2 号场大胜方应按分升入 1 号场'));
+  const stp = LD.standings(sp);
+  assert.ok(stp.some((r) => r.tie === 1));
+
+  // 5. 战报文案、页面交互与命名规范（绝不出现「墨西哥 / Mexicano」和赛事禁词）
+  const roundTxt = LD.formatCurrentRound(s);
+  const reportTxt = LD.formatFinalReport(s);
+  assert.match(roundTxt, /冲 1 号场升降级 · 第 3 轮对阵/);
+  assert.match(roundTxt, /LULU 网球/);
+  assert.match(reportTxt, /实时排行榜/);
+  assert.match(reportTxt, /\(金球\)/);
+  assert.ok(!/墨西哥|Mexicano|赛事|晋级|淘汰赛/i.test(roundTxt + reportTxt));
+
+  const mixerFiles = [
+    read('pkg-tools/utils/ladder.js'),
+    read('pkg-tools/mixer/mixer.js'),
+    read('pkg-tools/mixer/mixer.wxml'),
+    read('pkg-tools/mixer/mixer.json'),
+  ].join('\n');
+  assert.ok(!/墨西哥|Mexicano/i.test(mixerFiles), '界面和代码不使用墨西哥/Mexicano命名');
+  const mixerCfg = JSON.parse(read('pkg-tools/mixer/mixer.json'));
+  assert.strictEqual(mixerCfg.enableShareAppMessage, false);
+  assert.strictEqual(mixerCfg.enableShareTimeline, false);
+
+  // 6. 页面脚本端到端仿真：8 人速开 → 填分 → 结算生成第 2 轮 → 重新打开自动恢复
+  const store = {};
+  const mockWx = {
+    hideShareMenu() {}, showToast() {}, showModal(o) { if (o.success) o.success({ confirm: true }); },
+    getStorageSync: (k) => store[k],
+    setStorageSync: (k, v) => { store[k] = v; },
+    removeStorageSync: (k) => { delete store[k]; },
+  };
+  const prevWx = global.wx;
+  global.wx = mockWx;
+  try {
+    const mixerFile = path.join(root, 'pkg-tools/mixer/mixer.js');
+    const mixerReq = createRequire(mixerFile);
+    let mDef;
+    const runMixer = () => {
+      vm.runInNewContext(read('pkg-tools/mixer/mixer.js'), {
+        require: (id) => (id === '../../utils/db' ? { cachedPlayersFull: () => [], cachedMatches: () => [] } : mixerReq(id)),
+        wx: mockWx,
+        Page: (d) => { mDef = d; }, console, Date,
+      });
+      return Object.assign({}, mDef, {
+        data: JSON.parse(JSON.stringify(mDef.data)),
+        setData(o) { Object.assign(this.data, o); },
+      });
+    };
+    const mp = runMixer();
+    mp.onLoad({});
+    assert.strictEqual(mp.data.modeTab, 'mix');
+    mp.setModeTab({ currentTarget: { dataset: { v: 'ladder' } } });
+    mp.quickLadder({ currentTarget: { dataset: { n: '8' } } });
+    assert.deepStrictEqual([mp.data.ldPicked.length, mp.data.ldCourts], [8, 2]);
+    mp.startLadder();
+    assert.strictEqual(mp.data.ldSession.current.round, 1);
+    mp.onLdScore({ currentTarget: { dataset: { court: '1', side: 'a' } }, detail: { value: '4' } });
+    mp.onLdScore({ currentTarget: { dataset: { court: '1', side: 'b' } }, detail: { value: '2' } });
+    mp.onLdScore({ currentTarget: { dataset: { court: '2', side: 'a' } }, detail: { value: '4' } });
+    mp.onLdScore({ currentTarget: { dataset: { court: '2', side: 'b' } }, detail: { value: '1' } });
+    mp.nextLdRound();
+    assert.strictEqual(mp.data.ldSession.current.round, 2);
+    assert.strictEqual(mp.data.ldStandings.length, 8);
+    assert.ok(mp.data.ldLeader);
+    assert.ok(store[LD.STORAGE_KEY], '进行中的冲场局已持久化到本机缓存');
+    // 重新打开页面自动恢复未结束的冲场局并默认切到升降级冲场页签
+    const mp2 = runMixer();
+    mp2.onLoad({});
+    assert.strictEqual(mp2.data.modeTab, 'ladder');
+    assert.strictEqual(mp2.data.ldSession.current.round, 2);
+    // 结束重开清理缓存
+    mp2.resetLadder();
+    assert.strictEqual(mp2.data.ldSession, null);
+    assert.strictEqual(store[LD.STORAGE_KEY], undefined);
+  } finally {
+    if (prevWx === undefined) delete global.wx;
+    else global.wx = prevWx;
+  }
 });
 
 test('一键复刻上次活动（pages/draw-new）：复用形式、规则、场地、地图和建议水平；日期保持今天且不自动勾选 LULU 积分', () => {
@@ -454,6 +630,145 @@ test('年度球场战报与纯本机海报绘制（PV.annualView + utils/poster.
   // 页面合规：pages/report 仍禁用分享，无动态 <image src="{{...}}">，使用 canvas id="poster-cv"
   const rptXml = read('pkg-tools/report/report.wxml');
   assert.ok(/id="poster-cv"/.test(rptXml) && /生成战报图/.test(rptXml) && !/<image\b/.test(rptXml));
+});
+
+test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-poster）：支持单淘汰、循环＋淘汰（完整/精简）、四人轮换，Canvas 2D 零报错绘制与相册保存', async () => {
+  const DP = require('../pkg-tools/utils/draw-poster');
+  const makeCtx = () => {
+    const texts = [], badFills = [];
+    const noop = () => {};
+    let curFill = '';
+    const ctx = {
+      get fillStyle() { return curFill; },
+      set fillStyle(v) { if (typeof v === 'string' && /gradient/i.test(v)) badFills.push(v); curFill = v; },
+      createLinearGradient: () => ({ addColorStop: noop }),
+      fillRect: noop, strokeRect: noop, clearRect: noop,
+      beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop, arc: noop, arcTo: noop,
+      fill: noop, stroke: noop, save: noop, restore: noop, clip: noop,
+      setTransform: noop, scale: noop,
+      measureText: (s) => ({ width: String(s || '').length * 14 }),
+      fillText: (s) => texts.push(String(s || '')),
+    };
+    return { ctx, texts, badFills };
+  };
+
+  // 1. 单淘汰（4 签已出冠军）：含时间场地、抢七比分、冠亚军横幅
+  const dKo = {
+    _id: 'd-ko', title: '周六单淘汰', mode: 'bracket', size: 4, type: 'single',
+    date: '2026-11-28', startTime: '19:00', venue: '3 号场',
+    place: { name: '中央球场', address: '网球路 1 号' },
+    entrants: ['小雨', '阿哲', '林晨', '大维'],
+    lines: [{ name: '小雨' }, { name: '阿哲' }, { name: '林晨' }, { name: '大维' }],
+    cup: { kind: 'weekly', pointGroup: 'open', scoreVersion: 2 },
+    slots: { '1-0': { date: '2026-11-28', time: '20:30', court: '1 号场' } },
+  };
+  const mKo = [
+    { _id: 'm1', drawId: 'd-ko', drawKey: '0-0', ea: '小雨', eb: '阿哲', winner: 'a', sets: [{ a: 3, b: 1 }], outcome: 'retired' },
+    { _id: 'm2', drawId: 'd-ko', drawKey: '0-1', ea: '林晨', eb: '大维', winner: 'a', sets: [{ a: 4, b: 3, tbA: 7, tbB: 5 }] },
+    { _id: 'm3', drawId: 'd-ko', drawKey: '1-0', ea: '小雨', eb: '林晨', winner: 'a', sets: [{ a: 4, b: 1 }] },
+  ];
+  const modKo = DP.buildModel(dKo, mKo);
+  assert.deepStrictEqual([modKo.statusText, modKo.statusLime, modKo.champion, modKo.runnerUp], ['最终战果', true, '小雨', '林晨']);
+  const c1 = makeCtx();
+  const hKo = DP.paint(c1.ctx, modKo, '2026-11-28');
+  assert.ok(hKo >= 760);
+  assert.ok(c1.texts.includes('LULU 网球') && c1.texts.includes('周六单淘汰') && c1.texts.includes('冠军') && c1.texts.includes('退赛') && c1.texts.some((t) => /亚军：林晨/.test(t)));
+  assert.deepStrictEqual(c1.badFills, [], 'Canvas fillStyle 不能传 CSS linear-gradient 字符串（否则头像圆会变黑）');
+  assert.ok(!c1.texts.some((t) => /小组赛|淘汰赛|签表|赛程|出线|决赛|晋级|赛事|种子/.test(t)), '海报文本不含任何赛事禁词');
+
+  // 2. 循环＋淘汰（2 组 × 3 人）：完整版含组内对阵，精简版只含积分榜与单淘汰，高度明显缩短
+  const dGk = {
+    _id: 'd-gk', title: '周日循环冲冠', mode: 'groups_ko', groupCount: 2, advance: 2, type: 'single',
+    date: '2026-11-29', entrants: ['甲', '乙', '丙', '丁', '戊', '己'],
+    groups: [
+      { name: 'A 组', members: [{ name: '甲' }, { name: '乙' }, { name: '丙' }] },
+      { name: 'B 组', members: [{ name: '丁' }, { name: '戊' }, { name: '己' }] },
+    ],
+  };
+  const fullModel = DP.buildModel(dGk, [], { compact: false });
+  const compModel = DP.buildModel(dGk, [], { compact: true });
+  assert.strictEqual(fullModel.hasGroups, true);
+  assert.strictEqual(fullModel.groups[0].fixtures.length, 3);
+  assert.strictEqual(compModel.groups[0].fixtures.length, 0);
+  assert.ok(DP.measureHeight(fullModel) > DP.measureHeight(compModel) + 150, '精简版高度显著低于完整版');
+  const c2 = makeCtx();
+  DP.paint(c2.ctx, fullModel, '2026-11-29');
+  assert.ok(c2.texts.includes('A 组') && c2.texts.includes('B 组') && c2.texts.includes('单淘汰阶段'));
+
+  // 3. 四人轮换双打
+  const dRot = {
+    _id: 'd-rot', title: '晚间四人轮换', mode: 'rotation', type: 'double',
+    date: '2026-11-29', entrants: ['甲', '乙', '丙', '丁'],
+    teams: { '甲 / 乙': ['甲', '乙'], '丙 / 丁': ['丙', '丁'], '甲 / 丙': ['甲', '丙'], '乙 / 丁': ['乙', '丁'], '甲 / 丁': ['甲', '丁'], '乙 / 丙': ['乙', '丙'] },
+  };
+  const modRot = DP.buildModel(dRot, []);
+  assert.strictEqual(modRot.rotRounds.length, 3);
+  const c3 = makeCtx();
+  DP.paint(c3.ctx, modRot, '2026-11-29');
+  assert.ok(c3.texts.includes('本场球友') && c3.texts.includes('第 1 轮') && c3.texts.includes('第 3 轮'));
+
+  // 4. 页面配置、入口和端到端仿真（本机缓存即出图 → 切换精简版 → 保存相册）
+  const appCfg = JSON.parse(read('app.json'));
+  const toolsPkg = appCfg.subpackages.find((s) => s.root === 'pkg-tools');
+  assert.ok(toolsPkg && toolsPkg.pages.includes('draw-poster/draw-poster'), '对阵图页注册在 pkg-tools 分包');
+  const dpCfg = JSON.parse(read('pkg-tools/draw-poster/draw-poster.json'));
+  assert.deepStrictEqual([dpCfg.enableShareAppMessage, dpCfg.enableShareTimeline], [false, false]);
+  const dpXml = read('pkg-tools/draw-poster/draw-poster.wxml');
+  assert.ok(/id="draw-poster-cv"/.test(dpXml) && !/<image\b[^>]*\{\{/.test(dpXml));
+  assert.ok(/bindtap="openPoster"/.test(read('pages/draw-view/draw-view.wxml')));
+
+  const savedPaths = [];
+  const cMock = makeCtx().ctx;
+  const fakeCanvas = { width: 0, height: 0, getContext: () => cMock };
+  const mockWx = {
+    hideShareMenu() {}, setNavigationBarTitle() {}, showToast() {}, showModal() {},
+    nextTick: (fn) => fn(),
+    createSelectorQuery: () => ({
+      in() { return this; },
+      select() { return this; },
+      fields() { return this; },
+      exec(cb) { cb([{ node: fakeCanvas }]); },
+    }),
+    canvasToTempFilePath: (o) => o.success({ tempFilePath: '/tmp/draw-poster.jpg' }),
+    saveImageToPhotosAlbum: (o) => { savedPaths.push(o.filePath); o.success(); },
+  };
+  const prevWx = global.wx;
+  global.wx = mockWx;
+  try {
+    let dpDef;
+    const dpFile = path.join(root, 'pkg-tools/draw-poster/draw-poster.js');
+    const dpReq = createRequire(dpFile);
+    vm.runInNewContext(read('pkg-tools/draw-poster/draw-poster.js'), {
+      require: (id) => (id === '../../utils/db' ? {
+        peekDrawDetail: () => ({ draw: dGk }),
+        cachedDraws: () => [dGk],
+        cachedMatches: () => [],
+        fetchDrawDetail: async () => ({ draw: dGk }),
+        matchesShared: async () => [],
+      } : dpReq(id)),
+      wx: mockWx,
+      Page: (d) => { dpDef = d; }, console, Date, setTimeout: (fn) => fn(), clearTimeout() {},
+    });
+    const dp = Object.assign({}, dpDef, {
+      data: JSON.parse(JSON.stringify(dpDef.data)),
+      setData(o, cb) { Object.assign(this.data, o); if (cb) cb(); },
+    });
+    dp.onLoad({ id: 'd-gk' });
+    await new Promise((r) => setImmediate(r));
+    assert.strictEqual(dp.data.ready, true);
+    assert.strictEqual(dp.data.hasGroups, true);
+    assert.strictEqual(dp.data.canSave, true);
+    const fullCvH = dp.data.cvH;
+    dp.setCompact({ currentTarget: { dataset: { v: '1' } } });
+    await new Promise((r) => setImmediate(r));
+    assert.strictEqual(dp.data.compact, true);
+    assert.ok(dp.data.cvH < fullCvH, '切到精简版后画布高度收缩');
+    dp.savePoster();
+    assert.deepStrictEqual(savedPaths, ['/tmp/draw-poster.jpg']);
+  } finally {
+    if (prevWx === undefined) delete global.wx;
+    else global.wx = prevWx;
+  }
 });
 
 module.exports = T;
