@@ -72,9 +72,9 @@
           <text>报名名单</text>
           <text class="count">{{signCount}}</text>
         </view>
-        <!-- 先用本机缓存画的页面（ready 为假）：本机记着上次的名单就先显示名单（只是显示），没有就先空着（不写读取中的提示，2026-11-25 用户要求）；读完前不说「还没有人报名」 -->
-        <view wx:if="{{!ready && !signups.length}}" class="muted"></view>
-        <view wx:elif="{{ready && !signups.length}}" class="muted">还没有人报名，把它分享到群里吧</view>
+        <!-- 本机已有该活动名单缓存（signupsKnown）或云端已读完（ready）且为 0 人时首帧直接显示空提示；完全没读过名单时先预留单行占位高度避免跳动 -->
+        <view wx:if="{{!ready && !signupsKnown && !signups.length}}" class="muted muted-ph"></view>
+        <view wx:elif="{{(ready || signupsKnown) && !signups.length}}" class="muted">还没有人报名，把它分享到群里吧</view>
 
         <view wx:for="{{signups}}" wx:key="_id" class="su-team">
           <view wx:for="{{item.members}}" wx:key="name" wx:for-item="p" class="su-row" hover-class="tap-row-on" data-uid="{{p.uid}}" bindtap="openPlayer">
@@ -94,12 +94,12 @@
           <view wx:if="{{item.waiting}}" class="su-solo su-wait">候补中：前面有人取消就自动递补</view>
           <view wx:elif="{{isDouble && !isRot && item.solo}}" class="su-solo">找搭档中，由发起人配对</view>
         </view>
-        <block wx:if="{{!ended}}"><view wx:if="{{canEdit && ready}}" class="su-add"><view class="btn-line mini {{adminBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="openAdminSignup">{{adminBusy ? '读取成员…' : '＋ 添加报名'}}</view></view></block>
+        <block wx:if="{{!ended}}"><view wx:if="{{canEdit && (ready || btnReady)}}" class="su-add"><view class="btn-line mini {{adminBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="openAdminSignup">{{adminBusy ? '读取成员…' : '＋ 添加报名'}}</view></view></block>
       </view>
       <!-- 管理员代报名：选人弹层（双打接着选搭档，可以不带） -->
       <member-sheet wx:if="{{adminSheet}}" title="{{adminSheet.title}}" sub="{{adminSheet.sub}}" list="{{adminSheet.list}}" extra="{{adminSheet.extra}}" bind:pick="adminPick" bind:extra="adminSolo" bind:close="closeAdminSheet" />
 
-      <view wx:if="{{ready && joined}}" class="joined">
+      <view wx:if="{{(ready || btnReady) && joined}}" class="joined">
         <view class="joined-ic">✓</view>
         <view class="joined-main">
           <view class="joined-t">{{myWaiting ? '你在候补名单里' : '你已报名'}}</view>
@@ -107,7 +107,7 @@
         </view>
         <view wx:if="{{!ended}}" class="btn-line mini quit" hover-class="tap-on" bindtap="quit">取消报名</view>
       </view>
-      <block wx:if="{{!ended}}"><view wx:if="{{ready && canEdit && (!isRot || canPublish)}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">{{canPublish ? '截止报名，生成' : '截止报名，手动排'}}{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view></block>
+      <block wx:if="{{!ended}}"><view wx:if="{{(ready || btnReady) && canEdit && (!isRot || canPublish)}}" class="btn-line owner" hover-class="tap-on" bindtap="startDraw">{{canPublish ? '截止报名，生成' : '截止报名，手动排'}}{{draw.mode === 'bracket' || isRot ? '对阵' : '分组'}}</view></block>
     </block>
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
@@ -138,7 +138,7 @@
         <view class="muted center">三轮换搭档，每人和另外三位各搭档一次；不排总名次</view>
       </view>
       <block wx:elif="{{tab === 'board'}}">
-        <view wx:if="{{ready && canEditMatchups}}" class="btn-line matchup-edit" hover-class="tap-on" bindtap="editDrawMatchups">手动调整对阵</view>
+        <view wx:if="{{(ready || btnReady) && canEditMatchups}}" class="btn-line matchup-edit" hover-class="tap-on" bindtap="editDrawMatchups">手动调整对阵</view>
         <draw-board draw="{{draw}}" matches="{{matches}}" me="{{myName}}" editable="{{true}}" bind:open="onOpen" />
       </block>
 
@@ -264,12 +264,10 @@
       </view>
     </view>
 
-    <!-- 报名、删除等按钮等云端读完（ready）才显示：先用本机缓存画的页面不知道你报没报名 -->
-    <!-- 底部按钮：第 1 行 报名（主按钮，报名中、还没报名时才有；双打点了选搭档）+ 分享，只有一个时占满一行；
-         第 2 行 删除（管理员「管理员删除」/ 发起人「删除活动」）。置顶在顶部积分标签右边 -->
+    <!-- 有本机报名缓存 / 我的报名缓存时首帧先画出按钮（btnReady），云端读完（ready）按最新状态更正，避免按钮延迟出现与跳动 -->
     <view class="acts">
     <view class="act-row">
-      <block wx:if="{{!ended}}"><block wx:if="{{ready && signing && !joined}}">
+      <block wx:if="{{!ended}}"><block wx:if="{{(ready || btnReady) && signing && !joined}}">
         <picker wx:if="{{isDouble && !isRot && myName}}" class="act-cell" range="{{partnerOpts}}" bindchange="joinDouble">
           <view class="btn-primary act-btn {{busy ? 'disabled' : ''}}">{{full ? '排队候补' : '我要报名'}}</view>
         </picker>
@@ -278,7 +276,7 @@
       <view wx:if="{{!signing}}" class="act-cell"><view class="btn-primary act-btn" hover-class="tap-on" bindtap="openPoster">{{posterBtnText}}</view></view>
       <view class="act-cell"><button class="share act-btn" open-type="share">{{signing && !ended ? '发给球友报名' : '发给球友'}}</button></view>
     </view>
-    <view wx:if="{{ready && canManage}}" class="act-row">
+    <view wx:if="{{(ready || btnReady) && canManage}}" class="act-row">
       <view wx:if="{{canClose}}" class="act-cell"><view class="btn-line act-btn {{closeBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="closeDraw">提前结束</view></view>
       <view wx:elif="{{canReopen}}" class="act-cell"><view class="btn-line act-btn {{closeBusy ? 'disabled' : ''}}" hover-class="tap-on" bindtap="reopenDraw">恢复活动</view></view>
       <view class="act-cell"><view class="btn-danger act-btn" hover-class="tap-on" bindtap="remove">{{isOwner ? '删除活动' : '管理员删除'}}</view></view>

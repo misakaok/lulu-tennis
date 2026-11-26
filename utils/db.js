@@ -413,17 +413,30 @@ async function fetchSignups(drawId) {
   return list;
 }
 
-// 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」用
-// 云函数 mySignups 1 次调用；云函数还是旧版本（未知操作）时分开读
+// 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」和活动详情首帧预判报名按钮用
+// 云函数 mySignups 1 次调用；云函数还是旧版本（未知操作）时分开读；同步缓存一份到本机受保护存储（退出成员身份自动清掉）
+const MY_SIGNUPS_KEY = 'cache_my_signups';
 async function fetchMySignups() {
   const me = await myOpenid();
   return memo.get('mySignups:' + me, 'signups', async () => {
-    try { return (await require('./cloud').call('mySignups')).list || []; } catch (e) {
+    const started = generation;
+    let list;
+    try { list = (await require('./cloud').call('mySignups')).list || []; } catch (e) {
       if (!/未知操作/.test((e && e.message) || '')) throw e;
+      const [own, asPartner] = await Promise.all([fetchAll('signups', [], { _openid: me }), fetchAll('signups', [], { partnerId: me })]);
+      list = own.concat(asPartner);
     }
-    const [own, asPartner] = await Promise.all([fetchAll('signups', [], { _openid: me }), fetchAll('signups', [], { partnerId: me })]);
-    return own.concat(asPartner);
+    if (started === generation) cacheSetLater(MY_SIGNUPS_KEY, { uid: me, list });
+    return list;
   });
+}
+function cachedMySignups() {
+  const me = cachedOpenid();
+  if (!me) return null;
+  const hit = memo.peek('mySignups:' + me);
+  if (Array.isArray(hit)) return hit;
+  const c = cacheGet(MY_SIGNUPS_KEY, null);
+  return c && c.uid === me && Array.isArray(c.list) ? c.list : null;
 }
 
 async function mySignup(drawId) {
@@ -433,10 +446,13 @@ async function mySignup(drawId) {
 }
 // 报名经云函数 signUp：参赛名取本人当前资料，搭档只传用户 ID，由服务端校验（partner 为空表示还没有搭档，由发起人配对）
 async function signUp(drawId, partner) {
-  return require('./cloud').call('signUp', { drawId, partnerId: (partner && partner.uid) || '' });
+  const r = await require('./cloud').call('signUp', { drawId, partnerId: (partner && partner.uid) || '' });
+  try { wx.removeStorageSync(MY_SIGNUPS_KEY); } catch (e) {}
+  return r;
 }
 async function cancelSignup(drawId) {
   await require('./cloud').call('cancelSignup', { drawId });
+  try { wx.removeStorageSync(MY_SIGNUPS_KEY); } catch (e) {}
 }
 
 module.exports = {
@@ -445,5 +461,5 @@ module.exports = {
   fetchPlayersFull, cachedPlayersFull, cachedProfiles,
   getMyProfile, cachedProfile, cachedOpenid, saveMyProfile, setShown,
   fetchDraws, cachedDraws, getDraw, fetchDrawDetail, prefetchDrawDetail, peekDrawDetail, prefetchMatchState, fetchMatchState, cachedDrawSignups, forget, addDraw, generateDraw, updateDrawInfo, updateDrawSettings, removeDraw, restoreDraw, pinDraw, closeDraw, recentRemoved, dismissRemoved, withoutRemoved, setFixtureSlot,
-  fetchSignups, fetchMySignups, mySignup, signUp, cancelSignup,
+  fetchSignups, fetchMySignups, cachedMySignups, mySignup, signUp, cancelSignup,
 };

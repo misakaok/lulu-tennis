@@ -29,6 +29,7 @@ button.share { display: flex !important; align-items: center; justify-content: c
 .count { font-size: 26rpx; color: #6E6EA3; font-weight: 700; }
 .su-card .count { padding-right: 32rpx; } /* = 名单行右边「›」的宽度 + 间距，人数和等级一列右对齐 */
 .muted { color: #84849E; font-size: 24rpx; padding: 10rpx 0; }
+.muted-ph { min-height: 36rpx; }
 .joined { display: flex; align-items: center; padding: 22rpx 24rpx; background: #F4F4FA; border-radius: 24rpx; }
 .joined-ic { flex: none; width: 56rpx; height: 56rpx; border-radius: 50%; background: linear-gradient(135deg, #A3A3CB, #8484B6); color: #fff; font-size: 30rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .joined-main { flex: 1; min-width: 0; margin-left: 20rpx; }

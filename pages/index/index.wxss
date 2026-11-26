@@ -7,8 +7,8 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
   border-radius: 0 0 50% 50% / 0 0 44rpx 44rpx;
   background: linear-gradient(180deg, #A3A3CB 0%, #C4C4E1 16%, #E2E2F2 66%, #EAEAF6 100%);
 }
-/* 底部留白：有「记一场」按钮时刚好让开按钮（距底 40rpx + 高 100rpx + 间隔 30rpx），没有按钮时用普通页面的 60rpx */
-.page.with-fab { padding-bottom: 170rpx; }
+/* 底部留白：有「记一场」按钮时刚好让开按钮（距底 22rpx + 高 82rpx + 间隔 16rpx），没有按钮时用普通页面的 60rpx */
+.page.with-fab { padding-bottom: 120rpx; }
 
 /* 我的战绩卡 */
 .mine.ani-sheen::after { animation-delay: 0.22s; }
@@ -150,7 +150,7 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 
 .pager {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 26rpx; padding: 14rpx 16rpx; border-radius: 28rpx; background: #fff;
+  margin-top: 18rpx; padding: 14rpx 16rpx; border-radius: 28rpx; background: #fff;
   border: 1rpx solid rgba(132, 132, 182, 0.14); box-shadow: 0 4rpx 14rpx rgba(84, 84, 146, 0.06);
 }
 .pg-btn {
@@ -164,6 +164,6 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .pg-tot { margin-top: 2rpx; font-size: 20rpx; color: #84849E; }
 
 /* 场边记分 + 记一场：浮在右下角 */
-.fabs { position: fixed; right: 32rpx; bottom: 40rpx; z-index: 10; display: flex; align-items: center; }
-.fab { height: 100rpx; padding: 0 40rpx; border-radius: 50rpx; display: flex; align-items: center; color: #fff; font-size: 30rpx; font-weight: 700; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 14rpx 32rpx rgba(133, 133, 184, 0.4); }
-.fab-p { margin-right: 8rpx; font-size: 36rpx; font-weight: 800; }
+.fabs { position: fixed; right: 28rpx; bottom: 22rpx; z-index: 10; display: flex; align-items: center; }
+.fab { height: 82rpx; padding: 0 32rpx; border-radius: 41rpx; display: flex; align-items: center; color: #fff; font-size: 28rpx; font-weight: 700; background: linear-gradient(150deg, #A3A3CB, #8484B6); box-shadow: 0 10rpx 24rpx rgba(133, 133, 184, 0.36); }
+.fab-p { margin-right: 6rpx; font-size: 32rpx; font-weight: 800; }

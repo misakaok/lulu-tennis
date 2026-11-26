@@ -53,11 +53,12 @@ test('活动详情：先用活动列表的本机缓存画出标题、规则、�
   await loading;
   assert.strictEqual(v.data.ready, true); assert.strictEqual(v.data.joined, true, '读完才知道已经报名');
   assert.strictEqual(v.data.signups.length, 1);
-  // 页面：名单读完前先空着（不写读取中的提示），报名、取消、添加报名、生成对阵、删除、手动调整对阵都要 ready
+  // 页面：完全没读过名单（!ready && !signupsKnown）时先空着；有本机名单缓存（含 0 人空名单）时首帧即出不延迟
+  assert.strictEqual(v.data.btnReady, true, '云端读完后 btnReady 为真');
   const xml = read('pages/draw-view/draw-view.wxml');
-  assert.ok(/wx:if="\{\{!ready && !signups.length\}\}" class="muted"><\/view>/.test(xml), '名单读完前先空着');
-  assert.ok(/wx:elif="\{\{ready && !signups.length\}\}" class="muted">还没有人报名/.test(xml), '读完前不说「还没有人报名」');
-  ['ready && joined', 'ready && signing && !joined', 'canEdit && ready', 'ready && canEdit && (!isRot || canPublish)', 'ready && canManage', 'ready && canEditMatchups']
+  assert.ok(/wx:if="\{\{!ready && !signupsKnown && !signups.length\}\}" class="muted muted-ph"><\/view>/.test(xml), '没名单缓存时先空着并预留行高');
+  assert.ok(/wx:elif="\{\{\(ready \|\| signupsKnown\) && !signups.length\}\}" class="muted">还没有人报名/.test(xml), '有缓存或读完后立即显示空名单提示');
+  ['(ready || btnReady) && joined', '(ready || btnReady) && signing && !joined', 'canEdit && (ready || btnReady)', '(ready || btnReady) && canEdit && (!isRot || canPublish)', '(ready || btnReady) && canManage', '(ready || btnReady) && canEditMatchups']
     .forEach((c) => assert.ok(xml.indexOf(`wx:if="{{${c}}}"`) >= 0, c));
 });
 
@@ -340,16 +341,17 @@ test('积分标签不闪：报名中的积分活动第一帧（本机缓存）�
   assert.ok(/\.h-cup \.ui-tag \{[^}]*min-height: 48rpx/.test(css), '能点、不能点的标签一样高');
 });
 
-test('报名名单秒出：本机记着上次的名单（或 60 秒内读过的详情）就先显示人数和名单，ready 仍为假、报名 / 取消等按钮不显示', async () => {
+test('报名名单与报名按钮秒出：有本机名单、60 秒详情或我的报名缓存时首帧同步画出按钮（btnReady），无延迟跳动；云端读完再更正', async () => {
   const detail = later();
   const old = [{ _id: 's1', name: '小明', _openid: 'me', createdAt: 1 }, { _id: 's2', name: '阿杰', _openid: 'jie', createdAt: 2 }];
   const v = viewPage({ cachedDraws: () => [signupDraw()], cachedDrawSignups: (id) => (id === 'd1' ? old : null), fetchDrawDetail: () => detail.p });
   v.onLoad({ id: 'd1' });
-  await tick();
-  assert.deepStrictEqual([v.data.signups.length, v.data.signCount, v.data.ready], [2, '2 人', false]);
+  assert.deepStrictEqual([v.data.signups.length, v.data.signCount, v.data.ready, v.data.btnReady, v.data.joined], [2, '2 人', false, true, true], '首帧同步出名单和按钮');
   assert.ok(v.data.signText, '报名情况文字也先显示');
-  const xml = read('pages/draw-view/draw-view.wxml');
-  ['ready && joined', 'ready && signing && !joined', 'canEdit && ready'].forEach((c) => assert.ok(xml.indexOf(`wx:if="{{${c}}}"`) >= 0, c + '：预览时不显示'));
+  // 首次点进新活动（还没有名单缓存，但活动列表已缓存过我的报名）：同样首帧秒出「我要报名」等按钮
+  const freshNew = viewPage({ cachedDraws: () => [signupDraw()], cachedMySignups: () => [], fetchDrawDetail: () => new Promise(() => {}) });
+  freshNew.onLoad({ id: 'd1' });
+  assert.deepStrictEqual([freshNew.data.ready, freshNew.data.btnReady, freshNew.data.joined], [false, true, false], '有我的报名缓存：首次打开新活动也首帧出按钮');
   // 云端读完按最新的更正（阿杰取消了）
   detail.ok({ draw: signupDraw(), profile: { name: '小明' }, signups: old.slice(0, 1) });
   for (let i = 0; i < 4; i++) await tick();
@@ -358,13 +360,34 @@ test('报名名单秒出：本机记着上次的名单（或 60 秒内读过的�
   const peek = { draw: signupDraw(), profile: { name: '小明' }, signups: old };
   const p = viewPage({ peekDrawDetail: () => peek, cachedDrawSignups: () => [], fetchDrawDetail: () => new Promise(() => {}) });
   p.onLoad({ id: 'd1' });
-  await tick();
-  assert.deepStrictEqual([p.data.draw.title, p.data.signups.length, p.data.ready], ['周六约球', 2, false]);
-  // 本机什么都没有：名单先空着，等云端
+  assert.deepStrictEqual([p.data.draw.title, p.data.signups.length, p.data.ready, p.data.btnReady], ['周六约球', 2, false, true]);
+  // 本机缓存记着上次就是 0 人空名单：首帧 signupsKnown 为真，空提示不延迟出现
+  const z = viewPage({ cachedDraws: () => [signupDraw()], cachedDrawSignups: () => [], fetchDrawDetail: () => new Promise(() => {}) });
+  z.onLoad({ id: 'd1' });
+  assert.deepStrictEqual([z.data.signups.length, z.data.ready, z.data.signupsKnown, z.data.btnReady], [0, false, true, true]);
+  // 本机什么报名缓存都没有：名单先空着、按钮等云端
   const q = viewPage({ cachedDraws: () => [signupDraw()], fetchDrawDetail: () => new Promise(() => {}) });
   q.onLoad({ id: 'd1' });
-  await tick();
-  assert.deepStrictEqual([q.data.signups.length, q.data.signCount], [0, '']);
+  assert.deepStrictEqual([q.data.signups.length, q.data.signCount, q.data.signupsKnown, q.data.btnReady], [0, '', false, false]);
+});
+
+test('活动首页首帧不抖动：onLoad 用本机 cachedOpenid / cachedMySignups 立即算出「我发起 / 已报名」和我的活动数，不先画矮卡片再突然撑高', () => {
+  const draws = [
+    Object.assign(signupDraw(), { _id: 'd1', _openid: 'me' }),
+    Object.assign(signupDraw(), { _id: 'd2', _openid: 'other' }),
+  ];
+  const p = load('pages/draw/draw.js', {}, {
+    '../../utils/db': {
+      cachedDraws: () => draws, cachedMatches: () => [],
+      cachedOpenid: () => 'me', cachedMySignups: () => [{ drawId: 'd2' }],
+    },
+    '../../utils/member': { knownActive: () => true, isAdminLocal: () => true },
+    '../../utils/timeline': { isTimeline: () => false },
+  });
+  p.onLoad();
+  assert.strictEqual(p.data.mineCount, 2, '首帧就算出「我的活动」数量');
+  assert.deepStrictEqual(plain(p.data.shown[0].roleTags), ['我发起'], '首帧就显示「我发起」，卡片不再先矮后高');
+  assert.deepStrictEqual(plain(p.data.shown[1].roleTags), ['已报名'], '首帧就显示「已报名」');
 });
 
 test('报名名单不等全部战绩：drawDetail 先回来就先用本机的比赛 / 球员画出人数和名单，共享数据回来后再更新排名', async () => {

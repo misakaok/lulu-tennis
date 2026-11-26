@@ -42,7 +42,7 @@ Page({
   data: {
     draw: null, meta: '', levelText: '', formatText: '', seedLabel: '', seedRows: [], error: '', myName: '', myId: '',
     cupTag: '', cupBox: null, canEditCup: false, cupKindBusy: false, isRot: false, rotRounds: [],
-    ready: false, signing: false, ended: false, endReason: '', canClose: false, canReopen: false, closeBusy: false, posterBtnText: '生成对阵图',
+    ready: false, btnReady: false, signupsKnown: false, signing: false, ended: false, endReason: '', canClose: false, canReopen: false, closeBusy: false, posterBtnText: '生成对阵图',
     isDouble: false, signups: [], signCount: '', signText: '', signNote: '', joined: false, isOwner: false, full: false, busy: false,
     partnerOpts: [], info: null, adminSheet: null, adminBusy: false, // adminSheet：管理员代报名的选人弹层（components/member-sheet）
     matches: [], tab: 'board', schedule: [], onlyMine: false, focus: '', progress: '', todo: 0, slotEdit: null,
@@ -67,9 +67,10 @@ Page({
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
-  // 先用本机已有的数据画出来（活动列表的本机缓存 + 本机战绩），云端 drawDetail 读完再更正（2026-11-24 用户嫌打开慢）。
-  // 本机没有的（报名名单、退赛申请、积分结算）读完前不显示；报名 / 取消 / 生成对阵 / 删除这些按钮也等读完（ready）
-  //   报名中的活动：内存里 60 秒内读过的详情（db.peekDrawDetail）或本机记着的上次名单（db.cachedDrawSignups）先画出人数和名单（只是显示）
+  // 先用本机已有的数据画出来（活动列表的本机缓存 + 本机战绩），云端 drawDetail 读完再更正。
+  //   报名中的活动：内存里 60 秒内读过的详情（peekDrawDetail）、上次的名单（cachedDrawSignups）或我的报名缓存（cachedMySignups）
+  //   能确定报名状态时，第一帧同步画出报名 / 取消 / 截止报名 / 删除等按钮（btnReady: true），避免页面打开后按钮延迟蹦出与宽度跳动；
+  //   云端读完（ready: true）后再按最新结果更正，名单为空时仍在 ready 前不提示「还没有人报名」。
   preview() {
     let d = null, signups = null, me = null, peekCup = null;
     try {
@@ -82,14 +83,41 @@ Page({
     me = me || db.cachedProfile();
     try {
       const all = db.cachedMatches();
-      this.show(d, all, me, db.cachedOpenid() || (me && me._openid) || '', null);
-      if (d.status === 'signup' && Array.isArray(signups)) this.loadSignups(d, all, signups, { players: db.cachedPlayersFull() });
-      else if (d.status !== 'signup' && peekCup && require('../../utils/member').isAdminLocal() && C.drawCupOf(d)) this.applyCup(peekCup);
+      const myId = db.cachedOpenid() || (me && me._openid) || '';
+      let extra = null;
+      if (d.status === 'signup') {
+        const players = db.cachedPlayersFull();
+        if (Array.isArray(signups)) {
+          const mine = signups.find((s) => !!myId && s._openid === myId) || null;
+          extra = Object.assign(this.buildSignupPatch(d, signups, mine, players, false, all, myId), { btnReady: true, signupsKnown: true });
+        } else {
+          const mySu = db.cachedMySignups ? db.cachedMySignups() : null;
+          if (Array.isArray(mySu)) {
+            const joined = mySu.some((s) => s && s.drawId === this.id);
+            this.partnerPool = players.filter((p) => p.uid && p.uid !== myId);
+            extra = {
+              joined,
+              full: false,
+              partnerOpts: [NO_PARTNER].concat(this.partnerPool.map((p) => p.name)),
+              btnReady: true,
+            };
+          }
+        }
+      } else {
+        extra = { btnReady: true };
+      }
+      this.show(d, all, me, myId, null, null, extra);
+      if (d.status !== 'signup' && peekCup && require('../../utils/member').isAdminLocal() && C.drawCupOf(d)) this.applyCup(peekCup);
     } catch (e) { console.warn('[活动详情] 本机缓存画不出来，等云端', e); }
   },
 
   // 防乱序：onShow、下拉刷新、处理退赛后都会调 load，几次请求先后回来时只用最后一次的结果（旧的晚到也不画）
-  async load() {
+  load() {
+    const p = this.loadNow();
+    this.loadP = p;
+    return p;
+  },
+  async loadNow() {
     const seq = this.loadSeq = (this.loadSeq || 0) + 1;
     const stale = () => seq !== this.loadSeq || this.gone;
     try {
@@ -125,12 +153,12 @@ Page({
       if (stale()) return;
       console.error(e);
       // 只画过本机缓存、云端没读到：不留着缓存的内容（可能已被删除）
-      this.setData(this.loaded ? { error: '活动加载失败，可能已被删除' } : { error: '活动加载失败，可能已被删除', draw: null, ready: false });
+      this.setData(this.loaded ? { error: '活动加载失败，可能已被删除' } : { error: '活动加载失败，可能已被删除', draw: null, ready: false, btnReady: false, signupsKnown: false });
     }
   },
 
   // fresh：云端结果 { bundle, signups }；null 表示只是本机缓存的预览
-  async show(d, all, me, myId, fresh, stale) {
+  async show(d, all, me, myId, fresh, stale, previewExtra) {
     const signups = fresh ? fresh.signups : [];
     this.uidOf = ID.drawUids(d, signups); // 「我的比赛」按用户 ID 判断
     d._id = d._id || this.id;
@@ -169,13 +197,15 @@ Page({
     };
     if (signing) { top.canEditCup = cupOn; top.cupBox = null; this.cupSeq = (this.cupSeq || 0) + 1; } // 报名中：取消还在路上的结算查询
     else if (!cupOn) top.canEditCup = false;
-    this.setData(top);
-    if (!fresh) { // 预览：报名名单等云端；对阵和场次用本机战绩先画
+    if (!fresh) { // 预览：同一次 setData 合并已缓存的报名名单和按钮状态，首帧直接到位
+      if (previewExtra) Object.assign(top, previewExtra);
+      this.setData(top);
       if (!signing) this.renderSchedule(true);
       return;
     }
+    this.setData(top);
     if (signing) {
-      await this.loadSignups(d, all, fresh.bundle ? signups : null, fresh.players);
+      await this.loadSignups(d, all, fresh.bundle ? signups : null, fresh.players, { ready: true, btnReady: true, signupsKnown: true });
       if (stale && stale()) return;
       // 管理员：顺手预读成员列表（内存里 60 秒），点「＋ 添加报名」时选人弹层马上出来
       if (isAdmin && !this.membersAsked) { this.membersAsked = true; cloud.cached('listMembers').catch(() => {}); }
@@ -196,7 +226,7 @@ Page({
       }
     }
     if (stale && stale()) return;
-    if (!this.data.ready) this.setData({ ready: true });
+    if (!this.data.ready || !this.data.btnReady) this.setData({ ready: true, btnReady: true });
   },
 
   /* ---------- LULU 积分活动：管理员结算（全部场次结束后；云端 drawDetail / cupFromDraw / cupSave 再校验管理员和完赛） ---------- */
@@ -390,25 +420,11 @@ Page({
   },
 
   /* ---------- 报名 ---------- */
-  // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
-  // pl：{ players, shared }（load 已经读到的球员；shared = db.playersShared 的共享数组）。不传就自己读共享版
-  async loadSignups(d, matches, preloaded, pl) {
-    const seq = this.signupSeq = (this.signupSeq || 0) + 1;
-    const [list, mineDoc, got] = await Promise.all([
-      preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
-      pl || db.playersShared().then((players) => ({ players, shared: true }), () => ({ players: db.cachedPlayersFull() })),
-    ]);
-    if (seq !== this.signupSeq || this.gone) return; // 后发的新刷新已经开始 / 页面已关：不让旧名单盖掉新的
-    const players = got.players || [];
+  buildSignupPatch(d, list, mine, players, shared, matches, myId) {
     this.signupRows = list;
-    const mine = preloaded ? list.find((s) => !!this.data.myId && s._openid === this.data.myId) : mineDoc;
-    // 排名、场数、胜率、等级都从有效比赛记录实时算；性别读个人资料。没有数据显示「暂无」
-    // 名次和排行榜一致：只在同意公开展示的人里排。共享版球员（只读，不复制）带上 db.profilesOf，和排行榜、球员主页命中
-    // 同一份统计缓存；本机缓存的复制版 db.profilesOf 认不出来，不传 profiles，授权直接看球员列表里的 shown
-    const stats = S.playerStats(matches || db.cachedMatches(), players, got.shared ? db.profilesOf(players) : undefined);
+    const stats = S.playerStats(matches || db.cachedMatches(), players, shared && db.profilesOf ? db.profilesOf(players) : undefined);
     const profOf = {};
     players.forEach((p) => { profOf[p.name] = p; });
-    // 报名名单按账号显示「当前」昵称：改名后报名照样有效，显示也跟着更新
     const byUid = {};
     players.forEach((p) => { if (p.uid) byUid[p.uid] = p; });
     const person = (snapName, uid) => {
@@ -418,8 +434,6 @@ Page({
         name, uid: uid || '', initial: initialOf(name), color: colorOf(name),
       }, S.display(stats, name, cur || profOf[name], uid));
     };
-    // 候补：名额（淘汰赛的签数 / 小组赛的报名上限）用完之后报名的，按报名先后排队，前面有人取消自动递补。
-    // 报名情况的文字（还差几人 / 已满 / 候补几人）和「会不会进候补」都按 E.signupStatus，和云端 signUp 同一套
     const st = E.signupStatus(d, list);
     const capP = st.cap, wait = st.wait;
     const signups = list.map((s, i) => {
@@ -428,24 +442,41 @@ Page({
       return Object.assign({ _id: s._id, no: i + 1, solo: !s.partner, waiting: !!wait[s._id], members }, members[0]);
     });
     const waitPeople = st.waiting;
-    // 按用户 ID 判断谁已经报名（自己报的 _openid，或被搭档带上的 partnerId）
     const takenId = {};
     let people = 0;
     list.forEach((s) => { people += s.partner ? 2 : 1; if (s._openid) takenId[s._openid] = 1; if (s.partnerId) takenId[s.partnerId] = 1; });
-    const myId = this.data.myId;
-    const isDouble = this.data.isDouble;
-    // 搭档只能选已设置资料的球员（有用户 ID），同名资料不能被选
     this.partnerPool = players.filter((p) => p.uid && p.uid !== myId && !takenId[p.uid]);
     const partnerOpts = [NO_PARTNER].concat(this.partnerPool.map((p) => p.name));
-    this.setData({
+    this.shareCounts = { people, cap: capP, wait: waitPeople };
+    return {
       signups, partnerOpts,
       joined: !!mine || (!!myId && !!takenId[myId]),
-      full: st.full, // 满了还能报，只是进候补
+      full: st.full,
       signText: st.text, signNote: st.note,
       myWaiting: !!mine && !!wait[mine._id] || signups.some((x) => x.waiting && x.members.some((p) => p.uid && p.uid === myId)),
       signCount: (capP ? `${people - waitPeople} / ${capP} 人` : `${people} 人`) + (waitPeople ? ` · 候补 ${waitPeople} 人` : ''),
-    });
-    this.shareCounts = { people, cap: capP, wait: waitPeople };
+    };
+  },
+
+  // preloaded：drawDetail 已经带回来的报名名单（没有就重新读，报名 / 取消后用）
+  // pl：{ players, shared }（load 已经读到的球员；shared = db.playersShared 的共享数组）。不传就自己读共享版
+  async loadSignups(d, matches, preloaded, pl, extra) {
+    const seq = this.signupSeq = (this.signupSeq || 0) + 1;
+    let list, mineDoc, got;
+    if (preloaded && pl) {
+      list = preloaded; mineDoc = null; got = pl;
+    } else {
+      [list, mineDoc, got] = await Promise.all([
+        preloaded || db.fetchSignups(this.id), preloaded ? null : db.mySignup(this.id),
+        pl || db.playersShared().then((players) => ({ players, shared: true }), () => ({ players: db.cachedPlayersFull() })),
+      ]);
+    }
+    if (seq !== this.signupSeq || this.gone) return; // 后发的新刷新已经开始 / 页面已关：不让旧名单盖掉新的
+    const myId = this.data.myId;
+    const mine = preloaded ? list.find((s) => !!myId && s._openid === myId) : mineDoc;
+    const patch = this.buildSignupPatch(d, list, mine, got.players || [], !!got.shared, matches, myId);
+    if (extra) Object.assign(patch, extra);
+    this.setData(patch);
     this.makeCover();
   },
 
@@ -453,6 +484,8 @@ Page({
   //   按本人报名同一套规则校验（组别、性别、重名、搭档），并留档。已在名单里的（含被带的搭档）不出现
   async openAdminSignup() {
     if (!this.data.canEdit || !this.data.signing || this.data.adminBusy) return;
+    if (!this.data.ready && this.loadP) { try { await this.loadP; } catch (e) {} }
+    if (!this.data.canEdit || !this.data.signing) return;
     this.setData({ adminBusy: true });
     try {
       const { active } = await cloud.cached('listMembers'); // 进页面时预读过；60 秒内的就直接用（报名照样由云端按规则校验）
@@ -560,8 +593,10 @@ Page({
     });
   },
 
-  startDraw() {
+  async startDraw() {
     if (!this.data.canEdit || !this.data.signing || (this.data.isRot && !this.data.canPublish)) return;
+    if (!this.data.ready && this.loadP) { try { await this.loadP; } catch (e) {} }
+    if (!this.data.canEdit || !this.data.signing) return;
     if (this.data.signups.length < 2) { wx.showToast({ title: '报名的还不够', icon: 'none' }); return; }
     // 四人轮换：要报满 4 位（候补的不算）才能生成
     if (this.data.isRot && this.data.signups.filter((s) => !s.waiting).length < E.ROTATION_SIZE) { wx.showToast({ title: '四人轮换双打要报满 4 位才能生成对阵', icon: 'none' }); return; }

@@ -79,6 +79,8 @@ Page({
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
+    this.myId = db.cachedOpenid ? db.cachedOpenid() : '';
+    this.signups = (db.cachedMySignups && db.cachedMySignups()) || [];
     this.draws = db.cachedDraws(); this.matches = db.cachedMatches(); this.render();
     // 「创建活动」按钮先按本机记得的身份显示（24 小时内确认过的管理员），不等云端；load 里拿到身份后再更正
     const M = require('../../utils/member');

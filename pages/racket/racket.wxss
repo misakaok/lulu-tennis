@@ -1,7 +1,7 @@
 /* 顶部淡紫柔幕（与战绩页同款衔接语言）：导航栏下弧形柔紫托住球拍概览卡，不再一刀切进平灰 */
 page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) no-repeat; background-size: 100% 460rpx; }
 .page { position: relative; z-index: 0; }
-.page.with-dock { padding-bottom: 260rpx; }
+.page.with-dock { padding-bottom: 168rpx; }
 .page::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 204rpx; pointer-events: none; z-index: -1;
   border-radius: 0 0 50% 50% / 0 0 42rpx 42rpx;
@@ -101,7 +101,7 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 
 /* 右下角悬浮 LULU 颠球挂件（类似瑞幸悬浮挂件）：LULU 持淡紫球拍持续颠起独立小网球，上下滑动半隐贴右边，停滑平滑滑回 */
 .ball-dock {
-  position: fixed; right: 18rpx; bottom: 88rpx; width: 196rpx; height: 186rpx; z-index: 20;
+  position: fixed; right: 18rpx; bottom: 24rpx; width: 196rpx; height: 186rpx; z-index: 20;
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
 }
 /* 极淡静态椭圆底影：替代图片投影滤镜，避免动画每帧重绘 */
