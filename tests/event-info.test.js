@@ -161,7 +161,7 @@ test('活动列表置顶：置顶的排最前（越晚置顶越靠前），带�
   assert.deepStrictEqual(p.data.shown.map((x) => x._id), ['d', 'b', 'a', 'c']);
   assert.deepStrictEqual(p.data.shown.map((x) => !!x.pinnedAt), [true, true, false, false]);
   const xml = fs.readFileSync(path.resolve(__dirname, '../pages/draw/draw.wxml'), 'utf8');
-  assert.ok(/wx:if="\{\{item.pinnedAt\}\}" class="ui-tag solid d-pin">置顶</.test(xml));
+  assert.ok(/wx:if="\{\{item.pinnedAt\}\}" class="ui-tag d-pin">置顶</.test(xml));
 });
 
 test('战绩页：「记一场」用缓存版身份显示，和读数据同时进行；查不到身份时收起按钮，列表照常显示', async () => {

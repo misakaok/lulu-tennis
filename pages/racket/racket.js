@@ -107,5 +107,6 @@ Page({
     wx.navigateTo({ url: '/pkg-tools/racket-edit/racket-edit' });
   },
   open(e) { wx.navigateTo({ url: '/pkg-tools/racket-view/racket-view?id=' + encodeURIComponent(e.currentTarget.dataset.id) }); },
+  openLab() { wx.navigateTo({ url: '/pkg-tools/racket-lab/racket-lab' }); },
   openTune() { wx.navigateTo({ url: '/pkg-tools/racket-tune/racket-tune' }); },
 });

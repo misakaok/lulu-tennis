@@ -672,9 +672,17 @@ Page({
     finally { this.setData({ busy: false }); }
   },
 
-  setTab(e) { this.setData({ tab: e.currentTarget.dataset.v }); },
-  toggleMine() { this.setData({ onlyMine: !this.data.onlyMine }); this.renderSchedule(); },
-  setSchFilter(e) { this.setData({ schFilter: e.currentTarget.dataset.v === 'wd' ? 'wd' : 'all' }); },
+  setTab(e) {
+    const v = e.currentTarget.dataset.v;
+    if (v !== this.data.tab) haptic.light();
+    this.setData({ tab: v });
+  },
+  toggleMine() { haptic.light(); this.setData({ onlyMine: !this.data.onlyMine }); this.renderSchedule(); },
+  setSchFilter(e) {
+    const v = e.currentTarget.dataset.v === 'wd' ? 'wd' : 'all';
+    if (v !== this.data.schFilter) haptic.light();
+    this.setData({ schFilter: v });
+  },
   // 退赛／弃权里的场次：能打开的（有对阵的）进录分页查看；成绩取消的场次没有可看的比分
   tapWd(e) {
     const r = (this.data.wdView.rows || []).find((x) => x.key === e.currentTarget.dataset.key);
@@ -698,9 +706,10 @@ Page({
     if (!this.data.canClose || this.data.closeBusy) return;
     const reason = await pick.reason('close', '结束原因');
     if (!reason) return;
+    const pinned = !!(this.d && this.d.pinnedAt);
     const go = await new Promise((done) => wx.showModal({
       title: '提前结束这个活动？',
-      content: `原因：${reason}\n\n已录入的比分和战绩会完整保留，未打场次标记为未进行、不再出现在「我的下一场」。之后如需继续可以随时恢复。`,
+      content: `原因：${reason}\n\n已录入的比分和战绩会完整保留，未打场次标记为未进行、不再出现在「我的下一场」${pinned ? '，并自动取消置顶' : ''}。之后如需继续可以随时恢复。`,
       confirmText: '确认结束',
       success: (x) => done(x.confirm),
       fail: () => done(false),

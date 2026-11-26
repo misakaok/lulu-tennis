@@ -1570,11 +1570,17 @@ test('提前结束 / 恢复活动：发起人或管理员可按固定原因提�
     no(await env.call('alice', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' }), /发起人或管理员/);
     no(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '随便手写' }), /固定选项/);
 
-    // 发起人按「天气原因」提前结束
+    // 管理员先置顶该活动
+    ok(await env.call('admin', 'pinDraw', { drawId: 'd10', pinned: true }));
+    assert.ok(env.coll('draws').d10.pinnedAt > 0);
+
+    // 发起人按「天气原因」提前结束：自动取消置顶
     const r1 = ok(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' }));
     assert.strictEqual(r1.ended, true);
     assert.strictEqual(r1.endReason, '天气原因');
+    assert.strictEqual(r1.unpinned, true);
     assert.ok(env.coll('draws').d10.endedAt > 0);
+    assert.strictEqual(env.coll('draws').d10.pinnedAt, undefined, '提前结束应自动取消置顶');
     assert.strictEqual(env.coll('requests')[wr.requestId].status, 'cancelled');
     assert.strictEqual(ok(await env.call('owner', 'closeDraw', { drawId: 'd10', closed: true, reason: '天气原因' })).same, true);
 
@@ -1586,18 +1592,22 @@ test('提前结束 / 恢复活动：发起人或管理员可按固定原因提�
     no(await env.call('eve', 'requestWithdraw', { drawId: 'd10', reason: '天气原因' }), /已提前结束/);
     assert.strictEqual(NX.nextMatch([Object.assign({}, env.coll('draws').d10)], Object.values(env.coll('matches')), 'carl', [], '2026-11-25'), null);
 
-    // 管理员恢复活动：去掉 endedAt，挂起退赛申请恢复，未打场次重新可录分
+    // 管理员恢复活动：去掉 endedAt，挂起退赛申请恢复，不自动恢复置顶，未打场次重新可录分
     ok(await env.call('admin', 'closeDraw', { drawId: 'd10', closed: false }));
     assert.strictEqual(env.coll('draws').d10.endedAt, undefined);
     assert.strictEqual(env.coll('draws').d10.endReason, undefined);
+    assert.strictEqual(env.coll('draws').d10.pinnedAt, undefined, '恢复活动不自动恢复置顶');
     assert.strictEqual(env.coll('requests')[wr.requestId].status, 'pending');
     ok(await env.call('carl', 'recordEventMatch', { drawId: 'd10', key: '0-1', sets: [{ a: 4, b: 2 }], date: '2026-11-25' }));
-    assert.strictEqual(Object.values(env.coll('requests')).filter((x) => x.type === 'closeDraw').length, 2);
+    const closeLogs = Object.values(env.coll('requests')).filter((x) => x.type === 'closeDraw');
+    assert.strictEqual(closeLogs.length, 2);
+    assert.strictEqual(closeLogs.find((x) => x.closed === true).unpinned, true);
 
-    // 报名中提前结束：不能再报名，也不能取消报名
+    // 报名中提前结束（未置顶）：不能再报名，也不能取消报名
     env.coll('draws').d11 = { _id: 'd11', _openid: 'owner', title: '报名中活动', date: '2026-11-26', mode: 'bracket', size: 4, status: 'signup', rules: { group: { bestOf: 1, setGames: 4, noAd: true, tb: 7 } } };
     ok(await env.call('alice', 'signUp', { drawId: 'd11' }));
-    ok(await env.call('owner', 'closeDraw', { drawId: 'd11', closed: true, reason: '天气原因' }));
+    const r2 = ok(await env.call('owner', 'closeDraw', { drawId: 'd11', closed: true, reason: '天气原因' }));
+    assert.strictEqual(r2.unpinned, false);
     no(await env.call('bob', 'signUp', { drawId: 'd11' }), /已提前结束/);
     no(await env.call('alice', 'cancelSignup', { drawId: 'd11' }), /已提前结束/);
   } finally { if (old === undefined) delete process.env.ADMIN_OPENIDS; else process.env.ADMIN_OPENIDS = old; }

@@ -111,9 +111,10 @@
 
     <!-- 已抽签：签表 / 积分榜 + 赛程 -->
     <block wx:else>
-      <view class="tabs">
-        <view class="tab {{tab === 'board' ? 'on' : ''}}" data-v="board" bindtap="setTab">{{isRot ? '三轮对阵' : draw.mode === 'groups' ? '积分榜' : draw.mode === 'groups_ko' ? '积分榜 · 对阵表' : '对阵表'}}</view>
-        <view class="tab {{tab === 'schedule' ? 'on' : ''}}" data-v="schedule" bindtap="setTab">场次<text wx:if="{{todo}}" class="dot">{{todo}}</text></view>
+      <view class="seg tabs has-thumb">
+        <view class="seg-track"><view class="seg-thumb" style="width:50%;transform:translateX({{tab === 'schedule' ? 100 : 0}}%)"></view></view>
+        <view class="seg-item tab {{tab === 'board' ? 'on' : ''}}" data-v="board" bindtap="setTab">{{isRot ? '三轮对阵' : draw.mode === 'groups' ? '积分榜' : draw.mode === 'groups_ko' ? '积分榜 · 对阵表' : '对阵表'}}</view>
+        <view class="seg-item tab {{tab === 'schedule' ? 'on' : ''}}" data-v="schedule" bindtap="setTab">场次<text wx:if="{{todo}}" class="dot">{{todo}}</text></view>
       </view>
 
       <!-- 四人轮换：每轮的搭档、对手和状态（不排总名次）；还没录分的轮次可以直接场边记分 -->
@@ -141,7 +142,8 @@
       </block>
 
       <view wx:else>
-        <view class="seg sch-seg">
+        <view class="seg sch-seg has-thumb">
+          <view class="seg-track"><view class="seg-thumb" style="width:50%;transform:translateX({{schFilter === 'wd' ? 100 : 0}}%)"></view></view>
           <view class="seg-item {{schFilter === 'all' ? 'on' : ''}}" data-v="all" bindtap="setSchFilter">全部场次</view>
           <view class="seg-item {{schFilter === 'wd' ? 'on' : ''}}" data-v="wd" bindtap="setSchFilter">退赛／弃权{{wdCount ? ' ' + wdCount : ''}}</view>
         </view>

@@ -81,7 +81,8 @@
 
   <view wx:if="{{tab !== 'next' && !shown.length && !loading}}" class="empty">
     <image class="empty-art" src="/images/art-net.png" mode="aspectFit" />
-    <view>{{tab === 'mine' ? '你还没有发起或报名活动' : '还没有活动'}}</view>
+    <view>{{tab === 'mine' ? (canPublish ? '你还没有发起或报名活动' : '你还没有报名活动') : '还没有活动'}}</view>
+    <view wx:if="{{tab === 'mine'}}" class="btn-line small" hover-class="tap-on" data-v="all" bindtap="setTab">去看看全部活动</view>
   </view>
 
   <view wx:for="{{shown}}" wx:key="_id" class="card draw {{item.st}} {{index < 8 ? 'ani-in' : ''}}" style="animation-delay:{{index < 8 ? index * 62 : 0}}ms" data-id="{{item._id}}" bindtap="open">
@@ -97,7 +98,7 @@
         <view class="ui-tag {{item.status.cls}} d-status"><view wx:if="{{item.st === 'sign'}}" class="pulse"></view>{{item.status.text}}</view>
       </view>
       <view wx:if="{{item.pinnedAt || item.cupTag}}" class="d-cup">
-        <text wx:if="{{item.pinnedAt}}" class="ui-tag solid d-pin">置顶</text><text wx:if="{{item.cupTag}}" class="ui-tag">{{item.cupTag}}</text>
+        <text wx:if="{{item.pinnedAt}}" class="ui-tag d-pin">置顶</text><text wx:if="{{item.cupTag}}" class="ui-tag">{{item.cupTag}}</text>
       </view>
       <view class="d-meta">{{item.meta}}</view>
       <view wx:if="{{item.roleTags.length || item.champion || item.progress}}" class="d-foot">

@@ -67,7 +67,7 @@ Page({
   async loadGrowth() {
     try {
       const s = G.summary(await require('../../utils/archive').list(), today());
-      const gw = { played: s.played, rate: s.rate, month: s.thisMonth.played, trend: s.trend.map((t) => ({ ym: t.ym, label: t.label, h: t.played ? t.h : 0 })) };
+      const gw = { played: s.played, rate: s.rate, month: s.thisMonth.played };
       if (JSON.stringify(gw) !== JSON.stringify(this.data.gw)) this.setData({ gw });
     } catch (e) { console.error(e); if (!this.data.gw) this.setData({ gw: { played: 0 } }); } // 读不到：显示入口说明
   },
@@ -87,7 +87,6 @@ Page({
     wx.navigateTo({ url: '/pkg-manage/members/members' });
   },
   openGrowth() { wx.navigateTo({ url: '/pkg-manage/growth/growth' }); },
-  addGrowth() { wx.navigateTo({ url: '/pkg-manage/growth-edit/growth-edit' }); },
   openScorer() { wx.navigateTo({ url: '/pkg-manage/scorer/scorer' }); },
   openAA() { wx.navigateTo({ url: '/pkg-tools/aa/aa' }); },
   openMixer() { wx.navigateTo({ url: '/pkg-tools/mixer/mixer' }); },

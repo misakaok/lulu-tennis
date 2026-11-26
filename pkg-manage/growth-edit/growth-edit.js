@@ -16,7 +16,7 @@ Page({
     rule: { setGames: 4, noAd: true, bestOf: 1 }, init: [], tags: [], tagOpts: [],
     points11: false, points: { a: '', b: '' },
     check: { ok: false, msg: '请填写比分' }, saving: false, removing: false,
-    TYPES: G.TYPES, KINDS: G.KINDS, maxTags: G.MAX_TAGS,
+    maxTags: G.MAX_TAGS,
   },
 
   onLoad(o) {

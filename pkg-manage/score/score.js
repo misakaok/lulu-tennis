@@ -17,7 +17,7 @@ const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.g
 Page({
   data: {
     loading: true, error: '',
-    title: '', stage: '', slotText: '', formatText: '', ruleStage: '', ruleText: '', ruleCustom: false, typeText: '', setGames: 4, noAd: true, bestOf: 1,
+    title: '', stage: '', slotText: '', ruleStage: '', ruleText: '', ruleCustom: false, typeText: '', setGames: 4, noAd: true, bestOf: 1,
     sideA: [], sideB: [], aLabel: '', bLabel: '',
     date: '', today: '',
     done: false, resultSets: [], winner: '',
@@ -144,7 +144,7 @@ Page({
     wx.setNavigationBarTitle({ title: f.done ? '比赛结果' : '录入比分' });
     this.setData({
       loading: false, error: '', date,
-      title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '', formatText: E.formatText(cfg),
+      title: d.title, stage: f.stage, slotText: f.done ? '' : f.slotText || '',
       ruleStage: cfg.stage, ruleText: E.ruleText(cfg), ruleCustom: !!cfg.custom, typeText: cfg.type === 'double' ? '双打' : '单打',
       setGames: cfg.setGames, noAd: cfg.noAd, bestOf: cfg.bestOf,
       sideA: f.aMembers.map(person), sideB: f.bMembers.map(person),
@@ -254,7 +254,7 @@ Page({
 
   async submit() {
     if (this.data.submitting) return;
-    const r = this.res, f = this.f, d = this.d, cfg = this.cfg;
+    const r = this.res, f = this.f;
     if (!r || !r.ok) { wx.showToast({ title: this.data.check.msg || '请完善比分', icon: 'none' }); return; }
     if (!this.data.canEdit) { wx.showToast({ title: this.data.reason, icon: 'none' }); return; }
     this.setData({ submitting: true });

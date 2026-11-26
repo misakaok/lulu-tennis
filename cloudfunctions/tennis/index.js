@@ -1213,7 +1213,7 @@ async function restoreDraw({ drawId }, uid) {
   return { restored: true };
 }
 
-// 提前结束 / 恢复活动（2026-11-25 用户要求：下雨、时间到了或中途商议不打了，可直接结束；已录比分完整保留，未打场次不再继续，可随时恢复）
+// 提前结束 / 恢复活动（2026-11-25 用户要求：下雨、时间到了或中途商议不打了，可直接结束；已录比分完整保留，未打场次不再继续，可随时恢复；提前结束时自动取消置顶）
 async function closeDraw({ drawId, closed, reason }, uid) {
   const { d, asAdmin } = await manageDraw(drawId, uid);
   const on = closed === true;
@@ -1222,10 +1222,13 @@ async function closeDraw({ drawId, closed, reason }, uid) {
     const why = cleanReason(reason, true);
     if (E.REASONS.close.indexOf(why) < 0) deny('结束原因只能从固定选项里选择');
     const at = Date.now();
-    await db.collection('draws').doc(drawId).update({ data: { endedAt: at, endReason: why, endedBy: uid } });
+    const unpinned = !!d.pinnedAt;
+    const patch = { endedAt: at, endReason: why, endedBy: uid };
+    if (unpinned) patch.pinnedAt = _.remove();
+    await db.collection('draws').doc(drawId).update({ data: patch });
     await db.collection('requests').where({ drawId, type: 'withdraw', status: 'pending' }).update({ data: { status: 'cancelled', handleNote: '活动已提前结束', handledAt: db.serverDate() } });
-    await logAction({ type: 'closeDraw', drawId, by: uid, byAdmin: asAdmin, closed: true, reason: why });
-    return { ended: true, endedAt: at, endReason: why };
+    await logAction({ type: 'closeDraw', drawId, by: uid, byAdmin: asAdmin, closed: true, reason: why, unpinned });
+    return { ended: true, endedAt: at, endReason: why, unpinned };
   }
   if (!d.endedAt) return { ended: false, same: true };
   await db.collection('draws').doc(drawId).update({ data: { endedAt: _.remove(), endReason: _.remove(), endedBy: _.remove() } });

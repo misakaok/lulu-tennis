@@ -87,9 +87,7 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .eq-card { padding: 26rpx 28rpx; }
 .eq-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18rpx; }
 .eq-t { font-size: 27rpx; font-weight: 800; color: #2E2E4A; }
-.eq-acts { display: flex; align-items: center; }
-.eq-badge { font-size: 21rpx; font-weight: 700; color: #6E6EA3; background: #EFEFF7; border-radius: 14rpx; padding: 3rpx 14rpx; margin-right: 10rpx; }
-.eq-tune { flex: none; }
+.eq-badge { flex: none; font-size: 21rpx; font-weight: 700; color: #6E6EA3; background: #EFEFF7; border-radius: 14rpx; padding: 3rpx 14rpx; }
 .eq-grid { display: flex; border-radius: 22rpx; background: #F8F8FC; padding: 20rpx 0; }
 .eq-c { flex: 1; text-align: center; }
 .eq-bl { border-left: 1rpx solid #EAEAF3; }
@@ -98,6 +96,8 @@ page { background: #F0F0F7 linear-gradient(180deg, #ECECF7 0%, #F0F0F7 460rpx) n
 .eq-l { margin-top: 6rpx; font-size: 21rpx; color: #70708C; }
 .eq-chips { display: flex; flex-wrap: wrap; margin: 16rpx -6rpx -6rpx; }
 .eq-chip { margin: 0 6rpx 6rpx; padding: 6rpx 16rpx; border-radius: 14rpx; font-size: 21rpx; color: #5C5C76; background: #F4F4FA; }
+.eq-tools { display: flex; margin: 20rpx -8rpx 0; }
+.eq-tool { flex: 1; margin: 0 8rpx; height: 68rpx; line-height: 64rpx; border-width: 2rpx; border-radius: 34rpx; font-size: 24rpx; background: #F8F8FC; }
 
 /* 右下角悬浮 LULU 颠球挂件（类似瑞幸悬浮挂件）：LULU 持淡紫球拍持续颠起独立小网球，上下滑动半隐贴右边，停滑平滑滑回 */
 .ball-dock {

@@ -20,6 +20,7 @@
         "racket-edit/racket-edit",
         "racket-log/racket-log",
         "racket-tune/racket-tune",
+        "racket-lab/racket-lab",
         "aa/aa",
         "mixer/mixer"
       ]

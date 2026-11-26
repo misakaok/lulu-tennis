@@ -96,9 +96,9 @@
 .tl-sub { margin-top: 6rpx; font-size: 26rpx; opacity: 0.95; }
 .tl-desc { margin-top: 24rpx; font-size: 25rpx; line-height: 1.7; opacity: 0.95; }
 
-/* LULU 积分活动的标签（名称下面一行） */
+/* LULU 积分活动与置顶标签（名称下面一行）：置顶用浅紫细描边，和右上角实心「进行中」拉开层次 */
 .d-cup { margin-top: 10rpx; line-height: 1; }
-.d-pin { margin-right: 10rpx; }
+.d-pin { margin-right: 10rpx; color: #58588A; background: #EFEFF9; border: 1.5rpx solid #C4C4E2; font-weight: 700; }
 
 /* 删除后的撤回提示条 */
 .undo-bar { display: flex; align-items: center; padding: 20rpx 24rpx; }

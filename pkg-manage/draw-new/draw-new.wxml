@@ -12,13 +12,48 @@
     <image class="hero-art" src="/images/art-net.png" mode="aspectFit" />
   </view>
 
-  <!-- 一键复刻上次活动：复用形式、规则、场地、地图和建议水平，日期保持今天，不自动勾积分 -->
-  <view wx:if="{{!fromSignup && !editingSettings && lastCopy}}" class="card dup-bar">
-    <view class="dup-m">
-      <view class="dup-t">复刻上次活动</view>
-      <view class="dup-s">{{lastCopy.title}} · {{lastCopy.meta}}</view>
+  <!-- 常用活动模板库 + 一键复刻上次活动：日期始终保持今天，减少重复填表 -->
+  <view wx:if="{{!fromSignup && !editingSettings}}" class="card tpl-card">
+    <view class="tpl-hd" hover-class="tap-row-on" bindtap="toggleTplPanel">
+      <view class="tpl-hl">
+        <text class="dup-t">常用活动模板</text>
+        <text class="tpl-cnt num">{{tplSaved.length}}/{{tplMax}}</text>
+      </view>
+      <text class="tpl-ar">{{tplOpen ? '收起' : '展开 ›'}}</text>
     </view>
-    <view class="btn-line mini" hover-class="tap-on" bindtap="copyLastDraw">一键复用</view>
+    <view class="tpl-bar">
+      <view class="dup-s">{{lastCopy ? '上次：' + lastCopy.title + ' · ' + lastCopy.meta : '保存常用形式、规则与场地，下次一键套用'}}</view>
+      <view class="tpl-acts">
+        <view wx:if="{{lastCopy}}" class="btn-line mini" hover-class="tap-on" bindtap="copyLastDraw">复刻上次</view>
+        <view class="btn-line mini tpl-sv" hover-class="tap-on" bindtap="saveCurrentAsTemplate">存为模板</view>
+      </view>
+    </view>
+    <scroll-view wx:if="{{!tplOpen && tplSaved.length}}" scroll-x class="tpl-chips" enhanced show-scrollbar="{{false}}">
+      <text wx:for="{{tplSaved}}" wx:key="id" class="tpl-chip" hover-class="tap-on" data-id="{{item.id}}" bindtap="applyTemplate">{{item.name}}</text>
+    </scroll-view>
+    <view wx:if="{{tplOpen}}" class="tpl-panel">
+      <view wx:if="{{tplSaved.length}}" class="tpl-sec">
+        <view class="tpl-sec-t">我的常用模板（点击一键套用）</view>
+        <view wx:for="{{tplSaved}}" wx:key="id" class="tpl-row">
+          <view class="tpl-rm" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="applyTemplate">
+            <view class="tpl-rn">{{item.name}}</view>
+            <view class="tpl-rs">{{item.meta}}</view>
+          </view>
+          <text class="tpl-del" hover-class="tap-on" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="deleteTemplate">✕</text>
+        </view>
+      </view>
+      <view wx:else class="tpl-empty">填好下方活动名称、规则和场地后，点右上角「存为模板」即可保留常用配置（最多 {{tplMax}} 套）</view>
+      <view class="tpl-sec">
+        <view class="tpl-sec-t">快捷预设</view>
+        <view wx:for="{{tplBuiltins}}" wx:key="id" class="tpl-row" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="applyTemplate">
+          <view class="tpl-rm">
+            <view class="tpl-rn">{{item.name}}</view>
+            <view class="tpl-rs">{{item.meta}}</view>
+          </view>
+          <text class="tpl-use">套用 ›</text>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 活动设置 -->

@@ -27,6 +27,68 @@
       </view>
     </view>
 
+    <!-- 个人赛季目标进度条（纯数字档位，仅本人可见） -->
+    <view wx:if="{{goalView}}" class="card">
+      <view class="card-title row-hd">
+        <text>{{goalView.year}} 个人赛季目标</text>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="openGoalSheet">{{goalView.has ? '调整目标' : '设定目标'}}</view>
+      </view>
+      <view wx:if="{{!goalView.has}}" class="goal-empty" hover-class="tap-on" bindtap="openGoalSheet">设定年度打球场次、训练时长或目标比赛等级，自动跟踪进度 ›</view>
+      <view wx:for="{{goalView.items}}" wx:key="k" class="gl-row">
+        <view class="gl-top">
+          <text class="gl-l">{{item.label}}</text>
+          <text class="gl-v num {{item.done ? 'done' : ''}}">{{item.valText}}</text>
+        </view>
+        <view class="gl-bar"><view class="gl-fill {{item.done ? 'done' : ''}}" style="width:{{item.pct}}%"></view></view>
+        <view class="gl-sub">{{item.sub}}</view>
+      </view>
+    </view>
+
+    <!-- 结构化训练打卡 + 按月高频短板 Top3 -->
+    <view wx:if="{{tr}}" class="card">
+      <view class="card-title row-hd">
+        <text>训练打卡与短板复盘</text>
+        <view class="btn-line mini" hover-class="tap-on" bindtap="openTrainSheet">＋ 训练打卡</view>
+      </view>
+      <view class="tr-sum">
+        <view class="ts-c"><text class="ts-n num">{{tr.monthCount}}</text><text class="ts-l">本月打卡</text></view>
+        <view class="ts-c ts-bl"><text class="ts-n num">{{tr.monthHours}}h</text><text class="ts-l">本月训练</text></view>
+        <view class="ts-c ts-bl"><text class="ts-n num">{{tr.totalHours}}h</text><text class="ts-l">累计训练</text></view>
+      </view>
+
+      <!-- 按月高频短板 Top3 -->
+      <view wx:if="{{weak}}" class="wk-box">
+        <view class="wk-hd">
+          <text class="wk-t">高频短板 Top3</text>
+          <scroll-view wx:if="{{weak.months.length > 1}}" scroll-x class="wk-ms" enhanced show-scrollbar="{{false}}">
+            <text wx:for="{{weak.months}}" wx:key="ym" class="wk-m {{weak.ym === item.ym ? 'on' : ''}}" hover-class="tap-on" data-ym="{{item.ym}}" bindtap="pickWeakMonth">{{item.label}}</text>
+          </scroll-view>
+          <text wx:else class="wk-yl">{{weak.ymLabel}}</text>
+        </view>
+        <view wx:if="{{!weak.top3.length}}" class="wk-none">{{weak.ymLabel}}暂无短板标签，训练打卡或记私人比赛时顺手勾选即可汇总</view>
+        <view wx:for="{{weak.top3}}" wx:key="tag" class="wk-row">
+          <text class="wk-rk num">{{index + 1}}</text>
+          <view class="wk-mid">
+            <view class="wk-top"><text class="wk-tag">{{item.tag}}</text><text class="wk-dr">建议补强 · {{item.drill}}</text></view>
+            <view class="wk-bar"><view class="wk-fill" style="width:{{item.pct}}%"></view></view>
+          </view>
+          <text class="wk-cnt num">{{item.count}} 次</text>
+        </view>
+      </view>
+
+      <!-- 最近训练打卡 -->
+      <view wx:if="{{tr.recent.length}}" class="tr-list">
+        <view wx:for="{{tr.recent}}" wx:key="id" class="tr-item" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="removeTrain">
+          <text class="tri-d num">{{item.md}}</text>
+          <view class="tri-m">
+            <view class="tri-t"><text class="tri-n">{{item.drillLabel}}</text><text class="tri-min num">{{item.minutes}} 分钟</text></view>
+            <view wx:if="{{item.weakTags.length}}" class="tri-tags"><text wx:for="{{item.weakTags}}" wx:key="*this" wx:for-item="wt" class="tri-tag">{{wt}}</text></view>
+          </view>
+          <text class="tri-st">{{item.stars}}</text>
+        </view>
+      </view>
+    </view>
+
     <view wx:if="{{!has}}" class="card empty-card">
       <image class="empty-art" src="/images/art-basket.png" mode="aspectFit" />
       <view class="ec-t">还没有私人记录</view>
@@ -48,7 +110,7 @@
           </view>
         </view>
         <view class="bars-note">柱子是每月场次，下方是当月胜率</view>
-        <view class="mini">
+        <view class="mini-grid">
           <view class="mi"><text class="mi-l">练习赛</text><text class="mi-v">{{s.practice.played}} 场 · {{s.practice.played ? s.practice.rate + '%' : '—'}}</text></view>
           <view class="mi"><text class="mi-l">正式比赛</text><text class="mi-v">{{s.formal.played}} 场 · {{s.formal.played ? s.formal.rate + '%' : '—'}}</text></view>
           <view class="mi"><text class="mi-l">当前</text><text class="mi-v">{{s.streak.n}} 连{{s.streak.win ? '胜' : '败'}}</text></view>
@@ -88,4 +150,62 @@
       <view class="btn-danger" hover-class="tap-on" bindtap="clearAll">{{clearing ? '正在清除…' : '清除全部私人记录'}}</view>
     </view>
   </block>
+
+  <!-- 训练打卡底部弹层（全固定点选，零文字输入） -->
+  <view wx:if="{{trSheet}}" class="sh-mask" catchtap="closeTrainSheet">
+    <view class="sh-box" catchtap="">
+      <view class="sh-hd"><text class="sh-t">记录一次训练</text><text class="sh-x" hover-class="tap-on" bindtap="closeTrainSheet">✕</text></view>
+      <view class="sh-sec">
+        <view class="sh-l">训练项目</view>
+        <view class="sh-pills">
+          <view wx:for="{{drillOpts}}" wx:key="id" class="sh-pill {{trForm.drill === item.id ? 'on' : ''}}" hover-class="tap-on" data-k="drill" data-v="{{item.id}}" bindtap="setTrField">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="sh-sec">
+        <view class="sh-l">训练时长（分钟）</view>
+        <view class="sh-pills">
+          <view wx:for="{{durOpts}}" wx:key="*this" class="sh-pill num {{trForm.minutes === item ? 'on' : ''}}" hover-class="tap-on" data-k="minutes" data-v="{{item}}" bindtap="setTrField">{{item}} 分钟</view>
+        </view>
+      </view>
+      <view class="sh-sec">
+        <view class="sh-l">完成度自评</view>
+        <view class="sh-pills">
+          <view wx:for="{{rateOpts}}" wx:key="*this" class="sh-pill {{trForm.score === item ? 'on' : ''}}" hover-class="tap-on" data-k="score" data-v="{{item}}" bindtap="setTrField">{{item}} ★</view>
+        </view>
+      </view>
+      <view class="sh-sec">
+        <view class="sh-l">复盘短板（可选，最多 3 项）</view>
+        <view class="sh-pills">
+          <view wx:for="{{weakTagOpts}}" wx:key="tag" class="sh-pill {{trWeakMap[item.tag] ? 'on' : ''}}" hover-class="tap-on" data-t="{{item.tag}}" bindtap="toggleWeakTag">{{item.tag}}</view>
+        </view>
+      </view>
+      <view class="btn-primary sh-ok" hover-class="tap-on" bindtap="saveTrain">保存打卡</view>
+    </view>
+  </view>
+
+  <!-- 个人赛季目标底部弹层（纯数字档位点选） -->
+  <view wx:if="{{goalSheet}}" class="sh-mask" catchtap="closeGoalSheet">
+    <view class="sh-box" catchtap="">
+      <view class="sh-hd"><text class="sh-t">设定个人赛季目标</text><text class="sh-x" hover-class="tap-on" bindtap="closeGoalSheet">✕</text></view>
+      <view class="sh-sec">
+        <view class="sh-l">年度打球场次</view>
+        <view class="sh-pills">
+          <view wx:for="{{goalMatchOpts}}" wx:key="*this" class="sh-pill num {{goalForm.matches === item ? 'on' : ''}}" hover-class="tap-on" data-k="matches" data-v="{{item}}" bindtap="setGoalField">{{item ? item + ' 场' : '暂不设'}}</view>
+        </view>
+      </view>
+      <view class="sh-sec">
+        <view class="sh-l">年度训练时长</view>
+        <view class="sh-pills">
+          <view wx:for="{{goalHourOpts}}" wx:key="*this" class="sh-pill num {{goalForm.hours === item ? 'on' : ''}}" hover-class="tap-on" data-k="hours" data-v="{{item}}" bindtap="setGoalField">{{item ? item + ' 小时' : '暂不设'}}</view>
+        </view>
+      </view>
+      <view class="sh-sec">
+        <view class="sh-l">目标比赛等级</view>
+        <view class="sh-pills">
+          <view wx:for="{{goalLevelOpts}}" wx:key="*this" class="sh-pill num {{goalForm.level === item ? 'on' : ''}}" hover-class="tap-on" data-k="level" data-v="{{item}}" bindtap="setGoalField">{{item ? item : '暂不设'}}</view>
+        </view>
+      </view>
+      <view class="btn-primary sh-ok" hover-class="tap-on" bindtap="saveGoal">保存目标</view>
+    </view>
+  </view>
 </view>

@@ -13,7 +13,7 @@ const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(
 
 Page({
   data: {
-    loading: true, view: null, annual: null, isSelf: false, hmPick: '',
+    loading: true, view: null, annual: null, hmPick: '',
     topAxisIdx: -1, hasClutchMetrics: false,
     posterOpen: false, posterBusy: false, posterReady: false,
   },
@@ -102,7 +102,6 @@ Page({
     this.renderedSig = sig;
     this.setData({
       loading: false,
-      isSelf,
       annual: annualShown,
       topAxisIdx,
       hasClutchMetrics,

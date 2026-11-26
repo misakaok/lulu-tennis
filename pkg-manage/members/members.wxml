@@ -1,10 +1,11 @@
 <view class="page">
-  <view class="seg">
+  <view class="seg m-seg has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:20%;transform:translateX({{tabIdx * 100}}%)"></view></view>
     <view class="seg-item {{tab === 'pending' ? 'on' : ''}}" data-v="pending" bindtap="setTab">待审核{{d.pending.length ? ' ' + d.pending.length : ''}}</view>
     <view class="seg-item {{tab === 'active' ? 'on' : ''}}" data-v="active" bindtap="setTab">成员</view>
     <view class="seg-item {{tab === 'import' ? 'on' : ''}}" data-v="import" bindtap="setTab">历史球友{{d.candidates.length ? ' ' + d.candidates.length : ''}}</view>
     <view class="seg-item {{tab === 'invite' ? 'on' : ''}}" data-v="invite" bindtap="setTab">邀请</view>
-    <view class="seg-item {{tab === 'audit' ? 'on' : ''}}" data-v="audit" bindtap="setTab">数据核对</view>
+    <view class="seg-item {{tab === 'ops' ? 'on' : ''}}" data-v="ops" bindtap="setTab">运营统计</view>
   </view>
   <view wx:if="{{loading}}" class="muted"></view>
 
@@ -12,8 +13,8 @@
     <view wx:if="{{!d.pending.length}}" class="muted">没有待审核的申请</view>
     <view wx:for="{{d.pending}}" wx:key="uid" class="mrow">
       <view class="m-main"><view class="m-n">{{item.name}}{{item.nickname ? '（' + item.nickname + '）' : ''}}</view><view class="m-s">申请加入</view></view>
-      <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
-      <text class="m-a" data-uid="{{item.uid}}" bindtap="reject">拒绝</text><text class="m-a main" data-uid="{{item.uid}}" bindtap="approve">批准</text>
+      <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
+      <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="reject">拒绝</text><text class="m-a main" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="approve">批准</text>
     </view>
   </view>
 
@@ -21,24 +22,24 @@
     <!-- 没填性别的球友：提示人数，可以只看他们，逐个点「设置性别」（2026-11-24 用户要求入口明显一点） -->
     <view wx:if="{{noGender}}" class="card m-gd-tip">
       <view class="m-main"><view class="m-n">还有 {{noGender}} 位球友没填性别</view><view class="m-s">报名分男女组、积分女生奖励都要用到；还没设置资料的会用加入时的昵称替 TA 建好资料，TA 之后仍可在编辑资料里改</view></view>
-      <text class="m-a {{onlyNoGender ? '' : 'main'}}" bindtap="toggleNoGender">{{onlyNoGender ? '看全部' : '只看他们'}}</text>
+      <text class="m-a {{onlyNoGender ? '' : 'main'}}" hover-class="tap-on" bindtap="toggleNoGender">{{onlyNoGender ? '看全部' : '只看他们'}}</text>
     </view>
     <view class="card">
       <view wx:if="{{onlyNoGender && !noGender}}" class="muted">都填好了 ✓</view>
       <view wx:for="{{activeList}}" wx:key="uid" class="mrow">
         <view class="m-main"><view class="m-n">{{item.nickname || item.name || '未设置资料'}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（加入时昵称：{{item.name}}）</text><text wx:if="{{item.gender}}" class="m-g" hover-class="tap-on" data-uid="{{item.uid}}" data-name="{{item.nickname}}" data-gender="{{item.gender}}" catchtap="setGender">{{item.gender === 'm' ? '男' : '女'}} ›</text><text wx:if="{{item.admin}}" class="m-tag">管理员</text></view><view class="m-s">{{item.admin ? '系统指定' : item.source === 'invite' ? '邀请加入' : item.source === 'import' ? '历史球友导入' : '申请加入'}}{{item.nickname ? '' : ' · ID 尾号 ' + item.uidTail}}</view></view>
-        <text wx:if="{{!item.gender && (item.nickname || item.name)}}" class="m-a main" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" data-fresh="{{!item.nickname}}" bindtap="setGender">设置性别</text>
-        <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
-        <text wx:if="{{item.hasPhoto}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname}}" bindtap="clearPhoto">移除照片</text>
-        <text wx:if="{{!item.admin}}" class="m-a danger" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
+        <text wx:if="{{!item.gender && (item.nickname || item.name)}}" class="m-a main" hover-class="tap-on" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" data-fresh="{{!item.nickname}}" bindtap="setGender">设置性别</text>
+        <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
+        <text wx:if="{{item.hasPhoto}}" class="m-a danger" hover-class="tap-on" data-uid="{{item.uid}}" data-name="{{item.nickname}}" bindtap="clearPhoto">移除照片</text>
+        <text wx:if="{{!item.admin}}" class="m-a danger" hover-class="tap-on" data-uid="{{item.uid}}" data-name="{{item.nickname || item.name}}" bindtap="remove">移除</text>
       </view>
     </view>
     <view wx:if="{{d.others.length}}" class="card">
       <view class="card-title row-t">已拒绝 / 已移除<view class="btn-line mini" hover-class="tap-on" bindtap="clearOthers">清空列表</view></view>
       <view wx:for="{{d.others}}" wx:key="uid" class="mrow">
         <view class="m-main"><view class="m-n">{{item.nickname || item.name}}<text wx:if="{{item.nickname && item.name && item.name !== item.nickname}}" class="m-alias">（加入时昵称：{{item.name}}）</text></view><view class="m-s">{{item.status === 'removed' ? '已移除' : '未通过'}}{{item.reason ? '：' + item.reason : ''}}</view></view>
-        <text class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
-        <text class="m-a" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
+        <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
+        <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" bindtap="restore">恢复为成员</text>
       </view>
     </view>
   </block>
@@ -49,25 +50,114 @@
     <view wx:for="{{d.candidates}}" wx:key="uid" class="mrow" hover-class="tap-row-on" data-uid="{{item.uid}}" bindtap="pick">
       <text class="m-ck {{picked[item.uid] ? 'on' : ''}}">{{picked[item.uid] ? '✓' : ''}}</text>
       <view class="m-main"><view class="m-n">{{item.nickname}}</view></view>
-      <text class="m-a" data-uid="{{item.uid}}" catchtap="copyId">复制 ID</text>
+      <text class="m-a" hover-class="tap-on" data-uid="{{item.uid}}" catchtap="copyId">复制 ID</text>
     </view>
     <view wx:if="{{d.candidates.length}}" class="btn-primary" hover-class="tap-on" bindtap="importPicked">导入勾选的球友</view>
   </view>
 
-  <block wx:elif="{{tab === 'audit'}}">
-    <view class="card">
-      <view class="card-title">报名数据核对<text class="sub">只检查、不修改。早期的报名名字可以随意填写，可能被冒名</text></view>
-      <view wx:if="{{auditing}}" class="muted">正在检查全部报名记录…</view>
-      <view wx:elif="{{audit}}" class="muted">共检查 {{audit.total}} 条报名，{{audit.issues.length ? '发现 ' + audit.issues.length + ' 处需要核对' : '没有发现问题 ✓'}}</view>
-      <view wx:for="{{audit.issues}}" wx:key="id" class="mrow">
-        <view class="m-main">
-          <view class="m-n">{{item.drawTitle}}{{item.drawDeleted ? '（已删除）' : ''}} · {{item.who}}「{{item.name}}」</view>
-          <view class="m-s">{{item.problem}}{{item.uid ? ' · 账号现在叫：' + (item.nickname || '未设置资料') + ' · ID 尾号 ' + item.uidTail : ''}}</view>
+  <!-- 运营统计：成局率 / 出勤活跃 / 年度导出 -->
+  <block wx:elif="{{tab === 'ops'}}">
+    <block wx:if="{{opsReport}}">
+      <view class="ops-hero">
+        <view class="ops-hin">
+          <view class="ops-htop">
+            <text class="ops-hk">运营概览</text>
+            <text class="ops-htag">仅管理员可见</text>
+          </view>
+          <view class="ops-hgrid">
+            <view class="ohg"><view class="ohg-n num">{{opsReport.overview.totalMembers}}</view><view class="ohg-l">正式成员</view></view>
+            <view class="ohg ohg-bl"><view class="ohg-n num hi">{{opsReport.overview.active30Rate}}%</view><view class="ohg-l">30天活跃</view></view>
+            <view class="ohg ohg-bl"><view class="ohg-n num">{{opsReport.overview.active90Rate}}%</view><view class="ohg-l">90天活跃</view></view>
+            <view class="ohg ohg-bl"><view class="ohg-n num">{{opsReport.overview.formRate}}%</view><view class="ohg-l">活动成局率</view></view>
+          </view>
         </view>
-        <text wx:if="{{item.uid}}" class="m-a" data-uid="{{item.uid}}" bindtap="copyId">复制 ID</text>
       </view>
-      <view class="btn-primary {{auditing ? 'disabled' : ''}}" hover-class="tap-on" bindtap="runAudit">{{audit ? '重新检查' : '开始检查'}}</view>
-    </view>
+
+      <view class="seg ops-sub has-thumb">
+        <view class="seg-track"><view class="seg-thumb" style="width:33.3333%;transform:translateX({{opsTabIdx * 100}}%)"></view></view>
+        <view wx:for="{{opsTabs}}" wx:key="value" class="seg-item {{opsTab === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setOpsTab">{{item.label}}</view>
+      </view>
+
+      <block wx:if="{{opsTab === 'draws'}}">
+        <view class="card">
+          <view class="card-title row-t">
+            <text>各时间段成局率</text>
+            <text class="ops-sub-t">共 {{opsReport.overview.settledDraws}} 场已到点活动</text>
+          </view>
+          <view wx:if="{{!opsReport.bySlot.length}}" class="muted">暂无已到点的活动记录</view>
+          <view wx:for="{{opsReport.bySlot}}" wx:key="id" class="bk-row">
+            <view class="bk-top">
+              <text class="bk-l">{{item.label}}</text>
+              <text class="bk-r num">{{item.rate}}% · 成局 {{item.formed}}/{{item.total}} · 均 {{item.avgPeople}} 人</text>
+            </view>
+            <view class="bk-bar"><view class="bk-fill" style="width:{{item.rate}}%"></view></view>
+          </view>
+        </view>
+
+        <view class="card">
+          <view class="card-title row-t">
+            <text>各建议水平档位成局率</text>
+            <text class="ops-sub-t">按活动建议水平分档</text>
+          </view>
+          <view wx:if="{{!opsReport.byLevel.length}}" class="muted">暂无数据</view>
+          <view wx:for="{{opsReport.byLevel}}" wx:key="id" class="bk-row">
+            <view class="bk-top">
+              <text class="bk-l">{{item.label}}</text>
+              <text class="bk-r num">{{item.rate}}% · 成局 {{item.formed}}/{{item.total}} · 均 {{item.avgPeople}} 人</text>
+            </view>
+            <view class="bk-bar"><view class="bk-fill lv" style="width:{{item.rate}}%"></view></view>
+          </view>
+          <view class="ops-tip">已生成对阵计为成局；未到开打日期的报名中活动不计入分母</view>
+        </view>
+      </block>
+
+      <block wx:elif="{{opsTab === 'members'}}">
+        <view class="card tier-card">
+          <view class="t-grid">
+            <view class="tc"><text class="tc-n num hi">{{opsReport.overview.hotCount}}</text><text class="tc-l">高活跃(≥4场)</text></view>
+            <view class="tc tc-bl"><text class="tc-n num">{{opsReport.overview.active30}}</text><text class="tc-l">近30天有打</text></view>
+            <view class="tc tc-bl"><text class="tc-n num">{{opsReport.overview.warmCount}}</text><text class="tc-l">31~90天</text></view>
+            <view class="tc tc-bl"><text class="tc-n num dim">{{opsReport.overview.coldCount}}</text><text class="tc-l">90天未出勤</text></view>
+          </view>
+        </view>
+
+        <scroll-view scroll-x class="flt-row" enhanced show-scrollbar="{{false}}">
+          <text wx:for="{{opsFilters}}" wx:key="value" class="flt {{opsFilter === item.value ? 'on' : ''}}" hover-class="tap-on" data-v="{{item.value}}" bindtap="setOpsFilter">{{item.label}}</text>
+        </scroll-view>
+
+        <view class="card">
+          <view class="card-title row-t"><text>成员出勤明细</text><text class="ops-sub-t">{{opsMembers.length}} 人</text></view>
+          <view wx:if="{{!opsMembers.length}}" class="muted">这个分组下没有成员</view>
+          <view wx:for="{{opsMembers}}" wx:key="uid" class="mr-row">
+            <view class="mr-m">
+              <view class="mr-n">{{item.name}}<text wx:if="{{item.gender}}" class="gd"> {{item.gender}}</text><text class="mr-lv">{{item.levelText}}</text></view>
+              <view class="mr-s">最近出勤：{{item.lastDate || '暂无正式比赛'}} · {{item.tierText}}</view>
+            </view>
+            <view class="mr-r">
+              <text class="mr-v num">30天 {{item.m30}} 场</text>
+              <text class="mr-v2 num">90天 {{item.m90}} 场</text>
+            </view>
+          </view>
+        </view>
+      </block>
+
+      <block wx:else>
+        <scroll-view wx:if="{{opsReport.years.length > 1}}" scroll-x class="flt-row" enhanced show-scrollbar="{{false}}">
+          <text wx:for="{{opsReport.years}}" wx:key="*this" class="flt {{opsYear === item ? 'on' : ''}}" hover-class="tap-on" data-v="{{item}}" bindtap="setOpsYear">{{item}} 年</text>
+        </scroll-view>
+
+        <view class="card">
+          <view class="card-title row-t"><text>{{opsYear}} 年结构化报表导出</text><text class="ops-sub-t">一键复制粘贴到文档 / 表格</text></view>
+          <view class="exp-btns">
+            <view class="exp-b {{opsExpKind === 'summary' ? 'on' : ''}}" hover-class="tap-on" data-v="summary" bindtap="setOpsExpKind">年度总结文本</view>
+            <view class="exp-b {{opsExpKind === 'members' ? 'on' : ''}}" hover-class="tap-on" data-v="members" bindtap="setOpsExpKind">出勤 CSV</view>
+            <view class="exp-b {{opsExpKind === 'cup' ? 'on' : ''}}" hover-class="tap-on" data-v="cup" bindtap="setOpsExpKind">积分 CSV</view>
+          </view>
+          <view class="exp-box"><text class="exp-txt" selectable="{{true}}">{{opsExpText}}</text></view>
+          <view class="btn-primary exp-copy" hover-class="tap-on" bindtap="copyOpsExport">一键复制当前报表</view>
+        </view>
+      </block>
+    </block>
   </block>
 
   <block wx:else>
@@ -77,7 +167,7 @@
       <view wx:if="{{!d.invites.length}}" class="muted">还没有有效的邀请</view>
       <view wx:for="{{d.invites}}" wx:key="code" class="mrow">
         <view class="m-main"><view class="m-n">邀请</view><view class="m-s" data-code="{{item.code}}" bindtap="copyCode">邀请码 {{item.code}} · 点击复制</view></view>
-        <text class="m-a" data-code="{{item.code}}" bindtap="revoke">作废</text>
+        <text class="m-a" hover-class="tap-on" data-code="{{item.code}}" bindtap="revoke">作废</text>
         <button class="m-share" open-type="share" data-code="{{item.code}}">发给球友</button>
       </view>
     </view>

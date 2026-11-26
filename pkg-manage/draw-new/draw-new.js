@@ -5,6 +5,7 @@ const R = require('../../utils/rating');
 const db = require('../../utils/db');
 const ID = require('../../utils/ident');
 const PL = require('../utils/places');
+const TPL = require('../utils/templates');
 const C = require('../../utils/cup');
 const cloud = require('../../utils/cloud');
 
@@ -30,7 +31,7 @@ Page({
     info: '', seedInfo: '', canDraw: false, preview: null, manualOpts: [], manualIndexes: [], manualLabels: [], saving: false,
     manualOnly: false, editingMatchups: false,
     pre: [], preSheet: null, // 开放报名时先加入的球友：[{ key, ids, who, playerId, partnerId, text, names }]；preSheet 是选人弹层
-    recentPlaces: [], lastCopy: null, formInit: null, heroTop: '', heroSub: '',
+    recentPlaces: [], lastCopy: null, tplSaved: [], tplBuiltins: [], tplMax: TPL.MAX_TEMPLATES, tplOpen: false, formInit: null, heroTop: '', heroSub: '',
     cupOn: false, cupKind: 'weekly', cupKinds: C.ACTIVE_KINDS, cupPointGroup: 'open', cupPointGroups: C.POINT_GROUPS, cupErr: '', cupNote: '', cupText: '',
     fromSignup: false, // 从「报名」进来：用报名名单抽签，赛制已锁定
     editingSettings: false, settingsLoading: false, fixedRotation: false,
@@ -70,6 +71,7 @@ Page({
       this.loadSignups();
     } else {
       this.setData({ title: `${d.getMonth() + 1}月${d.getDate()}日 内部赛` }); // 默认填好当天的名称，可以改
+      this.loadTemplates();
       this.loadPlayers();
       this.loadRecentPlaces();
       cloud.cached('listMembers').catch(() => {}); // 预读成员列表（内存里 60 秒）：点「先加入的球友」时选人弹层马上出来
@@ -170,6 +172,95 @@ Page({
     });
     this.refresh();
     wx.showToast({ title: '已复用上次活动设置，日期保持今天', icon: 'none' });
+  },
+
+  // 常用活动模板库（最多 5 套自定义模板 + 3 套常用预设）：建活动一步套用，日期始终保持今天
+  loadTemplates() {
+    const all = TPL.listTemplates();
+    this.setData({ tplSaved: all.saved, tplBuiltins: all.builtins, tplMax: all.max });
+  },
+  toggleTplPanel() { this.setData({ tplOpen: !this.data.tplOpen }); },
+  saveCurrentAsTemplate() {
+    if (this.data.fromSignup || this.data.editingSettings) return;
+    const i = this.info || {};
+    const d = this.data;
+    const res = TPL.saveTemplate({
+      title: d.title,
+      mode: d.mode,
+      size: d.size,
+      groupCount: d.groupCount,
+      advance: d.advance,
+      type: d.type,
+      category: d.category,
+      limit: d.limit,
+      rules: d.rules,
+      startTime: i.startTime || '',
+      venue: i.venue || '',
+      location: i.location || null,
+      place: i.place || null,
+      level: i.level || null,
+      cupOn: d.cupOn,
+      cupKind: d.cupKind,
+      cupPointGroup: d.cupPointGroup,
+    });
+    if (!res.ok) { wx.showToast({ title: res.msg || '保存失败', icon: 'none' }); return; }
+    this.setData({ tplSaved: res.all.saved, tplBuiltins: res.all.builtins, tplOpen: true });
+    wx.showToast({ title: res.updated ? `已更新模板「${res.rec.name}」` : `已保存模板「${res.rec.name}」`, icon: 'none' });
+  },
+  applyTemplate(e) {
+    if (this.data.fromSignup || this.data.editingSettings) return;
+    const id = e.currentTarget.dataset.id;
+    const list = (this.data.tplSaved || []).concat(this.data.tplBuiltins || []);
+    const t = list.find((x) => x.id === id);
+    if (!t) return;
+    const isRot = t.mode === 'rotation';
+    const type = isRot ? 'double' : (t.type === 'double' ? 'double' : 'single');
+    const rules = E.stageRules({ mode: t.mode, type, rules: t.rules });
+    const limits = LIMITS[type === 'double' ? 'double' : 'single'];
+    const limit = limits.indexOf(t.limit || 0) >= 0 ? (t.limit || 0) : 0;
+    const formInit = {
+      date: this.date,
+      startTime: t.startTime || '',
+      venue: t.venue || '',
+      location: E.locationOf(t.location),
+      place: t.location ? E.placeOf(t.place) : null,
+      level: E.levelRangeOf(t.level),
+    };
+    const patch = {
+      mode: t.mode,
+      size: SIZES.indexOf(t.size) >= 0 ? t.size : 8,
+      groupCount: GROUPS.indexOf(t.groupCount) >= 0 ? t.groupCount : 4,
+      advance: t.advance === 1 ? 1 : 2,
+      type,
+      category: isRot && t.category === 'mixed' ? '' : (t.category || ''),
+      limit: isRot || t.mode === 'bracket' ? 0 : limit,
+      limits,
+      rules,
+      byRound: Object.keys(rules.rounds || {}).length > 0,
+      cupOn: !isRot && !!t.cupOn && !C.drawCupError({ mode: t.mode }, t.cupKind),
+      cupKind: C.kindText(t.cupKind) ? t.cupKind : 'weekly',
+      cupPointGroup: C.pointGroupText(t.cupPointGroup) ? t.cupPointGroup : 'open',
+      formInit,
+      tplOpen: false,
+    };
+    if (t.title) patch.title = t.title;
+    this.setData(patch);
+    this.refresh();
+    wx.showToast({ title: `已套用「${t.name}」`, icon: 'none' });
+  },
+  deleteTemplate(e) {
+    const { id, name } = e.currentTarget.dataset;
+    if (!id) return;
+    wx.showModal({
+      title: '删除这个模板？',
+      content: `将删除常用模板「${name || ''}」，不影响已创建的活动。`,
+      confirmText: '删除', confirmColor: '#b34d4d',
+      success: (r) => {
+        if (!r.confirm) return;
+        const all = TPL.removeTemplate(id);
+        this.setData({ tplSaved: all.saved, tplBuiltins: all.builtins });
+      },
+    });
   },
 
   // 球员和比赛用共享版（和排行榜、活动详情同一个数组，不复制）；水平分用 R.ratingsOf 按数组引用只算一次。这一页只读它们

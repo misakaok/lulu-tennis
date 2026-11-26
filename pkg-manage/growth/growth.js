@@ -5,6 +5,9 @@ const A = require('../../utils/archive');
 const G = require('../../utils/growth');
 const db = require('../../utils/db');
 const PV = require('../../utils/player');
+const R = require('../../utils/rating');
+const haptic = require('../../utils/haptic');
+const TR = require('../utils/training');
 
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -38,16 +41,32 @@ function officialOf(myId, t, players, matches) {
   const c = v.career, ym = t.slice(0, 7);
   const month = v.rows.filter((r) => r.outcome === 'normal' && r.date.slice(0, 7) === ym).length;
   const pct = (x) => (x.played ? Math.round((x.win / x.played) * 100) + '%' : '—');
+  const rp = (R.ratingsOf ? R.ratingsOf(matches, players) : R.computeRatings(matches, R.startLevelsFrom(players))).players[myId];
   return {
     played: c.played, win: c.win, lose: c.lose, rate: c.played ? c.rate + '%' : '—', month,
     single: `${c.single.played} 场 · 胜率 ${pct(c.single)}`, double: `${c.double.played} 场 · 胜率 ${pct(c.double)}`,
+    yearPlayed: v.rows.filter((r) => r.outcome === 'normal' && r.date.slice(0, 4) === t.slice(0, 4)).length,
+    curLevel: rp ? rp.level : null,
   };
 }
 
 Page({
-  data: { loading: true, error: '', has: false, s: null, groups: [], official: null, monthDiff: '', clearing: false },
+  data: {
+    loading: true, error: '', has: false, s: null, groups: [], official: null, monthDiff: '', clearing: false,
+    // 成长档案 2.0：训练打卡 + 按月高频短板 Top3 + 个人赛季目标
+    tr: null, weak: null, weakYm: '', goalView: null,
+    drillOpts: TR.DRILLS, durOpts: TR.DURATIONS, rateOpts: TR.RATINGS, weakTagOpts: TR.WEAK_TAGS,
+    trSheet: false, trForm: { drill: 'serve', minutes: 60, score: 4, weakTags: [] }, trWeakMap: {},
+    goalSheet: false, goalForm: { matches: 50, hours: 20, level: 3.5 },
+    goalMatchOpts: TR.GOAL_MATCH_OPTS, goalHourOpts: TR.GOAL_HOUR_OPTS, goalLevelOpts: TR.GOAL_LEVEL_OPTS,
+  },
 
-  onLoad() { wx.hideShareMenu(); }, // 私人档案不能分享
+  onLoad() {
+    wx.hideShareMenu(); // 私人档案不能分享
+    this.myId = (db.cachedOpenid && db.cachedOpenid()) || '';
+    this.growthList = [];
+    this.refreshLab(today());
+  },
   // 先画后更正（2026-11-25 用户嫌从「我的」点进来先空白）：私人记录只用 60 秒内存里的（「我的」页刚读过，A.peek），
   // 不写也不读本机存储；正式战绩摘要先用本机缓存算；之后照常读云端静默更正
   early() {
@@ -57,8 +76,9 @@ Page({
     try {
       const myId = (db.cachedOpenid && db.cachedOpenid()) || '';
       if (myId && !this.data.official && db.cachedPlayersFull && db.cachedMatches) {
+        this.myId = myId;
         const official = officialOf(myId, t, db.cachedPlayersFull() || [], db.cachedMatches() || []);
-        if (official) this.setData({ official });
+        if (official) this.setData({ official }, () => this.refreshLab(t));
       }
     } catch (e) { console.warn('[成长档案] 本机战绩算不出摘要，等云端', e); }
   },
@@ -69,6 +89,7 @@ Page({
   },
   show(raw, t) {
     const list = raw.filter((r) => G.validDate(r.date)).sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt);
+    this.growthList = list;
     const s = G.summary(list, t);
     this.drawn = true; // 画过有效内容：之后刷新失败不冲成整页报错
     this.setData({
@@ -76,6 +97,26 @@ Page({
       monthDiff: diffText(s.thisMonth.played, s.lastMonth.played),
       groups: groupByMonth(list),
     });
+    this.refreshLab(t);
+  },
+
+  refreshLab(t) {
+    const day = t || today();
+    const uid = this.myId || (db.cachedOpenid && db.cachedOpenid()) || '';
+    const logs = TR.loadLogs(uid);
+    const tr = TR.trainingSummary(logs, day);
+    const ym = this.data.weakYm || day.slice(0, 7);
+    const weak = TR.weaknessTop3(this.growthList || [], logs, ym);
+    const year = day.slice(0, 4);
+    const goals = TR.loadGoals(uid, year);
+    const growthYear = (this.growthList || []).filter((r) => String(r.date || '').slice(0, 4) === year).length;
+    const off = this.data.official;
+    const goalView = TR.goalsProgress(goals, {
+      yearMatches: (off ? off.yearPlayed : 0) + growthYear,
+      yearTrainingMin: tr.yearMin,
+      currentLevel: off ? off.curLevel : null,
+    });
+    this.setData({ tr, weak, weakYm: weak.ym, goalView });
   },
 
   async load() {
@@ -83,7 +124,11 @@ Page({
     const seq = this.loadSeq = (this.loadSeq || 0) + 1; // onShow 和下拉刷新同时读：只认最后一次，旧结果不盖新结果
     // 正式战绩只是附带的摘要：失败不影响私人记录
     const official = Promise.all([db.myOpenid(), db.playersShared(), db.matchesShared()])
-      .then(([myId, players, matches]) => { if (seq === this.loadSeq) this.setData({ official: officialOf(myId, t, players, matches) }); })
+      .then(([myId, players, matches]) => {
+        if (seq !== this.loadSeq) return;
+        this.myId = myId || this.myId || '';
+        this.setData({ official: officialOf(myId, t, players, matches) }, () => this.refreshLab(t));
+      })
       .catch((e) => console.warn('正式战绩读取失败', e.message));
     try {
       const list = await A.list();
@@ -103,6 +148,85 @@ Page({
   retry() { this.setData({ loading: true, error: '' }); this.load(); },
   goHistory() {
     db.myOpenid().then((uid) => wx.navigateTo({ url: '/pkg-manage/history/history?uid=' + encodeURIComponent(uid) })).catch(() => {});
+  },
+
+  // 训练打卡与短板复盘交互
+  pickWeakMonth(e) {
+    const ym = e.currentTarget.dataset.ym;
+    if (!ym || ym === this.data.weakYm) return;
+    haptic.light();
+    this.setData({ weakYm: ym }, () => this.refreshLab(today()));
+  },
+  openTrainSheet() {
+    haptic.light();
+    this.setData({ trSheet: true, trForm: { drill: 'serve', minutes: 60, score: 4, weakTags: [] }, trWeakMap: {} });
+  },
+  closeTrainSheet() { this.setData({ trSheet: false }); },
+  setTrField(e) {
+    const { k, v } = e.currentTarget.dataset;
+    if (k !== 'drill' && k !== 'minutes' && k !== 'score') return;
+    haptic.light();
+    this.setData({ [`trForm.${k}`]: k === 'drill' ? v : Number(v) });
+  },
+  toggleWeakTag(e) {
+    const tag = e.currentTarget.dataset.t;
+    const cur = (this.data.trForm.weakTags || []).slice();
+    const idx = cur.indexOf(tag);
+    if (idx >= 0) cur.splice(idx, 1);
+    else {
+      if (cur.length >= 3) { wx.showToast({ title: '每次最多选 3 个复盘标签', icon: 'none' }); return; }
+      cur.push(tag);
+    }
+    const map = {};
+    cur.forEach((t) => { map[t] = true; });
+    haptic.light();
+    this.setData({ 'trForm.weakTags': cur, trWeakMap: map });
+  },
+  saveTrain() {
+    const uid = this.myId || (db.cachedOpenid && db.cachedOpenid()) || '';
+    const t = today();
+    const r = TR.addLog(uid, Object.assign({ date: t }, this.data.trForm), t);
+    if (!r.ok) { wx.showToast({ title: r.msg || '保存失败', icon: 'none' }); return; }
+    haptic.medium();
+    this.setData({ trSheet: false, weakYm: t.slice(0, 7) }, () => this.refreshLab(t));
+    wx.showToast({ title: '训练打卡已记录', icon: 'success' });
+  },
+  removeTrain(e) {
+    const id = e.currentTarget.dataset.id;
+    const uid = this.myId || (db.cachedOpenid && db.cachedOpenid()) || '';
+    if (!id || !uid) return;
+    wx.showModal({
+      title: '删除这条训练打卡？',
+      content: '删除后本月训练时长和短板统计会自动更新。',
+      confirmText: '删除', confirmColor: '#b34d4d',
+      success: (r) => {
+        if (!r.confirm) return;
+        TR.removeLog(uid, id);
+        this.refreshLab(today());
+      },
+    });
+  },
+
+  // 个人赛季目标交互（纯数字档位点选）
+  openGoalSheet() {
+    const cur = (this.data.goalView && this.data.goalView.goals) || { matches: 0, hours: 0, level: 0 };
+    haptic.light();
+    this.setData({ goalSheet: true, goalForm: { matches: cur.matches, hours: cur.hours, level: cur.level } });
+  },
+  closeGoalSheet() { this.setData({ goalSheet: false }); },
+  setGoalField(e) {
+    const { k, v } = e.currentTarget.dataset;
+    if (k !== 'matches' && k !== 'hours' && k !== 'level') return;
+    haptic.light();
+    this.setData({ [`goalForm.${k}`]: Number(v) });
+  },
+  saveGoal() {
+    const uid = this.myId || (db.cachedOpenid && db.cachedOpenid()) || '';
+    const t = today();
+    TR.saveGoals(uid, t.slice(0, 4), this.data.goalForm);
+    haptic.medium();
+    this.setData({ goalSheet: false }, () => this.refreshLab(t));
+    wx.showToast({ title: '赛季目标已更新', icon: 'success' });
   },
 
   // 清除本人的全部私人记录（两次确认；正式战绩不受影响）

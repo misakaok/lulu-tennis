@@ -1,0 +1,217 @@
+<view class="page">
+  <view class="seg top-seg has-thumb">
+    <view class="seg-track"><view class="seg-thumb" style="width:33.3333%;transform:translateX({{tabIdx * 100}}%)"></view></view>
+    <view wx:for="{{tabs}}" wx:key="value" class="seg-item {{tab === item.value ? 'on' : ''}}" data-v="{{item.value}}" bindtap="setTab">{{item.label}}</view>
+  </view>
+
+  <!-- ==================== 1. 球拍/球线 × 实战战绩交叉分析 ==================== -->
+  <block wx:if="{{tab === 'cross' && cross}}">
+    <view class="hero">
+      <view class="hero-in">
+        <view class="hero-top">
+          <text class="hero-k">装备实战交叉分析</text>
+          <view class="hero-btn" hover-class="tap-on" bindtap="openTune">铅片配重 ›</view>
+        </view>
+        <view class="hero-grid">
+          <view class="hg"><view class="hg-n num">{{cross.racketRows.length}}</view><view class="hg-l">名下球拍</view></view>
+          <view class="hg hg-bl"><view class="hg-n num hi">{{cross.linkedMatches}}</view><view class="hg-l">已关联战绩</view></view>
+          <view class="hg hg-bl"><view class="hg-n num">{{cross.stringRows.length}}</view><view class="hg-l">记录球线</view></view>
+        </view>
+        <view class="hero-note">{{cross.decayNote}}</view>
+      </view>
+    </view>
+
+    <!-- 穿线 0~8h vs 8h+ 衰减对比 -->
+    <view class="card">
+      <view class="card-title row-t">
+        <text>球线寿命窗口表现</text>
+        <text class="sub-t">0～{{cross.freshHours}}h vs {{cross.freshHours}}h+</text>
+      </view>
+      <view class="win-grid">
+        <view class="win-box fresh">
+          <view class="wb-tag">新鲜期 0～{{cross.freshHours}}h</view>
+          <view class="wb-rate num">{{cross.fresh.rateText}}</view>
+          <view class="wb-sub">{{cross.fresh.played ? cross.fresh.win + '胜 ' + cross.fresh.lose + '负 · 得局 ' + cross.fresh.gameShare : '暂未匹配到场次'}}</view>
+        </view>
+        <view class="win-box worn">
+          <view class="wb-tag">衰减期 {{cross.freshHours}}h+</view>
+          <view class="wb-rate num">{{cross.worn.rateText}}</view>
+          <view class="wb-sub">{{cross.worn.played ? cross.worn.win + '胜 ' + cross.worn.lose + '负 · 得局 ' + cross.worn.gameShare : '暂未匹配到场次'}}</view>
+        </view>
+      </view>
+      <view class="tip-line">按比赛当日及之前该条球线累计打球时长自动归类（需先记穿线与打球时长）</view>
+    </view>
+
+    <!-- 各球拍实战胜率对比 -->
+    <view class="card">
+      <view class="card-title row-t">
+        <text>各球拍实战表现</text>
+        <text class="sub-t">点击查看球拍详情</text>
+      </view>
+      <view wx:if="{{!cross.racketRows.length && ready}}" class="muted">还没有球拍，添加球拍并记录打球时长后自动生成对比</view>
+      <view wx:for="{{cross.racketRows}}" wx:key="id" class="rk-row {{item.retired ? 'off' : ''}}" hover-class="tap-row-on" data-id="{{item.id}}" bindtap="openRacket">
+        <rk-art class="rk-ico" brand="{{item.brand}}" model="{{item.model}}" />
+        <view class="rk-m">
+          <view class="rk-t"><text class="rk-no">{{item.title}}</text><text class="rk-nm">{{item.name}}</text></view>
+          <view class="rk-s">{{item.played ? item.win + '胜 ' + item.lose + '负 · 得局 ' + item.gameShare : '暂未关联正式比赛'}} · 累计 {{item.playHours}}</view>
+          <view class="rk-s dim">{{item.lastString}}</view>
+        </view>
+        <view class="rk-r">
+          <text class="rk-rate num {{item.played ? '' : 'none'}}">{{item.rateText}}</text>
+          <text class="rk-pl">{{item.played}} 场</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 球线寿命与实战表 -->
+    <view wx:if="{{cross.stringRows.length}}" class="card">
+      <view class="card-title row-t"><text>球线寿命与胜率</text><text class="sub-t">按常用球线聚合</text></view>
+      <view wx:for="{{cross.stringRows}}" wx:key="name" class="st-row">
+        <view class="st-m">
+          <view class="st-nm">{{item.name}}</view>
+          <view class="st-sub">穿线 {{item.count}} 次 · {{item.lifeText}}{{item.broken ? ' · 断线 ' + item.broken + ' 次' : ''}}</view>
+        </view>
+        <view class="st-r">
+          <text class="st-rate num {{item.played ? '' : 'none'}}">{{item.rateText}}</text>
+          <text class="st-pl">{{item.played ? item.win + '胜' + item.lose + '负' : '无关联场次'}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ==================== 2. 双拍参数 / 配重并排对比器 ==================== -->
+  <block wx:elif="{{tab === 'compare' && cmp}}">
+    <view class="card">
+      <view class="cmp-pair">
+        <view class="cmp-side">
+          <view class="cmp-badge">拍 A</view>
+          <rk-art class="cmp-art" brand="{{cmp.a.brand}}" model="{{cmp.a.model}}" />
+          <view class="cmp-nm">{{cmp.a.name}}</view>
+          <view class="cmp-picks">
+            <picker wx:if="{{myOptions.length}}" range="{{myOptions}}" range-key="label" data-side="a" bindchange="pickMyRacket"><text class="cp-btn" hover-class="tap-on">选我的拍</text></picker>
+            <picker range="{{presets}}" range-key="label" data-side="a" bindchange="pickPreset"><text class="cp-btn" hover-class="tap-on">预设库</text></picker>
+          </view>
+        </view>
+        <view class="cmp-vs">VS</view>
+        <view class="cmp-side">
+          <view class="cmp-badge b">拍 B</view>
+          <rk-art class="cmp-art" brand="{{cmp.b.brand}}" model="{{cmp.b.model}}" />
+          <view class="cmp-nm">{{cmp.b.name}}</view>
+          <view class="cmp-picks">
+            <picker wx:if="{{myOptions.length}}" range="{{myOptions}}" range-key="label" data-side="b" bindchange="pickMyRacket"><text class="cp-btn" hover-class="tap-on">选我的拍</text></picker>
+            <picker range="{{presets}}" range-key="label" data-side="b" bindchange="pickPreset"><text class="cp-btn" hover-class="tap-on">预设库</text></picker>
+          </view>
+        </view>
+      </view>
+
+      <!-- 核心参数并排对比表 -->
+      <view class="cmp-table">
+        <view wx:for="{{cmp.rows}}" wx:key="k" class="ct-row">
+          <text class="ct-v num {{item.winA ? 'hi' : ''}}">{{item.a}}</text>
+          <view class="ct-mid"><text class="ct-k">{{item.k}}</text><text class="ct-d">{{item.diff}}</text></view>
+          <text class="ct-v num right {{item.winB ? 'hi' : ''}}">{{item.b}}</text>
+        </view>
+      </view>
+      <view class="cmp-tips">
+        <view wx:for="{{cmp.tips}}" wx:key="*this" class="cmp-tip">· {{item}}</view>
+      </view>
+    </view>
+
+    <!-- 微调两支拍的空拍参数与铅片 -->
+    <view class="card">
+      <view class="card-title">微调参数与贴铅片</view>
+      <view class="ed-cols">
+        <view class="ed-col">
+          <view class="ed-hd">拍 A 参数</view>
+          <view class="ed-f"><text class="ed-l">空重(g)</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideA.weight}}" data-side="a" data-k="weight" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">平衡(mm)</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideA.balance}}" data-side="a" data-k="balance" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">挥重</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideA.sw}}" data-side="a" data-k="sw" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">拍面</text><picker range="{{headOpts}}" data-side="a" bindchange="pickSideHead"><text class="ed-pk">{{sideA.head}} in² ›</text></picker></view>
+          <view class="ed-f"><text class="ed-l">线床</text><picker range="{{patternOpts}}" data-side="a" bindchange="pickSidePattern"><text class="ed-pk">{{sideA.pattern}} ›</text></picker></view>
+          <view class="ed-lead">
+            <text class="ed-l">12点铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="a" data-k="top" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideA.top}}g</text><text class="ld-b" hover-class="tap-on" data-side="a" data-k="top" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+          <view class="ed-lead">
+            <text class="ed-l">3/9点铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="a" data-k="side" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideA.side}}g</text><text class="ld-b" hover-class="tap-on" data-side="a" data-k="side" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+          <view class="ed-lead">
+            <text class="ed-l">手柄铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="a" data-k="handle" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideA.handle}}g</text><text class="ld-b" hover-class="tap-on" data-side="a" data-k="handle" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+        </view>
+        <view class="ed-col">
+          <view class="ed-hd b">拍 B 参数</view>
+          <view class="ed-f"><text class="ed-l">空重(g)</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideB.weight}}" data-side="b" data-k="weight" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">平衡(mm)</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideB.balance}}" data-side="b" data-k="balance" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">挥重</text><input class="ed-in num" type="digit" maxlength="5" value="{{sideB.sw}}" data-side="b" data-k="sw" bindinput="onSideNum" /></view>
+          <view class="ed-f"><text class="ed-l">拍面</text><picker range="{{headOpts}}" data-side="b" bindchange="pickSideHead"><text class="ed-pk">{{sideB.head}} in² ›</text></picker></view>
+          <view class="ed-f"><text class="ed-l">线床</text><picker range="{{patternOpts}}" data-side="b" bindchange="pickSidePattern"><text class="ed-pk">{{sideB.pattern}} ›</text></picker></view>
+          <view class="ed-lead">
+            <text class="ed-l">12点铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="b" data-k="top" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideB.top}}g</text><text class="ld-b" hover-class="tap-on" data-side="b" data-k="top" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+          <view class="ed-lead">
+            <text class="ed-l">3/9点铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="b" data-k="side" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideB.side}}g</text><text class="ld-b" hover-class="tap-on" data-side="b" data-k="side" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+          <view class="ed-lead">
+            <text class="ed-l">手柄铅</text>
+            <view class="ld-c"><text class="ld-b" hover-class="tap-on" data-side="b" data-k="handle" data-d="-1" bindtap="stepSideLead">−</text><text class="ld-v num">{{sideB.handle}}g</text><text class="ld-b" hover-class="tap-on" data-side="b" data-k="handle" data-d="1" bindtap="stepSideLead">+</text></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ==================== 3. 气温 / 拍面穿线磅数参考器 ==================== -->
+  <block wx:elif="{{tab === 'tension' && tenRes}}">
+    <view class="hero">
+      <view class="hero-in">
+        <view class="hero-top">
+          <text class="hero-k">推荐穿线磅数区间</text>
+          <text class="hero-badge">{{tenRes.tempDeltaText}}</text>
+        </view>
+        <view class="ten-big"><text class="ten-n num">{{tenRes.rangeText}}</text><text class="ten-u">lbs</text></view>
+        <view class="ten-split">{{tenRes.splitText}} · {{tenRes.headDeltaText}}</view>
+        <view class="ten-notes">
+          <view wx:for="{{tenRes.notes}}" wx:key="*this" class="ten-note">· {{item}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="t-sec">
+        <view class="t-lbl">打球气温</view>
+        <view class="pills">
+          <view wx:for="{{tempOpts}}" wx:key="id" class="pill {{ten.temp === item.id ? 'on' : ''}}" hover-class="tap-on" data-k="temp" data-v="{{item.id}}" bindtap="pickTen">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="t-sec">
+        <view class="t-lbl">球线材质</view>
+        <view class="pills">
+          <view wx:for="{{matOpts}}" wx:key="id" class="pill {{ten.material === item.id ? 'on' : ''}}" hover-class="tap-on" data-k="material" data-v="{{item.id}}" bindtap="pickTen">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="t-sec">
+        <view class="t-lbl">拍面大小（平方英寸）</view>
+        <view class="pills">
+          <view wx:for="{{headOpts}}" wx:key="*this" class="pill num {{ten.head === item ? 'on' : ''}}" hover-class="tap-on" data-k="head" data-v="{{item}}" bindtap="pickTen">{{item}}</view>
+        </view>
+      </view>
+      <view class="t-sec">
+        <view class="t-lbl">打法取向</view>
+        <view class="pills">
+          <view wx:for="{{styleOpts}}" wx:key="id" class="pill {{ten.style === item.id ? 'on' : ''}}" hover-class="tap-on" data-k="style" data-v="{{item.id}}" bindtap="pickTen">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="t-sec">
+        <view class="t-lbl">手臂敏感度</view>
+        <view class="pills">
+          <view wx:for="{{armOpts}}" wx:key="id" class="pill {{ten.arm === item.id ? 'on' : ''}}" hover-class="tap-on" data-k="arm" data-v="{{item.id}}" bindtap="pickTen">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

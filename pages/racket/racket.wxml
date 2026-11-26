@@ -55,10 +55,7 @@
       <view wx:if="{{st}}" class="card eq-card">
         <view class="eq-hd">
           <text class="eq-t">{{st.year}} 装备统计</text>
-          <view class="eq-acts">
-            <text wx:if="{{st.badge}}" class="eq-badge">{{st.badge}}</text>
-            <view class="btn-line mini eq-tune" hover-class="tap-on" bindtap="openTune">配重计算</view>
-          </view>
+          <text wx:if="{{st.badge}}" class="eq-badge">{{st.badge}}</text>
         </view>
         <view class="eq-grid">
           <view class="eq-c"><view class="eq-n num">{{st.costText}}</view><view class="eq-l">今年花费</view></view>
@@ -67,6 +64,10 @@
         </view>
         <view wx:if="{{st.chips.length}}" class="eq-chips">
           <text wx:for="{{st.chips}}" wx:key="*this" class="eq-chip">{{item}}</text>
+        </view>
+        <view class="eq-tools">
+          <view class="btn-line eq-tool" hover-class="tap-on" bindtap="openLab">装备实验室 ›</view>
+          <view class="btn-line eq-tool" hover-class="tap-on" bindtap="openTune">铅片配重 ›</view>
         </view>
       </view>
     </block>
