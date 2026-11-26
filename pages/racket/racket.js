@@ -50,6 +50,7 @@ Page({
     if (c) this.show(c);
   },
   onShow() {
+    require('../../utils/alerts').applyBadges(true); // 从非 tab 页回来时补设角标（在非 tab 页设会失败）
     if (this.data.paused) this.setData({ paused: false });
     this.load();
   },

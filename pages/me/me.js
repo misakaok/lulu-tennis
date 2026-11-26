@@ -22,7 +22,10 @@ Page({
     try { const c = wx.getStorageSync(CUP_KEY); if (c && c.uid === myId && c.cup && c.cup.year === C.thisYear()) cup = c.cup; } catch (e) {}
     this.setData(Object.assign({ myId, isAdmin: M.isAdminLocal() }, cup ? { cup } : {}));
   },
-  onShow() { this.load(); this.loadGrowth(); this.loadCup(); },
+  onShow() {
+    require('../../utils/alerts').applyBadges(true); // 从非 tab 页回来时补设角标（在非 tab 页设会失败）
+    this.load(); this.loadGrowth(); this.loadCup();
+  },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存（管理员刚更正 / 撤下的积分也马上看到）
     const c = this.selectComponent('#home');
     Promise.all([this.load(), this.loadGrowth(), this.loadCup(), c ? c.load() : null]).then(() => wx.stopPullDownRefresh());

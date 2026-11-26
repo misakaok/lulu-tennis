@@ -4,6 +4,7 @@ const C = require('../../utils/cup');
 const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
 const haptic = require('../../utils/haptic');
+const A = require('../../utils/alerts');
 const PAGE = 5; // 活动列表每页显示 5 场（和战绩页统一翻页节奏）
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
@@ -89,9 +90,11 @@ Page({
   onShow() {
     if (this.timeline) return;
     this.heroStart();
-    // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取
+    A.applyBadges(true); // 从非 tab 页回来时补设角标（在非 tab 页设会失败）
+    // 刚删除了活动：先从手上的列表里去掉马上显示，再在后台重新读取；
+    // 从活动详情回来（已经算看过）：马上去掉那张卡片的标签，不等云端（读不到也不卡着）
     const kept = db.withoutRemoved(this.draws);
-    if (kept !== this.draws) { this.draws = kept; this.render(); }
+    if (kept !== this.draws || (this.draws && A.version() !== this.alertVer)) { this.draws = kept; this.render(); }
     this.showUndo();
     this.load();
   },
@@ -140,13 +143,16 @@ Page({
     // 先按活动把比赛分好组，每个活动只看自己的比赛（不用每个活动都扫一遍全部战绩）
     const byDraw = {};
     (this.matches || []).forEach((m) => { if (m.drawId) (byDraw[m.drawId] = byDraw[m.drawId] || []).push(m); });
-    const list = (this.draws || []).map((d) => toView(d, byDraw[d._id] || [], this.myId, signed));
+    const list = (this.draws || []).map((d) => Object.assign(toView(d, byDraw[d._id] || [], this.myId, signed), { alert: A.drawTagOf(d._id) })); // 有新变化：已递补、对阵已出…（utils/alerts.js）
     // 置顶的排最前（越晚置顶越靠前），其余保持原来的顺序（按创建时间，新的在前）
     if (list.some((x) => x.pinnedAt)) list.sort((a, b) => b.pinnedAt - a.pinnedAt);
     this.list = list;
     // 我的下一场：录分、改时间场地之后活动 / 战绩会重新读到新数组，这里跟着重算
     this.today = NX.todayOf();
-    this.setData({ mineCount: list.filter((x) => x.mine).length, next: NX.nextMatch(this.draws, this.matches, this.myId, this.signups, this.today) });
+    this.alertVer = A.version();
+    const next = NX.nextMatch(this.draws, this.matches, this.myId, this.signups, this.today);
+    if (next) next.moved = A.nextMoved(next.drawId, next.key); // 这一场的时间、场地刚变过（同一活动别的场次变了不算）
+    this.setData({ mineCount: list.filter((x) => x.mine).length, next });
     this.apply();
   },
   // 按页切片交给渲染层（每页 PAGE 场）：数据刷新（录分、报名后回来）保持当前页并防越界，切换选项卡回到第 1 页
@@ -195,10 +201,12 @@ Page({
       const [list, matches, myId, signups] = await Promise.all([
         db.drawsShared(), soft(db.matchesShared(), () => db.cachedMatches()), soft(db.myOpenid(), () => ''), soft(db.fetchMySignups(), () => []), // 活动、比赛用共享数据（只读）
       ]);
+      // 不漏消息（utils/alerts.js）：只用这次云端读到的算，有一项没读到就不更新（保留上次的标签和角标）
+      if (!stale) { A.updateMatches(matches, myId); A.updateDraws(list, matches, signups, myId); }
       // 数据和上次一样（切换 tab、从子页面返回、缓存命中）就不重算、不重新渲染：活动、比赛比较引用，我的报名（很少）比较内容
       const sig = JSON.stringify([myId, signups]);
-      // 隔天再打开也要重算「我的下一场」（昨天的场次不再显示）
-      if (list !== this.draws || matches !== this.matches || sig !== this.sig || NX.todayOf() !== this.today) {
+      // 隔天再打开也要重算「我的下一场」（昨天的场次不再显示）；看过某个活动后标签变了也要重画
+      if (list !== this.draws || matches !== this.matches || sig !== this.sig || NX.todayOf() !== this.today || A.version() !== this.alertVer) {
         this.sig = sig;
         this.draws = list; this.matches = matches; this.myId = myId; this.signups = signups;
         this.render();

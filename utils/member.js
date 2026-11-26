@@ -5,6 +5,7 @@ const KEEP = { my_openid: 1, last_rules: 1, last_event_rules: 1, after_gate: 1 }
 
 function clearProtected() {
   require('./memo').invalidate();
+  try { require('./alerts').reset(); } catch (e) {} // 「看过」的记录在本机存储里，下面一起删；这里清内存和角标
   try { require('./db').forget(); } catch (e) {} // 本机缓存清空后，下次读取要重新整理并写回
   try {
     const info = wx.getStorageInfoSync();
@@ -51,7 +52,10 @@ async function fetchStatus() {
     if (r.status === 'active') wx.setStorageSync('member_ok_at', Date.now()); else clearProtected();
   } catch (e) {}
   applyBadge(r);
-  if (r.status === 'active') require('./rackets').refreshBadge(); // 球拍穿线 / 维护到期提醒（只在确认是正式成员后查）
+  if (r.status === 'active') {
+    require('./rackets').refreshBadge(); // 球拍穿线 / 维护到期提醒（只在确认是正式成员后查）
+    require('./alerts').refresh(); // 不漏消息：「活动」数字、「战绩」小红点（停在别的页面也能看到；和首页同时读不会重复请求）
+  }
   return r;
 }
 

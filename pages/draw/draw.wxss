@@ -47,6 +47,7 @@
 /* 名称完整显示：第一行放不下就接着在第二行显示（最多 20 个字），英文单词（如 lulu）尽量不从中间断开 */
 .d-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #323252; word-break: normal; overflow-wrap: break-word; }
 .d-status { flex: none; margin: 4rpx 0 0 16rpx; }
+.d-alert { flex: none; margin: 4rpx 0 0 16rpx; } /* 有新变化（utils/alerts.js）：已递补、对阵已出… 放在状态左边 */
 .d-meta { margin-top: 10rpx; font-size: 24rpx; line-height: 1.4; color: #70708C; word-break: keep-all; } /* 配合不换行空格：只在「 · 」之间换行 */
 .d-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; }
 .d-roles { display: flex; flex-wrap: wrap; }
@@ -68,6 +69,7 @@
 .nx-head { display: flex; align-items: baseline; flex-wrap: wrap; }
 .nx-title { font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #323252; word-break: break-all; margin-right: 16rpx; }
 .nx-stage { font-size: 24rpx; color: #6E6EA3; font-weight: 600; }
+.nx-moved { margin-left: 12rpx; }
 .nx-when { display: flex; align-items: center; margin-top: 20rpx; }
 .nx-time { flex: none; font-size: 64rpx; font-weight: 800; line-height: 1; color: #6E6EA3; letter-spacing: -0.03em; }
 .nx-time.tbd { font-size: 44rpx; color: #84849E; }

@@ -5,6 +5,7 @@ const S = require('../../utils/stats');
 const H = require('../../utils/highlight');
 const Anim = require('../../utils/anim');
 const haptic = require('../../utils/haptic');
+const A = require('../../utils/alerts');
 
 const PAGE = 5;         // 每页显示 5 场
 const SEARCH_MS = 300;  // 搜索防抖
@@ -142,12 +143,44 @@ Page({
     if (require('../../utils/member').knownActive()) this.setData({ canRecordDaily: true });
   },
   onShow() {
+    // 不漏消息：正在看战绩时 tab 上的小红点收起；读到的「新 / 比分有改动」马上记成看过，但页面自己留一份（this.unread），
+    // 这次停留里卡片照常显示；点进某场详情再回来只去掉那一场；切到别的 tab 再回来才全部去掉（退到后台、进记一场 / 球员主页回来照常显示）
+    this.visible = true;
+    if (this.unreadTimer) { clearTimeout(this.unreadTimer); this.unreadTimer = null; } // 刚离开又回来：照旧
+    if (this.unreadDrop || (this.unreadUid && A.uid() !== this.unreadUid)) { this.unread = {}; this.unreadDrop = false; } // 切过 tab / 换了账号
+    A.applyBadges(true);
+    A.viewMatches(true);
     Anim.enter(this); // 切换 tab 回来：重播入场动画和数字滚动（从详情返回不重播）
     const nowYmd = ymd(new Date());
     if (nowYmd !== this.data.today) this.setData({ today: nowYmd });
+    if (JSON.stringify(this.unread || {}) !== (this.unreadShown || '{}')) this.render(); // 看过的标签马上去掉，不等云端
     this.load();
   },
-  onHide() { Anim.leave(this); },
+  onHide() {
+    Anim.leave(this);
+    this.visible = false;
+    A.viewMatches(false);
+    // 和 Anim.leave 一样等一会儿再看：还没被子页面盖住、也不是退到后台，才是切到了别的 tab
+    clearTimeout(this.unreadTimer);
+    this.unreadTimer = setTimeout(() => { this.unreadTimer = null; if (!Anim.covered(this) && !A.isAppHidden()) this.unreadDrop = true; }, Anim.LEAVE_MS);
+  },
+  onUnload() { A.viewMatches(false); },
+  dropUnread(id) {
+    if (!this.unread || !this.unread[id]) return;
+    const rest = Object.assign({}, this.unread);
+    delete rest[id];
+    this.unread = rest;
+  },
+  // 把这次读到的「新 / 比分有改动」收进页面，并记成看过（页面在前台时才算看到）
+  takeUnread() {
+    if (!this.visible) return;
+    const t = A.matchTags();
+    if (!Object.keys(t).length) return;
+    if (this.unreadUid !== this.myId) this.unread = {};
+    this.unreadUid = this.myId;
+    this.unread = Object.assign({}, this.unread, t);
+    A.seeMatches(this.myId);
+  },
   onPullDownRefresh() { require('../../utils/memo').invalidate(); // 下拉刷新：不用内存缓存
     this.load().then(() => wx.stopPullDownRefresh()); },
 
@@ -161,9 +194,12 @@ Page({
       // 共享数据（不复制，只读）：数据没变时是同一个数组，比较引用就知道要不要重算
       // 正式战绩也拿共享版（和 matchesAllShared 同一次整理的结果，不多读）：排行榜、球员主页、比赛详情传的是同一个数组，
       // 水平分（R.ratingsOf）、球员统计（S.playerStats）、亮点标签（H.tagsOf）全站只算一次
-      const [m, p, myId, official] = await Promise.all([db.matchesAllShared(), db.playersShared(), db.myOpenid().catch(() => this.myId || ''), db.matchesShared ? db.matchesShared() : null]);
-      // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染
-      if (this.setSource(m, p, myId, official)) this.render();
+      const [m, p, id, official] = await Promise.all([db.matchesAllShared(), db.playersShared(), db.myOpenid().catch(() => ''), db.matchesShared ? db.matchesShared() : null]);
+      const myId = id || this.myId || '';
+      // 不漏消息：别人录了 / 改了我参加的比赛（只用这次云端读到的正式战绩和身份算，身份没读到不用上次的）
+      if (official && id) { A.updateMatches(official, id); this.myId = id; this.takeUnread(); }
+      // 数据和上次一样（比如从详情页返回、缓存命中）就不重算、不重新渲染；标签变了也要重画
+      if (this.setSource(m, p, myId, official) || JSON.stringify(this.unread || {}) !== this.unreadShown) this.render();
     } catch (e) {
       console.error(e);
       wx.showToast({ title: '网络异常，显示的是缓存数据', icon: 'none' });
@@ -221,8 +257,9 @@ Page({
     list.slice(start, start + PAGE).forEach((m) => {
       let g = groups[groups.length - 1];
       if (!g || g.date !== m.date) { g = { date: m.date, label: dateLabel(m.date), items: [] }; groups.push(g); }
-      g.items.push(toView(m, deltas, this.gOf, tags));
+      g.items.push(Object.assign(toView(m, deltas, this.gOf, tags), { alert: (this.unread || {})[m._id] || '' }));
     });
+    this.unreadShown = JSON.stringify(this.unread || {});
     const pageOpts = [];
     for (let i = 1; i <= totalPages; i++) pageOpts.push(`第 ${i} 页`);
     const daySummary = pickDate ? buildDaySummary(shown, dates, pickDate, this.myId, totalCount) : null;
@@ -303,6 +340,7 @@ Page({
   // 点击比赛：详情页里可以确认赛果；活动比赛可以从详情页进入活动
   openMatch(e) { // 先发出比赛状态请求，利用页面切换动画的时间（比赛详情第一次读取接过去）
     const id = e.currentTarget.dataset.id;
+    this.dropUnread(id); // 点进详情：回来只去掉这一场的标签
     db.prefetchMatchState(id);
     wx.navigateTo({ url: '/pkg-manage/match/match?id=' + id });
   },

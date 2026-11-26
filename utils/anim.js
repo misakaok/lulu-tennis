@@ -105,4 +105,4 @@ function enter(ctx) {
 const onceSeen = {};
 function once(key) { if (onceSeen[key]) return false; onceSeen[key] = true; return true; }
 
-module.exports = { roll, stop, leave, enter, once, rollText, MS, LEAVE_MS, ease };
+module.exports = { roll, stop, leave, enter, once, rollText, covered, MS, LEAVE_MS, ease };

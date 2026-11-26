@@ -27,6 +27,7 @@ Page({
     this.render();
   },
   onShow() {
+    require('../../utils/alerts').applyBadges(true); // 从非 tab 页回来时补设角标（在非 tab 页设会失败）
     Anim.enter(this); // 切换 tab 回来：重播领奖台、榜单的入场动画（从球员主页返回不重播）
     if (this.data.view === 'cup') this.setData({ cupTick: this.data.cupTick + 1 }); // 从补录页回来：积分马上更新
     this.load();

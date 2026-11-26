@@ -1808,9 +1808,27 @@ async function drawDetail({ drawId }, uid) {
 }
 
 // 我报过名的活动（自己报的，或被搭档带上的）：活动页「我的活动」用。前端原来要分 2～4 次读
+// 每条报名带 waiting（2026-11-27，1.3.0「不漏消息」用来提示「已递补 / 进入候补」）：只算还在报名中的活动，
+// 按这个活动的完整名单和名额实时算（和活动详情、signUp 同一套 E.waitingOf / E.capacityOf），不下发别人的报名
 async function mySignups(_d, uid) {
   const [own, asPartner] = await Promise.all([allDocs('signups', { _openid: uid }), allDocs('signups', { partnerId: uid })]);
-  return { list: own.concat(asPartner) };
+  const list = own.concat(asPartner);
+  // 只查还在报名中的活动（老成员报过很多活动，已生成对阵 / 已结束的不读整份文档、不查名单）；每批 100 个一起查
+  const ids = Array.from(new Set(list.map((s) => s.drawId).filter((x) => typeof x === 'string' && x)));
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+  const draws = [].concat(...await Promise.all(chunks.map((c) => allDocs('draws', { _id: _.in(c), status: 'signup', deleted: _.neq(true) }))))
+    .filter((d) => !d.deleted && !d.endedAt);
+  if (draws.length) {
+    const all = await byIds('signups', draws.map((d) => d._id), 'drawId');
+    const byDraw = {};
+    all.forEach((s) => { (byDraw[s.drawId] = byDraw[s.drawId] || []).push(s); });
+    const wait = {};
+    draws.forEach((d) => Object.assign(wait, E.waitingOf(byDraw[d._id] || [], E.capacityOf(d)))); // 不设上限：没有候补
+    const open = new Set(draws.map((d) => d._id));
+    list.forEach((s) => { if (open.has(s.drawId)) s.waiting = !!wait[s._id]; });
+  }
+  return { list };
 }
 
 const ping = async () => ({}); // 现在的小程序不再调用；保留给旧版本（不保留会报「未知操作」），只校验成员资格、顺带触发旧记录迁移

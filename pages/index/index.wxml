@@ -86,6 +86,7 @@
         <text wx:else class="mc-ev daily">日常比赛</text>
         <text wx:for="{{item.tags}}" wx:key="k" wx:for-item="t" class="ui-tag {{t.cls}} mc-tag">{{t.t}}</text>
         <text wx:if="{{item.pending}}" class="ui-tag warn mc-pend">待确认</text>
+        <text wx:if="{{item.alert}}" class="ui-tag {{item.alert === '新' ? 'solid' : 'warn'}} mc-tag">{{item.alert}}</text>
       </view>
       <view class="mc-body">
         <!-- 俯视横向网球场底纹（竖向球网虚线 + 左右发球区 T 线，写在样式里的 SVG 矢量线），不放图片 -->

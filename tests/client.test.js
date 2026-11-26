@@ -327,7 +327,12 @@ test('我的报名：1 次调用，旧版云函数时分开读，结果一致；
   const real = env.call;
   env.call = (uid, action, data) => (action === 'mySignups' ? Promise.resolve({ ok: false, error: '未知操作' }) : real(uid, action, data));
   const old = client(env, 'alice');
-  assert.deepStrictEqual(await old.db.fetchMySignups(), await (async () => { env.call = real; return client(env, 'alice').db.fetchMySignups(); })());
+  const viaOld = await old.db.fetchMySignups();
+  const viaNew = await (async () => { env.call = real; return client(env, 'alice').db.fetchMySignups(); })();
+  // 新版多带 waiting（还在报名中的活动，1.3.0「不漏消息」用）；去掉它之后两种读法结果一致
+  assert.ok(viaNew.length && viaNew.every((s) => typeof s.waiting === 'boolean'), '报名中的活动带 waiting');
+  assert.ok(viaOld.every((s) => s.waiting === undefined), '旧版云函数没有 waiting');
+  assert.deepStrictEqual(viaOld, viaNew.map((s) => { const x = Object.assign({}, s); delete x.waiting; return x; }));
 });
 
 test('原始 dataset 冻结后仍能整理；修改返回的嵌套数组不污染指纹复用的数据', async () => {

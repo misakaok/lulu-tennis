@@ -1447,6 +1447,41 @@ test('mySignups：返回自己报的和被搭档带上的，不含别人的', as
   assert.ok(r.list.every((s) => s._openid === 'alice' || s.partnerId === 'alice'));
   assert.strictEqual((await env.call('stranger', 'mySignups')).code, 'NOT_MEMBER');
 });
+test('mySignups 带 waiting（1.3.0 不漏消息）：和活动详情的候补算法一致；取消后递补；不设上限没有候补；已生成对阵 / 已结束的不带', async () => {
+  const E = require('../utils/event');
+  const env = setup();
+  env.put('draws', { _id: 'd9', _openid: 'owner', title: '两签', status: 'signup', type: 'single', mode: 'bracket', size: 2 });
+  for (const u of ['alice', 'bob', 'eve']) ok(await env.call(u, 'signUp', { drawId: 'd9' }));
+  const w = async (u) => ok(await env.call(u, 'mySignups')).list.find((x) => x.drawId === 'd9').waiting;
+  assert.deepStrictEqual([await w('alice'), await w('bob'), await w('eve')], [false, false, true]);
+  // 和活动详情（drawDetail 的完整名单 + E.signupStatus）一致
+  const det = ok(await env.call('alice', 'drawDetail', { drawId: 'd9' }));
+  const st = E.signupStatus(det.draw, det.signups);
+  const eve = det.signups.find((x) => x._openid === 'eve');
+  assert.ok(st.wait[eve._id]);
+  // bob 取消：eve 递补
+  ok(await env.call('bob', 'cancelSignup', { drawId: 'd9' }));
+  assert.strictEqual(await w('eve'), false);
+  // 被搭档带上的也带（双打 4 人名额，第 3 队候补）
+  for (const [u, p] of [['alice', 'bob'], ['eve', 'carl'], ['owner', '']]) ok(await env.call(u, 'signUp', p ? { drawId: 'd2', partnerId: p } : { drawId: 'd2' }));
+  const asPartner = ok(await env.call('carl', 'mySignups')).list.find((x) => x.drawId === 'd2');
+  assert.strictEqual(asPartner.waiting, false);
+  // 不设上限：没有候补
+  env.put('draws', { _id: 'd10', _openid: 'owner', title: '不限', status: 'signup', type: 'single', mode: 'groups', groupCount: 2, limit: 0 });
+  ok(await env.call('alice', 'signUp', { drawId: 'd10' }));
+  assert.strictEqual(ok(await env.call('alice', 'mySignups')).list.find((x) => x.drawId === 'd10').waiting, false);
+  // 已生成对阵 / 已提前结束：不带 waiting
+  Object.assign(env.coll('draws').d10, { endedAt: 5 });
+  Object.assign(env.coll('draws').d9, { status: 'drawn' });
+  const list = ok(await env.call('alice', 'mySignups')).list;
+  assert.ok(list.filter((x) => x.drawId === 'd9' || x.drawId === 'd10').every((x) => x.waiting === undefined));
+  // 报名中就被删除的活动：不带 waiting（不读它的名单）
+  env.put('draws', { _id: 'd11', _openid: 'owner', title: '删了', status: 'signup', type: 'single', mode: 'groups', groupCount: 2, limit: 4 });
+  ok(await env.call('alice', 'signUp', { drawId: 'd11' }));
+  assert.strictEqual(ok(await env.call('alice', 'mySignups')).list.find((x) => x.drawId === 'd11').waiting, false);
+  Object.assign(env.coll('draws').d11, { deleted: true });
+  assert.strictEqual(ok(await env.call('alice', 'mySignups')).list.find((x) => x.drawId === 'd11').waiting, undefined);
+});
 test('matchState（detail）：顺带返回比赛记录和状态；不带 detail 时不返回', async () => {
   const env = setup();
   env.put('matches', { _id: 'm1', _openid: 'alice', a: ['Alice'], b: ['Bob'], aIds: ['alice'], bIds: ['bob'], winner: 'a', sets: [{ a: 4, b: 1 }], date: '2026-11-01', createdAt: 5 });

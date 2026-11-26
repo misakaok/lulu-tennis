@@ -149,6 +149,9 @@ Page({
       }
       if (stale()) return;
       this.loaded = true;
+      // 不漏消息（utils/alerts.js）：云端读完就算看过这个活动（首页卡片的标签、tab 数字跟着去掉）。
+      // 在这页里自己报名、取消、生成对阵后会重新读，也按最新内容记成看过，自己的操作不会再被提示
+      require('../../utils/alerts').seeDraw(d, myId, signups, shared.all || db.cachedMatches());
     } catch (e) {
       if (stale()) return;
       console.error(e);

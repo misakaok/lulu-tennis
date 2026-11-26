@@ -51,6 +51,7 @@
       <view class="nx-head">
         <text class="nx-title">{{next.title}}</text>
         <text class="nx-stage">{{next.stage}}</text>
+        <text wx:if="{{next.moved}}" class="ui-tag warn nx-moved">时间有变</text>
       </view>
       <view class="nx-when">
         <text class="nx-time num {{next.time ? '' : 'tbd'}}">{{next.time || '待定'}}</text>
@@ -95,6 +96,7 @@
     <view class="d-body">
       <view class="d-top">
         <view class="d-title">{{item.title}}</view>
+        <view wx:if="{{item.alert}}" class="ui-tag {{item.alert.cls}} d-alert">{{item.alert.text}}</view>
         <view class="ui-tag {{item.status.cls}} d-status"><view wx:if="{{item.st === 'sign'}}" class="pulse"></view>{{item.status.text}}</view>
       </view>
       <view wx:if="{{item.pinnedAt || item.cupTag}}" class="d-cup">
