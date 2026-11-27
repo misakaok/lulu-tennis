@@ -714,12 +714,14 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
   const dpCfg = JSON.parse(read('pkg-tools/draw-poster/draw-poster.json'));
   assert.deepStrictEqual([dpCfg.enableShareAppMessage, dpCfg.enableShareTimeline], [false, false]);
   const dpXml = read('pkg-tools/draw-poster/draw-poster.wxml');
-  assert.ok(/id="draw-poster-cv"/.test(dpXml) && !/<image\b[^>]*\{\{/.test(dpXml));
+  assert.ok(/id="dp-cv-0"/.test(dpXml) && /id="dp-cv-1"/.test(dpXml) && !/<image\b[^>]*\{\{/.test(dpXml), '两块画布轮流用，没有动态图片');
+  assert.ok(!/fading|dp-cv-wrap/.test(dpXml), '切换不淡出淡入');
   // 打开时先画缓存、云端读完再画一次：重画时不能盖「生成中」遮罩（真机上一进页面白闪两下），旧图留到新图画好
   assert.ok(!/wx:if="\{\{busy\}\}"/.test(dpXml) && !/正在排版/.test(dpXml), '对阵图页不盖生成中遮罩');
   assert.ok(/bindtap="openPoster"/.test(read('pages/draw-view/draw-view.wxml')));
 
   const savedPaths = [];
+  const selected = [];
   const cMock = makeCtx().ctx;
   const fakeCanvas = { width: 0, height: 0, getContext: () => cMock };
   const mockWx = {
@@ -727,7 +729,7 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
     nextTick: (fn) => fn(),
     createSelectorQuery: () => ({
       in() { return this; },
-      select() { return this; },
+      select(id) { selected.push(id); return this; },
       fields() { return this; },
       exec(cb) { cb([{ node: fakeCanvas }]); },
     }),
@@ -738,7 +740,6 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
   global.wx = mockWx;
   const timers = new Map();
   let timerId = 0;
-  const runTimers = () => { const fns = Array.from(timers.values()); timers.clear(); fns.forEach((fn) => fn()); };
   try {
     let dpDef;
     const dpFile = path.join(root, 'pkg-tools/draw-poster/draw-poster.js');
@@ -765,22 +766,28 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
     assert.strictEqual(dp.data.hasGroups, true);
     assert.strictEqual(dp.data.canSave, true);
     const fullCvH = dp.data.cvH;
-    assert.strictEqual(dp.data.fading, false);
-    // 切换完整版 / 精简版：先淡出，看得见的时候不换高度（不然新高度下露出拉伸变形的旧图，真机上闪一下）
+    const front0 = dp.data.front;
+    assert.strictEqual(dp.data.cvHs[front0], fullCvH, '卡片高度跟着显示着的那块画布');
+    assert.strictEqual(selected[selected.length - 1], '#dp-cv-' + front0, '画在下面那块、画好换上来');
+    // 切换完整版 / 精简版（双缓冲，完全不闪）：新版画在下面那块，画好之前上面照常显示旧版、卡片高度不变、按钮不变灰
+    selected.length = 0;
     dp.setCompact({ currentTarget: { dataset: { v: '1' } } });
     assert.strictEqual(dp.data.compact, true);
-    assert.deepStrictEqual([dp.data.fading, dp.data.canSave, dp.data.cvH], [true, false, fullCvH], '淡出期间不换高度、不能存');
+    assert.deepStrictEqual([dp.data.front, dp.data.cvH, dp.data.canSave], [front0, fullCvH, true], '画好之前旧版留在上面、高度不变、按钮不变灰');
+    assert.ok(dp.data.cvHs[1 - front0] < fullCvH, '下面那块先换成精简版的高度');
+    assert.deepStrictEqual(selected, ['#dp-cv-' + (1 - front0)]);
     dp.savePoster();
-    assert.deepStrictEqual(savedPaths, [], '淡出期间旧版那张作废，不能存');
-    // 淡出期间又点回完整版、再点精简版：只按最后一次重画一遍
+    assert.deepStrictEqual(savedPaths, [], '新版还没画好：旧版那张不能当新版存');
+    // 还没画好又点回完整版、再点精简版：前两次作废，只换上最后一次画的
     dp.setCompact({ currentTarget: { dataset: { v: '0' } } });
     dp.setCompact({ currentTarget: { dataset: { v: '1' } } });
-    assert.strictEqual(timers.size, 1, '之前的淡出计时作废，只留最后一次');
-    runTimers();
+    assert.strictEqual(dp.data.front, front0, '作废的那几次画完也不换上来');
     await new Promise((r) => setImmediate(r));
     assert.strictEqual(dp.data.compact, true);
-    assert.ok(dp.data.cvH < fullCvH, '切到精简版后画布高度收缩');
-    assert.deepStrictEqual([dp.data.fading, dp.data.canSave], [false, true], '画好淡入、可以存');
+    assert.strictEqual(dp.data.front, 1 - front0, '画好后两块对调');
+    assert.ok(dp.data.cvH < fullCvH && dp.data.cvH === dp.data.cvHs[dp.data.front], '换上来的同时卡片换成精简版高度');
+    assert.strictEqual(dp.data.canSave, true);
+    assert.strictEqual(timers.size, 0, '不靠计时器');
     dp.savePoster();
     assert.deepStrictEqual(savedPaths, ['/tmp/draw-poster.jpg']);
   } finally {

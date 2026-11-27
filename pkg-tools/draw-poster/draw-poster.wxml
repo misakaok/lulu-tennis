@@ -21,16 +21,13 @@
 
     <view class="dp-hint">
       <text class="dp-h-t">{{drawTitle}} · {{statusText}}</text>
-      <text class="dp-h-s">纯本机绘制，点长图可放大查看</text>
     </view>
 
     <!-- 高清画布预览区（高度按实际内容精准自适应） -->
     <view class="dp-stage" style="height:{{cvH}}rpx" bindtap="previewPoster">
-      <!-- 不盖「生成中」遮罩：先画缓存、云端读完再画时，旧图留着直到新图画好（画布清空和重画在同一帧），盖遮罩会白闪两下 -->
-      <!-- 切换完整版 / 精简版时整张淡出、画好再淡入（fading），不露出新高度下拉伸的旧图 -->
-      <view class="dp-cv-wrap {{fading ? 'fade' : ''}}">
-        <canvas type="2d" id="draw-poster-cv" class="dp-cv" style="height:{{cvH}}rpx"></canvas>
-      </view>
+      <!-- 两块画布轮流用：上面那块显示着，新版在下面被盖住的那块画好再换上来（不盖「生成中」遮罩、不淡出淡入，切换完全不闪） -->
+      <canvas type="2d" id="dp-cv-0" class="dp-cv {{front === 0 ? 'front' : 'back'}}" style="height:{{cvHs[0]}}rpx"></canvas>
+      <canvas type="2d" id="dp-cv-1" class="dp-cv {{front === 1 ? 'front' : 'back'}}" style="height:{{cvHs[1]}}rpx"></canvas>
     </view>
 
     <!-- 滑到最底也能顺手保存 -->

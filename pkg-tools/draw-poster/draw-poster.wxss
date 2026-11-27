@@ -10,17 +10,16 @@
 .btn-line.dp-btn { line-height: 74rpx; margin-right: 18rpx; }
 
 .dp-hint { display: flex; align-items: baseline; justify-content: space-between; margin: 0 4rpx 14rpx; }
-.dp-h-t { flex: 1; min-width: 0; font-size: 24rpx; font-weight: 700; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 12rpx; }
-.dp-h-s { flex: none; font-size: 20rpx; color: #84849E; }
+.dp-h-t { flex: 1; min-width: 0; font-size: 24rpx; font-weight: 700; color: #4F4F7D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .dp-stage {
   position: relative; width: 686rpx; border-radius: 28rpx; overflow: hidden;
   background: #ECECF6;
   box-shadow: 0 8rpx 22rpx rgba(84, 84, 146, 0.12), 0 22rpx 46rpx rgba(84, 84, 146, 0.14);
 }
-.dp-cv { width: 686rpx; display: block; }
-/* 切换完整版 / 精简版：淡出 0.14s（页面等 FADE_MS 再重画），画好淡入 0.22s；只动 opacity */
-.dp-cv-wrap { opacity: 1; transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
-.dp-cv-wrap.fade { opacity: 0; transition-duration: 0.14s; }
+/* 两块画布叠在一起：front 在上面显示，back 在下面画下一版（看不见）；卡片高度跟着 front，多出来的被卡片裁掉 */
+.dp-cv { position: absolute; left: 0; top: 0; width: 686rpx; display: block; }
+.dp-cv.front { z-index: 2; opacity: 1; }
+.dp-cv.back { z-index: 1; opacity: 0; pointer-events: none; }
 
 .dp-foot-btn { margin-top: 26rpx; }

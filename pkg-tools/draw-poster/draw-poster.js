@@ -11,8 +11,9 @@ const haptic = require('../../utils/haptic');
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const STAGE_W_RPX = 686;
-// 切换完整版 / 精简版：先淡出这么久，看不见时再换高度、重画，画好淡入（和 wxss 的 .dp-cv-wrap.fade 时长一致）
-const FADE_MS = 150;
+// 两块画布轮流用（双缓冲，2026-11-27 用户要求切换完全不闪）：上面那块（front）一直显示着，
+// 新版在下面被盖住的那块画好，画完在同一次 setData 里换到上面、同时把卡片换成新高度，中间不露空白、不露拉伸的旧图
+const CANVAS_ID = (i) => '#dp-cv-' + i;
 
 Page({
   data: {
@@ -22,10 +23,11 @@ Page({
     statusText: '',
     hasGroups: false,
     compact: false,
-    cvH: 1000,
+    cvH: 1000, // 卡片高度 = 上面那块画布的高度
+    cvHs: [1000, 1000], // 两块画布各自的高度
+    front: 0, // 显示着的那块
     busy: false,
     canSave: false,
-    fading: false,
   },
 
   onLoad(options) {
@@ -55,7 +57,6 @@ Page({
 
   stopTimer() {
     if (this.drawTimer) { clearTimeout(this.drawTimer); this.drawTimer = null; }
-    if (this.fadeTimer) { clearTimeout(this.fadeTimer); this.fadeTimer = null; }
   },
 
   async loadFresh() {
@@ -83,7 +84,7 @@ Page({
       if (d.status === 'signup') {
         this.drawSeq = (this.drawSeq || 0) + 1; // 作废还在画的那张
         this.posterPath = '';
-        this.setData({ ready: false, canSave: false, fading: false, error: '活动还在报名中，生成对阵后再来保存长图' });
+        this.setData({ ready: false, canSave: false, error: '活动还在报名中，生成对阵后再来保存长图' });
         return;
       }
       this.applySource(d, allMatches || []);
@@ -141,14 +142,8 @@ Page({
     const v = e.currentTarget.dataset.v === '1';
     if (v === this.data.compact) return;
     haptic.light();
-    // 两版高度不同：直接重画会先在新高度下露出拉伸变形的旧图（真机上闪一下）。
-    // 先淡出，看不见时再换高度、重画，画好再淡入；还在画的上一版作废（它画完不能提前淡入）
-    this.stopTimer();
-    this.drawSeq = (this.drawSeq || 0) + 1;
-    this.posterPath = '';
-    this.setData({ compact: v, fading: true, canSave: false }, () => {
-      this.fadeTimer = setTimeout(() => { this.fadeTimer = null; if (!this.gone) this.drawNow(true); }, FADE_MS);
-    });
+    // 旧版留在上面照常显示，新版在下面那块画好再换上来（drawNow）
+    this.setData({ compact: v }, () => this.drawNow(true));
   },
 
   drawNow(force) {
@@ -170,15 +165,19 @@ Page({
 
     this.stopTimer();
     const seq = this.drawSeq = (this.drawSeq || 0) + 1;
+    // 画在下面那块（被盖住、看不见）；还没画出过图时上面那块是空的，卡片直接用新高度
+    const back = 1 - this.data.front;
+    const cvHs = this.data.cvHs.slice();
+    cvHs[back] = cvH;
     const paintCanvas = (tries) => {
       if (seq !== this.drawSeq || this.gone) return;
-      wx.createSelectorQuery().in(this).select('#draw-poster-cv').fields({ node: true, size: true }).exec(async (res) => {
+      wx.createSelectorQuery().in(this).select(CANVAS_ID(back)).fields({ node: true, size: true }).exec(async (res) => {
         if (seq !== this.drawSeq || this.gone) return;
         const node = res && res[0] && res[0].node;
         if (!node) {
           if (tries < 4) { this.drawTimer = setTimeout(() => paintCanvas(tries + 1), 60); return; }
           this.renderedSig = '';
-          this.setData({ busy: false, fading: false });
+          this.setData({ busy: false });
           wx.showToast({ title: '当前微信版本暂不支持画布导出', icon: 'none' });
           return;
         }
@@ -186,17 +185,21 @@ Page({
           const photos = await this.photoSrcs(this.drawDoc).catch(() => ({}));
           if (seq !== this.drawSeq || this.gone) return;
           const stale = () => seq !== this.drawSeq || this.gone;
-          // 画到画布上就淡入（导出成图片还要一会儿，不用等）
-          const painted = () => { if (!stale() && this.data.fading) this.setData({ fading: false }); };
+          // 画到画布上就换到上面、卡片同时换成新高度（导出成图片还要一会儿，不用等）
+          const painted = () => {
+            if (stale()) return;
+            this.hasPainted = true;
+            this.setData({ front: back, cvH });
+          };
           const out = await DP.render(node, this.drawDoc, this.drawMatches || [], { compact, model, genDate: todayStr(), photos, stale, painted });
           if (!out || stale()) return; // 又有新的一轮在画：这一轮不碰画布、不出图
           this.posterPath = out.filePath;
-          this.setData({ busy: false, fading: false, canSave: !!this.profilesFresh }); // 还没核对完授权的那一版不亮「保存」
+          this.setData({ busy: false, canSave: !!this.profilesFresh }); // 还没核对完授权的那一版不亮「保存」
         } catch (err) {
           console.error(err);
           if (seq !== this.drawSeq || this.gone) return;
           this.renderedSig = '';
-          this.setData({ busy: false, fading: false });
+          this.setData({ busy: false });
           wx.showToast({ title: '长图生成失败，请重试', icon: 'none' });
         }
       });
@@ -208,9 +211,11 @@ Page({
       drawTitle: model.title,
       statusText: model.statusText,
       hasGroups: model.hasGroups,
-      cvH,
+      cvHs,
+      // 画出过图之后，卡片高度等新图画好、换上来时才变（painted）；按钮也不先变灰再变亮（posterPath 空着时点了只提示还在生成）
+      ...(this.hasPainted ? {} : { cvH }),
+      ...(this.profilesFresh ? {} : { canSave: false }),
       busy: true,
-      canSave: false,
     }, () => {
       if (typeof wx.nextTick === 'function') wx.nextTick(() => paintCanvas(0));
       else this.drawTimer = setTimeout(() => paintCanvas(0), 40);
