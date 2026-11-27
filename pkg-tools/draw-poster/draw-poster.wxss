@@ -19,11 +19,8 @@
   box-shadow: 0 8rpx 22rpx rgba(84, 84, 146, 0.12), 0 22rpx 46rpx rgba(84, 84, 146, 0.14);
 }
 .dp-cv { width: 686rpx; display: block; }
-.dp-busy {
-  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
-  background: rgba(255, 255, 255, 0.84);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 25rpx; font-weight: 700; color: #6E6EA3;
-}
+/* 切换完整版 / 精简版：淡出 0.14s（页面等 FADE_MS 再重画），画好淡入 0.22s；只动 opacity */
+.dp-cv-wrap { opacity: 1; transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.dp-cv-wrap.fade { opacity: 0; transition-duration: 0.14s; }
 
 .dp-foot-btn { margin-top: 26rpx; }

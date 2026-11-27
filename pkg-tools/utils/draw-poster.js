@@ -783,6 +783,7 @@ async function render(canvas, draw, matches, opts) {
   else if (typeof ctx.scale === 'function') ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, W, H);
   paint(ctx, model, o.genDate || '', imgs);
+  if (typeof o.painted === 'function') o.painted(); // 画布上已经是新图（导出还要一会儿）：页面这时就可以淡入
   const r = await new Promise((ok, bad) => wx.canvasToTempFilePath({
     canvas, destWidth: cw, destHeight: ch,
     fileType: 'jpg', quality: 0.92, success: ok, fail: bad,
@@ -802,12 +803,23 @@ function within(p, ms) {
 }
 
 // photos：{ 显示名: 图片地址 }（页面只放同意了最新版说明的人和本人）；整批最多等 PHOTO_WAIT_MS，加载不出来的画首字圆
+// 已加载的照片按画布、地址记住：切换完整版 / 精简版、拿到最新授权重画时不用再加载一遍（画布换了就重新加载）
+const loaded = typeof WeakMap === 'function' ? new WeakMap() : null;
 async function loadPhotos(canvas, photos) {
   const names = Object.keys(photos || {}).filter((n) => photos[n]);
   if (!names.length) return {};
   const { loadAvatar } = require('./poster');
+  let seen = null;
+  if (loaded && canvas && typeof canvas === 'object') {
+    seen = loaded.get(canvas);
+    if (!seen) { seen = new Map(); loaded.set(canvas, seen); }
+  }
   const got = {};
-  await within(Promise.all(names.map((n) => loadAvatar(canvas, photos[n]).then((img) => { if (img) got[n] = img; }).catch(() => {}))), PHOTO_WAIT_MS);
+  await within(Promise.all(names.map((n) => {
+    const src = photos[n];
+    if (seen && seen.has(src)) { got[n] = seen.get(src); return null; }
+    return loadAvatar(canvas, src).then((img) => { if (img) { got[n] = img; if (seen) seen.set(src, img); } }).catch(() => {});
+  })), PHOTO_WAIT_MS);
   return Object.assign({}, got); // 到点后晚到的图不进这一版
 }
 

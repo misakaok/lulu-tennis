@@ -11,6 +11,8 @@ const haptic = require('../../utils/haptic');
 const pad = (n) => (n < 10 ? '0' + n : '' + n);
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const STAGE_W_RPX = 686;
+// 切换完整版 / 精简版：先淡出这么久，看不见时再换高度、重画，画好淡入（和 wxss 的 .dp-cv-wrap.fade 时长一致）
+const FADE_MS = 150;
 
 Page({
   data: {
@@ -23,6 +25,7 @@ Page({
     cvH: 1000,
     busy: false,
     canSave: false,
+    fading: false,
   },
 
   onLoad(options) {
@@ -52,6 +55,7 @@ Page({
 
   stopTimer() {
     if (this.drawTimer) { clearTimeout(this.drawTimer); this.drawTimer = null; }
+    if (this.fadeTimer) { clearTimeout(this.fadeTimer); this.fadeTimer = null; }
   },
 
   async loadFresh() {
@@ -79,7 +83,7 @@ Page({
       if (d.status === 'signup') {
         this.drawSeq = (this.drawSeq || 0) + 1; // 作废还在画的那张
         this.posterPath = '';
-        this.setData({ ready: false, canSave: false, error: '活动还在报名中，生成对阵后再来保存长图' });
+        this.setData({ ready: false, canSave: false, fading: false, error: '活动还在报名中，生成对阵后再来保存长图' });
         return;
       }
       this.applySource(d, allMatches || []);
@@ -137,7 +141,14 @@ Page({
     const v = e.currentTarget.dataset.v === '1';
     if (v === this.data.compact) return;
     haptic.light();
-    this.setData({ compact: v }, () => this.drawNow(true));
+    // 两版高度不同：直接重画会先在新高度下露出拉伸变形的旧图（真机上闪一下）。
+    // 先淡出，看不见时再换高度、重画，画好再淡入；还在画的上一版作废（它画完不能提前淡入）
+    this.stopTimer();
+    this.drawSeq = (this.drawSeq || 0) + 1;
+    this.posterPath = '';
+    this.setData({ compact: v, fading: true, canSave: false }, () => {
+      this.fadeTimer = setTimeout(() => { this.fadeTimer = null; if (!this.gone) this.drawNow(true); }, FADE_MS);
+    });
   },
 
   drawNow(force) {
@@ -167,7 +178,7 @@ Page({
         if (!node) {
           if (tries < 4) { this.drawTimer = setTimeout(() => paintCanvas(tries + 1), 60); return; }
           this.renderedSig = '';
-          this.setData({ busy: false });
+          this.setData({ busy: false, fading: false });
           wx.showToast({ title: '当前微信版本暂不支持画布导出', icon: 'none' });
           return;
         }
@@ -175,15 +186,17 @@ Page({
           const photos = await this.photoSrcs(this.drawDoc).catch(() => ({}));
           if (seq !== this.drawSeq || this.gone) return;
           const stale = () => seq !== this.drawSeq || this.gone;
-          const out = await DP.render(node, this.drawDoc, this.drawMatches || [], { compact, model, genDate: todayStr(), photos, stale });
+          // 画到画布上就淡入（导出成图片还要一会儿，不用等）
+          const painted = () => { if (!stale() && this.data.fading) this.setData({ fading: false }); };
+          const out = await DP.render(node, this.drawDoc, this.drawMatches || [], { compact, model, genDate: todayStr(), photos, stale, painted });
           if (!out || stale()) return; // 又有新的一轮在画：这一轮不碰画布、不出图
           this.posterPath = out.filePath;
-          this.setData({ busy: false, canSave: !!this.profilesFresh }); // 还没核对完授权的那一版不亮「保存」
+          this.setData({ busy: false, fading: false, canSave: !!this.profilesFresh }); // 还没核对完授权的那一版不亮「保存」
         } catch (err) {
           console.error(err);
           if (seq !== this.drawSeq || this.gone) return;
           this.renderedSig = '';
-          this.setData({ busy: false });
+          this.setData({ busy: false, fading: false });
           wx.showToast({ title: '长图生成失败，请重试', icon: 'none' });
         }
       });

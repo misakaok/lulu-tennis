@@ -26,8 +26,11 @@
 
     <!-- 高清画布预览区（高度按实际内容精准自适应） -->
     <view class="dp-stage" style="height:{{cvH}}rpx" bindtap="previewPoster">
-      <canvas type="2d" id="draw-poster-cv" class="dp-cv" style="height:{{cvH}}rpx"></canvas>
-      <view wx:if="{{busy}}" class="dp-busy">正在排版生成长图…</view>
+      <!-- 不盖「生成中」遮罩：先画缓存、云端读完再画时，旧图留着直到新图画好（画布清空和重画在同一帧），盖遮罩会白闪两下 -->
+      <!-- 切换完整版 / 精简版时整张淡出、画好再淡入（fading），不露出新高度下拉伸的旧图 -->
+      <view class="dp-cv-wrap {{fading ? 'fade' : ''}}">
+        <canvas type="2d" id="draw-poster-cv" class="dp-cv" style="height:{{cvH}}rpx"></canvas>
+      </view>
     </view>
 
     <!-- 滑到最底也能顺手保存 -->

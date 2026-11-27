@@ -715,6 +715,8 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
   assert.deepStrictEqual([dpCfg.enableShareAppMessage, dpCfg.enableShareTimeline], [false, false]);
   const dpXml = read('pkg-tools/draw-poster/draw-poster.wxml');
   assert.ok(/id="draw-poster-cv"/.test(dpXml) && !/<image\b[^>]*\{\{/.test(dpXml));
+  // 打开时先画缓存、云端读完再画一次：重画时不能盖「生成中」遮罩（真机上一进页面白闪两下），旧图留到新图画好
+  assert.ok(!/wx:if="\{\{busy\}\}"/.test(dpXml) && !/正在排版/.test(dpXml), '对阵图页不盖生成中遮罩');
   assert.ok(/bindtap="openPoster"/.test(read('pages/draw-view/draw-view.wxml')));
 
   const savedPaths = [];
@@ -734,6 +736,9 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
   };
   const prevWx = global.wx;
   global.wx = mockWx;
+  const timers = new Map();
+  let timerId = 0;
+  const runTimers = () => { const fns = Array.from(timers.values()); timers.clear(); fns.forEach((fn) => fn()); };
   try {
     let dpDef;
     const dpFile = path.join(root, 'pkg-tools/draw-poster/draw-poster.js');
@@ -747,7 +752,8 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
         matchesShared: async () => [],
       } : dpReq(id)),
       wx: mockWx,
-      Page: (d) => { dpDef = d; }, console, Date, setTimeout: (fn) => fn(), clearTimeout() {},
+      Page: (d) => { dpDef = d; }, console, Date,
+      setTimeout: (fn) => { timers.set(++timerId, fn); return timerId; }, clearTimeout: (id) => timers.delete(id),
     });
     const dp = Object.assign({}, dpDef, {
       data: JSON.parse(JSON.stringify(dpDef.data)),
@@ -759,10 +765,22 @@ test('活动高清对阵 / 战果长图（utils/draw-poster.js + pkg-tools/draw-
     assert.strictEqual(dp.data.hasGroups, true);
     assert.strictEqual(dp.data.canSave, true);
     const fullCvH = dp.data.cvH;
+    assert.strictEqual(dp.data.fading, false);
+    // 切换完整版 / 精简版：先淡出，看得见的时候不换高度（不然新高度下露出拉伸变形的旧图，真机上闪一下）
     dp.setCompact({ currentTarget: { dataset: { v: '1' } } });
+    assert.strictEqual(dp.data.compact, true);
+    assert.deepStrictEqual([dp.data.fading, dp.data.canSave, dp.data.cvH], [true, false, fullCvH], '淡出期间不换高度、不能存');
+    dp.savePoster();
+    assert.deepStrictEqual(savedPaths, [], '淡出期间旧版那张作废，不能存');
+    // 淡出期间又点回完整版、再点精简版：只按最后一次重画一遍
+    dp.setCompact({ currentTarget: { dataset: { v: '0' } } });
+    dp.setCompact({ currentTarget: { dataset: { v: '1' } } });
+    assert.strictEqual(timers.size, 1, '之前的淡出计时作废，只留最后一次');
+    runTimers();
     await new Promise((r) => setImmediate(r));
     assert.strictEqual(dp.data.compact, true);
     assert.ok(dp.data.cvH < fullCvH, '切到精简版后画布高度收缩');
+    assert.deepStrictEqual([dp.data.fading, dp.data.canSave], [false, true], '画好淡入、可以存');
     dp.savePoster();
     assert.deepStrictEqual(savedPaths, ['/tmp/draw-poster.jpg']);
   } finally {
@@ -1089,8 +1107,19 @@ test('对阵图画球友照片：只画同意了最新版说明的人和本人�
   global.wx = { canvasToTempFilePath: (o) => o.success({ tempFilePath: '/tmp/x.jpg' }) };
   try {
     drawn.length = 0;
-    await DP.render(canvas, d, [], { model, genDate: '2026-11-29', photos: { 小雨: 'https://ok/yu.jpg', 我自己: 'https://fail/me.jpg' } });
+    let painted = 0;
+    let made = 0;
+    const mk = canvas.createImage;
+    canvas.createImage = () => { made += 1; return mk(); };
+    await DP.render(canvas, d, [], { model, genDate: '2026-11-29', photos: { 小雨: 'https://ok/yu.jpg', 我自己: 'https://fail/me.jpg' }, painted: () => { painted += 1; } });
     assert.ok(drawn.includes('https://ok/yu.jpg') && !drawn.includes('https://fail/me.jpg'));
+    assert.strictEqual(painted, 1, '画到画布上就通知页面（淡入不用等导出）');
+    // 同一块画布再画（切换完整版 / 精简版）：加载过的照片不再加载，失败的照旧再试
+    const made1 = made;
+    drawn.length = 0;
+    await DP.render(canvas, d, [], { model, genDate: '2026-11-29', photos: { 小雨: 'https://ok/yu.jpg', 我自己: 'https://fail/me.jpg' } });
+    assert.ok(drawn.includes('https://ok/yu.jpg'));
+    assert.ok(made - made1 >= 1 && made - made1 < made1, '只重试了失败的那张');
     // 加载照片期间又开始了新的一轮：这一轮不改画布大小、不画、不出图
     drawn.length = 0;
     canvas.width = 11;
