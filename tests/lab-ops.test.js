@@ -162,6 +162,14 @@ test('成长档案 2.0：训练打卡、按月高频短板 Top3（合并比赛�
     assert.strictEqual(prog.items[0].pct, 50);
     assert.strictEqual(prog.items[1].pct, 50);
     assert.strictEqual(prog.items[2].done, true, '3.52 按 0.5 档为 3.5，达成 3.5 目标');
+    assert.ok(/只算正式战绩/.test(prog.items[0].sub) && /正式比赛/.test(prog.items[0].label));
+    // 场次目标只算正式战绩，不加私人记录（分开统计、不相加；私人记录里的「正式比赛」多半也录进了正式战绩）
+    const gjs = fs.readFileSync(path.join(__dirname, '../pkg-manage/growth/growth.js'), 'utf8');
+    assert.ok(/yearMatches: off \? off\.yearPlayed : 0,/.test(gjs) && !/growthYear/.test(gjs), '赛季目标场次不加私人记录');
+    // 目标等级的选项按 0.5 档写一位小数（3.0 不写成 3）
+    const gx = fs.readFileSync(path.join(__dirname, '../pkg-manage/growth/growth.wxml'), 'utf8');
+    assert.ok(/wx:for="\{\{goalLevelOpts\}\}"[^>]*>\{\{item\.t\}\}</.test(gx), '等级选项显示 item.t');
+    assert.ok(/goalLevelOpts: TR\.GOAL_LEVEL_OPTS\.map\(\(v\) => \(\{ v, t: v \? R\.fmt\(v\) : '暂不设' \}\)\)/.test(fs.readFileSync(path.join(__dirname, '../pkg-manage/growth/growth.js'), 'utf8')));
 
     // 删除一条打卡
     const after = TR.removeLog('u1', r1.rec.id);

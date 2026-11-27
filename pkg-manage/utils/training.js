@@ -1,7 +1,7 @@
 // 成长档案 2.0 本地私人辅助模块（100% 本人私有、全固定选项、无自由文字输入、按 uid 隔离存储，退出成员身份随 clearProtected 自动清理）：
 //   1. 结构化训练打卡（项目 + 时长 + 1~5 星完成度 + 可选固定复盘短板标签）
 //   2. 按月赛后/训后高频短板 Top3（自动合并训练打卡短板 + 成长档案私人比赛负向标签）
-//   3. 个人赛季目标进度条（纯数字档位：年度打球场次 / 年度训练时长 / 目标比赛等级）
+//   3. 个人赛季目标进度条（纯数字档位：年度正式比赛场次 / 年度训练时长 / 目标比赛等级）；场次只算正式战绩，不加私人记录
 const R = require('../../utils/rating');
 
 const LOGS_KEY = 'growth_training_logs_v1';
@@ -252,11 +252,11 @@ function goalsProgress(goals, stats) {
     const left = Math.max(0, g.matches - yearMatches);
     items.push({
       k: 'matches',
-      label: `年度打球 ${g.matches} 场`,
+      label: `年度正式比赛 ${g.matches} 场`,
       valText: `${yearMatches} / ${g.matches} 场`,
       pct,
       done: yearMatches >= g.matches,
-      sub: left === 0 ? '年度目标已达成 ✓' : `还差 ${left} 场（含正式与私人记录）`,
+      sub: left === 0 ? '年度目标已达成 ✓' : `还差 ${left} 场（只算正式战绩）`,
     });
   }
   if (g.hours > 0) {

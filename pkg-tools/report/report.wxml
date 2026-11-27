@@ -168,7 +168,7 @@
 
 <!-- 年度战报海报预览弹层（纯本机 Canvas 2D，直接预览并保存到手机相册） -->
 <view wx:if="{{posterOpen}}" class="ps-mask" catchtap="closePoster">
-  <view class="ps-box" catchtap="">
+  <view class="ps-box" catchtap="noop">
     <view class="ps-hd">
       <text class="ps-t">{{annual.year}} 年度球场战报</text>
       <text class="ps-x" bindtap="closePoster">✕</text>

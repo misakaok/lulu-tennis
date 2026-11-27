@@ -33,7 +33,7 @@
         <text>{{goalView.year}} 个人赛季目标</text>
         <view class="btn-line mini" hover-class="tap-on" bindtap="openGoalSheet">{{goalView.has ? '调整目标' : '设定目标'}}</view>
       </view>
-      <view wx:if="{{!goalView.has}}" class="goal-empty" hover-class="tap-on" bindtap="openGoalSheet">设定年度打球场次、训练时长或目标比赛等级，自动跟踪进度 ›</view>
+      <view wx:if="{{!goalView.has}}" class="goal-empty" hover-class="tap-on" bindtap="openGoalSheet">设定年度正式比赛场次、训练时长或目标比赛等级，自动跟踪进度 ›</view>
       <view wx:for="{{goalView.items}}" wx:key="k" class="gl-row">
         <view class="gl-top">
           <text class="gl-l">{{item.label}}</text>
@@ -153,7 +153,7 @@
 
   <!-- 训练打卡底部弹层（全固定点选，零文字输入） -->
   <view wx:if="{{trSheet}}" class="sh-mask" catchtap="closeTrainSheet">
-    <view class="sh-box" catchtap="">
+    <view class="sh-box" catchtap="noop">
       <view class="sh-hd"><text class="sh-t">记录一次训练</text><text class="sh-x" hover-class="tap-on" bindtap="closeTrainSheet">✕</text></view>
       <view class="sh-sec">
         <view class="sh-l">训练项目</view>
@@ -185,10 +185,10 @@
 
   <!-- 个人赛季目标底部弹层（纯数字档位点选） -->
   <view wx:if="{{goalSheet}}" class="sh-mask" catchtap="closeGoalSheet">
-    <view class="sh-box" catchtap="">
+    <view class="sh-box" catchtap="noop">
       <view class="sh-hd"><text class="sh-t">设定个人赛季目标</text><text class="sh-x" hover-class="tap-on" bindtap="closeGoalSheet">✕</text></view>
       <view class="sh-sec">
-        <view class="sh-l">年度打球场次</view>
+        <view class="sh-l">年度正式比赛场次</view>
         <view class="sh-pills">
           <view wx:for="{{goalMatchOpts}}" wx:key="*this" class="sh-pill num {{goalForm.matches === item ? 'on' : ''}}" hover-class="tap-on" data-k="matches" data-v="{{item}}" bindtap="setGoalField">{{item ? item + ' 场' : '暂不设'}}</view>
         </view>
@@ -202,7 +202,7 @@
       <view class="sh-sec">
         <view class="sh-l">目标比赛等级</view>
         <view class="sh-pills">
-          <view wx:for="{{goalLevelOpts}}" wx:key="*this" class="sh-pill num {{goalForm.level === item ? 'on' : ''}}" hover-class="tap-on" data-k="level" data-v="{{item}}" bindtap="setGoalField">{{item ? item : '暂不设'}}</view>
+          <view wx:for="{{goalLevelOpts}}" wx:key="v" class="sh-pill num {{goalForm.level === item.v ? 'on' : ''}}" hover-class="tap-on" data-k="level" data-v="{{item.v}}" bindtap="setGoalField">{{item.t}}</view>
         </view>
       </view>
       <view class="btn-primary sh-ok" hover-class="tap-on" bindtap="saveGoal">保存目标</view>

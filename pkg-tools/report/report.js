@@ -202,6 +202,8 @@ Page({
     });
   },
 
+  // 弹层内容拦住点击、什么都不做：catchtap 写空字符串拦不住，点里面的选项会冒泡到遮罩把弹层关掉
+  noop() {},
   closePoster() {
     this.posterSeq = (this.posterSeq || 0) + 1;
     this.stopPosterTimer();

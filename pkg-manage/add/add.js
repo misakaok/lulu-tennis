@@ -289,6 +289,8 @@ Page({
   pickRk(e) { this.setData({ rkId: e.currentTarget.dataset.id }); },
   rkMinQuick(e) { this.setData({ rkMin: e.currentTarget.dataset.m }); },
   rkMinInput(e) { this.setData({ rkMin: String(e.detail.value || '').replace(/\D/g, '').slice(0, 3) }); },
+  // 弹层内容拦住点击、什么都不做：catchtap 写空字符串拦不住，点里面的选项会冒泡到遮罩把弹层关掉
+  noop() {},
   skipRkLog() {
     if (this.data.rkBusy) return;
     const url = this.afterRkUrl;

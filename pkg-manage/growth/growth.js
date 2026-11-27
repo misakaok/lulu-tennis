@@ -58,7 +58,9 @@ Page({
     drillOpts: TR.DRILLS, durOpts: TR.DURATIONS, rateOpts: TR.RATINGS, weakTagOpts: TR.WEAK_TAGS,
     trSheet: false, trForm: { drill: 'serve', minutes: 60, score: 4, weakTags: [] }, trWeakMap: {},
     goalSheet: false, goalForm: { matches: 50, hours: 20, level: 3.5 },
-    goalMatchOpts: TR.GOAL_MATCH_OPTS, goalHourOpts: TR.GOAL_HOUR_OPTS, goalLevelOpts: TR.GOAL_LEVEL_OPTS,
+    goalMatchOpts: TR.GOAL_MATCH_OPTS, goalHourOpts: TR.GOAL_HOUR_OPTS,
+    // 等级档位按 0.5 档写一位小数（3.0、4.0），不能在 wxml 里直接显示数字（会写成 3、4）
+    goalLevelOpts: TR.GOAL_LEVEL_OPTS.map((v) => ({ v, t: v ? R.fmt(v) : '暂不设' })),
   },
 
   onLoad() {
@@ -109,10 +111,11 @@ Page({
     const weak = TR.weaknessTop3(this.growthList || [], logs, ym);
     const year = day.slice(0, 4);
     const goals = TR.loadGoals(uid, year);
-    const growthYear = (this.growthList || []).filter((r) => String(r.date || '').slice(0, 4) === year).length;
     const off = this.data.official;
+    // 场次目标只算正式战绩（2026-11-27 用户选的）：私人记录和正式战绩分开统计、不相加，
+    // 私人记录里选「正式比赛」的那场多半也录进了正式战绩，加起来会算两遍
     const goalView = TR.goalsProgress(goals, {
-      yearMatches: (off ? off.yearPlayed : 0) + growthYear,
+      yearMatches: off ? off.yearPlayed : 0,
       yearTrainingMin: tr.yearMin,
       currentLevel: off ? off.curLevel : null,
     });
@@ -213,6 +216,8 @@ Page({
     haptic.light();
     this.setData({ goalSheet: true, goalForm: { matches: cur.matches, hours: cur.hours, level: cur.level } });
   },
+  // 弹层内容拦住点击、什么都不做：catchtap 写空字符串拦不住，点里面的选项会冒泡到遮罩把弹层关掉
+  noop() {},
   closeGoalSheet() { this.setData({ goalSheet: false }); },
   setGoalField(e) {
     const { k, v } = e.currentTarget.dataset;

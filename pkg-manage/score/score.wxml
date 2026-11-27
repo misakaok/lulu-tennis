@@ -171,7 +171,7 @@
 
 <!-- 录完比赛顺手记入球拍时长弹层（仅本人首次录分且有在役球拍时弹出，纯可选） -->
 <view wx:if="{{rkOpen}}" class="rk-mask" catchtap="skipRkLog">
-  <view class="rk-sheet" catchtap="">
+  <view class="rk-sheet" catchtap="noop">
     <view class="rk-hd">
       <text class="rk-t">比分已保存 · 顺手记入球拍时长？</text>
       <text class="rk-x" bindtap="skipRkLog">✕</text>

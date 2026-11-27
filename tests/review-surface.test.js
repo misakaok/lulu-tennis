@@ -51,6 +51,25 @@ T.push({ name: '所有注册页面和组件：没有相册、评价、简介、�
   assert.ok(!fs.existsSync(path.join(root, 'components/rk-photo')), '球拍照片组件已删除');
 } });
 
+T.push({ name: '事件绑定不写空字符串、绑的函数都存在：弹层内容用 catchtap="noop" 拦住点击（catchtap="" 拦不住，点选项会冒泡到遮罩把弹层关掉）', fn() {
+  const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
+  const bases = allPages(app).map((p) => path.join(root, p));
+  ['components'].forEach((dir) => fs.readdirSync(path.join(root, dir)).forEach((c) => {
+    const b = path.join(root, dir, c, c);
+    if (fs.existsSync(b + '.wxml')) bases.push(b);
+  }));
+  bases.forEach((base) => {
+    const rel = path.relative(root, base);
+    const xml = fs.readFileSync(base + '.wxml', 'utf8');
+    const code = fs.readFileSync(base + '.js', 'utf8');
+    assert.ok(!/\b(?:bind|catch|capture-bind|capture-catch|mut-bind):?[a-z]+\s*=\s*(['"])\s*\1/.test(xml), rel + ' 有空的事件绑定');
+    (xml.match(/\bcatchtap\s*=\s*"([A-Za-z_]\w*)"/g) || []).forEach((m) => {
+      const fn = m.replace(/.*"(.*)"/, '$1');
+      assert.ok(new RegExp('\\b' + fn + '\\s*\\(').test(code), rel + ' 的 catchtap="' + fn + '" 没有对应的函数');
+    });
+  });
+} });
+
 T.push({ name: '活动首页顶部轮播：只换背景（固定底图 + 2 张淡入淡出），文字按钮不动；只有活动首页有；切走页面停、朋友圈单页不转', fn() {
   const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
   allPages(app).forEach((page) => {
