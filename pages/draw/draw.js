@@ -77,7 +77,7 @@ const HERO_SLIDES = 3; // 顶部背景轮播张数（hero-court + hero-2 + hero-
 const HERO_MS = 3000; // 每张停 3 秒（2026-11-23 用户嫌 4 秒慢）
 
 Page({
-  data: { list: [], shown: [], page: 1, totalPages: 1, totalCount: 0, pageOpts: ['第 1 页'], loading: true, undo: null, tab: 'all', mineCount: 0, next: null, nextStale: false, canPublish: false, slide: 0 },
+  data: { list: [], shown: [], page: 1, totalPages: 1, totalCount: 0, pageOpts: ['第 1 页'], loading: true, undo: null, tab: 'all', mineCount: 0, next: null, signed: [], nextStale: false, canPublish: false, slide: 0 },
   onLoad() {
     // 朋友圈单页模式：只显示固定介绍，不读缓存、不调云函数（见 utils/timeline.js）
     if (TL.isTimeline()) { this.timeline = true; this.setData({ timeline: true, loading: false }); return; }
@@ -153,7 +153,8 @@ Page({
     this.alertVer = A.version();
     const next = NX.nextMatch(this.draws, this.matches, this.myId, this.signups, this.today);
     if (next) next.moved = A.nextMoved(next.drawId, next.key); // 这一场的时间、场地刚变过（同一活动别的场次变了不算）
-    this.setData({ mineCount: list.filter((x) => x.mine).length, next });
+    const signedList = NX.signedDraws(this.draws, this.signups, this.myId, this.today);
+    this.setData({ mineCount: list.filter((x) => x.mine).length, next, signed: signedList });
     this.apply();
   },
   // 按页切片交给渲染层（每页 PAGE 场）：数据刷新（录分、报名后回来）保持当前页并防越界，切换选项卡回到第 1 页
@@ -235,9 +236,21 @@ Page({
     db.prefetchDrawDetail(n.drawId);
     wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
   },
-  // 把「我的下一场」写进手机日历（用户主动点按钮，由系统弹窗确认；不带人名，也不记加没加过）
-  addCalendar() {
-    const cal = this.data.next && this.data.next.cal;
+  // 我报名的活动 → 活动详情（先预取详情请求，减少打开等待）
+  openSigned(e) {
+    const id = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id;
+    if (!id) return;
+    db.prefetchDrawDetail(id);
+    wx.navigateTo({ url: '/pages/draw-view/draw-view?id=' + id });
+  },
+  // 把「我的下一场」或「我报名的活动」写进手机日历（用户主动点按钮，由系统弹窗确认；不带人名，也不记加没加过）
+  addCalendar(e) {
+    const ds = (e && e.currentTarget && e.currentTarget.dataset) || {};
+    const from = ds.from || 'next';
+    const idx = ds.i === '' || ds.i === null || ds.i === undefined ? -1 : Number(ds.i);
+    const cal = from === 'signed'
+      ? (this.data.signed && this.data.signed[idx] && this.data.signed[idx].cal)
+      : from === 'next' ? (this.data.next && this.data.next.cal) : null;
     if (!cal) return;
     if (typeof wx.addPhoneCalendar !== 'function') {
       wx.showToast({ title: '微信版本太旧，暂不支持', icon: 'none' });

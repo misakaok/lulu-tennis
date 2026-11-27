@@ -87,6 +87,21 @@
 .nx-stale { margin-bottom: 16rpx; padding: 14rpx 20rpx; border-radius: 16rpx; font-size: 23rpx; color: #6B5200; background: #FBF0C8; } /* 和 .ui-tag.warn 同色 */
 .nx-stale-s { margin-top: 8rpx; font-size: 23rpx; color: #84849E; }
 
+/* 我报名的活动（报名中、未生成对阵） */
+.sg { padding: 26rpx 28rpx 24rpx; }
+.sg-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.sg-title { flex: 1; min-width: 0; font-size: 31rpx; font-weight: 700; line-height: 1.35; color: #323252; word-break: normal; overflow-wrap: break-word; }
+.sg-tag { flex: none; margin: 4rpx 0 0 16rpx; }
+.sg-when { display: flex; align-items: baseline; flex-wrap: wrap; margin-top: 14rpx; font-size: 26rpx; }
+.sg-date { font-weight: 600; color: #2E2E4A; }
+.sg-sep { margin: 0 10rpx; color: #A5A5BA; }
+.sg-time { font-weight: 700; color: #6E6EA3; }
+.sg-time.tbd { font-weight: 400; color: #84849E; }
+.sg-loc { margin-top: 8rpx; font-size: 24rpx; line-height: 1.4; color: #70708C; }
+.sg-partner { margin-top: 10rpx; font-size: 24rpx; color: #70708C; }
+.sg-foot { display: flex; align-items: center; justify-content: flex-end; margin-top: 20rpx; }
+.sg-cal { margin-right: 16rpx; }
+
 /* 朋友圈单页模式的介绍卡（和准入页同一张背景、同一只小狗和影子） */
 .tl-card { margin-top: 20rpx; padding: 60rpx 40rpx 48rpx; border-radius: 32rpx; color: #fff; text-align: center; background: #9493C0; box-shadow: 0 12rpx 28rpx rgba(133, 133, 184, 0.3); }
 .tl-dog { position: relative; width: 161rpx; height: 200rpx; margin: 0 auto; }

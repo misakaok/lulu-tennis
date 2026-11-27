@@ -44,9 +44,9 @@
     <view class="undo-x" hover-class="tap-on" bindtap="closeUndo">✕</view>
   </view>
 
-  <!-- 我的下一场：只有一场；时间、对手没确定的明确写「待定」；点进活动详情的「场次」并定位到这场 -->
+  <!-- 我的下一场：上方是已排出的下一场，下方是我报名的活动（报名中、未生成对阵） -->
   <block wx:if="{{tab === 'next'}}">
-    <view wx:if="{{nextStale && next}}" class="nx-stale">网络异常，下面可能不是最新的安排，下拉刷新重试</view>
+    <view wx:if="{{nextStale && (next || signed.length)}}" class="nx-stale">网络异常，下面可能不是最新的安排，下拉刷新重试</view>
     <view wx:if="{{next}}" class="card nx ani-in" bindtap="openNext">
       <view class="nx-head">
         <text class="nx-title">{{next.title}}</text>
@@ -72,11 +72,30 @@
         <text class="nx-v {{next.oppTbd ? 'tbd' : ''}}">{{next.opponent}}</text>
       </view>
       <view class="nx-foot">
-        <view wx:if="{{next.cal}}" class="btn-line mini nx-cal" hover-class="tap-on" catchtap="addCalendar">加到手机日历</view>
+        <view wx:if="{{next.cal}}" class="btn-line mini nx-cal" hover-class="tap-on" data-from="next" catchtap="addCalendar">加到手机日历</view>
         <text class="btn-line mini">查看场次 ›</text>
       </view>
     </view>
-    <view wx:elif="{{!loading}}" class="empty">
+    <block wx:if="{{signed.length}}">
+      <view wx:for="{{signed}}" wx:key="drawId" class="card sg ani-in" style="animation-delay:{{index * 62}}ms" data-id="{{item.drawId}}" bindtap="openSigned">
+        <view class="sg-top">
+          <text class="sg-title">{{item.title}}</text>
+          <text class="ui-tag {{item.waiting ? 'warn' : 'lime'}} sg-tag">{{item.waiting ? '候补' : '已报名'}}</text>
+        </view>
+        <view class="sg-when">
+          <text class="sg-date">{{item.dateText}}</text>
+          <text class="sg-sep">·</text>
+          <text class="sg-time {{item.time ? 'num' : 'tbd'}}">{{item.time || '时间待定'}}</text>
+        </view>
+        <view wx:if="{{item.place || item.court}}" class="sg-loc">{{item.place}}{{item.place && item.court ? ' · ' : ''}}{{item.court}}</view>
+        <view wx:if="{{item.double && item.partner}}" class="sg-partner">和 {{item.partner}} 搭档</view>
+        <view class="sg-foot">
+          <view wx:if="{{item.cal}}" class="btn-line mini sg-cal" hover-class="tap-on" data-from="signed" data-i="{{index}}" catchtap="addCalendar">加到手机日历</view>
+          <text class="btn-line mini">查看活动 ›</text>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{!next && !signed.length && !loading}}" class="empty">
       <image class="empty-art" src="/images/art-net.png" mode="aspectFit" />
       <view>{{nextStale ? '网络异常，暂时查不到你的下一场' : '暂无下一场'}}</view>
       <view wx:if="{{nextStale}}" class="nx-stale-s">下拉刷新重试</view>
