@@ -37,7 +37,8 @@
       { "type": "folder", "value": ".githooks" },
       { "type": "folder", "value": ".claude" },
       { "type": "suffix", "value": ".md" },
-      { "type": "suffix", "value": ".DS_Store" }
+      { "type": "suffix", "value": ".DS_Store" },
+      { "type": "prefix", "value": ".!" }
     ],
     "include": []
   },
