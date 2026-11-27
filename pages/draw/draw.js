@@ -5,6 +5,7 @@ const NX = require('../../utils/next-match');
 const TL = require('../../utils/timeline');
 const haptic = require('../../utils/haptic');
 const A = require('../../utils/alerts');
+const PV = require('../../utils/privacy');
 const PAGE = 5; // 活动列表每页显示 5 场（和战绩页统一翻页节奏）
 
 // 我和这个活动的关系（按用户 ID）：我发起 / 已报名 / 参赛中 / 已结束
@@ -233,6 +234,35 @@ Page({
     if (!n) return;
     db.prefetchDrawDetail(n.drawId);
     wx.navigateTo({ url: `/pages/draw-view/draw-view?id=${n.drawId}&tab=schedule&key=${encodeURIComponent(n.key)}` });
+  },
+  // 把「我的下一场」写进手机日历（用户主动点按钮，由系统弹窗确认；不带人名，也不记加没加过）
+  addCalendar() {
+    const cal = this.data.next && this.data.next.cal;
+    if (!cal) return;
+    if (typeof wx.addPhoneCalendar !== 'function') {
+      wx.showToast({ title: '微信版本太旧，暂不支持', icon: 'none' });
+      return;
+    }
+    wx.addPhoneCalendar(Object.assign({}, cal, {
+      success: () => {
+        wx.showToast({ title: '已加到手机日历' });
+      },
+      fail: (e) => {
+        if (PV.isDenied(e)) { PV.stopped(); return; } // 没同意隐私保护指引：停止这次操作
+        const msg = String((e && e.errMsg) || '');
+        if (/cancel/i.test(msg)) return; // 用户在系统确认框里取消：不打扰
+        if (!PV.isUndeclared(e) && /auth den|authorize/i.test(msg)) {
+          wx.showModal({
+            title: '需要日历权限',
+            content: '请在设置里开启日历权限，开启后再点「加到手机日历」。',
+            confirmText: '去设置',
+            success: (r) => { if (r && r.confirm && typeof wx.openSetting === 'function') wx.openSetting(); },
+          });
+          return;
+        }
+        wx.showToast({ title: '没有加上，请稍后再试', icon: 'none' });
+      },
+    }));
   },
   // 右上角「转发给朋友」：只转发小程序首页，标题和封面固定（不带活动名称、人名等任何内容）；
   // 不是成员的人点开会被 utils/member.js 送到准入页，看不到数据

@@ -71,7 +71,10 @@
         <pl-av wx:for="{{next.oppP}}" wx:key="name" wx:for-item="p" class="nx-av" uid="{{p.uid}}" name="{{p.name}}" />
         <text class="nx-v {{next.oppTbd ? 'tbd' : ''}}">{{next.opponent}}</text>
       </view>
-      <view class="nx-foot"><text class="btn-line mini">查看场次 ›</text></view>
+      <view class="nx-foot">
+        <view wx:if="{{next.cal}}" class="btn-line mini nx-cal" hover-class="tap-on" catchtap="addCalendar">加到手机日历</view>
+        <text class="btn-line mini">查看场次 ›</text>
+      </view>
     </view>
     <view wx:elif="{{!loading}}" class="empty">
       <image class="empty-art" src="/images/art-net.png" mode="aspectFit" />

@@ -11,10 +11,69 @@
 const E = require('./event');
 const ID = require('./ident');
 
+const CAL_DURATION = 3600; // 写进手机日历的默认时长：1 小时
+const CAL_ALARM = 3600;    // 开始前 1 小时提醒
+
 const p2 = (n) => String(n).padStart(2, '0');
 function todayOf(now) {
   now = now || new Date();
   return `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+}
+
+function parseDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return '';
+  const y = +m[1], mo = +m[2], dd = +m[3];
+  const d = new Date(Date.UTC(y, mo - 1, dd));
+  return d.getUTCFullYear() === y && d.getUTCMonth() === mo - 1 && d.getUTCDate() === dd ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+function parseTime(s) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s || '');
+  if (!m) return '';
+  const hh = +m[1], mm = +m[2];
+  return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59 ? `${p2(hh)}:${p2(mm)}` : '';
+}
+
+// 一律按北京时间（+08:00）换算成 Unix 秒，不受手机时区影响
+const bjtSec = (date, time) => Math.floor(Date.parse(`${date}T${time}:00+08:00`) / 1000);
+
+// 写进手机日历的参数（纯计算，不调微信接口）：内容会离开小程序，不带搭档、对手名字和用户 ID
+function calOf(d, x, date, time, slot) {
+  const dt = parseDate(date);
+  if (!dt) return null; // 日期待定：写不进日历
+  const slotTime = parseTime(time);
+  const sameDay = !slot.date || slot.date === d.date;
+  const actTime = sameDay ? parseTime(d.startTime) : '';
+  const useTime = slotTime || actTime;
+  const allDay = !useTime;
+  const startTime = bjtSec(dt, allDay ? '00:00' : useTime);
+  if (!Number.isFinite(startTime)) return null;
+  const endTime = allDay ? startTime : startTime + CAL_DURATION;
+  // 地点：地图选点名称地址 + 场地编号（都没有或场地待定就不写）
+  const place = E.placeOf(d.place);
+  const court = slot.court || d.venue || '';
+  const loc = [];
+  if (place) {
+    if (place.name) loc.push(place.name);
+    if (place.address && place.address !== place.name) loc.push(place.address);
+  }
+  if (court) loc.push(court);
+  const timeNote = slotTime ? '' : actTime ? `本场时间待定，活动 ${actTime} 开始` : '本场时间待定';
+  const cal = {
+    title: `LULU 网球 · ${E.titleOf(d)}`,
+    startTime,
+    endTime,
+    allDay,
+    location: loc.join(' '),
+    description: [x.stage, timeNote].filter(Boolean).join(' · '),
+  };
+  // 有具体开打 / 活动时间时提前 1 小时提醒；全天日程交给微信默认提醒
+  if (!allDay) {
+    cal.alarm = true;
+    cal.alarmOffset = CAL_ALARM;
+  }
+  return cal;
 }
 
 function cmp(x, y) {
@@ -77,6 +136,7 @@ function viewOf(b, myId) {
     opponent: oppTbd ? '待定' : theirs.join(E.TEAM_SEP),
     oppP: oppTbd ? [] : people(theirs),
     oppTbd,
+    cal: calOf(d, x, date, time, slot),
   };
 }
 
